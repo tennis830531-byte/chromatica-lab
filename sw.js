@@ -1,4 +1,4 @@
-const CACHE_NAME = "chromatica-lab-dynamic-summary-1";
+const CACHE_NAME = "chromatica-lab-audio-settings-1";
 const APP_SHELL = [
   "./",
   "./index.html",

@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/app-icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/app-icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=dynamic-summary-1" />
+    <link rel="stylesheet" href="./styles.css?v=audio-settings-1" />
   </head>
   <body>
     <div id="loginGate" class="login-gate" role="dialog" aria-modal="true" aria-labelledby="loginGateTitle">
@@ -97,6 +97,10 @@
           <button class="nav-item daily-alert" data-view="daily">
             <span>每日目標</span>
             <small id="dailyNavSummary">0 / 22</small>
+          </button>
+          <button class="nav-item" data-view="audio">
+            <span>收音設定</span>
+            <small>A4 / 麥克風</small>
           </button>
           <button class="nav-item" data-view="longtone">
             <span>長音練習室</span>
@@ -224,32 +228,30 @@
                   <span id="currentBeat">0</span>
                   <small id="beatTotal">/ 8</small>
                 </div>
-                <div class="target-dynamic">
-                  <span>目前音量</span>
-                  <strong id="currentDynamic">mp</strong>
-                </div>
               </div>
 
               <div class="curve-panel">
                 <div class="curve-head">
-                  <span>音量曲線</span>
+                  <div class="curve-title">
+                    <span>音量曲線</span>
+                    <strong class="current-dynamic-chip">目前音量 <b id="currentDynamic">mp</b></strong>
+                  </div>
                   <strong id="patternText">mp</strong>
                 </div>
                 <div id="dynamicCurve" class="dynamic-curve"></div>
                 <div class="mic-panel">
                   <div class="mic-head">
                     <span>實際收音</span>
-                    <small>建議戴耳機，避免節拍器影響收音。</small>
+                    <div class="mic-head-meta">
+                      <small>建議戴耳機，避免節拍器影響收音。</small>
+                      <strong class="live-volume-pill">目前音量 <b id="liveVolume">0%</b></strong>
+                    </div>
                   </div>
                   <div class="mic-meter" aria-label="目前收音音量">
                     <div id="micLevelBar"></div>
                   </div>
                   <div id="micCurve" class="mic-curve"></div>
                   <div class="mic-stats">
-                    <div>
-                      <span>目前音量</span>
-                      <strong id="liveVolume">0%</strong>
-                    </div>
                     <div id="stabilityStat">
                       <span>穩定度</span>
                       <strong id="stabilityScore">--</strong>
@@ -265,11 +267,6 @@
                     <strong id="pitchReadout" class="tuner-note">--</strong>
                     <small id="pitchCents" class="tuner-cents">--</small>
                   </div>
-                  <label class="mic-sensitivity">
-                    <span>收音敏感度</span>
-                    <input id="micSensitivity" type="range" min="1" max="6" step="0.1" value="3.2" />
-                    <strong id="micSensitivityValue">3.2x</strong>
-                  </label>
                   <button id="calibrateMicBtn" class="ghost-btn mic-calibrate" type="button">校正靜音</button>
                 </div>
               </div>
@@ -318,13 +315,6 @@
                     <option value="12">1 / 12</option>
                   </select>
                 </div>
-                <label class="stat">
-                  <span>調音</span>
-                  <select id="tuningSelect" class="cycle-select" aria-label="調音基準">
-                    <option value="440" selected>A4 = 440</option>
-                    <option value="442">A4 = 442</option>
-                  </select>
-                </label>
               </div>
 
               <div class="controls">
@@ -353,6 +343,28 @@
           </div>
         </section>
 
+        <section id="audio" class="view">
+          <div class="section-head compact">
+            <p class="eyebrow">Audio Settings</p>
+            <h2>收音設定</h2>
+            <p>調整麥克風與音準偵測的基準，練習畫面會直接套用。</p>
+          </div>
+          <div class="panel audio-settings-panel">
+            <label class="setting-row">
+              <span>調音基準</span>
+              <select id="tuningSelect" class="cycle-select" aria-label="調音基準">
+                <option value="440" selected>A4 = 440</option>
+                <option value="442">A4 = 442</option>
+              </select>
+            </label>
+            <label class="setting-row mic-sensitivity">
+              <span>收音敏感度</span>
+              <input id="micSensitivity" type="range" min="1" max="6" step="0.1" value="3.2" />
+              <strong id="micSensitivityValue">3.2x</strong>
+            </label>
+          </div>
+        </section>
+
         <section id="soon" class="view">
           <div class="coming-soon">
             <p class="eyebrow">Coming soon</p>
@@ -363,6 +375,6 @@
       </main>
     </div>
 
-    <script src="./app.js?v=dynamic-summary-1"></script>
+    <script src="./app.js?v=audio-settings-1"></script>
   </body>
 </html>

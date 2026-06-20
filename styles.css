@@ -889,24 +889,26 @@ p {
 
 .meter-stage {
   display: grid;
-  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+  grid-template-columns: 150px;
   gap: 18px;
   align-items: center;
-  margin: 18px 0;
+  margin: 16px 0;
 }
 
 .beat-ring {
   display: grid;
   place-items: center;
+  justify-self: center;
+  width: 150px;
   aspect-ratio: 1;
-  border: 14px solid rgba(15, 118, 110, 0.18);
-  border-top-color: var(--accent);
-  border-radius: 999px;
+  border: 1px solid var(--line);
+  border-top: 8px solid var(--accent);
+  border-radius: 8px;
   background: white;
 }
 
 .beat-ring span {
-  font-size: 4.5rem;
+  font-size: 3rem;
   font-weight: 950;
   line-height: 1;
 }
@@ -914,27 +916,6 @@ p {
 .beat-ring small {
   color: var(--muted);
   font-weight: 800;
-}
-
-.target-dynamic {
-  display: grid;
-  align-content: center;
-  min-height: 180px;
-  padding: 24px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #f9fbfa;
-}
-
-.target-dynamic span {
-  color: var(--muted);
-  font-weight: 800;
-}
-
-.target-dynamic strong {
-  color: var(--accent-2);
-  font-size: clamp(4rem, 10vw, 8rem);
-  line-height: 1;
 }
 
 .curve-panel {
@@ -946,6 +927,7 @@ p {
 
 .curve-head {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
@@ -953,8 +935,32 @@ p {
   font-weight: 900;
 }
 
+.curve-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .curve-head strong {
   color: var(--ink);
+}
+
+.current-dynamic-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f9fbfa;
+  color: var(--muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.current-dynamic-chip b {
+  color: var(--accent-2);
+  font-size: 1.05rem;
 }
 
 .dynamic-curve {
@@ -992,6 +998,13 @@ p {
   margin-bottom: 12px;
 }
 
+.mic-head-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .mic-head small {
   color: var(--muted);
   font-weight: 800;
@@ -1004,6 +1017,25 @@ p {
   color: var(--muted);
   font-size: 0.86rem;
   font-weight: 900;
+}
+
+.live-volume-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f9fbfa;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.live-volume-pill b {
+  color: var(--ink);
+  font-size: 1rem;
 }
 
 .mic-meter {
@@ -1046,7 +1078,7 @@ p {
 
 .mic-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: minmax(130px, 1fr);
   gap: 10px;
   margin-top: 12px;
 }
@@ -1255,13 +1287,14 @@ p {
 
 .settings-grid {
   display: grid;
-  grid-template-columns: 2fr repeat(6, minmax(96px, 1fr));
+  grid-template-columns: 2fr repeat(5, minmax(96px, 1fr));
   gap: 12px;
   margin: 18px 0;
 }
 
 .setting,
-.stat {
+.stat,
+.setting-row {
   display: grid;
   gap: 8px;
   min-height: 82px;
@@ -1272,7 +1305,8 @@ p {
 }
 
 .setting span,
-.stat span {
+.stat span,
+.setting-row span {
   color: var(--muted);
   font-weight: 900;
 }
@@ -1280,6 +1314,12 @@ p {
 .setting strong,
 .stat strong {
   font-size: 1.25rem;
+}
+
+.audio-settings-panel {
+  display: grid;
+  gap: 12px;
+  max-width: 560px;
 }
 
 .cycle-select {
@@ -1397,6 +1437,16 @@ input[type="range"] {
     grid-template-columns: auto minmax(120px, 1fr) auto;
   }
 
+  .mic-head,
+  .mic-head-meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mic-head small {
+    text-align: left;
+  }
+
   .tuner-note,
   .tuner-cents {
     grid-column: span 3;
@@ -1411,6 +1461,6 @@ input[type="range"] {
   }
 
   .beat-ring span {
-    font-size: 3.6rem;
+    font-size: 3rem;
   }
 }
