@@ -1,0 +1,20 @@
+{
+  "name": "半音階口琴練習室",
+  "short_name": "口琴練習室",
+  "description": "半音階口琴長音、音量控制與每日目標練習工具。",
+  "lang": "zh-Hant",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fbfaf6",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "./assets/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

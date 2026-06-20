@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f766e" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="口琴練習室" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <title>半音階口琴練習室</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./assets/app-icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./assets/app-icon.svg" />
+    <link rel="stylesheet" href="./styles.css?v=dynamic-summary-1" />
+  </head>
+  <body>
+    <div id="loginGate" class="login-gate" role="dialog" aria-modal="true" aria-labelledby="loginGateTitle">
+      <div class="login-card">
+        <div class="brand login-brand">
+          <div class="brand-mark" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <div>
+            <p class="eyebrow">Chromatica Lab</p>
+            <h1>半音階口琴練習室</h1>
+          </div>
+        </div>
+        <p class="eyebrow">Sign in</p>
+        <h2 id="loginGateTitle">登入後開始練習</h2>
+        <p>請使用 Google 或 Apple 帳號登入，系統會保存你的每日目標與練習進度。</p>
+        <div class="login-actions">
+          <button class="login-btn google-login" data-login-provider="Google" type="button">
+            <span aria-hidden="true">G</span>
+            使用 Google 登入
+          </button>
+          <button class="login-btn apple-login" data-login-provider="Apple" type="button">
+            <span aria-hidden="true"></span>
+            使用 Apple 登入
+          </button>
+        </div>
+        <p class="login-note">目前為本機原型登入流程；正式上線時會串接 Google / Apple 帳號驗證。</p>
+      </div>
+    </div>
+
+    <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
+      <div class="mic-gate-card">
+        <p class="eyebrow">Before Practice</p>
+        <h2 id="micGateTitle">開啟麥克風</h2>
+        <p>長音練習會用麥克風感知音量穩定度。開啟前請先確認：</p>
+        <ul class="gate-list">
+          <li>開啟麥克風後會先做 1 秒靜音校正。</li>
+          <li>校正時請先不要吹、不要說話。</li>
+          <li>校正後會把當下環境聲當作基準扣掉。</li>
+          <li>小聲口琴仍會保留收音敏感度。</li>
+          <li>環境聲改變時，可在實際收音區重新校正靜音。</li>
+          <li>建議戴上耳機，避免節拍器被麥克風收進去。</li>
+        </ul>
+        <div id="micGateError" class="gate-error" aria-live="polite"></div>
+        <div class="gate-actions">
+          <button id="micGateBtn" class="primary-btn" type="button">開啟麥克風開始</button>
+          <button id="micGateSkip" class="ghost-btn" type="button">先瀏覽 App</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="goalToast" class="goal-toast hidden" role="dialog" aria-modal="true" aria-labelledby="goalToastTitle">
+      <div class="goal-toast-card">
+        <p class="eyebrow">Daily Goal</p>
+        <h2 id="goalToastTitle">恭喜完成</h2>
+        <p id="goalToastText">你已完成今日目標。</p>
+        <button id="goalToastClose" class="primary-btn" type="button">知道了</button>
+      </div>
+    </div>
+
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="主要功能">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <div>
+            <p class="eyebrow">Chromatica Lab</p>
+            <h1>半音階口琴練習室</h1>
+          </div>
+        </div>
+        <button id="logoutBtn" class="logout-btn" type="button">登出</button>
+
+        <nav class="nav-list">
+          <button class="nav-item active" data-view="intro">
+            <span>認識半音階口琴</span>
+            <small>已開放</small>
+          </button>
+          <button class="nav-item" data-view="map">
+            <span>音符地圖</span>
+            <small>12 / 14 / 16 孔</small>
+          </button>
+          <button class="nav-item daily-alert" data-view="daily">
+            <span>每日目標</span>
+            <small id="dailyNavSummary">0 / 22</small>
+          </button>
+          <button class="nav-item" data-view="longtone">
+            <span>長音練習室</span>
+            <small>Lesson 1</small>
+          </button>
+          <button class="nav-item locked" data-view="soon">
+            <span>按鍵練習室</span>
+            <small>Coming soon</small>
+          </button>
+          <button class="nav-item locked" data-view="soon">
+            <span>音階練習室</span>
+            <small>Coming soon</small>
+          </button>
+          <button class="nav-item locked" data-view="soon">
+            <span>節奏練習室</span>
+            <small>Coming soon</small>
+          </button>
+          <button class="nav-item locked" data-view="soon">
+            <span>旋律練習室</span>
+            <small>Coming soon</small>
+          </button>
+          <button class="nav-item locked" data-view="soon">
+            <span>合奏練習室</span>
+            <small>Coming soon</small>
+          </button>
+        </nav>
+      </aside>
+
+      <main class="main">
+        <section id="intro" class="view active">
+          <div class="section-head">
+            <p class="eyebrow">開放課程 01</p>
+            <h2>認識半音階口琴</h2>
+            <p>先知道這把樂器怎麼發聲、音怎麼排列，再進入第一堂長音練習。</p>
+          </div>
+
+          <div class="intro-grid">
+            <article class="panel intro-panel">
+              <h3>半音階口琴是什麼</h3>
+              <p>
+                半音階口琴可以演奏完整十二個半音。它有吹音、吸音，也有側邊按鍵讓音升高半音，
+                因此能演奏古典、流行、爵士與合奏聲部。
+              </p>
+            </article>
+            <article class="panel intro-panel">
+              <h3>12 / 14 / 16 孔</h3>
+              <p>
+                12 孔最常見，音域足夠入門。14 孔和 16 孔通常往低音延伸，能吹到更厚、更低的聲部，
+                適合之後的旋律與合奏需求。
+              </p>
+            </article>
+            <article class="panel intro-panel">
+              <h3>吹音、吸音、按鍵</h3>
+              <p>
+                每一孔都有吹音與吸音。按下側邊按鍵時，吹音與吸音會升高半音。音符地圖可以先幫你建立方向感。
+              </p>
+            </article>
+          </div>
+
+          <div class="panel lesson-card">
+            <div>
+              <p class="eyebrow">Lesson 1</p>
+              <h3>長音練習室</h3>
+              <p>第一堂只練一件事：把一顆音吹穩，並讓聲音有音量、有方向、有收尾。</p>
+            </div>
+            <button class="primary-btn" data-jump="longtone">開始練習</button>
+          </div>
+        </section>
+
+        <section id="map" class="view">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Note Map</p>
+              <h2>音符地圖</h2>
+              <p>以 16 孔總覽呈現常見 C 調 solo tuning。12 孔從第 5 欄開始看，14 孔從第 3 欄開始看。</p>
+            </div>
+            <aside class="map-note">常見配置，實際音位仍以你的琴款標示為準。</aside>
+          </div>
+
+          <div class="map-toolbar panel">
+            <strong>16 孔總覽</strong>
+            <div class="map-legend" aria-label="琴型範圍圖例">
+              <button class="map-model active" data-model-holes="16" type="button"><i class="legend-16"></i>16 孔</button>
+              <button class="map-model" data-model-holes="14" type="button"><i class="legend-14"></i>14 孔</button>
+              <button class="map-model" data-model-holes="12" type="button"><i class="legend-12"></i>12 孔</button>
+            </div>
+            <p id="mapModelHint">目前顯示 16 孔完整 1-16 欄。</p>
+          </div>
+
+          <div class="note-map-wrap panel">
+            <div id="noteMap" class="note-map" aria-live="polite"></div>
+          </div>
+
+          <div class="map-footnote">小註記：C4、C5、C6 與 C#4、C#5、C#6 會出現重複音，這是 solo tuning 常見配置；最後一孔按鍵吸音為 D7。</div>
+        </section>
+
+        <section id="longtone" class="view">
+          <div class="section-head compact">
+            <p class="eyebrow">Lesson 1</p>
+            <h2>長音練習室</h2>
+            <p>長音不是比誰吹得久，而是讓聲音穩定、有方向、有控制。</p>
+          </div>
+
+          <div class="practice-layout">
+            <aside class="exercise-list panel" aria-label="長音練習列表">
+              <div class="list-title">
+                <h3>練習項目</h3>
+                <span id="exerciseCount"></span>
+              </div>
+              <div id="exerciseList" class="exercise-buttons"></div>
+            </aside>
+
+            <section class="player panel" aria-live="polite">
+              <div class="player-top">
+                <div>
+                  <p class="eyebrow" id="exerciseLevel">Level 1</p>
+                  <h3 id="exerciseTitle">8 拍平穩長音</h3>
+                  <p id="exerciseInstruction">用 mp 音量穩定吹 8 拍，注意起音與音尾。</p>
+                </div>
+                <div class="phase-pill" id="phasePill">待開始</div>
+              </div>
+
+              <div class="meter-stage">
+                <div class="beat-ring">
+                  <span id="currentBeat">0</span>
+                  <small id="beatTotal">/ 8</small>
+                </div>
+                <div class="target-dynamic">
+                  <span>目前音量</span>
+                  <strong id="currentDynamic">mp</strong>
+                </div>
+              </div>
+
+              <div class="curve-panel">
+                <div class="curve-head">
+                  <span>音量曲線</span>
+                  <strong id="patternText">mp</strong>
+                </div>
+                <div id="dynamicCurve" class="dynamic-curve"></div>
+                <div class="mic-panel">
+                  <div class="mic-head">
+                    <span>實際收音</span>
+                    <small>建議戴耳機，避免節拍器影響收音。</small>
+                  </div>
+                  <div class="mic-meter" aria-label="目前收音音量">
+                    <div id="micLevelBar"></div>
+                  </div>
+                  <div id="micCurve" class="mic-curve"></div>
+                  <div class="mic-stats">
+                    <div>
+                      <span>目前音量</span>
+                      <strong id="liveVolume">0%</strong>
+                    </div>
+                    <div id="stabilityStat">
+                      <span>穩定度</span>
+                      <strong id="stabilityScore">--</strong>
+                    </div>
+                  </div>
+                  <div id="pitchTuner" class="pitch-tuner">
+                    <span class="tuner-edge flat">低</span>
+                    <div class="tuner-track">
+                      <div class="tuner-center"></div>
+                      <div id="pitchNeedle" class="tuner-needle"></div>
+                    </div>
+                    <span class="tuner-edge sharp">高</span>
+                    <strong id="pitchReadout" class="tuner-note">--</strong>
+                    <small id="pitchCents" class="tuner-cents">--</small>
+                  </div>
+                  <label class="mic-sensitivity">
+                    <span>收音敏感度</span>
+                    <input id="micSensitivity" type="range" min="1" max="6" step="0.1" value="3.2" />
+                    <strong id="micSensitivityValue">3.2x</strong>
+                  </label>
+                  <button id="calibrateMicBtn" class="ghost-btn mic-calibrate" type="button">校正靜音</button>
+                </div>
+              </div>
+
+              <div class="settings-grid">
+                <label class="setting">
+                  <span>BPM</span>
+                  <input id="bpmInput" type="range" min="40" max="120" value="60" />
+                  <strong id="bpmValue">60</strong>
+                </label>
+                <label id="targetVolumeSetting" class="stat">
+                  <span>目標音量</span>
+                  <select id="targetVolumeSelect" class="cycle-select" aria-label="目標音量">
+                    <option value="p">p</option>
+                    <option value="mp" selected>mp</option>
+                    <option value="mf">mf</option>
+                    <option value="f">f</option>
+                  </select>
+                </label>
+                <label id="variantSetting" class="stat hidden">
+                  <span>練習組合</span>
+                  <select id="variantSelect" class="cycle-select" aria-label="練習組合"></select>
+                </label>
+                <div class="stat">
+                  <span>準備</span>
+                  <strong id="prepareBeats">4 拍</strong>
+                </div>
+                <div class="stat">
+                  <span>吹奏</span>
+                  <strong id="playBeats">8 拍</strong>
+                </div>
+                <div class="stat">
+                  <span>休息</span>
+                  <strong id="restBeats">4 拍</strong>
+                </div>
+                <div class="stat">
+                  <span>循環</span>
+                  <strong id="cycleCount">1 / 4</strong>
+                  <select id="cycleSelect" class="cycle-select" aria-label="循環次數">
+                    <option value="1">1 / 1</option>
+                    <option value="2">1 / 2</option>
+                    <option value="4" selected>1 / 4</option>
+                    <option value="6">1 / 6</option>
+                    <option value="8">1 / 8</option>
+                    <option value="10">1 / 10</option>
+                    <option value="12">1 / 12</option>
+                  </select>
+                </div>
+                <label class="stat">
+                  <span>調音</span>
+                  <select id="tuningSelect" class="cycle-select" aria-label="調音基準">
+                    <option value="440" selected>A4 = 440</option>
+                    <option value="442">A4 = 442</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="controls">
+                <button id="startPauseBtn" class="primary-btn">開始</button>
+                <button id="resetBtn" class="ghost-btn">重來</button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="daily" class="view">
+          <div class="section-head compact">
+            <p class="eyebrow">Daily Practice</p>
+            <h2>每日目標</h2>
+            <p>完整完成一個練習後會自動打勾，每天重新開始。</p>
+          </div>
+          <div class="panel daily-page">
+            <div class="daily-goal-head">
+              <div>
+                <span>今日完成</span>
+                <strong id="dailyGoalSummary">0 / 22</strong>
+              </div>
+              <small>完成所選循環次數後打勾</small>
+            </div>
+            <div id="dailyGoalList" class="daily-goal-list"></div>
+          </div>
+        </section>
+
+        <section id="soon" class="view">
+          <div class="coming-soon">
+            <p class="eyebrow">Coming soon</p>
+            <h2>後續練習室準備中</h2>
+            <p>第一版先把認識半音階口琴、音符地圖與長音練習室做好。</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js?v=dynamic-summary-1"></script>
+  </body>
+</html>
