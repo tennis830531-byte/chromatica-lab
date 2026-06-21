@@ -1072,7 +1072,7 @@ function renderExercise() {
   $("#prepareBeats").textContent = `${exercise.prepareBeats} 拍`;
   $("#playBeats").textContent = `${exercise.playBeats} 拍`;
   $("#restBeats").textContent = `${exercise.restBeats} 拍`;
-  $("#cycleCount").textContent = `${cycle} / ${totalCycles}`;
+  $("#cycleCount").textContent = totalCycles;
   $("#bpmInput").value = bpm;
   $("#bpmValue").textContent = bpm;
   $("#cycleSelect").value = String(totalCycles);
@@ -1129,7 +1129,7 @@ function updateBeatDisplay() {
   const pattern = getExercisePattern(exercise);
   const displayBeat = phase === "play" ? beat : phase === "idle" || phase === "done" ? 0 : beat;
   $("#currentBeat").textContent = displayBeat;
-  $("#cycleCount").textContent = `${phase === "idle" ? 1 : cycle} / ${totalCycles}`;
+  $("#cycleCount").textContent = totalCycles;
   $("#beatTotal").textContent = phase === "prepare"
     ? `/ ${exercise.prepareBeats}`
     : phase === "rest"
