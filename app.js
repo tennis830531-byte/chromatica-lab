@@ -274,7 +274,7 @@ const chromaticLayouts = {
 let currentView = "intro";
 let selectedHoles = 16;
 let selectedMapHole = null;
-let selectedExercise = 0;
+let selectedExercise = 1;
 let bpm = exercises[0].bpm;
 let selectedTargetVolume = "mp";
 let selectedVariants = {};
@@ -937,7 +937,7 @@ async function calibrateMic() {
   micSilentRms = samples[Math.floor(samples.length * 0.5)] || 0;
   isCalibratingMic = false;
   $("#calibrateMicBtn").textContent = "重新校正靜音";
-  $("#audioCalibrateBtn").textContent = "靜音校正";
+  $("#audioCalibrateBtn").textContent = "重新校正";
   updateAudioStatus("已開啟");
 }
 
@@ -1060,7 +1060,7 @@ function renderExercise() {
   bpm = Number($("#bpmInput").value) || exercise.bpm;
   $("#exerciseLevel").textContent = localizeLevel(exercise.level);
   $("#exerciseTitle").textContent = exercise.title;
-  $("#exerciseInstruction").textContent = getExerciseInstruction(exercise);
+  $("#exerciseInstruction").textContent = exercise.title;
   $("#beatTotal").textContent = `/ ${exercise.playBeats} 拍`;
   $("#currentDynamic").textContent = interpolateDynamic(pattern, Math.max(1, beat));
   $("#patternText").textContent = getExerciseDynamicSummary(exercise);

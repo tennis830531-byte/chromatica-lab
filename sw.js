@@ -1,9 +1,9 @@
-const CACHE_NAME = "chromatica-lab-cleanup-1";
+const CACHE_NAME = "chromatica-lab-vintage-1";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=cleanup-1",
-  "./app.js?v=cleanup-1",
+  "./styles.css?v=vintage-1",
+  "./app.js?v=vintage-1",
   "./manifest.webmanifest",
   "./assets/app-icon.svg",
 ];

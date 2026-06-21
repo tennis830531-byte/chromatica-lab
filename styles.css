@@ -1,17 +1,19 @@
 :root {
   color-scheme: light;
-  --bg: #f8fafc;
-  --card: #ffffff;
-  --primary: #0f766e;
-  --primary-soft: #f0fdfa;
-  --accent: #f59e0b;
-  --accent-soft: #fffbeb;
-  --title: #0f172a;
-  --text: #475569;
-  --muted: #64748b;
-  --faint: #94a3b8;
-  --border: #e2e8f0;
-  --shadow: 0 18px 48px rgba(15, 23, 42, 0.07);
+  --bg: #f5efe4;
+  --card: #fffdf9;
+  --primary: #7c4a2d;
+  --primary-soft: #f3e6dc;
+  --accent: #d97706;
+  --accent-soft: #fef3e2;
+  --title: #2b2118;
+  --text: #5c4e44;
+  --muted: #8a7b70;
+  --faint: #a39488;
+  --border: #e7dccf;
+  --soft-line: #f0e7dc;
+  --paper-note: #fcf7f0;
+  --shadow: 0 12px 28px rgba(43, 33, 24, 0.06);
 }
 
 * {
@@ -94,8 +96,8 @@ p {
   justify-content: space-between;
   min-height: 72px;
   padding: 12px 16px 10px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.72);
-  background: rgba(248, 250, 252, 0.86);
+  border-bottom: 1px solid rgba(231, 220, 207, 0.76);
+  background: rgba(245, 239, 228, 0.88);
   backdrop-filter: blur(16px);
 }
 
@@ -121,7 +123,7 @@ p {
   border: 1px solid var(--border);
   border-radius: 16px;
   color: var(--primary);
-  background: rgba(255, 255, 255, 0.86);
+  background: rgba(255, 253, 249, 0.9);
   font-size: 18px;
 }
 
@@ -169,7 +171,9 @@ p {
 .home-hero {
   padding: 22px;
   border-radius: 24px;
-  background: linear-gradient(145deg, #ffffff 0%, #ffffff 42%, var(--primary-soft) 100%);
+  background:
+    linear-gradient(180deg, rgba(124, 74, 45, 0.045) 1px, transparent 1px) 0 18px / 100% 18px,
+    linear-gradient(145deg, var(--card) 0%, var(--card) 48%, #f8eadc 100%);
 }
 
 .home-hero h2 {
@@ -200,7 +204,7 @@ p {
 .ghost-btn {
   border: 1px solid var(--border);
   color: var(--primary);
-  background: white;
+  background: var(--card);
 }
 
 .today-card,
@@ -236,7 +240,7 @@ p {
   border: 1px solid var(--border);
   border-radius: 16px;
   color: var(--muted);
-  background: #ffffff;
+  background: var(--paper-note);
   font-size: 13px;
   font-weight: 600;
 }
@@ -260,14 +264,16 @@ p {
 .quick-card {
   display: grid;
   justify-items: start;
-  gap: 6px;
+  align-content: start;
+  gap: 8px;
   min-height: 124px;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 18px;
   color: var(--title);
   background: var(--card);
   text-align: left;
+  box-shadow: 0 8px 18px rgba(43, 33, 24, 0.035);
 }
 
 .quick-card i {
@@ -280,6 +286,20 @@ p {
   background: var(--primary-soft);
   font-style: normal;
   font-weight: 700;
+}
+
+.quick-card:nth-child(2) i {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.quick-card:nth-child(3) i {
+  background: #f6eee5;
+}
+
+.quick-card:nth-child(4) i {
+  color: var(--accent);
+  background: #fcf7f0;
 }
 
 .quick-card strong {
@@ -306,14 +326,14 @@ p {
   border: 1px dashed var(--border);
   border-radius: 18px;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 253, 249, 0.66);
 }
 
 .soon-grid b {
   padding: 4px 8px;
   border-radius: 999px;
   color: var(--faint);
-  background: #f1f5f9;
+  background: var(--paper-note);
   font-size: 12px;
   font-weight: 600;
 }
@@ -325,7 +345,7 @@ p {
   border: 1px dashed var(--border);
   border-radius: 24px;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 253, 249, 0.72);
 }
 
 .section-head {
@@ -352,13 +372,13 @@ p {
   border: 1px solid var(--border);
   border-radius: 16px;
   color: var(--muted);
-  background: white;
+  background: var(--card);
   font-size: 13px;
   font-weight: 700;
 }
 
 .map-model.active {
-  border-color: rgba(15, 118, 110, 0.28);
+  border-color: rgba(124, 74, 45, 0.32);
   color: var(--primary);
   background: var(--primary-soft);
 }
@@ -393,7 +413,7 @@ p {
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: 20px;
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  background: linear-gradient(180deg, var(--card), #fcf7f0);
 }
 
 .hole-card strong {
@@ -421,7 +441,7 @@ p {
 .headphone-note {
   margin-top: 12px;
   padding: 12px 14px;
-  border: 1px solid rgba(245, 158, 11, 0.24);
+  border: 1px solid rgba(217, 119, 6, 0.24);
   border-radius: 18px;
   color: var(--text);
   background: var(--accent-soft);
@@ -472,7 +492,7 @@ p {
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: 18px;
-  background: white;
+  background: var(--card);
   text-align: left;
 }
 
@@ -489,7 +509,7 @@ p {
 }
 
 .exercise-btn.active {
-  border-color: rgba(15, 118, 110, 0.32);
+  border-color: rgba(124, 74, 45, 0.32);
   background: var(--primary-soft);
 }
 
@@ -502,33 +522,36 @@ p {
   box-shadow: none;
 }
 
-.player-top,
-.player-actions {
+.player-top {
   display: grid;
   gap: 10px;
 }
 
 .player-actions {
+  display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 .status-card {
   padding: 20px;
-  background: linear-gradient(145deg, var(--primary), #115e59);
-  color: white;
+  background:
+    linear-gradient(180deg, rgba(124, 74, 45, 0.08) 1px, transparent 1px) 0 18px / 100% 18px,
+    linear-gradient(145deg, var(--primary), #5f3520);
+  color: #fffdf9;
 }
 
 .status-card span,
 .status-card em {
   display: block;
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 253, 249, 0.8);
   font-size: 13px;
   font-style: normal;
   font-weight: 600;
 }
 
 .status-card b {
-  color: white;
+  color: #fffdf9;
 }
 
 .status-card strong {
@@ -539,7 +562,7 @@ p {
 }
 
 .status-card small {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 253, 249, 0.8);
   font-size: 15px;
 }
 
@@ -613,8 +636,8 @@ p {
 }
 
 .curve-zones span:nth-child(2) {
-  color: var(--primary);
-  background: var(--primary-soft);
+  color: var(--accent);
+  background: rgba(217, 119, 6, 0.12);
 }
 
 .dynamic-curve {
@@ -629,18 +652,18 @@ p {
 .bar {
   min-height: 14px;
   border-radius: 999px 999px 6px 6px;
-  background: rgba(15, 118, 110, 0.22);
+  background: rgba(124, 74, 45, 0.12);
 }
 
 .bar.active {
-  background: var(--accent);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+  background: var(--primary);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.16);
 }
 
 .mic-panel {
   margin-top: 12px;
   padding-top: 14px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--soft-line);
 }
 
 .mic-meter {
@@ -670,7 +693,7 @@ p {
 .mic-bar {
   min-height: 3px;
   border-radius: 999px 999px 2px 2px;
-  background: rgba(15, 118, 110, 0.24);
+  background: rgba(124, 74, 45, 0.16);
 }
 
 .mic-bar.active {
@@ -700,7 +723,7 @@ p {
   position: relative;
   height: 12px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #ef4444 0 18%, #f59e0b 18% 40%, #0f766e 40% 60%, #f59e0b 60% 82%, #ef4444 82% 100%);
+  background: linear-gradient(90deg, #b45309 0 18%, #d97706 18% 40%, #7c4a2d 40% 60%, #d97706 60% 82%, #b45309 82% 100%);
 }
 
 .tuner-center {
@@ -709,7 +732,7 @@ p {
   top: -5px;
   width: 2px;
   height: 22px;
-  background: white;
+  background: var(--card);
 }
 
 .tuner-needle {
@@ -718,7 +741,7 @@ p {
   top: 50%;
   width: 12px;
   height: 22px;
-  border: 2px solid white;
+  border: 2px solid var(--card);
   border-radius: 999px;
   background: var(--muted);
   transform: translate(-50%, -50%);
@@ -731,7 +754,7 @@ p {
   padding: 6px 10px;
   border-radius: 999px;
   color: var(--title);
-  background: white;
+  background: var(--card);
   text-align: center;
 }
 
@@ -750,7 +773,7 @@ p {
 .pitch-tuner[data-status="out"] .tuner-note,
 .pitch-tuner[data-status="out"] .tuner-needle {
   color: white;
-  background: #ef4444;
+  background: #b45309;
 }
 
 .mic-calibrate {
@@ -776,7 +799,7 @@ p {
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: 18px;
-  background: var(--bg);
+  background: var(--paper-note);
 }
 
 .setting span,
@@ -799,7 +822,7 @@ p {
   border: 1px solid var(--border);
   border-radius: 14px;
   color: var(--primary);
-  background: white;
+  background: var(--card);
   font-size: 20px;
   font-weight: 700;
 }
@@ -818,7 +841,7 @@ p {
   border: 1px solid var(--border);
   border-radius: 14px;
   color: var(--title);
-  background: white;
+  background: var(--card);
   font-weight: 700;
 }
 
@@ -854,6 +877,10 @@ input[type="range"] {
   background: var(--border);
 }
 
+.week-progress span:first-child i {
+  background: var(--accent);
+}
+
 .daily-goal-list {
   display: grid;
   gap: 10px;
@@ -869,7 +896,7 @@ input[type="range"] {
   border: 1px solid var(--border);
   border-radius: 18px;
   color: var(--title);
-  background: white;
+  background: var(--card);
   text-align: left;
 }
 
@@ -895,7 +922,7 @@ input[type="range"] {
 }
 
 .goal-chip.done {
-  border-color: rgba(245, 158, 11, 0.32);
+  border-color: rgba(217, 119, 6, 0.32);
   background: var(--accent-soft);
 }
 
@@ -907,6 +934,18 @@ input[type="range"] {
 .audio-settings-panel {
   display: grid;
   gap: 12px;
+}
+
+.audio-settings-panel .setting-row,
+.audio-settings-panel .headphone-note {
+  min-height: 78px;
+  background: var(--card);
+  box-shadow: 0 8px 18px rgba(43, 33, 24, 0.035);
+}
+
+.action-row .ghost-btn {
+  width: 100%;
+  margin-top: 2px;
 }
 
 .mic-sensitivity {
@@ -923,7 +962,7 @@ input[type="range"] {
   width: min(100%, 430px);
   height: 72px;
   border-top: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 253, 249, 0.94);
   backdrop-filter: blur(16px);
   transform: translateX(-50%);
 }
@@ -956,7 +995,7 @@ input[type="range"] {
   display: grid;
   place-items: center;
   padding: 18px;
-  background: rgba(15, 23, 42, 0.28);
+  background: rgba(43, 33, 24, 0.28);
   backdrop-filter: blur(12px);
 }
 
@@ -980,7 +1019,7 @@ input[type="range"] {
   padding: 22px;
   border: 1px solid var(--border);
   border-radius: 24px;
-  background: white;
+  background: var(--card);
   box-shadow: var(--shadow);
 }
 
@@ -989,8 +1028,8 @@ input[type="range"] {
   padding: 28px 20px;
   border: 1px solid var(--border);
   border-radius: 28px;
-  background: white;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  background: var(--card);
+  box-shadow: 0 8px 24px rgba(43, 33, 24, 0.06);
   text-align: center;
 }
 
@@ -1089,7 +1128,7 @@ input[type="range"] {
   padding: 12px 12px 12px 42px;
   border-radius: 16px;
   color: var(--text);
-  background: var(--bg);
+  background: #fcf7f0;
   font-size: 14px;
   line-height: 1.5;
   text-align: left;
@@ -1106,7 +1145,7 @@ input[type="range"] {
 
 .gate-error {
   min-height: 22px;
-  color: #ef4444;
+  color: #b45309;
   font-size: 13px;
 }
 
@@ -1130,11 +1169,11 @@ input[type="range"] {
 @media (min-width: 431px) {
   body {
     background:
-      linear-gradient(90deg, rgba(15, 118, 110, 0.05), transparent 34%),
+      linear-gradient(90deg, rgba(124, 74, 45, 0.06), transparent 34%),
       var(--bg);
   }
 
   .app-shell {
-    border-inline: 1px solid rgba(226, 232, 240, 0.72);
+    border-inline: 1px solid rgba(231, 220, 207, 0.76);
   }
 }
