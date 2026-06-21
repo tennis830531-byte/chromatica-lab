@@ -295,17 +295,19 @@ let micSensitivity = 3.2;
 let tuningA4 = 440;
 let micSilentRms = 0;
 let isCalibratingMic = false;
-const minPitchRms = 0.015;
+const minPitchRms = 0.004;
+const minPitchConfidence = 0.68;
+const noteSwitchConfidence = 0.75;
 const tunerMode = "full-range";
 const harpType = "chromatic";
 const allowedRange = { lowNote: "C1", highNote: "D7" };
+const correctionRange = { lowNote: "C3", highNote: "D7" };
 let allowedNotes = [];
-let pitchFrequencyWindow = [];
 let pitchCentsWindow = [];
 let activeNearestNote = null;
 let pendingNearestNote = null;
 let pendingNearestNoteCount = 0;
-let smoothedTargetCents = 0;
+let smoothedCents = null;
 let stablePitchDisplay = null;
 let lastPitchAt = 0;
 let lastPitchUiUpdateAt = 0;
@@ -836,8 +838,9 @@ function detectPitch() {
     rmsSum += value * value;
   }
   const rms = Math.sqrt(rmsSum / buffer.length);
+  const dominantEnergy = getDominantEnergy();
   const rmsThreshold = getPitchRmsThreshold();
-  if (rms < rmsThreshold) return { frequency: null, confidence: 0, rms, reason: "quiet" };
+  if (rms < rmsThreshold) return { frequency: null, confidence: 0, rms, dominantEnergy, reason: "quiet" };
 
   const minFrequency = 100;
   const maxFrequency = 2800;
@@ -859,8 +862,8 @@ function detectPitch() {
   }
 
   const normalizedCorrelation = bestCorrelation / Math.max(rms * rms, 0.0000001);
-  if (bestLag < 0 || normalizedCorrelation < 0.82) {
-    return detectSpectralPitch(rms);
+  if (bestLag < 0 || normalizedCorrelation < minPitchConfidence) {
+    return { frequency: null, confidence: normalizedCorrelation, rms, dominantEnergy, reason: "low-autocorrelation-confidence" };
   }
   let refinedLag = bestLag;
   if (bestLag > minLag && bestLag < maxLag) {
@@ -875,18 +878,17 @@ function detectPitch() {
 
   const frequency = sampleRate / refinedLag;
   if (!Number.isFinite(frequency) || frequency < minFrequency || frequency > maxFrequency) {
-    return { frequency: null, confidence: normalizedCorrelation, rms, reason: "range" };
+    return { frequency: null, confidence: normalizedCorrelation, rms, dominantEnergy, reason: "range" };
   }
-  return { frequency, confidence: Math.min(1, normalizedCorrelation), rms, reason: "autocorrelation" };
+  return { frequency, confidence: Math.min(1, normalizedCorrelation), rms, dominantEnergy, reason: "autocorrelation" };
 }
 
-function detectSpectralPitch(rms = 0) {
-  if (!micFrequencyData || !audioContext) return null;
+function getDominantEnergy() {
+  if (!micFrequencyData || !audioContext) return 0;
   const sampleRate = audioContext.sampleRate;
   const hzPerBin = sampleRate / micAnalyser.fftSize;
   const minBin = Math.max(1, Math.floor(100 / hzPerBin));
   const maxBin = Math.min(micFrequencyData.length - 2, Math.ceil(2800 / hzPerBin));
-  let peakBin = -1;
   let peakValue = 0;
   let total = 0;
   let count = 0;
@@ -896,24 +898,10 @@ function detectSpectralPitch(rms = 0) {
     count += 1;
     if (value > peakValue) {
       peakValue = value;
-      peakBin = i;
     }
   }
   const average = count ? total / count : 0;
-  const confidence = peakValue > 0 ? Math.max(0, Math.min(1, (peakValue - average) / Math.max(peakValue, 1))) : 0;
-  if (peakBin < 0 || peakValue < 14 || confidence < 0.82) {
-    return { frequency: null, confidence, rms, reason: "spectral-low-confidence" };
-  }
-  const previous = micFrequencyData[peakBin - 1] || 0;
-  const current = micFrequencyData[peakBin] || 0;
-  const next = micFrequencyData[peakBin + 1] || 0;
-  const denominator = previous - 2 * current + next;
-  const offset = Math.abs(denominator) > 0.000001 ? (previous - next) / (2 * denominator) : 0;
-  const frequency = (peakBin + Math.max(-0.5, Math.min(0.5, offset))) * hzPerBin;
-  if (!Number.isFinite(frequency) || frequency < 100 || frequency > 2800) {
-    return { frequency: null, confidence, rms, reason: "spectral-range" };
-  }
-  return { frequency, confidence, rms, reason: "spectral" };
+  return Math.max(peakValue / 255, average / 255);
 }
 
 function lagCorrelation(buffer, lag) {
@@ -981,7 +969,67 @@ function median(values) {
 }
 
 function getPitchRmsThreshold() {
-  return Math.max(minPitchRms, micSilentRms > 0 ? micSilentRms * 2.5 : 0);
+  return Math.max(minPitchRms, micSilentRms > 0 ? micSilentRms * 2.0 : 0);
+}
+
+function isFrequencyInCorrectionRange(freq) {
+  const low = midiToFreq(noteNameToMidi(correctionRange.lowNote), tuningA4);
+  const high = midiToFreq(noteNameToMidi(correctionRange.highNote), tuningA4);
+  return Number.isFinite(freq) && freq >= low && freq <= high;
+}
+
+function buildPitchCandidates(rawFrequency) {
+  return [rawFrequency, rawFrequency / 2, rawFrequency * 2]
+    .filter((freq) => Number.isFinite(freq) && freq >= 100 && freq <= 2800)
+    .map((frequency, index) => {
+      const nearest = findNearestAllowedNote(frequency);
+      const cents = nearest ? 1200 * Math.log2(frequency / nearest.frequency) : null;
+      const lockedDistance = activeNearestNote
+        ? Math.abs(1200 * Math.log2(frequency / activeNearestNote.frequency))
+        : 0;
+      const inRange = isFrequencyInCorrectionRange(frequency);
+      const octavePenalty = index === 0 ? 0 : index === 1 ? 4 : 8;
+      const score = nearest && inRange
+        ? Math.abs(cents) + Math.min(24, lockedDistance * 0.08) + octavePenalty
+        : Infinity;
+      return {
+        frequency,
+        nearestNote: nearest?.name || null,
+        nearestNoteFrequency: nearest?.frequency || null,
+        cents,
+        inRange,
+        score,
+        source: index === 0 ? "raw" : index === 1 ? "raw/2" : "raw*2",
+      };
+    });
+}
+
+function selectPitchCandidate(measurement) {
+  const candidateList = buildPitchCandidates(measurement.frequency);
+  const validCandidates = candidateList.filter((candidate) => Number.isFinite(candidate.score));
+  if (!validCandidates.length) {
+    return {
+      candidateList,
+      selected: null,
+      selectedReason: null,
+      rejectedReason: "no-candidate-in-correction-range",
+    };
+  }
+  const selected = validCandidates.reduce((best, candidate) => (candidate.score < best.score ? candidate : best), validCandidates[0]);
+  return {
+    candidateList,
+    selected,
+    selectedReason: selected.source === "raw" ? "raw-autocorrelation" : `octave-correction-${selected.source}`,
+    rejectedReason: null,
+  };
+}
+
+function smoothCents(previous, current) {
+  if (previous === null || !Number.isFinite(previous)) return current;
+  const diff = Math.abs(current - previous);
+  if (diff <= 3) return previous + (current - previous) * 0.25;
+  if (diff <= 15) return previous + (current - previous) * 0.55;
+  return previous + (current - previous) * 0.75;
 }
 
 function updatePitchTuner(pitch, waiting = false) {
@@ -1012,12 +1060,11 @@ function formatSignedCents(cents) {
 }
 
 function resetPitchTracker() {
-  pitchFrequencyWindow = [];
   pitchCentsWindow = [];
   activeNearestNote = null;
   pendingNearestNote = null;
   pendingNearestNoteCount = 0;
-  smoothedTargetCents = 0;
+  smoothedCents = null;
   stablePitchDisplay = null;
   lastPitchAt = 0;
   lastPitchUiUpdateAt = 0;
@@ -1035,6 +1082,10 @@ function logPitchDebug(measurement) {
     rawFreq: measurement.frequency,
     rawFrequency: measurement.frequency,
     detectedFrequency: measurement.detectedFrequency,
+    correctedFrequency: measurement.correctedFrequency,
+    selectedCandidateFrequency: measurement.selectedCandidateFrequency,
+    referenceFrequency: measurement.referenceFrequency,
+    lockedNote: measurement.lockedNote,
     nearestNote: measurement.nearestNote,
     nearestNoteFrequency: measurement.nearestNoteFrequency,
     centsFromNearest: measurement.centsFromNearest,
@@ -1042,11 +1093,17 @@ function logPitchDebug(measurement) {
     targetFrequency: measurement.targetFrequency,
     confidence: measurement.confidence,
     rms: measurement.rms,
+    dominantEnergy: measurement.dominantEnergy,
     rawCents: measurement.rawCents,
     centsFromTarget: measurement.centsFromTarget,
     smoothedCents: measurement.smoothedCents ?? stablePitchDisplay?.cents ?? null,
     detectionStatus: measurement.detectionStatus || (measurement.frequency ? "detected" : "blocked"),
     blockedReason: measurement.blockedReason || measurement.reason,
+    noteSwitchReason: measurement.noteSwitchReason,
+    centsUpdateReason: measurement.centsUpdateReason,
+    candidateList: measurement.candidateList,
+    selectedReason: measurement.selectedReason,
+    rejectedReason: measurement.rejectedReason,
   });
   pitchDebugLog = pitchDebugLog.slice(-80);
 }
@@ -1055,7 +1112,7 @@ function processPitchMeasurement(measurement) {
   if (
     !measurement?.frequency ||
     measurement.rms < getPitchRmsThreshold() ||
-    measurement.confidence < 0.82 ||
+    measurement.confidence < minPitchConfidence ||
     measurement.frequency < 100 ||
     measurement.frequency > 2800
   ) {
@@ -1063,79 +1120,89 @@ function processPitchMeasurement(measurement) {
       ? "no-frequency"
       : measurement.rms < getPitchRmsThreshold()
         ? "low-rms"
-        : measurement.confidence < 0.82
+        : measurement.confidence < minPitchConfidence
           ? "low-confidence"
           : "out-of-range";
     logPitchDebug({ ...(measurement || {}), detectionStatus: "blocked", blockedReason: reason, reason });
     return null;
   }
 
-  pitchFrequencyWindow.push(measurement.frequency);
-  pitchFrequencyWindow = pitchFrequencyWindow.slice(-5);
-  const filteredFrequency = median(pitchFrequencyWindow);
-  if (!filteredFrequency) return null;
+  const correction = selectPitchCandidate(measurement);
+  measurement.candidateList = correction.candidateList;
+  measurement.selectedReason = correction.selectedReason;
+  measurement.rejectedReason = correction.rejectedReason;
+  if (!correction.selected) {
+    measurement.detectionStatus = "blocked";
+    measurement.blockedReason = correction.rejectedReason;
+    logPitchDebug(measurement);
+    return null;
+  }
 
-  const nearestNote = findNearestAllowedNote(filteredFrequency);
+  const correctedFrequency = correction.selected.frequency;
+  const nearestNote = findNearestAllowedNote(correctedFrequency);
   if (!nearestNote) return null;
+  const previousLockedNote = activeNearestNote;
+  let noteSwitchReason = "same-note";
   if (!activeNearestNote) {
     activeNearestNote = nearestNote;
     pendingNearestNote = null;
     pendingNearestNoteCount = 0;
     pitchCentsWindow = [];
-    smoothedTargetCents = 0;
+    smoothedCents = null;
+    noteSwitchReason = "initial-lock";
   } else if (nearestNote.name !== activeNearestNote.name) {
-    if (pendingNearestNote?.name === nearestNote.name) {
+    if (measurement.confidence >= noteSwitchConfidence) {
+      activeNearestNote = nearestNote;
+      pendingNearestNote = null;
+      pendingNearestNoteCount = 0;
+      pitchCentsWindow = [];
+      smoothedCents = null;
+      noteSwitchReason = "high-confidence-switch";
+    } else if (pendingNearestNote?.name === nearestNote.name) {
       pendingNearestNoteCount += 1;
+      noteSwitchReason = "pending-low-confidence-switch";
     } else {
       pendingNearestNote = nearestNote;
       pendingNearestNoteCount = 1;
+      noteSwitchReason = "pending-low-confidence-switch";
     }
-    if (pendingNearestNoteCount < 2) {
-      measurement.detectedFrequency = filteredFrequency;
-      measurement.nearestNote = nearestNote.name;
-      measurement.nearestNoteFrequency = nearestNote.frequency;
-      measurement.centsFromNearest = 1200 * Math.log2(filteredFrequency / nearestNote.frequency);
-      measurement.targetNote = null;
-      measurement.targetFrequency = null;
-      measurement.centsFromTarget = null;
-      measurement.detectionStatus = "pending";
-      measurement.blockedReason = "pending-note-switch";
-      logPitchDebug(measurement);
-      return null;
-    }
-    activeNearestNote = nearestNote;
-    pendingNearestNote = null;
-    pendingNearestNoteCount = 0;
-    pitchCentsWindow = [];
-    smoothedTargetCents = 0;
   } else {
     pendingNearestNote = null;
     pendingNearestNoteCount = 0;
   }
 
-  const centsFromNearest = 1200 * Math.log2(filteredFrequency / activeNearestNote.frequency);
-  measurement.detectedFrequency = filteredFrequency;
-  measurement.nearestNote = activeNearestNote.name;
-  measurement.nearestNoteFrequency = activeNearestNote.frequency;
-  measurement.centsFromNearest = centsFromNearest;
+  const lockedChanged = previousLockedNote?.name !== activeNearestNote.name;
+  const referenceFrequency = activeNearestNote.frequency;
+  const rawCents = 1200 * Math.log2(correctedFrequency / referenceFrequency);
+  pitchCentsWindow.push(rawCents);
+  pitchCentsWindow = pitchCentsWindow.slice(-3);
+  const centsBase = median(pitchCentsWindow);
+  if (centsBase === null) return null;
+  smoothedCents = lockedChanged ? rawCents : smoothCents(smoothedCents, centsBase);
+  const displayCents = Math.round(smoothedCents);
+
+  measurement.detectedFrequency = correctedFrequency;
+  measurement.correctedFrequency = correctedFrequency;
+  measurement.selectedCandidateFrequency = correctedFrequency;
+  measurement.referenceFrequency = referenceFrequency;
+  measurement.lockedNote = activeNearestNote.name;
+  measurement.nearestNote = nearestNote.name;
+  measurement.nearestNoteFrequency = nearestNote.frequency;
+  measurement.centsFromNearest = rawCents;
+  measurement.rawCents = rawCents;
   measurement.targetNote = null;
   measurement.targetFrequency = null;
   measurement.centsFromTarget = null;
-  pitchCentsWindow.push(centsFromNearest);
-  pitchCentsWindow = pitchCentsWindow.slice(-5);
-  const medianCents = median(pitchCentsWindow);
-  if (medianCents === null) return null;
-
-  smoothedTargetCents += (medianCents - smoothedTargetCents) * 0.2;
-  const displayCents = Math.round(smoothedTargetCents);
   measurement.detectionStatus = "detected";
   measurement.blockedReason = null;
   measurement.smoothedCents = displayCents;
+  measurement.noteSwitchReason = noteSwitchReason;
+  measurement.centsUpdateReason = lockedChanged ? "note-switched-reset" : "adaptive-smoothing";
   logPitchDebug(measurement);
   const display = {
     nearestNote: activeNearestNote,
     cents: displayCents,
-    detectedFrequency: filteredFrequency,
+    detectedFrequency: correctedFrequency,
   };
   stablePitchDisplay = display;
   lastPitchAt = performance.now();
@@ -1152,14 +1219,14 @@ function updateLivePitch() {
   }
   const pitch = processPitchMeasurement(detectPitch());
   if (pitch) {
-    if (now - lastPitchUiUpdateAt >= 90) {
+    if (now - lastPitchUiUpdateAt >= 60) {
       updatePitchTuner(pitch);
       lastPitchUiUpdateAt = now;
     }
     return;
   }
   if (stablePitchDisplay) {
-    if (now - lastPitchUiUpdateAt >= 90) {
+    if (now - lastPitchUiUpdateAt >= 60) {
       updatePitchTuner(stablePitchDisplay);
       lastPitchUiUpdateAt = now;
     }
