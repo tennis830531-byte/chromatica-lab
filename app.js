@@ -296,13 +296,13 @@ let tuningA4 = 440;
 let micSilentRms = 0;
 let isCalibratingMic = false;
 const minPitchRms = 0.015;
-let pitchRawWindow = [];
-let lockedPitchMidi = null;
-let pendingPitchMidi = null;
-let pendingPitchCount = 0;
-let smoothedPitchCents = 0;
+let pitchFrequencyWindow = [];
+let pitchCentsWindow = [];
+let activeTargetMidi = null;
+let smoothedTargetCents = 0;
 let stablePitchDisplay = null;
 let lastPitchAt = 0;
+let lastPitchUiUpdateAt = 0;
 let pitchCentsHistory = [];
 let pitchDebugLog = [];
 let liveLevels = Array.from({ length: 48 }, () => 0);
@@ -922,6 +922,18 @@ function frequencyToMidi(frequency) {
   return 69 + 12 * Math.log2(frequency / tuningA4);
 }
 
+function midiToFrequency(midi) {
+  return tuningA4 * 2 ** ((midi - 69) / 12);
+}
+
+function noteToMidi(note) {
+  const match = /^([A-G])(#?)(-?\d+)$/.exec(note);
+  if (!match) return 60;
+  const noteOffsets = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  const [, letter, sharp, octaveText] = match;
+  return (Number(octaveText) + 1) * 12 + noteOffsets[letter] + (sharp ? 1 : 0);
+}
+
 function midiToNote(midi) {
   const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   const noteName = noteNames[((midi % 12) + 12) % 12];
@@ -929,15 +941,18 @@ function midiToNote(midi) {
   return `${noteName}${octave}`;
 }
 
-function formatPitch(frequency) {
-  const midi = frequencyToMidi(frequency);
-  const roundedMidi = Math.round(midi);
-  const cents = Math.round((midi - roundedMidi) * 100);
-  return {
-    note: midiToNote(roundedMidi),
-    cents,
-    frequency,
-  };
+function updateExerciseTargets() {
+  exercises.forEach((exercise) => {
+    exercise.targetNote = exercise.targetNote || "C4";
+    exercise.targetFrequency = midiToFrequency(noteToMidi(exercise.targetNote));
+  });
+}
+
+function getCurrentTargetPitch() {
+  const exercise = exercises[selectedExercise];
+  const targetNote = exercise.targetNote || "C4";
+  const targetFrequency = exercise.targetFrequency || midiToFrequency(noteToMidi(targetNote));
+  return { targetNote, targetFrequency };
 }
 
 function median(values) {
@@ -951,42 +966,42 @@ function getPitchRmsThreshold() {
   return Math.max(minPitchRms, micSilentRms > 0 ? micSilentRms * 2.5 : 0);
 }
 
-function getPitchStatus(cents) {
-  if (Math.abs(cents) <= 5) return "準";
-  if (cents > 18) return "偏高";
-  if (cents > 5) return "稍微偏高";
-  if (cents < -18) return "偏低";
-  return "稍微偏低";
-}
-
 function updatePitchTuner(pitch, waiting = false) {
   const tuner = $("#pitchTuner");
+  const { targetNote } = getCurrentTargetPitch();
   if (!pitch || waiting) {
-    $("#pitchReadout").textContent = stablePitchDisplay?.note || "等待";
-    $("#pitchCents").textContent = "等待穩定收音";
-    $("#pitchNeedle").style.left = "50%";
-    tuner.dataset.status = "waiting";
+    if (stablePitchDisplay) {
+      updatePitchTuner(stablePitchDisplay);
+    } else {
+      $("#pitchReadout").textContent = `目標音：${targetNote}`;
+      $("#pitchCents").textContent = "等待穩定收音";
+      $("#pitchNeedle").style.left = "50%";
+      tuner.dataset.status = "waiting";
+    }
     return;
   }
   const clampedCents = Math.max(-50, Math.min(50, pitch.cents));
   const position = 50 + clampedCents;
-  const sign = pitch.cents > 0 ? "+" : "";
   const absCents = Math.abs(pitch.cents);
   const status = absCents <= 8 ? "in" : absCents <= 22 ? "near" : "out";
-  $("#pitchReadout").textContent = `目前音 ${pitch.note}`;
-  $("#pitchCents").textContent = `${getPitchStatus(pitch.cents)} · ${sign}${pitch.cents}¢`;
+  $("#pitchReadout").textContent = `目標音：${pitch.targetNote}`;
+  $("#pitchCents").textContent = `誤差：${formatSignedCents(pitch.cents)} cents`;
   $("#pitchNeedle").style.left = `${position}%`;
   tuner.dataset.status = status;
 }
 
+function formatSignedCents(cents) {
+  return cents > 0 ? `+${cents}` : `${cents}`;
+}
+
 function resetPitchTracker() {
-  pitchRawWindow = [];
-  lockedPitchMidi = null;
-  pendingPitchMidi = null;
-  pendingPitchCount = 0;
-  smoothedPitchCents = 0;
+  pitchFrequencyWindow = [];
+  pitchCentsWindow = [];
+  activeTargetMidi = null;
+  smoothedTargetCents = 0;
   stablePitchDisplay = null;
   lastPitchAt = 0;
+  lastPitchUiUpdateAt = 0;
   pitchCentsHistory = [];
   updatePitchTuner(null, true);
 }
@@ -996,15 +1011,17 @@ function logPitchDebug(measurement) {
   pitchDebugLog.push({
     at: Date.now(),
     rawFreq: measurement.frequency,
+    targetFrequency: measurement.targetFrequency,
     confidence: measurement.confidence,
     rms: measurement.rms,
+    rawCents: measurement.rawCents,
+    smoothedCents: stablePitchDisplay?.cents ?? null,
     reason: measurement.reason,
   });
   pitchDebugLog = pitchDebugLog.slice(-80);
 }
 
 function processPitchMeasurement(measurement) {
-  logPitchDebug(measurement);
   if (
     !measurement?.frequency ||
     measurement.rms < getPitchRmsThreshold() ||
@@ -1012,49 +1029,48 @@ function processPitchMeasurement(measurement) {
     measurement.frequency < 120 ||
     measurement.frequency > 2500
   ) {
+    const reason = !measurement?.frequency
+      ? "no-frequency"
+      : measurement.rms < getPitchRmsThreshold()
+        ? "low-rms"
+        : measurement.confidence < 0.82
+          ? "low-confidence"
+          : "out-of-range";
+    logPitchDebug({ ...(measurement || {}), reason });
     return null;
   }
 
-  pitchRawWindow.push(measurement.frequency);
-  pitchRawWindow = pitchRawWindow.slice(-5);
-  const filteredFrequency = median(pitchRawWindow);
+  pitchFrequencyWindow.push(measurement.frequency);
+  pitchFrequencyWindow = pitchFrequencyWindow.slice(-5);
+  const filteredFrequency = median(pitchFrequencyWindow);
   if (!filteredFrequency) return null;
 
-  const midi = frequencyToMidi(filteredFrequency);
-  const nearestMidi = Math.round(midi);
-  if (lockedPitchMidi === null) {
-    lockedPitchMidi = nearestMidi;
-    pendingPitchMidi = null;
-    pendingPitchCount = 0;
-    smoothedPitchCents = 0;
+  const detectedMidi = frequencyToMidi(filteredFrequency);
+  const targetMidi = Math.round(detectedMidi);
+  if (activeTargetMidi === null || activeTargetMidi !== targetMidi) {
+    activeTargetMidi = targetMidi;
+    pitchCentsWindow = [];
+    smoothedTargetCents = 0;
   }
 
-  const lockedCents = (midi - lockedPitchMidi) * 100;
-  if (Math.abs(lockedCents) > 35 && nearestMidi !== lockedPitchMidi) {
-    if (pendingPitchMidi === nearestMidi) {
-      pendingPitchCount += 1;
-    } else {
-      pendingPitchMidi = nearestMidi;
-      pendingPitchCount = 1;
-    }
-    if (pendingPitchCount >= 5) {
-      lockedPitchMidi = nearestMidi;
-      pendingPitchMidi = null;
-      pendingPitchCount = 0;
-      smoothedPitchCents = 0;
-    }
-  } else {
-    pendingPitchMidi = null;
-    pendingPitchCount = 0;
-  }
+  const targetNote = midiToNote(activeTargetMidi);
+  const targetFrequency = midiToFrequency(activeTargetMidi);
+  const rawCents = 1200 * Math.log2(filteredFrequency / targetFrequency);
+  measurement.targetFrequency = targetFrequency;
+  measurement.rawCents = rawCents;
+  logPitchDebug(measurement);
+  pitchCentsWindow.push(rawCents);
+  pitchCentsWindow = pitchCentsWindow.slice(-5);
+  const medianCents = median(pitchCentsWindow);
+  if (medianCents === null) return null;
 
-  const centsFromLockedNote = Math.max(-50, Math.min(50, (midi - lockedPitchMidi) * 100));
-  smoothedPitchCents += (centsFromLockedNote - smoothedPitchCents) * 0.18;
-  const displayCents = Math.abs(smoothedPitchCents) <= 3 ? 0 : Math.round(smoothedPitchCents);
+  smoothedTargetCents += (medianCents - smoothedTargetCents) * 0.2;
+  const displayCents = Math.round(smoothedTargetCents);
   const display = {
-    note: midiToNote(lockedPitchMidi),
+    targetNote,
+    targetFrequency,
     cents: displayCents,
-    frequency: filteredFrequency,
+    detectedFrequency: measurement.frequency,
   };
   stablePitchDisplay = display;
   lastPitchAt = performance.now();
@@ -1064,17 +1080,24 @@ function processPitchMeasurement(measurement) {
 }
 
 function updateLivePitch() {
+  const now = performance.now();
   if (!micAnalyser || isCalibratingMic) {
     updatePitchTuner(stablePitchDisplay, true);
     return;
   }
   const pitch = processPitchMeasurement(detectPitch());
   if (pitch) {
-    updatePitchTuner(pitch);
+    if (now - lastPitchUiUpdateAt >= 90) {
+      updatePitchTuner(pitch);
+      lastPitchUiUpdateAt = now;
+    }
     return;
   }
-  if (stablePitchDisplay && performance.now() - lastPitchAt <= 900) {
-    updatePitchTuner(stablePitchDisplay);
+  if (stablePitchDisplay) {
+    if (now - lastPitchUiUpdateAt >= 90) {
+      updatePitchTuner(stablePitchDisplay);
+      lastPitchUiUpdateAt = now;
+    }
   } else {
     updatePitchTuner(stablePitchDisplay, true);
   }
@@ -1502,6 +1525,7 @@ function bindEvents() {
   });
   $("#tuningSelect").addEventListener("change", (event) => {
     tuningA4 = Number(event.target.value);
+    updateExerciseTargets();
     resetPitchTracker();
   });
   $("#calibrateMicBtn").addEventListener("click", calibrateMic);
@@ -1542,6 +1566,8 @@ async function requestMicOnEntry() {
 
 bindEvents();
 registerServiceWorker();
+updateExerciseTargets();
+resetPitchTracker();
 renderNoteMap();
 renderExercise();
 updateBeatDisplay();
