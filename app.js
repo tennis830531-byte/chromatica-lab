@@ -12,7 +12,7 @@ const exercises = [
   {
     id: "steady-4",
     title: "4 拍平穩長音",
-    level: "Level 1",
+    level: "初階",
     bpm: 60,
     prepareBeats: 4,
     playBeats: 4,
@@ -27,7 +27,7 @@ const exercises = [
   {
     id: "steady-8",
     title: "8 拍平穩長音",
-    level: "Level 1",
+    level: "初階",
     bpm: 60,
     prepareBeats: 4,
     playBeats: 8,
@@ -42,7 +42,7 @@ const exercises = [
   {
     id: "dynamic-layers",
     title: "音量分層",
-    level: "Level 2",
+    level: "基礎",
     bpm: 60,
     prepareBeats: 4,
     playBeats: 8,
@@ -95,7 +95,7 @@ const exercises = [
   {
     id: "crescendo-8",
     title: "8 拍漸強",
-    level: "Level 3",
+    level: "進階",
     bpm: 60,
     prepareBeats: 4,
     playBeats: 8,
@@ -137,7 +137,7 @@ const exercises = [
   {
     id: "decrescendo-8",
     title: "8 拍漸弱",
-    level: "Level 3",
+    level: "進階",
     bpm: 60,
     prepareBeats: 4,
     playBeats: 8,
@@ -179,7 +179,7 @@ const exercises = [
   {
     id: "swell-12",
     title: "山形長音",
-    level: "Level 4",
+    level: "挑戰",
     bpm: 60,
     prepareBeats: 4,
     playBeats: 12,
@@ -212,7 +212,7 @@ const exercises = [
   {
     id: "soft-attack-release",
     title: "柔起音與收音",
-    level: "Level 4",
+    level: "挑戰",
     bpm: 56,
     prepareBeats: 4,
     playBeats: 8,
@@ -306,28 +306,15 @@ let cycleScores = Array.from({ length: totalCycles }, () => null);
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
-const loginStorageKey = "chromatica-lab-session";
 
-function getLoginSession() {
-  try {
-    return JSON.parse(localStorage.getItem(loginStorageKey));
-  } catch {
-    return null;
-  }
-}
-
-function setLoginSession(provider) {
-  localStorage.setItem(
-    loginStorageKey,
-    JSON.stringify({
-      provider,
-      signedInAt: new Date().toISOString(),
-    }),
-  );
-}
-
-function showLoginGate(shouldShow) {
-  $("#loginGate").classList.toggle("hidden", !shouldShow);
+function localizeLevel(level) {
+  const map = {
+    "Level 1": "初階",
+    "Level 2": "基礎",
+    "Level 3": "進階",
+    "Level 4": "挑戰",
+  };
+  return map[level] || level;
 }
 
 function registerServiceWorker() {
@@ -621,7 +608,7 @@ function renderDailyGoals() {
   const tasks = getDailyGoalTasks();
   const doneCount = tasks.filter((task) => state[task.id]).length;
   const summary = `${doneCount} / ${tasks.length}`;
-  $("#dailyGoalSummary").textContent = `今日完成 ${summary}`;
+  $("#dailyGoalSummary").textContent = `今日完成 ${summary} 個練習`;
   $$('[data-view="daily"]').forEach((dailyNav) => {
     dailyNav.classList.toggle("complete", doneCount === tasks.length && tasks.length > 0);
   });
@@ -632,7 +619,7 @@ function renderDailyGoals() {
         <button class="goal-chip ${done ? "done" : ""}" data-goal-exercise="${task.exerciseIndex}" data-goal-volume="${task.volume || ""}" data-goal-variant="${task.variantIndex ?? ""}" type="button">
           <span>${done ? "✓" : index + 1}</span>
           <strong>${task.title}</strong>
-          <small>${task.level} · ${task.playBeats} 拍 · ${task.summary || getPatternSummary(task.pattern)}</small>
+          <small>${localizeLevel(task.level)} · ${task.playBeats} 拍 · ${task.summary || getPatternSummary(task.pattern)}</small>
         </button>
       `;
     })
@@ -1060,7 +1047,7 @@ function renderExercises() {
       return `
         <button class="exercise-btn ${index === selectedExercise ? "active" : ""}" data-exercise="${index}">
           <strong>${exercise.title}</strong>
-          <small>${exercise.level} · ${exercise.playBeats} 拍 · ${summary}</small>
+          <small>${localizeLevel(exercise.level)} · ${exercise.playBeats} 拍 · ${summary}</small>
         </button>
       `;
     })
@@ -1071,7 +1058,7 @@ function renderExercise() {
   const exercise = exercises[selectedExercise];
   const pattern = getExercisePattern(exercise);
   bpm = Number($("#bpmInput").value) || exercise.bpm;
-  $("#exerciseLevel").textContent = exercise.level;
+  $("#exerciseLevel").textContent = localizeLevel(exercise.level);
   $("#exerciseTitle").textContent = exercise.title;
   $("#exerciseInstruction").textContent = getExerciseInstruction(exercise);
   $("#beatTotal").textContent = `/ ${exercise.playBeats} 拍`;
@@ -1239,20 +1226,6 @@ function stopPractice(done = false) {
 }
 
 function bindEvents() {
-  $$("[data-login-provider]").forEach((button) => {
-    button.addEventListener("click", () => {
-      setLoginSession(button.dataset.loginProvider);
-      showLoginGate(false);
-      requestMicOnEntry();
-    });
-  });
-
-  $("#logoutBtn")?.addEventListener("click", () => {
-    localStorage.removeItem(loginStorageKey);
-    stopPractice(false);
-    showLoginGate(true);
-  });
-
   $$("[data-view]").forEach((button) => {
     button.addEventListener("click", () => {
       setView(button.dataset.view);
@@ -1384,9 +1357,3 @@ renderNoteMap();
 renderExercise();
 updateBeatDisplay();
 renderMicCurve();
-if (getLoginSession()) {
-  showLoginGate(false);
-  requestMicOnEntry();
-} else {
-  showLoginGate(true);
-}

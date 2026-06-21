@@ -11,37 +11,9 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/app-icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/app-icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=mobile-first-2" />
+    <link rel="stylesheet" href="./styles.css?v=cleanup-1" />
   </head>
   <body>
-    <div id="loginGate" class="login-gate" role="dialog" aria-modal="true" aria-labelledby="loginGateTitle">
-      <div class="login-card">
-        <div class="brand login-brand">
-          <div class="brand-mark" aria-hidden="true">
-            <span></span><span></span><span></span><span></span>
-          </div>
-          <div>
-            <p class="eyebrow">Chromatica Lab</p>
-            <h1>半音階口琴練習室</h1>
-          </div>
-        </div>
-        <p class="eyebrow">Sign in</p>
-        <h2 id="loginGateTitle">登入後開始練習</h2>
-        <p>請使用 Google 或 Apple 帳號登入，系統會保存你的每日目標與練習進度。</p>
-        <div class="login-actions">
-          <button class="login-btn google-login" data-login-provider="Google" type="button">
-            <span aria-hidden="true">G</span>
-            使用 Google 登入
-          </button>
-          <button class="login-btn apple-login" data-login-provider="Apple" type="button">
-            <span aria-hidden="true"></span>
-            使用 Apple 登入
-          </button>
-        </div>
-        <p class="login-note">目前為本機原型登入流程；正式上線時會串接 Google / Apple 帳號驗證。</p>
-      </div>
-    </div>
-
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
       <div class="mic-gate-card">
         <div class="mic-gate-brand">
@@ -68,7 +40,7 @@
 
     <div id="goalToast" class="goal-toast hidden" role="dialog" aria-modal="true" aria-labelledby="goalToastTitle">
       <div class="goal-toast-card">
-        <p class="eyebrow">Daily Goal</p>
+        <p class="eyebrow">每日目標</p>
         <h2 id="goalToastTitle">恭喜完成</h2>
         <p id="goalToastText">你已完成今日目標。</p>
         <button id="goalToastClose" class="primary-btn" type="button">知道了</button>
@@ -88,7 +60,7 @@
           <div class="home-hero">
             <p class="eyebrow">Chromatica Lab</p>
             <h2>半音階口琴練習室</h2>
-            <p>透過基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實。</p>
+            <p>透過音符地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p>
             <div class="hero-actions">
               <button class="primary-btn" data-jump="longtone" type="button">開始今天的練習</button>
               <button class="ghost-btn" data-jump="map" type="button">查看音符地圖</button>
@@ -138,7 +110,7 @@
         <section id="map" class="view">
           <div class="section-head">
             <div>
-              <p class="eyebrow">Note Map</p>
+              <p class="eyebrow">音符地圖</p>
               <h2>音符地圖</h2>
               <p>切換琴型後左右滑動，逐孔查看吹音、吸音與按鍵音。</p>
             </div>
@@ -161,7 +133,7 @@
 
         <section id="longtone" class="view">
           <div class="section-head compact">
-            <p class="eyebrow">Lesson 1</p>
+            <p class="eyebrow">第一課</p>
             <h2>長音練習室</h2>
             <p id="exerciseInstruction">用 mp 音量穩定吹奏，注意起音、中段與收尾。</p>
           </div>
@@ -178,7 +150,7 @@
             <section class="player panel" aria-live="polite">
               <div class="player-top">
                 <div>
-                  <p class="eyebrow" id="exerciseLevel">Level 1</p>
+                  <p class="eyebrow" id="exerciseLevel">初階</p>
                   <h3 id="exerciseTitle">8 拍平穩長音</h3>
                 </div>
                 <div class="player-actions">
@@ -286,14 +258,14 @@
 
         <section id="daily" class="view">
           <div class="section-head compact">
-            <p class="eyebrow">Daily Practice</p>
+            <p class="eyebrow">每日練習</p>
             <h2>每日目標</h2>
             <p>完整完成一個練習後會自動打勾，每天重新開始。</p>
           </div>
           <div class="panel daily-page">
             <div class="daily-goal-head">
               <div>
-                <span id="dailyGoalSummary">今日完成 0 / 22</span>
+                <span id="dailyGoalSummary">今日完成 0 / 22 個練習</span>
               </div>
               <small>完成所選循環次數後打勾</small>
             </div>
@@ -306,10 +278,10 @@
 
         <section id="audio" class="view">
           <div class="section-head compact">
-            <p class="eyebrow">Audio Settings</p>
+            <p class="eyebrow">收音設定</p>
             <h2>收音設定</h2>
           </div>
-          <div class="panel audio-settings-panel">
+          <div class="audio-settings-panel">
             <div class="setting-row">
               <span>麥克風狀態</span>
               <strong id="audioMicStatus">待開啟</strong>
@@ -333,7 +305,7 @@
 
         <section id="soon" class="view">
           <div class="coming-soon">
-            <p class="eyebrow">Coming soon</p>
+            <p class="eyebrow">即將開放</p>
             <h2>後續練習室準備中</h2>
             <p>第一版先把認識半音階口琴、音符地圖與長音練習室做好。</p>
           </div>
@@ -348,6 +320,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=mobile-first-2"></script>
+    <script src="./app.js?v=cleanup-1"></script>
   </body>
 </html>

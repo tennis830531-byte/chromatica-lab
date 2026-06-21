@@ -1,9 +1,9 @@
-const CACHE_NAME = "chromatica-lab-mobile-first-2";
+const CACHE_NAME = "chromatica-lab-cleanup-1";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=mobile-first-2",
-  "./app.js?v=mobile-first-2",
+  "./styles.css?v=cleanup-1",
+  "./app.js?v=cleanup-1",
   "./manifest.webmanifest",
   "./assets/app-icon.svg",
 ];
