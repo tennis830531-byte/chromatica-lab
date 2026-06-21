@@ -1,11 +1,12 @@
-const CACHE_NAME = "chromatica-lab-vintage-1";
+const CACHE_NAME = "chromatica-lab-vintage-2";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=vintage-1",
-  "./app.js?v=vintage-1",
+  "./styles.css?v=vintage-2",
+  "./app.js?v=vintage-2",
   "./manifest.webmanifest",
-  "./assets/app-icon.svg",
+  "./assets/app-logo.png",
+  "./assets/brand-logo.png",
 ];
 
 self.addEventListener("install", (event) => {

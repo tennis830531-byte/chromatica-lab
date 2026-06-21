@@ -7,18 +7,17 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="口琴練習室" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <title>半音階口琴練習室</title>
+    <title>Chromatic harmonica Lab</title>
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="icon" href="./assets/app-icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="./assets/app-icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=vintage-1" />
+    <link rel="icon" href="./assets/app-logo.png" type="image/png" />
+    <link rel="apple-touch-icon" href="./assets/app-logo.png" />
+    <link rel="stylesheet" href="./styles.css?v=vintage-2" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
       <div class="mic-gate-card">
         <div class="mic-gate-brand">
-          <strong>Chromatica Lab</strong>
-          <span>半音階口琴練習室</span>
+          <img src="./assets/brand-logo.png" alt="Chromatic harmonica Lab 半音階口琴練習室" />
         </div>
         <div class="mic-icon" aria-hidden="true">
           <span></span>
@@ -49,16 +48,19 @@
 
     <div class="app-shell">
       <header class="app-header">
-        <div>
-          <strong>Chromatica Lab</strong>
-          <span>半音階口琴練習室</span>
+        <div class="header-brand">
+          <img src="./assets/app-logo.png" alt="" aria-hidden="true" />
+          <div>
+            <strong>Chromatic harmonica Lab</strong>
+            <span>半音階口琴練習室</span>
+          </div>
         </div>
         <button class="icon-btn" data-view="audio" type="button" aria-label="收音設定">⚙</button>
       </header>
       <main class="main">
         <section id="intro" class="view active">
           <div class="home-hero">
-            <p class="eyebrow">Chromatica Lab</p>
+            <img class="hero-brand-logo" src="./assets/brand-logo.png" alt="Chromatic harmonica Lab 半音階口琴練習室" />
             <h2>半音階口琴練習室</h2>
             <p>透過音符地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p>
             <div class="hero-actions">
@@ -323,6 +325,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=vintage-1"></script>
+    <script src="./app.js?v=vintage-2"></script>
   </body>
 </html>

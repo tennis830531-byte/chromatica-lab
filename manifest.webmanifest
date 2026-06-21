@@ -1,6 +1,6 @@
 {
-  "name": "半音階口琴練習室",
-  "short_name": "口琴練習室",
+  "name": "Chromatic harmonica Lab",
+  "short_name": "Harmonica Lab",
   "description": "半音階口琴長音、音量控制與每日目標練習工具。",
   "lang": "zh-Hant",
   "start_url": "./index.html",
@@ -11,9 +11,9 @@
   "theme_color": "#7C4A2D",
   "icons": [
     {
-      "src": "./assets/app-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "./assets/app-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]
