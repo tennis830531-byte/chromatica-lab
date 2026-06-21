@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/app-logo.png" type="image/png" />
     <link rel="apple-touch-icon" href="./assets/app-logo.png" />
-    <link rel="stylesheet" href="./styles.css?v=pitch-3" />
+    <link rel="stylesheet" href="./styles.css?v=pitch-5" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -192,15 +192,15 @@
                     <div id="micLevelBar"></div>
                   </div>
                   <div id="micCurve" class="mic-curve"></div>
-                  <div id="pitchTuner" class="pitch-tuner">
+                  <div id="pitchTuner" class="pitch-tuner" data-status="waiting">
                     <span class="tuner-edge flat">低</span>
                     <div class="tuner-track">
                       <div class="tuner-center"></div>
                       <div id="pitchNeedle" class="tuner-needle"></div>
                     </div>
                     <span class="tuner-edge sharp">高</span>
-                    <strong id="pitchReadout" class="tuner-note">--</strong>
-                    <small id="pitchCents" class="tuner-cents">--</small>
+                    <strong id="pitchReadout" class="tuner-note">等待</strong>
+                    <small id="pitchCents" class="tuner-cents">等待穩定收音</small>
                   </div>
                   <button id="calibrateMicBtn" class="ghost-btn mic-calibrate" type="button">校正靜音</button>
                 </div>
@@ -325,6 +325,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=pitch-3"></script>
+    <script src="./app.js?v=pitch-5"></script>
   </body>
 </html>

@@ -1,9 +1,9 @@
-const CACHE_NAME = "chromatica-lab-pitch-3";
+const CACHE_NAME = "chromatica-lab-pitch-5";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=pitch-3",
-  "./app.js?v=pitch-3",
+  "./styles.css?v=pitch-5",
+  "./app.js?v=pitch-5",
   "./manifest.webmanifest",
   "./assets/app-logo.png",
   "./assets/brand-logo.png",

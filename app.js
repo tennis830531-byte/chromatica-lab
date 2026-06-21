@@ -295,8 +295,16 @@ let micSensitivity = 3.2;
 let tuningA4 = 440;
 let micSilentRms = 0;
 let isCalibratingMic = false;
-let lastPitch = null;
+const minPitchRms = 0.015;
+let pitchRawWindow = [];
+let lockedPitchMidi = null;
+let pendingPitchMidi = null;
+let pendingPitchCount = 0;
+let smoothedPitchCents = 0;
+let stablePitchDisplay = null;
 let lastPitchAt = 0;
+let pitchCentsHistory = [];
+let pitchDebugLog = [];
 let liveLevels = Array.from({ length: 48 }, () => 0);
 let displayEnvelopeLevel = 0;
 let scoreEnvelopeSignal = 0;
@@ -662,7 +670,7 @@ function resetMicStats() {
   currentStabilityScore = null;
   $("#micLevelBar").style.width = "0%";
   $("#liveVolume").textContent = "0%";
-  updatePitchTuner(null);
+  resetPitchTracker();
   $("#stabilityStat span").textContent = "穩定度";
   $("#stabilityScore").textContent = "--";
   renderMicCurve();
@@ -680,7 +688,7 @@ function resetMicCycle() {
   currentStabilityScore = null;
   $("#micLevelBar").style.width = "0%";
   $("#liveVolume").textContent = "0%";
-  updatePitchTuner(null);
+  resetPitchTracker();
   $("#stabilityStat span").textContent = "穩定度";
   $("#stabilityScore").textContent = "--";
   renderMicCurve();
@@ -822,10 +830,11 @@ function detectPitch() {
     rmsSum += value * value;
   }
   const rms = Math.sqrt(rmsSum / buffer.length);
-  if (rms < 0.0018) return null;
+  const rmsThreshold = getPitchRmsThreshold();
+  if (rms < rmsThreshold) return { frequency: null, confidence: 0, rms, reason: "quiet" };
 
-  const minFrequency = 80;
-  const maxFrequency = 2200;
+  const minFrequency = 120;
+  const maxFrequency = 2500;
   const minLag = Math.floor(sampleRate / maxFrequency);
   const maxLag = Math.min(buffer.length - 1, Math.floor(sampleRate / minFrequency));
   let bestLag = -1;
@@ -844,7 +853,9 @@ function detectPitch() {
   }
 
   const normalizedCorrelation = bestCorrelation / Math.max(rms * rms, 0.0000001);
-  if (bestLag < 0 || normalizedCorrelation < 0.28) return detectSpectralPitch();
+  if (bestLag < 0 || normalizedCorrelation < 0.82) {
+    return detectSpectralPitch(rms);
+  }
   let refinedLag = bestLag;
   if (bestLag > minLag && bestLag < maxLag) {
     const previous = lagCorrelation(buffer, bestLag - 1);
@@ -857,16 +868,18 @@ function detectPitch() {
   }
 
   const frequency = sampleRate / refinedLag;
-  if (!Number.isFinite(frequency) || frequency < minFrequency || frequency > maxFrequency) return null;
-  return frequency;
+  if (!Number.isFinite(frequency) || frequency < minFrequency || frequency > maxFrequency) {
+    return { frequency: null, confidence: normalizedCorrelation, rms, reason: "range" };
+  }
+  return { frequency, confidence: Math.min(1, normalizedCorrelation), rms, reason: "autocorrelation" };
 }
 
-function detectSpectralPitch() {
+function detectSpectralPitch(rms = 0) {
   if (!micFrequencyData || !audioContext) return null;
   const sampleRate = audioContext.sampleRate;
   const hzPerBin = sampleRate / micAnalyser.fftSize;
-  const minBin = Math.max(1, Math.floor(80 / hzPerBin));
-  const maxBin = Math.min(micFrequencyData.length - 2, Math.ceil(2200 / hzPerBin));
+  const minBin = Math.max(1, Math.floor(120 / hzPerBin));
+  const maxBin = Math.min(micFrequencyData.length - 2, Math.ceil(2500 / hzPerBin));
   let peakBin = -1;
   let peakValue = 0;
   let total = 0;
@@ -881,14 +894,20 @@ function detectSpectralPitch() {
     }
   }
   const average = count ? total / count : 0;
-  if (peakBin < 0 || peakValue < 14 || peakValue < average * 2.2) return null;
+  const confidence = peakValue > 0 ? Math.max(0, Math.min(1, (peakValue - average) / Math.max(peakValue, 1))) : 0;
+  if (peakBin < 0 || peakValue < 14 || confidence < 0.82) {
+    return { frequency: null, confidence, rms, reason: "spectral-low-confidence" };
+  }
   const previous = micFrequencyData[peakBin - 1] || 0;
   const current = micFrequencyData[peakBin] || 0;
   const next = micFrequencyData[peakBin + 1] || 0;
   const denominator = previous - 2 * current + next;
   const offset = Math.abs(denominator) > 0.000001 ? (previous - next) / (2 * denominator) : 0;
   const frequency = (peakBin + Math.max(-0.5, Math.min(0.5, offset))) * hzPerBin;
-  return Number.isFinite(frequency) ? frequency : null;
+  if (!Number.isFinite(frequency) || frequency < 120 || frequency > 2500) {
+    return { frequency: null, confidence, rms, reason: "spectral-range" };
+  }
+  return { frequency, confidence, rms, reason: "spectral" };
 }
 
 function lagCorrelation(buffer, lag) {
@@ -899,27 +918,54 @@ function lagCorrelation(buffer, lag) {
   return correlation / (buffer.length - lag);
 }
 
-function formatPitch(frequency) {
+function frequencyToMidi(frequency) {
+  return 69 + 12 * Math.log2(frequency / tuningA4);
+}
+
+function midiToNote(midi) {
   const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-  const midi = 69 + 12 * Math.log2(frequency / tuningA4);
+  const noteName = noteNames[((midi % 12) + 12) % 12];
+  const octave = Math.floor(midi / 12) - 1;
+  return `${noteName}${octave}`;
+}
+
+function formatPitch(frequency) {
+  const midi = frequencyToMidi(frequency);
   const roundedMidi = Math.round(midi);
   const cents = Math.round((midi - roundedMidi) * 100);
-  const noteName = noteNames[((roundedMidi % 12) + 12) % 12];
-  const octave = Math.floor(roundedMidi / 12) - 1;
   return {
-    note: `${noteName}${octave}`,
+    note: midiToNote(roundedMidi),
     cents,
     frequency,
   };
 }
 
-function updatePitchTuner(pitch) {
+function median(values) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function getPitchRmsThreshold() {
+  return Math.max(minPitchRms, micSilentRms > 0 ? micSilentRms * 2.5 : 0);
+}
+
+function getPitchStatus(cents) {
+  if (Math.abs(cents) <= 5) return "準";
+  if (cents > 18) return "偏高";
+  if (cents > 5) return "稍微偏高";
+  if (cents < -18) return "偏低";
+  return "稍微偏低";
+}
+
+function updatePitchTuner(pitch, waiting = false) {
   const tuner = $("#pitchTuner");
-  if (!pitch) {
-    $("#pitchReadout").textContent = "--";
-    $("#pitchCents").textContent = "--";
+  if (!pitch || waiting) {
+    $("#pitchReadout").textContent = stablePitchDisplay?.note || "等待";
+    $("#pitchCents").textContent = "等待穩定收音";
     $("#pitchNeedle").style.left = "50%";
-    tuner.dataset.status = "idle";
+    tuner.dataset.status = "waiting";
     return;
   }
   const clampedCents = Math.max(-50, Math.min(50, pitch.cents));
@@ -927,31 +973,120 @@ function updatePitchTuner(pitch) {
   const sign = pitch.cents > 0 ? "+" : "";
   const absCents = Math.abs(pitch.cents);
   const status = absCents <= 8 ? "in" : absCents <= 22 ? "near" : "out";
-  $("#pitchReadout").textContent = pitch.note;
-  $("#pitchCents").textContent = `${sign}${pitch.cents}¢`;
+  $("#pitchReadout").textContent = `目前音 ${pitch.note}`;
+  $("#pitchCents").textContent = `${getPitchStatus(pitch.cents)} · ${sign}${pitch.cents}¢`;
   $("#pitchNeedle").style.left = `${position}%`;
   tuner.dataset.status = status;
 }
 
-function updateLivePitch(rawSignal) {
-  if (!micAnalyser || rawSignal < 0.0012 || isCalibratingMic) {
-    if (!lastPitch || performance.now() - lastPitchAt > 900) {
-      updatePitchTuner(null);
+function resetPitchTracker() {
+  pitchRawWindow = [];
+  lockedPitchMidi = null;
+  pendingPitchMidi = null;
+  pendingPitchCount = 0;
+  smoothedPitchCents = 0;
+  stablePitchDisplay = null;
+  lastPitchAt = 0;
+  pitchCentsHistory = [];
+  updatePitchTuner(null, true);
+}
+
+function logPitchDebug(measurement) {
+  if (!measurement) return;
+  pitchDebugLog.push({
+    at: Date.now(),
+    rawFreq: measurement.frequency,
+    confidence: measurement.confidence,
+    rms: measurement.rms,
+    reason: measurement.reason,
+  });
+  pitchDebugLog = pitchDebugLog.slice(-80);
+}
+
+function processPitchMeasurement(measurement) {
+  logPitchDebug(measurement);
+  if (
+    !measurement?.frequency ||
+    measurement.rms < getPitchRmsThreshold() ||
+    measurement.confidence < 0.82 ||
+    measurement.frequency < 120 ||
+    measurement.frequency > 2500
+  ) {
+    return null;
+  }
+
+  pitchRawWindow.push(measurement.frequency);
+  pitchRawWindow = pitchRawWindow.slice(-5);
+  const filteredFrequency = median(pitchRawWindow);
+  if (!filteredFrequency) return null;
+
+  const midi = frequencyToMidi(filteredFrequency);
+  const nearestMidi = Math.round(midi);
+  if (lockedPitchMidi === null) {
+    lockedPitchMidi = nearestMidi;
+    pendingPitchMidi = null;
+    pendingPitchCount = 0;
+    smoothedPitchCents = 0;
+  }
+
+  const lockedCents = (midi - lockedPitchMidi) * 100;
+  if (Math.abs(lockedCents) > 35 && nearestMidi !== lockedPitchMidi) {
+    if (pendingPitchMidi === nearestMidi) {
+      pendingPitchCount += 1;
+    } else {
+      pendingPitchMidi = nearestMidi;
+      pendingPitchCount = 1;
     }
-    return;
-  }
-  const frequency = detectPitch();
-  if (frequency) {
-    lastPitch = formatPitch(frequency);
-    lastPitchAt = performance.now();
-    updatePitchTuner(lastPitch);
-    return;
-  }
-  if (lastPitch && performance.now() - lastPitchAt <= 900) {
-    updatePitchTuner(lastPitch);
+    if (pendingPitchCount >= 5) {
+      lockedPitchMidi = nearestMidi;
+      pendingPitchMidi = null;
+      pendingPitchCount = 0;
+      smoothedPitchCents = 0;
+    }
   } else {
-    updatePitchTuner(null);
+    pendingPitchMidi = null;
+    pendingPitchCount = 0;
   }
+
+  const centsFromLockedNote = Math.max(-50, Math.min(50, (midi - lockedPitchMidi) * 100));
+  smoothedPitchCents += (centsFromLockedNote - smoothedPitchCents) * 0.18;
+  const displayCents = Math.abs(smoothedPitchCents) <= 3 ? 0 : Math.round(smoothedPitchCents);
+  const display = {
+    note: midiToNote(lockedPitchMidi),
+    cents: displayCents,
+    frequency: filteredFrequency,
+  };
+  stablePitchDisplay = display;
+  lastPitchAt = performance.now();
+  pitchCentsHistory.push({ at: lastPitchAt, cents: displayCents });
+  pitchCentsHistory = pitchCentsHistory.filter((entry) => lastPitchAt - entry.at <= 1000);
+  return display;
+}
+
+function updateLivePitch() {
+  if (!micAnalyser || isCalibratingMic) {
+    updatePitchTuner(stablePitchDisplay, true);
+    return;
+  }
+  const pitch = processPitchMeasurement(detectPitch());
+  if (pitch) {
+    updatePitchTuner(pitch);
+    return;
+  }
+  if (stablePitchDisplay && performance.now() - lastPitchAt <= 900) {
+    updatePitchTuner(stablePitchDisplay);
+  } else {
+    updatePitchTuner(stablePitchDisplay, true);
+  }
+}
+
+function calculatePitchStability() {
+  if (pitchCentsHistory.length < 5) return null;
+  const values = pitchCentsHistory.map((entry) => entry.cents);
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
+  const sd = Math.sqrt(variance);
+  return clampScore(100 - (sd / 30) * 100);
 }
 
 function signalToMeterLevel(signal) {
@@ -1018,7 +1153,7 @@ function updateMicMonitor() {
   const percent = Math.round(meterLevel * 100);
   $("#micLevelBar").style.width = `${percent}%`;
   $("#liveVolume").textContent = `${percent}%`;
-  updateLivePitch(rawSignal);
+  updateLivePitch();
 
   if (isListeningWindow) {
     liveLevels.push(displayEnvelopeLevel);
@@ -1035,7 +1170,8 @@ function updateMicMonitor() {
     beatLevelCounts[index] += 1;
     playLevels.push(scoreEnvelopeSignal);
     playLevels = playLevels.slice(-Math.max(240, exercise.playBeats * 90));
-    const score = calculateStability();
+    const pitchScore = calculatePitchStability();
+    const score = pitchScore ?? calculateStability();
     if (score === "--") {
       $("#stabilityScore").textContent = "--";
     } else {
@@ -1366,7 +1502,7 @@ function bindEvents() {
   });
   $("#tuningSelect").addEventListener("change", (event) => {
     tuningA4 = Number(event.target.value);
-    updatePitchTuner(null);
+    resetPitchTracker();
   });
   $("#calibrateMicBtn").addEventListener("click", calibrateMic);
   $("#audioCalibrateBtn").addEventListener("click", calibrateMic);

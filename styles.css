@@ -781,7 +781,7 @@ p {
 .tuner-note {
   grid-column: span 3;
   justify-self: center;
-  min-width: 64px;
+  min-width: 92px;
   padding: 6px 10px;
   border-radius: 999px;
   color: var(--title);
@@ -805,6 +805,15 @@ p {
 .pitch-tuner[data-status="out"] .tuner-needle {
   color: white;
   background: #b45309;
+}
+
+.pitch-tuner[data-status="waiting"] .tuner-note {
+  color: var(--muted);
+  background: var(--card);
+}
+
+.pitch-tuner[data-status="waiting"] .tuner-needle {
+  background: var(--faint);
 }
 
 .mic-calibrate {
