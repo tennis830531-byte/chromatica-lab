@@ -295,6 +295,8 @@ let micSensitivity = 3.2;
 let tuningA4 = 440;
 let micSilentRms = 0;
 let isCalibratingMic = false;
+let lastPitch = null;
+let lastPitchAt = 0;
 let liveLevels = Array.from({ length: 48 }, () => 0);
 let displayEnvelopeLevel = 0;
 let scoreEnvelopeSignal = 0;
@@ -820,10 +822,10 @@ function detectPitch() {
     rmsSum += value * value;
   }
   const rms = Math.sqrt(rmsSum / buffer.length);
-  if (rms < 0.006) return null;
+  if (rms < 0.0018) return null;
 
-  const minFrequency = 120;
-  const maxFrequency = 1600;
+  const minFrequency = 80;
+  const maxFrequency = 2200;
   const minLag = Math.floor(sampleRate / maxFrequency);
   const maxLag = Math.min(buffer.length - 1, Math.floor(sampleRate / minFrequency));
   let bestLag = -1;
@@ -841,7 +843,8 @@ function detectPitch() {
     }
   }
 
-  if (bestLag < 0 || bestCorrelation < 0.004) return null;
+  const normalizedCorrelation = bestCorrelation / Math.max(rms * rms, 0.0000001);
+  if (bestLag < 0 || normalizedCorrelation < 0.28) return detectSpectralPitch();
   let refinedLag = bestLag;
   if (bestLag > minLag && bestLag < maxLag) {
     const previous = lagCorrelation(buffer, bestLag - 1);
@@ -856,6 +859,36 @@ function detectPitch() {
   const frequency = sampleRate / refinedLag;
   if (!Number.isFinite(frequency) || frequency < minFrequency || frequency > maxFrequency) return null;
   return frequency;
+}
+
+function detectSpectralPitch() {
+  if (!micFrequencyData || !audioContext) return null;
+  const sampleRate = audioContext.sampleRate;
+  const hzPerBin = sampleRate / micAnalyser.fftSize;
+  const minBin = Math.max(1, Math.floor(80 / hzPerBin));
+  const maxBin = Math.min(micFrequencyData.length - 2, Math.ceil(2200 / hzPerBin));
+  let peakBin = -1;
+  let peakValue = 0;
+  let total = 0;
+  let count = 0;
+  for (let i = minBin; i <= maxBin; i += 1) {
+    const value = micFrequencyData[i];
+    total += value;
+    count += 1;
+    if (value > peakValue) {
+      peakValue = value;
+      peakBin = i;
+    }
+  }
+  const average = count ? total / count : 0;
+  if (peakBin < 0 || peakValue < 14 || peakValue < average * 2.2) return null;
+  const previous = micFrequencyData[peakBin - 1] || 0;
+  const current = micFrequencyData[peakBin] || 0;
+  const next = micFrequencyData[peakBin + 1] || 0;
+  const denominator = previous - 2 * current + next;
+  const offset = Math.abs(denominator) > 0.000001 ? (previous - next) / (2 * denominator) : 0;
+  const frequency = (peakBin + Math.max(-0.5, Math.min(0.5, offset))) * hzPerBin;
+  return Number.isFinite(frequency) ? frequency : null;
 }
 
 function lagCorrelation(buffer, lag) {
@@ -898,6 +931,27 @@ function updatePitchTuner(pitch) {
   $("#pitchCents").textContent = `${sign}${pitch.cents}¢`;
   $("#pitchNeedle").style.left = `${position}%`;
   tuner.dataset.status = status;
+}
+
+function updateLivePitch(rawSignal) {
+  if (!micAnalyser || rawSignal < 0.0012 || isCalibratingMic) {
+    if (!lastPitch || performance.now() - lastPitchAt > 900) {
+      updatePitchTuner(null);
+    }
+    return;
+  }
+  const frequency = detectPitch();
+  if (frequency) {
+    lastPitch = formatPitch(frequency);
+    lastPitchAt = performance.now();
+    updatePitchTuner(lastPitch);
+    return;
+  }
+  if (lastPitch && performance.now() - lastPitchAt <= 900) {
+    updatePitchTuner(lastPitch);
+  } else {
+    updatePitchTuner(null);
+  }
 }
 
 function signalToMeterLevel(signal) {
@@ -964,8 +1018,7 @@ function updateMicMonitor() {
   const percent = Math.round(meterLevel * 100);
   $("#micLevelBar").style.width = `${percent}%`;
   $("#liveVolume").textContent = `${percent}%`;
-  const detectedPitch = isScoringWindow ? detectPitch() : null;
-  updatePitchTuner(detectedPitch ? formatPitch(detectedPitch) : null);
+  updateLivePitch(rawSignal);
 
   if (isListeningWindow) {
     liveLevels.push(displayEnvelopeLevel);
@@ -1017,7 +1070,7 @@ async function startMic() {
     });
     const source = audioContext.createMediaStreamSource(micStream);
     micAnalyser = audioContext.createAnalyser();
-    micAnalyser.fftSize = 2048;
+    micAnalyser.fftSize = 4096;
     micAnalyser.smoothingTimeConstant = 0.18;
     micData = new Uint8Array(micAnalyser.fftSize);
     micFrequencyData = new Uint8Array(micAnalyser.frequencyBinCount);
