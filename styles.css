@@ -877,6 +877,19 @@ p {
   gap: 16px;
 }
 
+.player-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.player-actions .primary-btn,
+.player-actions .ghost-btn {
+  min-width: 74px;
+}
+
 .phase-pill {
   min-width: 90px;
   padding: 8px 12px;
@@ -1337,11 +1350,6 @@ input[type="range"] {
   width: 100%;
 }
 
-.controls {
-  display: flex;
-  gap: 10px;
-}
-
 .coming-soon {
   display: grid;
   place-items: center;
@@ -1403,6 +1411,10 @@ input[type="range"] {
   .player-top {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .player-actions {
+    justify-content: flex-start;
   }
 
   .harmonica-panel,

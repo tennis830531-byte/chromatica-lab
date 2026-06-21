@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/app-icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/app-icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=cycle-label-1" />
+    <link rel="stylesheet" href="./styles.css?v=header-actions-1" />
   </head>
   <body>
     <div id="loginGate" class="login-gate" role="dialog" aria-modal="true" aria-labelledby="loginGateTitle">
@@ -220,7 +220,11 @@
                   <h3 id="exerciseTitle">8 拍平穩長音</h3>
                   <p id="exerciseInstruction">用 mp 音量穩定吹 8 拍，注意起音與音尾。</p>
                 </div>
-                <div class="phase-pill" id="phasePill">待開始</div>
+                <div class="player-actions">
+                  <div class="phase-pill" id="phasePill">待開始</div>
+                  <button id="startPauseBtn" class="primary-btn">開始</button>
+                  <button id="resetBtn" class="ghost-btn">重來</button>
+                </div>
               </div>
 
               <div class="meter-stage">
@@ -317,10 +321,6 @@
                 </div>
               </div>
 
-              <div class="controls">
-                <button id="startPauseBtn" class="primary-btn">開始</button>
-                <button id="resetBtn" class="ghost-btn">重來</button>
-              </div>
             </section>
           </div>
         </section>
@@ -375,6 +375,6 @@
       </main>
     </div>
 
-    <script src="./app.js?v=cycle-label-1"></script>
+    <script src="./app.js?v=header-actions-1"></script>
   </body>
 </html>

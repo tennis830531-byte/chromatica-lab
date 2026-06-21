@@ -1,4 +1,4 @@
-const CACHE_NAME = "chromatica-lab-cycle-label-1";
+const CACHE_NAME = "chromatica-lab-header-actions-1";
 const APP_SHELL = [
   "./",
   "./index.html",
