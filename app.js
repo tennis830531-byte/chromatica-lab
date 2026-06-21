@@ -476,41 +476,43 @@ function renderNoteMap() {
   const map = $("#noteMap");
   const startIndex = selectedHoles === 16 ? 0 : selectedHoles === 14 ? 2 : 4;
   const layout = makeLayout(16).slice(startIndex);
-  const rows = [
-    { label: "孔位", sublabel: "", key: "hole", className: "hole-cell" },
-    { label: "吹音", sublabel: "Blow", key: "blow", className: "blow-cell" },
-    { label: "吸音", sublabel: "Draw", key: "draw", className: "draw-cell" },
-    { label: "按鍵吹音", sublabel: "Button Blow", key: "buttonBlow", className: "button-blow-cell" },
-    { label: "按鍵吸音", sublabel: "Button Draw", key: "buttonDraw", className: "button-draw-cell" },
-  ];
 
   map.style.setProperty("--holes", selectedHoles);
-  $("#mapModelHint").textContent =
-    selectedHoles === 16
-      ? "目前顯示 16 孔完整 1-16 欄。"
-      : selectedHoles === 14
-        ? "目前顯示 14 孔，第 3-16 欄。"
-        : "目前顯示 12 孔，第 5-16 欄。";
-  map.innerHTML = rows
-    .map((row) => {
-      const cells = layout
-        .map((note, index) => `
-          <div class="note-cell ${row.className} ${noteHighlightClass(note[row.key], row.key, layout, index)} ${modelRangeClass(note.hole)}">
-            ${row.key === "hole" ? index + 1 : note[row.key]}
-          </div>
-        `)
-        .join("");
-      return `
-        <div class="note-row">
-          <div class="row-label">
-            <strong>${row.label}</strong>
-            ${row.sublabel ? `<span>${row.sublabel}</span>` : ""}
-          </div>
-          ${cells}
-        </div>
-      `;
-    })
+  map.innerHTML = layout
+    .map((note, index) => `
+      <article class="hole-card">
+        <strong>第 ${index + 1} 孔</strong>
+        <div><span>吹</span><b>${note.blow}</b></div>
+        <div><span>吸</span><b>${note.draw}</b></div>
+        <div><span>按鍵吹</span><b>${note.buttonBlow}</b></div>
+        <div><span>按鍵吸</span><b>${note.buttonDraw}</b></div>
+      </article>
+    `)
     .join("");
+}
+
+function activateViewButton(view) {
+  $$("[data-view]").forEach((item) => {
+    const matches = item.dataset.view === view;
+    if (item.classList.contains("nav-item") || item.classList.contains("bottom-nav-item") || item.classList.contains("icon-btn")) {
+      item.classList.toggle("active", matches);
+    }
+  });
+}
+
+function setBpm(nextBpm) {
+  bpm = Math.max(40, Math.min(120, Number(nextBpm)));
+  $("#bpmInput").value = bpm;
+  $("#bpmValue").textContent = bpm;
+  if (timer) {
+    clearInterval(timer);
+    timer = setInterval(stepPractice, 60000 / bpm);
+  }
+}
+
+function updateAudioStatus(text) {
+  const status = $("#audioMicStatus");
+  if (status) status.textContent = text;
 }
 
 function modelRangeClass(hole) {
@@ -619,11 +621,10 @@ function renderDailyGoals() {
   const tasks = getDailyGoalTasks();
   const doneCount = tasks.filter((task) => state[task.id]).length;
   const summary = `${doneCount} / ${tasks.length}`;
-  $("#dailyGoalSummary").textContent = summary;
-  $("#dailyNavSummary").textContent = summary;
-  const dailyNav = document.querySelector('[data-view="daily"]');
-  dailyNav.classList.toggle("complete", doneCount === tasks.length && tasks.length > 0);
-  dailyNav.querySelector("span").textContent = doneCount === tasks.length && tasks.length > 0 ? "✓ 每日目標" : "每日目標";
+  $("#dailyGoalSummary").textContent = `今日完成 ${summary}`;
+  $$('[data-view="daily"]').forEach((dailyNav) => {
+    dailyNav.classList.toggle("complete", doneCount === tasks.length && tasks.length > 0);
+  });
   $("#dailyGoalList").innerHTML = tasks
     .map((task, index) => {
       const done = state[task.id] === true;
@@ -938,6 +939,8 @@ async function calibrateMic() {
   if (!micAnalyser || isCalibratingMic) return;
   isCalibratingMic = true;
   $("#calibrateMicBtn").textContent = "校正中...";
+  $("#audioCalibrateBtn").textContent = "校正中...";
+  updateAudioStatus("校正中");
   const samples = [];
   for (let i = 0; i < 24; i += 1) {
     samples.push(readMicSignal());
@@ -947,6 +950,8 @@ async function calibrateMic() {
   micSilentRms = samples[Math.floor(samples.length * 0.5)] || 0;
   isCalibratingMic = false;
   $("#calibrateMicBtn").textContent = "重新校正靜音";
+  $("#audioCalibrateBtn").textContent = "靜音校正";
+  updateAudioStatus("已開啟");
 }
 
 function updateMicMonitor() {
@@ -1006,6 +1011,7 @@ function updateMicMonitor() {
 async function startMic() {
   if (micAnalyser) return true;
   try {
+    updateAudioStatus("開啟中");
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error("getUserMedia is not available");
     }
@@ -1034,8 +1040,10 @@ async function startMic() {
       cancelAnimationFrame(micFrame);
     }
     updateMicMonitor();
+    updateAudioStatus("已開啟");
     return true;
   } catch (error) {
+    updateAudioStatus("無法開啟");
     return false;
   }
 }
@@ -1066,13 +1074,14 @@ function renderExercise() {
   $("#exerciseLevel").textContent = exercise.level;
   $("#exerciseTitle").textContent = exercise.title;
   $("#exerciseInstruction").textContent = getExerciseInstruction(exercise);
-  $("#beatTotal").textContent = `/ ${exercise.playBeats}`;
+  $("#beatTotal").textContent = `/ ${exercise.playBeats} 拍`;
   $("#currentDynamic").textContent = interpolateDynamic(pattern, Math.max(1, beat));
   $("#patternText").textContent = getExerciseDynamicSummary(exercise);
   $("#prepareBeats").textContent = `${exercise.prepareBeats} 拍`;
   $("#playBeats").textContent = `${exercise.playBeats} 拍`;
   $("#restBeats").textContent = `${exercise.restBeats} 拍`;
   $("#cycleCount").textContent = totalCycles;
+  $("#cycleStatus").textContent = `第 ${cycle} 次 / 共 ${totalCycles} 次`;
   $("#bpmInput").value = bpm;
   $("#bpmValue").textContent = bpm;
   $("#cycleSelect").value = String(totalCycles);
@@ -1094,6 +1103,7 @@ function renderExercise() {
 function setView(view) {
   currentView = view;
   $$(".view").forEach((element) => element.classList.toggle("active", element.id === view));
+  activateViewButton(view);
   if (view !== "longtone") stopPractice(false);
 }
 
@@ -1116,9 +1126,9 @@ function playClick(strong = false) {
 function updatePhaseLabel() {
   const labels = {
     idle: "待開始",
-    prepare: "準備",
-    play: "吹奏",
-    rest: "休息",
+    prepare: "準備中",
+    play: "吹奏中",
+    rest: "休息中",
     done: "完成",
   };
   $("#phasePill").textContent = labels[phase];
@@ -1130,11 +1140,12 @@ function updateBeatDisplay() {
   const displayBeat = phase === "play" ? beat : phase === "idle" || phase === "done" ? 0 : beat;
   $("#currentBeat").textContent = displayBeat;
   $("#cycleCount").textContent = totalCycles;
+  $("#cycleStatus").textContent = `第 ${cycle} 次 / 共 ${totalCycles} 次`;
   $("#beatTotal").textContent = phase === "prepare"
-    ? `/ ${exercise.prepareBeats}`
+    ? `/ ${exercise.prepareBeats} 拍`
     : phase === "rest"
-      ? `/ ${exercise.restBeats}`
-      : `/ ${exercise.playBeats}`;
+      ? `/ ${exercise.restBeats} 拍`
+      : `/ ${exercise.playBeats} 拍`;
   $("#currentDynamic").textContent =
     phase === "play" ? interpolateDynamic(pattern, beat) : interpolateDynamic(pattern, 1);
   updatePhaseLabel();
@@ -1236,16 +1247,15 @@ function bindEvents() {
     });
   });
 
-  $("#logoutBtn").addEventListener("click", () => {
+  $("#logoutBtn")?.addEventListener("click", () => {
     localStorage.removeItem(loginStorageKey);
     stopPractice(false);
     showLoginGate(true);
   });
 
-  $$(".nav-item").forEach((button) => {
+  $$("[data-view]").forEach((button) => {
     button.addEventListener("click", () => {
       setView(button.dataset.view);
-      $$(".nav-item").forEach((item) => item.classList.toggle("active", item === button));
     });
   });
 
@@ -1253,7 +1263,6 @@ function bindEvents() {
     button.addEventListener("click", () => {
       const view = button.dataset.jump;
       setView(view);
-      $$(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.view === view));
     });
   });
 
@@ -1278,13 +1287,11 @@ function bindEvents() {
   });
 
   $("#bpmInput").addEventListener("input", (event) => {
-    bpm = Number(event.target.value);
-    $("#bpmValue").textContent = bpm;
-    if (timer) {
-      clearInterval(timer);
-      timer = setInterval(stepPractice, 60000 / bpm);
-    }
+    setBpm(event.target.value);
   });
+
+  $("#bpmMinus").addEventListener("click", () => setBpm(bpm - 2));
+  $("#bpmPlus").addEventListener("click", () => setBpm(bpm + 2));
 
   $("#cycleSelect").addEventListener("change", (event) => {
     totalCycles = Number(event.target.value);
@@ -1322,7 +1329,6 @@ function bindEvents() {
     bpm = exercises[selectedExercise].bpm;
     stopPractice(false);
     setView("longtone");
-    $$(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.view === "longtone"));
     renderExercise();
     resetMicStats();
     updateBeatDisplay();
@@ -1337,6 +1343,7 @@ function bindEvents() {
     updatePitchTuner(null);
   });
   $("#calibrateMicBtn").addEventListener("click", calibrateMic);
+  $("#audioCalibrateBtn").addEventListener("click", calibrateMic);
   $("#goalToastClose").addEventListener("click", () => {
     $("#goalToast").classList.add("hidden");
   });
