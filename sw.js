@@ -1,12 +1,18 @@
-const CACHE_NAME = "chromatica-lab-pitch-8";
+const CACHE_NAME = "chromatica-lab-refresh-4";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=pitch-8",
-  "./app.js?v=pitch-8",
+  "./styles.css?v=refresh-4",
+  "./app.js?v=refresh-4",
   "./manifest.webmanifest",
-  "./assets/app-logo.png",
-  "./assets/brand-logo.png",
+  "./public/assets/chromatic-refresh/assets/01_logo_chromatic_harmonica_lab.png",
+  "./public/assets/chromatic-refresh/assets/02_harmonica_main_illustration.png",
+  "./public/assets/chromatic-refresh/assets/03_bird_playing_harmonica.png",
+  "./public/assets/chromatic-refresh/assets/05_bird_waving_harmonica.png",
+  "./public/assets/chromatic-refresh/assets/06_icon_note_map.png",
+  "./public/assets/chromatic-refresh/assets/07_icon_mic_settings.png",
+  "./public/assets/chromatic-refresh/assets/08_icon_daily_goal.png",
+  "./public/assets/chromatic-refresh/assets/09_icon_practice_record.png",
 ];
 
 self.addEventListener("install", (event) => {

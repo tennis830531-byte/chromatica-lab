@@ -7,11 +7,11 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#F5EFE4",
-  "theme_color": "#7C4A2D",
+  "background_color": "#F8F3EC",
+  "theme_color": "#7A4E2D",
   "icons": [
     {
-      "src": "./assets/app-logo.png",
+      "src": "./public/assets/chromatic-refresh/assets/01_logo_chromatic_harmonica_lab.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

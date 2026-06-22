@@ -1,0 +1,258 @@
+You are redesigning the existing app at:
+https://tennis830531-byte.github.io/chromatica-lab/index.html?v=pitch-8
+
+Goal:
+Refactor the UI so it feels like a polished mobile app with Japanese stationery / soft music-study aesthetics.
+The current UI structure is usable, but the visual design is plain and unattractive. Improve the design heavily while preserving the core app functions.
+
+IMPORTANT HIGH-PRIORITY RULES
+1. Delete all old ugly decorative images currently in the project.
+2. Do not keep any previous low-quality mascot art or mismatched illustrations.
+3. Use the provided new asset pack consistently.
+4. Keep the app as a real front-end implementation, not a fake mockup screenshot.
+5. Do not break the tuner, microphone permission, practice flow, daily goal logic, or note map functionality.
+6. Keep the design mobile-first.
+7. Avoid a hospital-app look, admin-dashboard look, or generic plain white-card look.
+8. The mascot bird is allowed and desired, but only use the new bird art from the provided pack.
+9. The harmonica must visually resemble a chromatic harmonica with side button, and must not show the Hohner brand logo.
+10. Keep all illustrations in one unified style: warm cream background, soft brown line art, beige/gold accents, calm Japanese hand-drawn stationery mood.
+
+FILES TO USE
+Use the following provided files from the asset pack folder:
+- assets/01_logo_chromatic_harmonica_lab.png
+- assets/02_harmonica_main_illustration.png
+- assets/03_bird_playing_harmonica.png
+- assets/04_bird_holding_harmonica.png
+- assets/05_bird_waving_harmonica.png
+- assets/06_icon_note_map.png
+- assets/07_icon_mic_settings.png
+- assets/08_icon_daily_goal.png
+- assets/09_icon_practice_record.png
+
+DESIGN DIRECTION
+Theme keywords:
+- warm
+- soft
+- musical
+- vintage paper
+- Japanese stationery
+- calm
+- cute but not childish
+- elegant and clean
+
+Visual system:
+- Background: soft warm paper tone, not flat cold white.
+- Main text: deep brown.
+- Accent color: muted gold / honey / beige.
+- Secondary accent: light warm gray-brown.
+- Border: soft brown line, subtle.
+- Shadows: light soft shadow only.
+- Corners: 20px–28px rounded.
+- Cards: paper-card style with soft gradient / paper feel.
+- Decorative elements: music notes, sparkles, arc lines, tiny dots, gentle dividers.
+
+TYPOGRAPHY
+- App title: “Chromatic Harmonica Lab”
+- Chinese subtitle: “半音階口琴練習室”
+- Headings should feel elegant and warm.
+- English title can use a refined serif or serif-like display font.
+- Chinese body text should remain highly readable.
+
+GLOBAL CLEANUP TASK
+- Remove any existing old image assets that conflict with the new style.
+- Replace icon placeholders and rough illustrations.
+- Simplify noisy sections.
+- Improve spacing, hierarchy, card layout, button styling, and section rhythm.
+- Reduce visual clutter in text-heavy areas.
+
+APP SECTIONS TO REDESIGN
+
+A. Microphone permission / onboarding screen
+Current purpose:
+Explain microphone use and ask user to enable microphone.
+
+Redesign requirements:
+- Make this the first impression screen.
+- Add the new logo asset at the top.
+- Use a single paper-style card in the center.
+- Include the bird mascot as a supportive illustration.
+- Add 3 short benefit bullets:
+  1. only analyzes volume stability
+  2. does not save audio
+  3. 1 second ambient calibration before practice
+- Add two buttons:
+  - primary: “開啟麥克風”
+  - secondary: “先瀏覽 App”
+- Add a small safety note recommending headphones.
+
+B. Home screen top / hero area
+Current page text includes intro and “開始今天的練習 / 查看音符地圖”.
+
+Redesign requirements:
+- Use the new logo as brand header.
+- Add one hero card with:
+  - title: “半音階口琴練習室”
+  - short intro copy
+  - one main CTA button: “開始今天的練習”
+  - one secondary CTA button: “查看音符地圖”
+- Put the harmonica illustration on the hero card or slightly overlapping the card edge.
+- Use decorative staff-like curves or note accents if useful.
+
+C. Today practice card
+Current item: “8 拍平穩長音” and the mp long-tone guidance.
+
+Redesign requirements:
+- Make this a prominent paper card.
+- Add the bird playing harmonica illustration.
+- Show:
+  - title: “8 拍平穩長音”
+  - description
+  - mini info chips: “準備 4 拍”, “吹奏 8 拍”, “休息 4 拍”, “循環 4 次”
+  - primary CTA: “開始練習”
+- Optional small progress bar and daily progress count.
+
+D. Quick entry section
+Current items:
+- 認識口琴
+- 音符地圖
+- 收音設定
+- 練習紀錄
+
+Redesign requirements:
+- Turn this into a clean 2x2 card grid.
+- Use these assets:
+  - note map => assets/06_icon_note_map.png
+  - mic settings => assets/07_icon_mic_settings.png
+  - daily goal => assets/08_icon_daily_goal.png
+  - practice record => assets/09_icon_practice_record.png
+- Each card should have icon, title, short description, and tap affordance.
+- Add a fifth optional small card or link for “認識半音階口琴”.
+
+E. “認識半音階口琴” section
+Current section is informative but visually dry.
+
+Redesign requirements:
+- Convert into a compact educational card.
+- Use the main harmonica illustration.
+- Explain briefly:
+  - 有吹音與吸音
+  - 側邊按鍵可升高半音
+  - 先建立音位方向感，再進入練習
+- Keep it concise.
+
+F. Upcoming practice rooms
+Current items:
+- 按鍵練習室
+- 音階練習室
+- 節奏練習室
+- 旋律練習室
+- 合奏練習室
+
+Redesign requirements:
+- Make these look like “coming soon” tags or mini cards.
+- Do not let this section become too tall.
+- Use soft outlined pills or compact cards.
+
+G. Note map page
+Current note map has 16孔 / 14孔 / 12孔 switching.
+
+Redesign requirements:
+- Keep functional switching.
+- Improve tabs visually.
+- Use cleaner typography, softer containers, better hierarchy.
+- Add a small header illustration or note map icon.
+- Keep practical readability first.
+
+H. Long tone practice room
+This is function-heavy. Do not over-decorate.
+
+Redesign requirements:
+- Keep all functional controls.
+- Organize into stacked cards:
+  1. practice status card
+  2. volume stability card
+  3. live input / calibration card
+  4. practice settings card
+- Make headings clearer.
+- Improve button styles for “開始” and “重來”.
+- Keep charts and data readable.
+- Avoid excessive mascot clutter here.
+
+I. Daily goal section
+Current page shows weekly progress and completion.
+
+Redesign requirements:
+- Make a pleasant paper card.
+- Use daily goal icon.
+- Show:
+  - 今日完成 x / y
+  - 週進度 row
+  - short encouragement copy
+- Optionally use the waving bird for encouragement.
+
+J. Settings page
+Current settings are functional but visually plain.
+
+Redesign requirements:
+- Keep all controls.
+- Convert to grouped settings cards.
+- Improve spacing around microphone status, calibration, tuning reference, sensitivity.
+- Use the mic settings icon as a small decorative header element.
+
+K. Bottom navigation
+Current nav is text-only and visually weak.
+
+Redesign requirements:
+- Make it look like a proper app bottom nav.
+- Use icons if already available in the project, or derive simple line icons in matching style.
+- Center the active page more clearly.
+- Use warm cream / brown / gold system.
+
+INTERACTION / IMPLEMENTATION RULES
+- Do not remove app functionality.
+- Preserve existing routes / sections if possible.
+- Keep performance reasonable.
+- Use CSS variables for colors.
+- Centralize illustration sizes and card spacing.
+- Ensure responsive mobile layout.
+- Use reusable card / button / chip / section header components.
+
+SUGGESTED COLOR TOKENS
+:root {
+  --bg: #F8F3EC;
+  --bg-soft: #FDF9F4;
+  --card: #FFFDF9;
+  --text-main: #3A2C23;
+  --text-body: #6C5A4E;
+  --line: #E7D8C8;
+  --primary: #7A4E2D;
+  --accent: #D4A55A;
+  --accent-soft: #F3E3C7;
+  --success: #8FA36B;
+  --shadow: 0 10px 28px rgba(72, 48, 28, 0.08);
+}
+
+RECOMMENDED FILE ORGANIZATION
+- /public/assets/chromatic-refresh/...
+- /src/styles/theme.css
+- /src/components/ui/Card.*
+- /src/components/ui/Button.*
+- /src/components/ui/SectionHeader.*
+- /src/components/ui/QuickEntryCard.*
+
+DELIVERABLES
+1. Update the current app UI across all major screens.
+2. Replace old ugly illustrations with the new assets.
+3. Add the new logo.
+4. Keep the tuner/practice logic working.
+5. Commit a coherent visual refresh, not partial patchwork.
+
+FINAL QUALITY CHECK
+Before finishing, verify:
+- old ugly images removed
+- new logo visible
+- mascot art consistent
+- harmonica image consistent
+- no Hohner logo shown
+- mobile UI looks polished
+- all major sections visually unified

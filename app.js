@@ -1034,6 +1034,9 @@ function smoothCents(previous, current) {
 
 function updatePitchTuner(pitch, waiting = false) {
   const tuner = $("#pitchTuner");
+  const homeNote = $("#homePitchNote");
+  const homeCents = $("#homePitchCents");
+  const homeStatus = $("#homeTunerStatus");
   if (!pitch || waiting) {
     if (stablePitchDisplay) {
       updatePitchTuner(stablePitchDisplay);
@@ -1042,6 +1045,9 @@ function updatePitchTuner(pitch, waiting = false) {
       $("#pitchCents").textContent = "等待穩定收音";
       $("#pitchNeedle").style.left = "50%";
       tuner.dataset.status = "waiting";
+      if (homeNote) homeNote.textContent = "等待";
+      if (homeCents) homeCents.textContent = "等待穩定收音";
+      if (homeStatus) homeStatus.textContent = "等待收音";
     }
     return;
   }
@@ -1053,6 +1059,9 @@ function updatePitchTuner(pitch, waiting = false) {
   $("#pitchCents").textContent = `${formatSignedCents(pitch.cents)} cents`;
   $("#pitchNeedle").style.left = `${position}%`;
   tuner.dataset.status = status;
+  if (homeNote) homeNote.textContent = pitch.nearestNote.name;
+  if (homeCents) homeCents.textContent = `${formatSignedCents(pitch.cents)} cents`;
+  if (homeStatus) homeStatus.textContent = "收音中";
 }
 
 function formatSignedCents(cents) {
@@ -1657,8 +1666,17 @@ function bindEvents() {
   });
   $("#tuningSelect").addEventListener("change", (event) => {
     tuningA4 = Number(event.target.value);
+    $$("[data-tuning-value]").forEach((button) => {
+      button.classList.toggle("active", Number(button.dataset.tuningValue) === tuningA4);
+    });
     refreshAllowedNotes();
     resetPitchTracker();
+  });
+  $$("[data-tuning-value]").forEach((button) => {
+    button.addEventListener("click", () => {
+      $("#tuningSelect").value = button.dataset.tuningValue;
+      $("#tuningSelect").dispatchEvent(new Event("change"));
+    });
   });
   $("#calibrateMicBtn").addEventListener("click", calibrateMic);
   $("#audioCalibrateBtn").addEventListener("click", calibrateMic);
