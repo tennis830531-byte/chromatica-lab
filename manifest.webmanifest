@@ -11,7 +11,7 @@
   "theme_color": "#7A4E2D",
   "icons": [
     {
-      "src": "./public/assets/chromatic-refresh/assets/01_logo_chromatic_harmonica_lab.png",
+      "src": "./public/assets/chromatic-refresh/cleaned/01_logo_chromatic_harmonica_lab.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

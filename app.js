@@ -1045,8 +1045,8 @@ function updatePitchTuner(pitch, waiting = false) {
       $("#pitchCents").textContent = "等待穩定收音";
       $("#pitchNeedle").style.left = "50%";
       tuner.dataset.status = "waiting";
-      if (homeNote) homeNote.textContent = "等待";
-      if (homeCents) homeCents.textContent = "等待穩定收音";
+      if (homeNote) homeNote.textContent = "--";
+      if (homeCents) homeCents.textContent = "-- cents";
       if (homeStatus) homeStatus.textContent = "等待收音";
     }
     return;
