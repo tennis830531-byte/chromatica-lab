@@ -399,11 +399,7 @@ p {
 .quick-section,
 .home-tuner-card,
 .intro-note,
-.soon-home,
-.section-head,
-.practice-layout,
-.daily-page,
-.audio-settings-panel {
+.soon-home {
   margin-top: 20px;
 }
 
@@ -478,8 +474,7 @@ p {
 
 .card-row-head,
 .curve-head,
-.mic-head,
-.daily-goal-head {
+.mic-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -705,29 +700,72 @@ p {
 }
 
 .coming-soon {
-  padding: 22px;
+  padding: 18px;
   border: 1px dashed var(--line);
   border-radius: var(--radius-lg);
   background: rgba(255, 253, 249, 0.68);
 }
 
+.coming-soon .eyebrow {
+  margin-bottom: 4px;
+}
+
+.coming-soon h2,
+.coming-soon p {
+  margin-bottom: 6px;
+}
+
 .section-head {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 12px;
+  grid-template-columns: 48px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 2px;
   align-items: start;
-  margin-bottom: 14px;
+  margin: 12px 0 10px;
 }
 
 .section-head.compact {
-  grid-template-columns: auto 1fr;
-  margin-top: 0;
+  grid-template-columns: 48px minmax(0, 1fr);
+  margin-top: 10px;
 }
 
-.section-head.compact > .eyebrow,
-.section-head.compact > h2,
-.section-head.compact > p {
+.section-head > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.section-head .eyebrow {
+  margin: 0;
+  align-self: end;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.section-head p:not(.eyebrow) {
+  margin: 0;
+  color: var(--text-body);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.section-head.compact > .eyebrow {
   grid-column: 2;
+  grid-row: 1;
+}
+
+.section-head.compact > h2 {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.section-head.compact > p:not(.eyebrow) {
+  grid-column: 2;
+  grid-row: 3;
 }
 
 .section-head.no-icon {
@@ -735,14 +773,22 @@ p {
 }
 
 .section-icon {
-  width: 58px;
-  height: 58px;
-  padding: 5px;
+  grid-row: 1 / span 3;
+  width: 48px;
+  height: 48px;
+  padding: 4px;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 16px;
   background: var(--card);
   object-fit: contain;
   box-shadow: var(--shadow-soft);
+}
+
+.section-head + .practice-layout,
+.section-head + .map-toolbar,
+.section-head + .daily-page,
+.section-head + .audio-settings-panel {
+  margin-top: 10px;
 }
 
 .map-toolbar {
@@ -997,7 +1043,7 @@ p {
 
 .curve-head span,
 .mic-head span,
-.daily-goal-head span {
+.daily-goal-copy span {
   color: var(--text-main);
   font-size: 18px;
   font-weight: 800;
@@ -1297,37 +1343,60 @@ input[type="range"] {
 }
 
 .daily-page {
-  position: relative;
   overflow: visible;
   padding: 18px;
 }
 
-.daily-note {
-  position: absolute;
-  right: 0;
-  top: 4px;
-  width: 96px;
-  opacity: 0.82;
-  pointer-events: none;
-  filter: drop-shadow(0 8px 12px rgba(72, 48, 28, 0.10));
+.daily-goal-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+  margin-bottom: 16px;
 }
 
-.daily-goal-head {
-  position: relative;
-  z-index: 1;
-  align-items: flex-start;
+.daily-goal-copy {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
 }
 
-.daily-goal-head p {
-  margin: 6px 0 0;
+.daily-goal-copy p {
+  margin: 0;
   font-size: 13px;
+}
+
+.daily-goal-note {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-body);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.daily-goal-sticky {
+  width: clamp(80px, 20vw, 118px);
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  opacity: 0.88;
+  pointer-events: none;
+}
+
+.daily-goal-sticky img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 8px 12px rgba(72, 48, 28, 0.10));
 }
 
 .week-progress {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 8px;
-  margin: 14px 0 16px;
+  margin: 0 0 16px;
 }
 
 .week-progress span {
@@ -1556,6 +1625,19 @@ input[type="range"] {
 
   .hero-harmonica {
     width: min(100%, 170px);
+  }
+}
+
+@media (max-width: 420px) {
+  .daily-goal-top {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .daily-goal-sticky {
+    width: min(100%, 128px);
+    justify-content: flex-start;
+    margin-top: 2px;
   }
 }
 
