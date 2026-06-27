@@ -274,6 +274,7 @@ let audioContext = null;
 let micStream = null;
 let micAnalyser = null;
 let micData = null;
+let micFloatTimeData = null;
 let micFrequencyData = null;
 let micFloatFrequencyData = null;
 let micFrame = null;
@@ -286,29 +287,35 @@ const harpType = "chromatic";
 const allowedRange = { lowNote: "C1", highNote: "D7" };
 const correctionRange = { lowNote: "C3", highNote: "D7" };
 const YIN_CONFIG = {
-  threshold: 0.1,
-  probabilityThreshold: 0.65,
+  threshold: 0.14,
+  fallbackThreshold: 0.26,
+  probabilityThreshold: 0.52,
   minFrequency: 120,
   maxFrequency: 2200,
   bufferSize: 8192,
 };
+const MPM_CONFIG = {
+  clarityThreshold: 0.52,
+  minFrequency: 120,
+  maxFrequency: 2200,
+};
 const PITCH_DETECTION_MODES = {
   stable: {
-    minRms: () => Math.max(micSilentRms * 2.5, 0.006),
-    qualityThreshold: 0.78,
-    harmonicThreshold: 0.45,
+    minRms: () => Math.max(micSilentRms * 2.2, 0.0052),
+    qualityThreshold: 0.7,
+    harmonicThreshold: 0.28,
     noteSwitchFrames: 2,
   },
   normal: {
-    minRms: () => Math.max(micSilentRms * 2.0, 0.0045),
-    qualityThreshold: 0.68,
-    harmonicThreshold: 0.35,
+    minRms: () => Math.max(micSilentRms * 1.55, 0.0032),
+    qualityThreshold: 0.5,
+    harmonicThreshold: 0.14,
     noteSwitchFrames: 2,
   },
   sensitive: {
-    minRms: () => Math.max(micSilentRms * 1.6, 0.0032),
-    qualityThreshold: 0.58,
-    harmonicThreshold: 0.25,
+    minRms: () => Math.max(micSilentRms * 1.25, 0.0022),
+    qualityThreshold: 0.42,
+    harmonicThreshold: 0.08,
     noteSwitchFrames: 1,
   },
 };
@@ -848,9 +855,21 @@ function readMicSignal() {
 function buildPitchBuffer() {
   if (!micAnalyser || !micData || !audioContext) return null;
   const buffer = new Float32Array(micData.length);
+  if (micFloatTimeData) {
+    micAnalyser.getFloatTimeDomainData(micFloatTimeData);
+  }
   let rmsSum = 0;
+  let mean = 0;
   for (let i = 0; i < micData.length; i += 1) {
-    const value = (micData[i] - 128) / 128;
+    const value = micFloatTimeData ? micFloatTimeData[i] : (micData[i] - 128) / 128;
+    mean += value;
+  }
+  mean /= micData.length;
+  let previous = 0;
+  for (let i = 0; i < micData.length; i += 1) {
+    const raw = (micFloatTimeData ? micFloatTimeData[i] : (micData[i] - 128) / 128) - mean;
+    const value = raw - previous * 0.08;
+    previous = raw;
     buffer[i] = value;
     rmsSum += value * value;
   }
@@ -908,6 +927,41 @@ function detectPitchV1(frame = buildPitchBuffer()) {
 
 function detectPitchV2(frame = buildPitchBuffer()) {
   if (!frame) return null;
+  const yinResult = detectYinPitch(frame);
+  const config = getPitchDetectionConfig();
+  const shouldRunMpm =
+    !yinResult?.frequency ||
+    (yinResult.confidence || 0) < config.qualityThreshold + 0.12 ||
+    yinResult.reason === "low-yin-confidence";
+  const mpmResult = shouldRunMpm ? detectMpmPitch(frame) : null;
+  const candidates = [yinResult, mpmResult].filter((item) => item?.frequency);
+  if (!candidates.length) {
+    const fallback = yinResult || mpmResult;
+    return {
+      ...(fallback || {}),
+      frequency: null,
+      detector: "hybrid-v2",
+      reason: fallback?.reason || "no-hybrid-frequency",
+      yin: summarizeDetectorResult(yinResult),
+      mpm: summarizeDetectorResult(mpmResult),
+    };
+  }
+  const selected = candidates.reduce((best, item) => {
+    const bestScore = (best.confidence || 0) + (best.reason === "yin-v2" ? 0.03 : 0);
+    const itemScore = (item.confidence || 0) + (item.reason === "yin-v2" ? 0.03 : 0);
+    return itemScore > bestScore ? item : best;
+  }, candidates[0]);
+  return {
+    ...selected,
+    detector: "hybrid-v2",
+    selectedDetector: selected.reason,
+    yin: summarizeDetectorResult(yinResult),
+    mpm: summarizeDetectorResult(mpmResult),
+  };
+}
+
+function detectYinPitch(frame) {
+  if (!frame) return null;
   const { buffer, rms, sampleRate } = frame;
   const dominantEnergy = getDominantEnergy();
   const config = getPitchDetectionConfig();
@@ -955,7 +1009,7 @@ function detectPitchV2(frame = buildPitchBuffer()) {
     }
   }
 
-  if (selectedTau < minTau) {
+  if (selectedTau < minTau || selectedValue > YIN_CONFIG.fallbackThreshold) {
     return { frequency: null, confidence: 0, rms, dominantEnergy, reason: "no-yin-period", detector: "yin-v2", minRms };
   }
 
@@ -997,6 +1051,62 @@ function detectPitchV2(frame = buildPitchBuffer()) {
     minRms,
     yinTau: interpolatedTau,
     yinValue: selectedValue,
+  };
+}
+
+function detectMpmPitch(frame) {
+  if (!frame) return null;
+  const { buffer, rms, sampleRate } = frame;
+  const dominantEnergy = getDominantEnergy();
+  const minRms = getPitchRmsThreshold();
+  if (rms < minRms) {
+    return { frequency: null, confidence: 0, rms, dominantEnergy, reason: "quiet", detector: "mpm-v2", minRms };
+  }
+  const minTau = Math.max(2, Math.floor(sampleRate / MPM_CONFIG.maxFrequency));
+  const maxTau = Math.min(buffer.length - 2, Math.ceil(sampleRate / MPM_CONFIG.minFrequency));
+  let bestTau = -1;
+  let bestClarity = 0;
+  let previousNsdf = 0;
+  let rising = false;
+
+  for (let tau = minTau; tau <= maxTau; tau += 1) {
+    let acf = 0;
+    let divisor = 0;
+    const limit = buffer.length - tau;
+    for (let i = 0; i < limit; i += 1) {
+      const x = buffer[i];
+      const y = buffer[i + tau];
+      acf += x * y;
+      divisor += x * x + y * y;
+    }
+    const nsdf = divisor > 0 ? (2 * acf) / divisor : 0;
+    if (nsdf > previousNsdf) {
+      rising = true;
+    } else if (rising && previousNsdf > bestClarity && previousNsdf > MPM_CONFIG.clarityThreshold) {
+      bestClarity = previousNsdf;
+      bestTau = tau - 1;
+      rising = false;
+    }
+    previousNsdf = nsdf;
+  }
+
+  if (bestTau < minTau) {
+    return { frequency: null, confidence: bestClarity, rms, dominantEnergy, reason: "no-mpm-peak", detector: "mpm-v2", minRms };
+  }
+  const refinedTau = refineMpmTau(buffer, bestTau);
+  const frequency = sampleRate / refinedTau;
+  if (!Number.isFinite(frequency) || frequency < MPM_CONFIG.minFrequency || frequency > MPM_CONFIG.maxFrequency) {
+    return { frequency: null, confidence: bestClarity, rms, dominantEnergy, reason: "mpm-range", detector: "mpm-v2", minRms };
+  }
+  return {
+    frequency,
+    confidence: Math.max(0, Math.min(1, bestClarity)),
+    rms,
+    dominantEnergy,
+    reason: "mpm-v2",
+    detector: "mpm-v2",
+    minRms,
+    mpmTau: refinedTau,
   };
 }
 
@@ -1059,6 +1169,29 @@ function parabolicInterpolate(values, index) {
   const denominator = previous - 2 * current + next;
   if (Math.abs(denominator) < 0.000001) return index;
   return index + (previous - next) / (2 * denominator);
+}
+
+function refineMpmTau(buffer, tau) {
+  const previous = nsdfAt(buffer, tau - 1);
+  const current = nsdfAt(buffer, tau);
+  const next = nsdfAt(buffer, tau + 1);
+  const denominator = previous - 2 * current + next;
+  if (Math.abs(denominator) < 0.000001) return tau;
+  return tau + (previous - next) / (2 * denominator);
+}
+
+function nsdfAt(buffer, tau) {
+  if (tau <= 0 || tau >= buffer.length) return 0;
+  let acf = 0;
+  let divisor = 0;
+  const limit = buffer.length - tau;
+  for (let i = 0; i < limit; i += 1) {
+    const x = buffer[i];
+    const y = buffer[i + tau];
+    acf += x * y;
+    divisor += x * x + y * y;
+  }
+  return divisor > 0 ? (2 * acf) / divisor : 0;
 }
 
 function getPitchDetectionConfig() {
@@ -1354,6 +1487,9 @@ function logPitchDebug(measurement) {
       selectedCandidate: measurement.selectedCandidate || null,
       rejectedReason: measurement.rejectedReason || measurement.blockedReason || null,
     },
+    yin: measurement.yin,
+    mpm: measurement.mpm,
+    selectedDetector: measurement.selectedDetector,
     rawFreq: measurement.frequency,
     rawFrequency: measurement.frequency,
     detectedFrequency: measurement.detectedFrequency,
@@ -1428,7 +1564,7 @@ function processPitchMeasurement(measurement) {
     logPitchDebug(measurement);
     return null;
   }
-  if (correction.selected.harmonicScore < config.harmonicThreshold) {
+  if (!isCandidateReliable(correction.selected, measurement, config)) {
     measurement.detectionStatus = "blocked";
     measurement.blockedReason = "low-harmonic-score";
     measurement.rejectedReason = "low-harmonic-score";
@@ -1530,6 +1666,16 @@ function processPitchMeasurement(measurement) {
   pitchCentsHistory.push({ at: lastPitchAt, cents: displayCents });
   pitchCentsHistory = pitchCentsHistory.filter((entry) => lastPitchAt - entry.at <= 1000);
   return display;
+}
+
+function isCandidateReliable(candidate, measurement, config) {
+  if (!candidate) return false;
+  if (candidate.harmonicScore >= config.harmonicThreshold) return true;
+  const closeToNote = candidate.absCents <= 18;
+  const veryCloseToNote = candidate.absCents <= 10;
+  const confidentDetector = (measurement.confidence || 0) >= config.qualityThreshold + 0.08;
+  const strongEnough = (measurement.rms || 0) >= getPitchRmsThreshold() * 1.35;
+  return (closeToNote && confidentDetector) || (veryCloseToNote && strongEnough);
 }
 
 function updateLivePitch() {
@@ -1690,6 +1836,7 @@ async function startMic() {
     micAnalyser.fftSize = YIN_CONFIG.bufferSize;
     micAnalyser.smoothingTimeConstant = 0.18;
     micData = new Uint8Array(micAnalyser.fftSize);
+    micFloatTimeData = new Float32Array(micAnalyser.fftSize);
     micFrequencyData = new Uint8Array(micAnalyser.frequencyBinCount);
     micFloatFrequencyData = new Float32Array(micAnalyser.frequencyBinCount);
     source.connect(micAnalyser);
