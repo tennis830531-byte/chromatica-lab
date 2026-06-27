@@ -181,10 +181,6 @@ p {
   width: min(100%, 220px);
 }
 
-.gate-logo {
-  width: min(100%, 126px);
-}
-
 .media-box,
 .quick-card-icon,
 .hero-media,
@@ -329,9 +325,9 @@ p {
 .home-hero {
   position: relative;
   display: grid;
-  gap: 14px;
+  gap: 0;
   overflow: visible;
-  padding: 18px 18px 16px;
+  padding: 24px 22px 28px;
 }
 
 .home-hero::before {
@@ -347,6 +343,15 @@ p {
 .hero-copy {
   position: relative;
   z-index: 1;
+  min-width: 0;
+}
+
+.hero-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
 }
 
 .home-hero h2 {
@@ -360,8 +365,16 @@ p {
 
 .hero-actions {
   display: grid;
-  gap: 10px;
-  margin-top: 16px;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  width: 100%;
+  margin-top: 0;
+}
+
+.hero-actions .primary-btn,
+.hero-actions .ghost-btn {
+  width: 100%;
+  min-height: 64px;
 }
 
 .hero-harmonica {
@@ -372,9 +385,14 @@ p {
   filter: drop-shadow(0 14px 18px rgba(72, 48, 28, 0.13));
 }
 
+.hero-brand-badge {
+  width: min(100%, 170px);
+}
+
 .hero-media {
   justify-self: center;
-  width: 100%;
+  width: 118px;
+  flex-shrink: 0;
 }
 
 .today-card,
@@ -392,11 +410,16 @@ p {
 .today-card {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 118px;
-  align-items: center;
-  gap: 8px;
+  gap: 14px;
   overflow: visible;
   padding: 18px;
+}
+
+.today-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 124px;
+  align-items: start;
+  gap: 12px;
 }
 
 .today-copy {
@@ -417,6 +440,11 @@ p {
 
 .today-card p {
   max-width: 220px;
+}
+
+.today-start {
+  justify-self: start;
+  min-width: 150px;
 }
 
 .flow-grid {
@@ -1504,19 +1532,6 @@ input[type="range"] {
   text-align: center;
 }
 
-.mic-gate-brand {
-  display: grid;
-  place-items: center;
-  margin-bottom: 10px;
-}
-
-.mic-gate-brand img {
-  width: min(100%, 126px);
-  max-height: none;
-  border-radius: 0;
-  object-fit: contain;
-}
-
 .mic-gate-illustration {
   display: grid;
   place-items: center;
@@ -1530,17 +1545,28 @@ input[type="range"] {
 }
 
 @media (min-width: 410px) {
-  .home-hero {
-    grid-template-columns: minmax(0, 1fr) 42%;
-    align-items: center;
+  .hero-top {
+    gap: 20px;
   }
 
   .hero-media {
     justify-self: end;
+    width: clamp(150px, 30vw, 190px);
   }
 
   .hero-harmonica {
-    width: min(100%, 240px);
+    width: min(100%, 170px);
+  }
+}
+
+@media (max-width: 360px) {
+  .hero-top {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-media {
+    justify-self: center;
+    width: min(100%, 180px);
   }
 }
 

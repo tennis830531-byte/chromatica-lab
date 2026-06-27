@@ -11,14 +11,11 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-7" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-8" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
       <div class="mic-gate-card">
-        <div class="mic-gate-brand media-box">
-          <img class="ui-logo gate-logo" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="Chromatic harmonica Lab 半音階口琴練習室" />
-        </div>
         <div class="mic-gate-illustration media-box" aria-hidden="true">
           <img class="ui-mascot" src="./public/assets/chromatic-refresh/cleaned/04_bird_holding_harmonica.png" alt="" />
         </div>
@@ -50,7 +47,7 @@
     <div class="app-shell">
       <header class="app-header">
         <div class="header-brand">
-          <img class="ui-logo header-logo" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="" aria-hidden="true" />
+          <img class="ui-logo header-logo" src="./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png" alt="" aria-hidden="true" />
           <div>
             <strong>Chromatic harmonica Lab</strong>
             <span>半音階口琴練習室</span>
@@ -61,35 +58,39 @@
       <main class="main">
         <section id="intro" class="view active">
           <div class="home-hero paper-card">
-            <div class="hero-copy">
-              <h2>半音階口琴練習室</h2>
-              <p>透過音符地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p>
-              <div class="hero-actions">
-                <button class="primary-btn" data-jump="longtone" type="button">開始今天的練習</button>
-                <button class="ghost-btn" data-jump="map" type="button">查看音符地圖</button>
+            <div class="hero-top">
+              <div class="hero-copy">
+                <h2>半音階口琴練習室</h2>
+                <p>透過音符地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p>
+              </div>
+              <div class="hero-media media-box">
+                <img class="ui-hero-illustration hero-harmonica hero-brand-badge" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="" aria-hidden="true" />
               </div>
             </div>
-            <div class="hero-media media-box">
-              <img class="ui-hero-illustration hero-harmonica" src="./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png" alt="" aria-hidden="true" />
+            <div class="hero-actions">
+              <button class="primary-btn" data-jump="longtone" type="button">開始今天的練習</button>
+              <button class="ghost-btn" data-jump="map" type="button">查看音符地圖</button>
             </div>
           </div>
 
           <div class="today-card paper-card">
-            <div class="today-copy">
-              <span class="card-label">今日練習</span>
-              <h3>8 拍平穩長音</h3>
-              <p>用 mp 音量穩定吹奏，注意起音、中段與收尾。</p>
-              <div class="flow-grid">
-                <span>準備 <b>4 拍</b></span>
-                <span>吹奏 <b>8 拍</b></span>
-                <span>休息 <b>4 拍</b></span>
-                <span>循環 <b>4 次</b></span>
+            <div class="today-head">
+              <div class="today-copy">
+                <span class="card-label">今日練習</span>
+                <h3>8 拍平穩長音</h3>
+                <p>用 mp 音量穩定吹奏，注意起音、中段與收尾。</p>
               </div>
-              <button class="primary-btn" data-jump="longtone" type="button">開始練習</button>
+              <div class="today-card-media media-box">
+                <img class="ui-mascot today-bird" src="./public/assets/chromatic-refresh/feature/long_tone_bird.png" alt="" aria-hidden="true" />
+              </div>
             </div>
-            <div class="today-card-media media-box">
-              <img class="ui-mascot today-bird" src="./public/assets/chromatic-refresh/feature/long_tone_bird.png" alt="" aria-hidden="true" />
+            <div class="flow-grid">
+              <span>準備 <b>4 拍</b></span>
+              <span>吹奏 <b>8 拍</b></span>
+              <span>休息 <b>4 拍</b></span>
+              <span>循環 <b>4 次</b></span>
             </div>
+            <button class="primary-btn today-start" data-jump="longtone" type="button">開始練習</button>
           </div>
 
           <div class="home-tuner-card paper-card">
@@ -313,7 +314,7 @@
             <img class="daily-note ui-section-illustration" src="./public/assets/chromatic-refresh/note/encouragement_note.png" alt="" aria-hidden="true" />
             <div class="daily-goal-head">
               <div>
-                <span id="dailyGoalSummary">今日完成 0 / 22 個練習</span>
+                <span id="dailyGoalSummary">今日完成 0 / 18 個練習</span>
                 <p>今天也比昨天更進一步</p>
               </div>
               <small>完成所選循環次數後打勾</small>
@@ -391,6 +392,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-7"></script>
+    <script src="./app.js?v=refresh-8"></script>
   </body>
 </html>

@@ -10,21 +10,6 @@ const targetVolumes = ["p", "mp", "mf", "f"];
 
 const exercises = [
   {
-    id: "steady-4",
-    title: "4 拍平穩長音",
-    level: "初階",
-    bpm: 60,
-    prepareBeats: 4,
-    playBeats: 4,
-    restBeats: 4,
-    pattern: [
-      { beat: 1, dynamic: "mp" },
-      { beat: 4, dynamic: "mp" },
-    ],
-    instruction: "用 mp 音量穩定吹 4 拍，讓起音乾淨、音尾不要塌。",
-    scored: true,
-  },
-  {
     id: "steady-8",
     title: "8 拍平穩長音",
     level: "初階",
