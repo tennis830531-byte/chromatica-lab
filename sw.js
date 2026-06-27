@@ -1,19 +1,21 @@
-const CACHE_NAME = "chromatica-lab-refresh-6";
+const CACHE_NAME = "chromatica-lab-refresh-7";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=refresh-6",
-  "./app.js?v=refresh-6",
+  "./styles.css?v=refresh-7",
+  "./app.js?v=refresh-7",
   "./manifest.webmanifest",
-  "./public/assets/chromatic-refresh/cleaned/01_logo_chromatic_harmonica_lab.png",
+  "./public/assets/chromatic-refresh/brand/chl_brand_badge.png",
   "./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png",
-  "./public/assets/chromatic-refresh/cleaned/03_bird_playing_harmonica.png",
   "./public/assets/chromatic-refresh/cleaned/04_bird_holding_harmonica.png",
-  "./public/assets/chromatic-refresh/cleaned/05_bird_waving_harmonica.png",
-  "./public/assets/chromatic-refresh/cleaned/06_icon_note_map.png",
-  "./public/assets/chromatic-refresh/cleaned/07_icon_mic_settings.png",
-  "./public/assets/chromatic-refresh/cleaned/08_icon_daily_goal.png",
-  "./public/assets/chromatic-refresh/cleaned/09_icon_practice_record.png",
+  "./public/assets/chromatic-refresh/feature/note_map_explorer.png",
+  "./public/assets/chromatic-refresh/feature/long_tone_bird.png",
+  "./public/assets/chromatic-refresh/feature/daily_goal_badge.png",
+  "./public/assets/chromatic-refresh/feature/tuner_badge.png",
+  "./public/assets/chromatic-refresh/icon/mic_settings_icon.png",
+  "./public/assets/chromatic-refresh/icon/practice_record_icon.png",
+  "./public/assets/chromatic-refresh/note/encouragement_note.png",
+  "./public/assets/chromatic-refresh/state/coming_soon_sign.png",
 ];
 
 self.addEventListener("install", (event) => {

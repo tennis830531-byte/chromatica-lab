@@ -181,6 +181,10 @@ p {
   width: min(100%, 220px);
 }
 
+.gate-logo {
+  width: min(100%, 126px);
+}
+
 .media-box,
 .quick-card-icon,
 .hero-media,
@@ -345,14 +349,6 @@ p {
   z-index: 1;
 }
 
-.hero-brand-logo {
-  width: min(100%, 168px);
-  max-height: none;
-  margin: -4px 0 10px;
-  border-radius: 0;
-  object-fit: contain;
-}
-
 .home-hero h2 {
   margin-bottom: 8px;
   font-size: 26px;
@@ -370,7 +366,7 @@ p {
 
 .hero-harmonica {
   justify-self: center;
-  width: min(100%, 260px);
+  width: min(100%, 268px);
   max-height: none;
   object-fit: contain;
   filter: drop-shadow(0 14px 18px rgba(72, 48, 28, 0.13));
@@ -396,7 +392,7 @@ p {
 .today-card {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 112px;
+  grid-template-columns: minmax(0, 1fr) 118px;
   align-items: center;
   gap: 8px;
   overflow: visible;
@@ -410,7 +406,7 @@ p {
 
 .today-bird {
   position: static;
-  width: min(100%, 122px);
+  width: min(100%, 138px);
   opacity: 0.94;
   pointer-events: none;
 }
@@ -476,7 +472,7 @@ p {
 .home-tuner-display {
   display: grid;
   place-items: center;
-  min-height: 132px;
+  min-height: 112px;
   margin: 8px 0 10px;
   border: 1px solid rgba(122, 78, 45, 0.12);
   border-radius: 24px;
@@ -494,6 +490,15 @@ p {
   color: var(--primary);
   font-size: 18px;
   font-weight: 800;
+}
+
+.home-tuner-media {
+  margin: -2px 0 8px;
+}
+
+.home-tuner-media img {
+  width: min(100%, 128px);
+  filter: drop-shadow(0 10px 14px rgba(72, 48, 28, 0.10));
 }
 
 .home-tuner-hint {
@@ -554,10 +559,10 @@ p {
 }
 
 .quick-card-icon {
-  width: 56px;
-  height: 56px;
+  width: 58px;
+  height: 58px;
   border-radius: 17px;
-  background: #f6eee5;
+  background: rgba(246, 238, 229, 0.82);
 }
 
 .quick-card:nth-child(2) .quick-card-icon {
@@ -573,8 +578,8 @@ p {
 }
 
 .quick-card img {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   object-fit: contain;
 }
 
@@ -626,8 +631,22 @@ p {
   margin-top: 12px;
 }
 
-.soon-home h3 {
+.soon-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
+}
+
+.soon-heading h3 {
+  margin: 0;
+}
+
+.soon-heading img {
+  width: 62px;
+  height: 62px;
+  filter: drop-shadow(0 8px 12px rgba(72, 48, 28, 0.10));
 }
 
 .soon-grid {
@@ -688,9 +707,9 @@ p {
 }
 
 .section-icon {
-  width: 52px;
-  height: 52px;
-  padding: 8px;
+  width: 58px;
+  height: 58px;
+  padding: 5px;
   border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--card);
@@ -1218,7 +1237,7 @@ p {
 
 .segmented-control {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 6px;
   min-height: 46px;
   padding: 5px;
@@ -1255,13 +1274,14 @@ input[type="range"] {
   padding: 18px;
 }
 
-.daily-bird {
+.daily-note {
   position: absolute;
-  right: 4px;
-  top: 6px;
-  width: 104px;
+  right: 0;
+  top: 4px;
+  width: 96px;
   opacity: 0.82;
   pointer-events: none;
+  filter: drop-shadow(0 8px 12px rgba(72, 48, 28, 0.10));
 }
 
 .daily-goal-head {
@@ -1491,7 +1511,7 @@ input[type="range"] {
 }
 
 .mic-gate-brand img {
-  width: min(100%, 170px);
+  width: min(100%, 126px);
   max-height: none;
   border-radius: 0;
   object-fit: contain;
@@ -1504,9 +1524,24 @@ input[type="range"] {
 }
 
 .mic-gate-illustration img {
-  width: 154px;
+  width: 148px;
   object-fit: contain;
   filter: drop-shadow(0 14px 18px rgba(72, 48, 28, 0.12));
+}
+
+@media (min-width: 410px) {
+  .home-hero {
+    grid-template-columns: minmax(0, 1fr) 42%;
+    align-items: center;
+  }
+
+  .hero-media {
+    justify-self: end;
+  }
+
+  .hero-harmonica {
+    width: min(100%, 240px);
+  }
 }
 
 .mic-gate-card h2 {

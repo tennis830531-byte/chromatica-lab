@@ -9,18 +9,18 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>Chromatic harmonica Lab</title>
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="icon" href="./public/assets/chromatic-refresh/cleaned/01_logo_chromatic_harmonica_lab.png" type="image/png" />
-    <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/cleaned/01_logo_chromatic_harmonica_lab.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-6" />
+    <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
+    <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-7" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
       <div class="mic-gate-card">
         <div class="mic-gate-brand media-box">
-          <img class="ui-logo" src="./public/assets/chromatic-refresh/cleaned/01_logo_chromatic_harmonica_lab.png" alt="Chromatic harmonica Lab 半音階口琴練習室" />
+          <img class="ui-logo gate-logo" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="Chromatic harmonica Lab 半音階口琴練習室" />
         </div>
         <div class="mic-gate-illustration media-box" aria-hidden="true">
-          <img class="ui-mascot" src="./public/assets/chromatic-refresh/cleaned/05_bird_waving_harmonica.png" alt="" />
+          <img class="ui-mascot" src="./public/assets/chromatic-refresh/cleaned/04_bird_holding_harmonica.png" alt="" />
         </div>
         <h2 id="micGateTitle">進入練習前</h2>
         <p>開啟麥克風後，App 會判斷你的音量穩定度，幫助你練習更平穩的長音。</p>
@@ -50,7 +50,7 @@
     <div class="app-shell">
       <header class="app-header">
         <div class="header-brand">
-          <img class="ui-logo header-logo" src="./public/assets/chromatic-refresh/cleaned/01_logo_chromatic_harmonica_lab.png" alt="" aria-hidden="true" />
+          <img class="ui-logo header-logo" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="" aria-hidden="true" />
           <div>
             <strong>Chromatic harmonica Lab</strong>
             <span>半音階口琴練習室</span>
@@ -62,7 +62,6 @@
         <section id="intro" class="view active">
           <div class="home-hero paper-card">
             <div class="hero-copy">
-              <img class="ui-logo hero-brand-logo" src="./public/assets/chromatic-refresh/cleaned/01_logo_chromatic_harmonica_lab.png" alt="Chromatic harmonica Lab 半音階口琴練習室" />
               <h2>半音階口琴練習室</h2>
               <p>透過音符地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p>
               <div class="hero-actions">
@@ -89,7 +88,7 @@
               <button class="primary-btn" data-jump="longtone" type="button">開始練習</button>
             </div>
             <div class="today-card-media media-box">
-              <img class="ui-mascot today-bird" src="./public/assets/chromatic-refresh/cleaned/03_bird_playing_harmonica.png" alt="" aria-hidden="true" />
+              <img class="ui-mascot today-bird" src="./public/assets/chromatic-refresh/feature/long_tone_bird.png" alt="" aria-hidden="true" />
             </div>
           </div>
 
@@ -100,7 +99,10 @@
             </div>
             <div class="home-tuner-display">
               <strong id="homePitchNote">--</strong>
-              <span id="homePitchCents">-- cents</span>
+              <span id="homePitchCents">等待收音</span>
+            </div>
+            <div class="home-tuner-media media-box">
+              <img class="ui-section-illustration" src="./public/assets/chromatic-refresh/feature/tuner_badge.png" alt="" aria-hidden="true" />
             </div>
             <div class="mini-tuner-scale" aria-hidden="true">
               <span>-50</span><i></i><span>0</span><i></i><span>+50</span>
@@ -111,10 +113,10 @@
           <div class="quick-section">
             <div class="section-header"><h3>快速入口</h3></div>
             <div class="quick-grid">
-              <button class="quick-card" data-jump="map" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/cleaned/06_icon_note_map.png" alt="" /></span><strong>音符地圖</strong><span>探索每個音位，建立方向感</span><b>›</b></button>
-              <button class="quick-card" data-jump="audio" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/cleaned/07_icon_mic_settings.png" alt="" /></span><strong>收音設定</strong><span>調整麥克風與偵測靈敏度</span><b>›</b></button>
-              <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/cleaned/08_icon_daily_goal.png" alt="" /></span><strong>每日目標</strong><span>建立練習習慣，累積進步</span><b>›</b></button>
-              <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/cleaned/09_icon_practice_record.png" alt="" /></span><strong>練習紀錄</strong><span>查看歷史紀錄與成長曲線</span><b>›</b></button>
+              <button class="quick-card" data-jump="map" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/note_map_explorer.png" alt="" /></span><strong>音符地圖</strong><span>探索每個音位，建立方向感</span><b>›</b></button>
+              <button class="quick-card" data-jump="audio" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/mic_settings_icon.png" alt="" /></span><strong>收音設定</strong><span>調整麥克風與偵測靈敏度</span><b>›</b></button>
+              <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" /></span><strong>每日目標</strong><span>建立練習習慣，累積進步</span><b>›</b></button>
+              <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/practice_record_icon.png" alt="" /></span><strong>練習紀錄</strong><span>查看歷史紀錄與成長曲線</span><b>›</b></button>
             </div>
           </div>
 
@@ -134,7 +136,10 @@
           </div>
 
           <div class="soon-home">
-            <h3>即將開放</h3>
+            <div class="soon-heading">
+              <h3>即將開放</h3>
+              <img class="ui-quick-icon" src="./public/assets/chromatic-refresh/state/coming_soon_sign.png" alt="" aria-hidden="true" />
+            </div>
             <div class="soon-grid">
               <div><span>按鍵練習室</span><b>準備中</b></div>
               <div><span>音階練習室</span><b>準備中</b></div>
@@ -147,7 +152,7 @@
 
         <section id="map" class="view">
           <div class="section-head">
-            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/cleaned/06_icon_note_map.png" alt="" aria-hidden="true" />
+            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/note_map_explorer.png" alt="" aria-hidden="true" />
             <div>
               <p class="eyebrow">音符地圖</p>
               <h2>音符地圖</h2>
@@ -171,7 +176,8 @@
         </section>
 
         <section id="longtone" class="view">
-          <div class="section-head compact no-icon">
+          <div class="section-head compact">
+            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/long_tone_bird.png" alt="" aria-hidden="true" />
             <p class="eyebrow">第一課</p>
             <h2>長音練習室</h2>
             <p id="exerciseInstruction">8 拍平穩長音</p>
@@ -298,13 +304,13 @@
 
         <section id="daily" class="view">
           <div class="section-head compact">
-            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/cleaned/08_icon_daily_goal.png" alt="" aria-hidden="true" />
+            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" aria-hidden="true" />
             <p class="eyebrow">每日練習</p>
             <h2>每日目標</h2>
             <p>完整完成一個練習後會自動打勾，每天重新開始。</p>
           </div>
           <div class="panel daily-page">
-            <img class="daily-bird ui-mascot" src="./public/assets/chromatic-refresh/cleaned/05_bird_waving_harmonica.png" alt="" aria-hidden="true" />
+            <img class="daily-note ui-section-illustration" src="./public/assets/chromatic-refresh/note/encouragement_note.png" alt="" aria-hidden="true" />
             <div class="daily-goal-head">
               <div>
                 <span id="dailyGoalSummary">今日完成 0 / 22 個練習</span>
@@ -321,7 +327,7 @@
 
         <section id="audio" class="view">
           <div class="section-head compact">
-            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/cleaned/07_icon_mic_settings.png" alt="" aria-hidden="true" />
+            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/icon/mic_settings_icon.png" alt="" aria-hidden="true" />
             <p class="eyebrow">收音設定</p>
             <h2>收音設定</h2>
           </div>
@@ -341,11 +347,19 @@
               <h3>調音基準</h3>
               <div class="segmented-control" role="group" aria-label="調音基準">
                 <button class="active" data-tuning-value="440" type="button">A4 = 440</button>
+                <button data-tuning-value="441" type="button">A4 = 441</button>
                 <button data-tuning-value="442" type="button">A4 = 442</button>
+                <button data-tuning-value="443" type="button">A4 = 443</button>
+                <button data-tuning-value="444" type="button">A4 = 444</button>
+                <button data-tuning-value="445" type="button">A4 = 445</button>
               </div>
               <select id="tuningSelect" hidden aria-label="調音基準">
                 <option value="440" selected>A4 = 440</option>
+                <option value="441">A4 = 441</option>
                 <option value="442">A4 = 442</option>
+                <option value="443">A4 = 443</option>
+                <option value="444">A4 = 444</option>
+                <option value="445">A4 = 445</option>
               </select>
             </div>
             <div class="audio-setting-card paper-card">
@@ -377,6 +391,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-6"></script>
+    <script src="./app.js?v=refresh-7"></script>
   </body>
 </html>
