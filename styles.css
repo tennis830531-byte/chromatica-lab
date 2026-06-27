@@ -1500,10 +1500,6 @@ input[type="range"] {
   margin-top: 2px;
 }
 
-.mic-sensitivity {
-  grid-template-columns: 1fr;
-}
-
 .bottom-nav {
   position: fixed;
   left: 50%;

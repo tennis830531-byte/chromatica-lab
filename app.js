@@ -275,27 +275,57 @@ let micStream = null;
 let micAnalyser = null;
 let micData = null;
 let micFrequencyData = null;
+let micFloatFrequencyData = null;
 let micFrame = null;
 let micSensitivity = 3.2;
 let tuningA4 = 440;
 let micSilentRms = 0;
 let isCalibratingMic = false;
-const minPitchRms = 0.004;
-const minPitchConfidence = 0.68;
-const noteSwitchConfidence = 0.75;
 const tunerMode = "full-range";
 const harpType = "chromatic";
 const allowedRange = { lowNote: "C1", highNote: "D7" };
 const correctionRange = { lowNote: "C3", highNote: "D7" };
+const YIN_CONFIG = {
+  threshold: 0.1,
+  probabilityThreshold: 0.65,
+  minFrequency: 120,
+  maxFrequency: 2200,
+  bufferSize: 8192,
+};
+const PITCH_DETECTION_MODES = {
+  stable: {
+    minRms: () => Math.max(micSilentRms * 2.5, 0.006),
+    qualityThreshold: 0.78,
+    harmonicThreshold: 0.45,
+    noteSwitchFrames: 2,
+  },
+  normal: {
+    minRms: () => Math.max(micSilentRms * 2.0, 0.0045),
+    qualityThreshold: 0.68,
+    harmonicThreshold: 0.35,
+    noteSwitchFrames: 2,
+  },
+  sensitive: {
+    minRms: () => Math.max(micSilentRms * 1.6, 0.0032),
+    qualityThreshold: 0.58,
+    harmonicThreshold: 0.25,
+    noteSwitchFrames: 1,
+  },
+};
+const DETECTOR_V1_CONFIDENCE = 0.68;
+let pitchDetectionMode = "normal";
 let allowedNotes = [];
 let pitchCentsWindow = [];
 let activeNearestNote = null;
 let pendingNearestNote = null;
 let pendingNearestNoteCount = 0;
+let activeNoteConfidence = 0;
+let activeNoteRms = 0;
 let smoothedCents = null;
 let stablePitchDisplay = null;
 let lastPitchAt = 0;
 let lastPitchUiUpdateAt = 0;
+let lastPitchAnalysisAt = 0;
 let pitchCentsHistory = [];
 let pitchDebugLog = [];
 let liveLevels = Array.from({ length: 48 }, () => 0);
@@ -783,6 +813,9 @@ function readMicSignal() {
   if (!micAnalyser || !micData) return 0;
   micAnalyser.getByteTimeDomainData(micData);
   micAnalyser.getByteFrequencyData(micFrequencyData);
+  if (micFloatFrequencyData) {
+    micAnalyser.getFloatFrequencyData(micFloatFrequencyData);
+  }
   let sum = 0;
   let min = 1;
   let max = -1;
@@ -812,9 +845,8 @@ function readMicSignal() {
   return Math.max(rms, peakToPeak * 0.72, spectralSignal);
 }
 
-function detectPitch() {
+function buildPitchBuffer() {
   if (!micAnalyser || !micData || !audioContext) return null;
-  const sampleRate = audioContext.sampleRate;
   const buffer = new Float32Array(micData.length);
   let rmsSum = 0;
   for (let i = 0; i < micData.length; i += 1) {
@@ -823,6 +855,12 @@ function detectPitch() {
     rmsSum += value * value;
   }
   const rms = Math.sqrt(rmsSum / buffer.length);
+  return { buffer, rms, sampleRate: audioContext.sampleRate };
+}
+
+function detectPitchV1(frame = buildPitchBuffer()) {
+  if (!frame) return null;
+  const { buffer, rms, sampleRate } = frame;
   const dominantEnergy = getDominantEnergy();
   const rmsThreshold = getPitchRmsThreshold();
   if (rms < rmsThreshold) return { frequency: null, confidence: 0, rms, dominantEnergy, reason: "quiet" };
@@ -847,7 +885,7 @@ function detectPitch() {
   }
 
   const normalizedCorrelation = bestCorrelation / Math.max(rms * rms, 0.0000001);
-  if (bestLag < 0 || normalizedCorrelation < minPitchConfidence) {
+  if (bestLag < 0 || normalizedCorrelation < DETECTOR_V1_CONFIDENCE) {
     return { frequency: null, confidence: normalizedCorrelation, rms, dominantEnergy, reason: "low-autocorrelation-confidence" };
   }
   let refinedLag = bestLag;
@@ -865,7 +903,123 @@ function detectPitch() {
   if (!Number.isFinite(frequency) || frequency < minFrequency || frequency > maxFrequency) {
     return { frequency: null, confidence: normalizedCorrelation, rms, dominantEnergy, reason: "range" };
   }
-  return { frequency, confidence: Math.min(1, normalizedCorrelation), rms, dominantEnergy, reason: "autocorrelation" };
+  return { frequency, confidence: Math.min(1, normalizedCorrelation), rms, dominantEnergy, reason: "autocorrelation-v1" };
+}
+
+function detectPitchV2(frame = buildPitchBuffer()) {
+  if (!frame) return null;
+  const { buffer, rms, sampleRate } = frame;
+  const dominantEnergy = getDominantEnergy();
+  const config = getPitchDetectionConfig();
+  const minRms = getPitchRmsThreshold();
+  if (rms < minRms) {
+    return { frequency: null, confidence: 0, rms, dominantEnergy, reason: "quiet", detector: "yin-v2", minRms };
+  }
+
+  const minTau = Math.max(2, Math.floor(sampleRate / YIN_CONFIG.maxFrequency));
+  const maxTau = Math.min(buffer.length - 2, Math.ceil(sampleRate / YIN_CONFIG.minFrequency));
+  if (maxTau <= minTau) {
+    return { frequency: null, confidence: 0, rms, dominantEnergy, reason: "invalid-yin-range", detector: "yin-v2", minRms };
+  }
+
+  const difference = new Float32Array(maxTau + 1);
+  for (let tau = 1; tau <= maxTau; tau += 1) {
+    let sum = 0;
+    const limit = buffer.length - tau;
+    for (let i = 0; i < limit; i += 1) {
+      const delta = buffer[i] - buffer[i + tau];
+      sum += delta * delta;
+    }
+    difference[tau] = sum;
+  }
+
+  const cmnd = new Float32Array(maxTau + 1);
+  cmnd[0] = 1;
+  let runningSum = 0;
+  let selectedTau = -1;
+  let selectedValue = Infinity;
+  for (let tau = 1; tau <= maxTau; tau += 1) {
+    runningSum += difference[tau];
+    cmnd[tau] = runningSum > 0 ? (difference[tau] * tau) / runningSum : 1;
+    if (tau >= minTau && cmnd[tau] < YIN_CONFIG.threshold) {
+      selectedTau = tau;
+      while (selectedTau + 1 <= maxTau && cmnd[selectedTau + 1] < cmnd[selectedTau]) {
+        selectedTau += 1;
+      }
+      selectedValue = cmnd[selectedTau];
+      break;
+    }
+    if (tau >= minTau && cmnd[tau] < selectedValue) {
+      selectedValue = cmnd[tau];
+      selectedTau = tau;
+    }
+  }
+
+  if (selectedTau < minTau) {
+    return { frequency: null, confidence: 0, rms, dominantEnergy, reason: "no-yin-period", detector: "yin-v2", minRms };
+  }
+
+  const interpolatedTau = parabolicInterpolate(cmnd, selectedTau);
+  const rawFrequency = sampleRate / interpolatedTau;
+  const confidence = Math.max(0, Math.min(1, 1 - selectedValue));
+  if (!Number.isFinite(rawFrequency) || rawFrequency < YIN_CONFIG.minFrequency || rawFrequency > YIN_CONFIG.maxFrequency) {
+    return {
+      frequency: null,
+      confidence,
+      rms,
+      dominantEnergy,
+      reason: "yin-range",
+      detector: "yin-v2",
+      minRms,
+      rawFrequency,
+    };
+  }
+  if (confidence < Math.min(YIN_CONFIG.probabilityThreshold, config.qualityThreshold)) {
+    return {
+      frequency: rawFrequency,
+      confidence,
+      rms,
+      dominantEnergy,
+      reason: "low-yin-confidence",
+      detector: "yin-v2",
+      minRms,
+      yinTau: interpolatedTau,
+      yinValue: selectedValue,
+    };
+  }
+  return {
+    frequency: rawFrequency,
+    confidence,
+    rms,
+    dominantEnergy,
+    reason: "yin-v2",
+    detector: "yin-v2",
+    minRms,
+    yinTau: interpolatedTau,
+    yinValue: selectedValue,
+  };
+}
+
+const detectorV1 = {
+  name: "autocorrelation-v1",
+  detect: detectPitchV1,
+};
+
+const detectorV2 = {
+  name: "yin-v2",
+  detect: detectPitchV2,
+};
+
+function detectPitch() {
+  const frame = buildPitchBuffer();
+  if (!frame) return null;
+  const v1 = detectorV1.detect(frame);
+  const v2 = detectorV2.detect(frame);
+  return {
+    ...(v2 || {}),
+    detectorV1: summarizeDetectorResult(v1),
+    detectorV2: summarizeDetectorResult(v2),
+  };
 }
 
 function getDominantEnergy() {
@@ -895,6 +1049,34 @@ function lagCorrelation(buffer, lag) {
     correlation += buffer[i] * buffer[i + lag];
   }
   return correlation / (buffer.length - lag);
+}
+
+function parabolicInterpolate(values, index) {
+  if (index <= 0 || index >= values.length - 1) return index;
+  const previous = values[index - 1];
+  const current = values[index];
+  const next = values[index + 1];
+  const denominator = previous - 2 * current + next;
+  if (Math.abs(denominator) < 0.000001) return index;
+  return index + (previous - next) / (2 * denominator);
+}
+
+function getPitchDetectionConfig() {
+  return PITCH_DETECTION_MODES[pitchDetectionMode] || PITCH_DETECTION_MODES.normal;
+}
+
+function summarizeDetectorResult(result) {
+  if (!result) return null;
+  const nearest = result.frequency ? findNearestAllowedNote(result.frequency) : null;
+  const cents = result.frequency && nearest ? 1200 * Math.log2(result.frequency / nearest.frequency) : null;
+  return {
+    rawFrequency: result.frequency || result.rawFrequency || null,
+    note: nearest?.name || null,
+    cents,
+    confidence: result.confidence ?? 0,
+    rms: result.rms ?? null,
+    reason: result.reason,
+  };
 }
 
 function frequencyToMidi(frequency) {
@@ -954,7 +1136,7 @@ function median(values) {
 }
 
 function getPitchRmsThreshold() {
-  return Math.max(minPitchRms, micSilentRms > 0 ? micSilentRms * 2.0 : 0);
+  return getPitchDetectionConfig().minRms();
 }
 
 function isFrequencyInCorrectionRange(freq) {
@@ -964,34 +1146,60 @@ function isFrequencyInCorrectionRange(freq) {
 }
 
 function buildPitchCandidates(rawFrequency) {
-  return [rawFrequency, rawFrequency / 2, rawFrequency * 2]
-    .filter((freq) => Number.isFinite(freq) && freq >= 100 && freq <= 2800)
-    .map((frequency, index) => {
+  const candidateSources = [
+    { frequency: rawFrequency, source: "raw", octavePenalty: 0 },
+    { frequency: rawFrequency / 2, source: "raw/2", octavePenalty: 0.04 },
+    { frequency: rawFrequency * 2, source: "raw*2", octavePenalty: 0.34 },
+    { frequency: (rawFrequency / 3) * 2, source: "raw/3*2", octavePenalty: 0.16 },
+    { frequency: rawFrequency * 1.5, source: "raw*3/2", octavePenalty: 0.22 },
+  ];
+  const seen = new Set();
+  return candidateSources
+    .filter(({ frequency }) => Number.isFinite(frequency) && frequency >= YIN_CONFIG.minFrequency && frequency <= YIN_CONFIG.maxFrequency)
+    .filter(({ frequency }) => {
+      const key = Math.round(frequency * 10);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map(({ frequency, source, octavePenalty }) => {
       const nearest = findNearestAllowedNote(frequency);
       const cents = nearest ? 1200 * Math.log2(frequency / nearest.frequency) : null;
       const lockedDistance = activeNearestNote
         ? Math.abs(1200 * Math.log2(frequency / activeNearestNote.frequency))
         : 0;
       const inRange = isFrequencyInCorrectionRange(frequency);
-      const octavePenalty = index === 0 ? 0 : index === 1 ? 4 : 8;
-      const score = nearest && inRange
-        ? Math.abs(cents) + Math.min(24, lockedDistance * 0.08) + octavePenalty
+      const absCents = Number.isFinite(cents) ? Math.abs(cents) : Infinity;
+      const harmonicScore = getHarmonicScore(frequency);
+      const absCentsPenalty = absCents / 50;
+      const confidenceBonus = 0;
+      const lockPenalty = activeNearestNote ? Math.min(0.28, lockedDistance / 600) : 0;
+      const finalScore = nearest && inRange
+        ? absCentsPenalty - harmonicScore * 0.72 - confidenceBonus + octavePenalty + lockPenalty
         : Infinity;
       return {
         frequency,
         nearestNote: nearest?.name || null,
         nearestNoteFrequency: nearest?.frequency || null,
         cents,
+        absCents,
+        harmonicScore,
         inRange,
-        score,
-        source: index === 0 ? "raw" : index === 1 ? "raw/2" : "raw*2",
+        finalScore,
+        score: finalScore,
+        source,
       };
     });
 }
 
 function selectPitchCandidate(measurement) {
-  const candidateList = buildPitchCandidates(measurement.frequency);
-  const validCandidates = candidateList.filter((candidate) => Number.isFinite(candidate.score));
+  const candidateList = buildPitchCandidates(measurement.frequency).map((candidate) => ({
+    ...candidate,
+    finalScore: Number.isFinite(candidate.finalScore)
+      ? candidate.finalScore - (measurement.confidence || 0) * 0.24
+      : Infinity,
+  }));
+  const validCandidates = candidateList.filter((candidate) => Number.isFinite(candidate.finalScore));
   if (!validCandidates.length) {
     return {
       candidateList,
@@ -1000,13 +1208,47 @@ function selectPitchCandidate(measurement) {
       rejectedReason: "no-candidate-in-correction-range",
     };
   }
-  const selected = validCandidates.reduce((best, candidate) => (candidate.score < best.score ? candidate : best), validCandidates[0]);
+  const selected = validCandidates.reduce(
+    (best, candidate) => (candidate.finalScore < best.finalScore ? candidate : best),
+    validCandidates[0],
+  );
   return {
     candidateList,
     selected,
-    selectedReason: selected.source === "raw" ? "raw-autocorrelation" : `octave-correction-${selected.source}`,
+    selectedReason: selected.source === "raw" ? "yin-raw-fundamental" : `harmonic-correction-${selected.source}`,
     rejectedReason: null,
   };
+}
+
+function getHarmonicScore(f0) {
+  if (!micFloatFrequencyData || !audioContext || !micAnalyser || !Number.isFinite(f0)) return 0;
+  const weights = [0.42, 0.28, 0.18, 0.12];
+  let weightedEnergy = 0;
+  let totalWeight = 0;
+  for (let harmonic = 1; harmonic <= 4; harmonic += 1) {
+    const target = f0 * harmonic;
+    if (target > audioContext.sampleRate / 2) continue;
+    const energy = getFrequencyEnergy(target);
+    const weight = weights[harmonic - 1];
+    weightedEnergy += energy * weight;
+    totalWeight += weight;
+  }
+  return totalWeight ? Math.max(0, Math.min(1, weightedEnergy / totalWeight)) : 0;
+}
+
+function getFrequencyEnergy(frequency) {
+  const sampleRate = audioContext?.sampleRate || 44100;
+  const hzPerBin = sampleRate / micAnalyser.fftSize;
+  const centerBin = Math.round(frequency / hzPerBin);
+  const radius = Math.max(1, Math.round(18 / hzPerBin));
+  const start = Math.max(1, centerBin - radius);
+  const end = Math.min(micFloatFrequencyData.length - 1, centerBin + radius);
+  let maxDb = -120;
+  for (let bin = start; bin <= end; bin += 1) {
+    const value = micFloatFrequencyData[bin];
+    if (Number.isFinite(value)) maxDb = Math.max(maxDb, value);
+  }
+  return Math.max(0, Math.min(1, (maxDb + 100) / 72));
 }
 
 function smoothCents(previous, current) {
@@ -1049,6 +1291,24 @@ function updatePitchTuner(pitch, waiting = false) {
   if (homeStatus) homeStatus.textContent = "收音中";
 }
 
+function getPitchStatusText(measurement) {
+  const reason = measurement?.blockedReason || measurement?.reason;
+  if (!measurement || reason === "no-frequency" || reason === "quiet") return "等待收音";
+  if (reason === "low-rms") return "音量太小";
+  if (reason === "low-confidence" || reason === "low-yin-confidence" || reason === "low-harmonic-score") {
+    return "等待穩定收音";
+  }
+  return measurement.detectionStatus === "detected" ? "收音中" : "等待穩定收音";
+}
+
+function updatePitchStatusText(measurement) {
+  const statusText = getPitchStatusText(measurement);
+  const homeStatus = $("#homeTunerStatus");
+  const homeCents = $("#homePitchCents");
+  if (homeStatus) homeStatus.textContent = statusText;
+  if (!stablePitchDisplay && homeCents) homeCents.textContent = statusText;
+}
+
 function formatSignedCents(cents) {
   return cents > 0 ? `+${cents}` : `${cents}`;
 }
@@ -1058,31 +1318,58 @@ function resetPitchTracker() {
   activeNearestNote = null;
   pendingNearestNote = null;
   pendingNearestNoteCount = 0;
+  activeNoteConfidence = 0;
+  activeNoteRms = 0;
   smoothedCents = null;
   stablePitchDisplay = null;
   lastPitchAt = 0;
   lastPitchUiUpdateAt = 0;
+  lastPitchAnalysisAt = 0;
   pitchCentsHistory = [];
   updatePitchTuner(null, true);
 }
 
 function logPitchDebug(measurement) {
   if (!measurement) return;
+  const config = getPitchDetectionConfig();
   pitchDebugLog.push({
     at: Date.now(),
     mode: tunerMode,
+    detectionMode: pitchDetectionMode,
     harpType,
     allowedRange: `${allowedRange.lowNote}-${allowedRange.highNote}`,
+    deviceType: /iPhone|Android|Mobile/i.test(navigator.userAgent) ? "mobile" : "desktop",
+    userAgent: navigator.userAgent,
+    sampleRate: audioContext?.sampleRate || null,
+    fftSize: micAnalyser?.fftSize || null,
+    noiseFloor: micSilentRms,
+    minRms: measurement.minRms ?? getPitchRmsThreshold(),
+    qualityThreshold: config.qualityThreshold,
+    harmonicThreshold: config.harmonicThreshold,
+    detectorV1: measurement.detectorV1,
+    detectorV2: {
+      ...measurement.detectorV2,
+      rawFrequency: measurement.frequency || measurement.detectorV2?.rawFrequency || null,
+      correctedFrequency: measurement.correctedFrequency || null,
+      selectedCandidate: measurement.selectedCandidate || null,
+      rejectedReason: measurement.rejectedReason || measurement.blockedReason || null,
+    },
     rawFreq: measurement.frequency,
     rawFrequency: measurement.frequency,
     detectedFrequency: measurement.detectedFrequency,
     correctedFrequency: measurement.correctedFrequency,
     selectedCandidateFrequency: measurement.selectedCandidateFrequency,
+    selectedCandidate: measurement.selectedCandidate,
     referenceFrequency: measurement.referenceFrequency,
     lockedNote: measurement.lockedNote,
+    pendingNote: measurement.pendingNote,
+    noteSwitchFrames: measurement.noteSwitchFrames ?? config.noteSwitchFrames,
     nearestNote: measurement.nearestNote,
     nearestNoteFrequency: measurement.nearestNoteFrequency,
     centsFromNearest: measurement.centsFromNearest,
+    absCents: measurement.absCents,
+    harmonicScore: measurement.harmonicScore,
+    finalScore: measurement.finalScore,
     targetNote: measurement.targetNote,
     targetFrequency: measurement.targetFrequency,
     confidence: measurement.confidence,
@@ -1103,21 +1390,30 @@ function logPitchDebug(measurement) {
 }
 
 function processPitchMeasurement(measurement) {
+  const config = getPitchDetectionConfig();
+  const rmsThreshold = getPitchRmsThreshold();
   if (
     !measurement?.frequency ||
-    measurement.rms < getPitchRmsThreshold() ||
-    measurement.confidence < minPitchConfidence ||
-    measurement.frequency < 100 ||
-    measurement.frequency > 2800
+    measurement.rms < rmsThreshold ||
+    measurement.frequency < YIN_CONFIG.minFrequency ||
+    measurement.frequency > YIN_CONFIG.maxFrequency ||
+    measurement.confidence < config.qualityThreshold
   ) {
     const reason = !measurement?.frequency
       ? "no-frequency"
-      : measurement.rms < getPitchRmsThreshold()
+      : measurement.rms < rmsThreshold
         ? "low-rms"
-        : measurement.confidence < minPitchConfidence
+        : measurement.confidence < config.qualityThreshold
           ? "low-confidence"
           : "out-of-range";
-    logPitchDebug({ ...(measurement || {}), detectionStatus: "blocked", blockedReason: reason, reason });
+    logPitchDebug({
+      ...(measurement || {}),
+      detectionStatus: reason === "low-rms" ? "too-quiet" : "blocked",
+      blockedReason: reason,
+      reason,
+      minRms: rmsThreshold,
+      qualityThreshold: config.qualityThreshold,
+    });
     return null;
   }
 
@@ -1125,9 +1421,17 @@ function processPitchMeasurement(measurement) {
   measurement.candidateList = correction.candidateList;
   measurement.selectedReason = correction.selectedReason;
   measurement.rejectedReason = correction.rejectedReason;
+  measurement.selectedCandidate = correction.selected;
   if (!correction.selected) {
     measurement.detectionStatus = "blocked";
     measurement.blockedReason = correction.rejectedReason;
+    logPitchDebug(measurement);
+    return null;
+  }
+  if (correction.selected.harmonicScore < config.harmonicThreshold) {
+    measurement.detectionStatus = "blocked";
+    measurement.blockedReason = "low-harmonic-score";
+    measurement.rejectedReason = "low-harmonic-score";
     logPitchDebug(measurement);
     return null;
   }
@@ -1141,28 +1445,45 @@ function processPitchMeasurement(measurement) {
     activeNearestNote = nearestNote;
     pendingNearestNote = null;
     pendingNearestNoteCount = 0;
+    activeNoteConfidence = measurement.confidence || 0;
+    activeNoteRms = measurement.rms || 0;
     pitchCentsWindow = [];
     smoothedCents = null;
     noteSwitchReason = "initial-lock";
   } else if (nearestNote.name !== activeNearestNote.name) {
-    if (measurement.confidence >= noteSwitchConfidence) {
-      activeNearestNote = nearestNote;
-      pendingNearestNote = null;
-      pendingNearestNoteCount = 0;
-      pitchCentsWindow = [];
-      smoothedCents = null;
-      noteSwitchReason = "high-confidence-switch";
-    } else if (pendingNearestNote?.name === nearestNote.name) {
+    if (pendingNearestNote?.name === nearestNote.name) {
       pendingNearestNoteCount += 1;
-      noteSwitchReason = "pending-low-confidence-switch";
     } else {
       pendingNearestNote = nearestNote;
       pendingNearestNoteCount = 1;
-      noteSwitchReason = "pending-low-confidence-switch";
+    }
+    const confidenceGain = (measurement.confidence || 0) >= activeNoteConfidence + 0.15;
+    const absoluteConfidenceSwitch = (measurement.confidence || 0) >= 0.75;
+    const strongerRms = activeNoteRms > 0 && (measurement.rms || 0) >= activeNoteRms * 1.2;
+    const stableNewNote = pendingNearestNoteCount >= config.noteSwitchFrames;
+    if (stableNewNote || confidenceGain || strongerRms || absoluteConfidenceSwitch) {
+      activeNearestNote = nearestNote;
+      pendingNearestNote = null;
+      pendingNearestNoteCount = 0;
+      activeNoteConfidence = measurement.confidence || 0;
+      activeNoteRms = measurement.rms || 0;
+      pitchCentsWindow = [];
+      smoothedCents = null;
+      noteSwitchReason = stableNewNote
+        ? "stable-new-note-switch"
+        : confidenceGain
+          ? "confidence-gain-switch"
+          : strongerRms
+            ? "stronger-rms-switch"
+            : "absolute-confidence-switch";
+    } else {
+      noteSwitchReason = "pending-note-hold";
     }
   } else {
     pendingNearestNote = null;
     pendingNearestNoteCount = 0;
+    activeNoteConfidence = activeNoteConfidence * 0.7 + (measurement.confidence || 0) * 0.3;
+    activeNoteRms = activeNoteRms * 0.7 + (measurement.rms || 0) * 0.3;
   }
 
   const lockedChanged = previousLockedNote?.name !== activeNearestNote.name;
@@ -1178,12 +1499,18 @@ function processPitchMeasurement(measurement) {
   measurement.detectedFrequency = correctedFrequency;
   measurement.correctedFrequency = correctedFrequency;
   measurement.selectedCandidateFrequency = correctedFrequency;
+  measurement.selectedCandidate = correction.selected;
   measurement.referenceFrequency = referenceFrequency;
   measurement.lockedNote = activeNearestNote.name;
+  measurement.pendingNote = pendingNearestNote?.name || null;
+  measurement.noteSwitchFrames = config.noteSwitchFrames;
   measurement.nearestNote = nearestNote.name;
   measurement.nearestNoteFrequency = nearestNote.frequency;
   measurement.centsFromNearest = rawCents;
+  measurement.absCents = Math.abs(rawCents);
   measurement.rawCents = rawCents;
+  measurement.harmonicScore = correction.selected.harmonicScore;
+  measurement.finalScore = correction.selected.finalScore;
   measurement.targetNote = null;
   measurement.targetFrequency = null;
   measurement.centsFromTarget = null;
@@ -1211,7 +1538,10 @@ function updateLivePitch() {
     updatePitchTuner(stablePitchDisplay, true);
     return;
   }
-  const pitch = processPitchMeasurement(detectPitch());
+  if (now - lastPitchAnalysisAt < 55) return;
+  lastPitchAnalysisAt = now;
+  const measurement = detectPitch();
+  const pitch = processPitchMeasurement(measurement);
   if (pitch) {
     if (now - lastPitchUiUpdateAt >= 60) {
       updatePitchTuner(pitch);
@@ -1222,10 +1552,12 @@ function updateLivePitch() {
   if (stablePitchDisplay) {
     if (now - lastPitchUiUpdateAt >= 60) {
       updatePitchTuner(stablePitchDisplay);
+      updatePitchStatusText(measurement);
       lastPitchUiUpdateAt = now;
     }
   } else {
     updatePitchTuner(stablePitchDisplay, true);
+    updatePitchStatusText(measurement);
   }
 }
 
@@ -1355,10 +1687,11 @@ async function startMic() {
     });
     const source = audioContext.createMediaStreamSource(micStream);
     micAnalyser = audioContext.createAnalyser();
-    micAnalyser.fftSize = 4096;
+    micAnalyser.fftSize = YIN_CONFIG.bufferSize;
     micAnalyser.smoothingTimeConstant = 0.18;
     micData = new Uint8Array(micAnalyser.fftSize);
     micFrequencyData = new Uint8Array(micAnalyser.frequencyBinCount);
+    micFloatFrequencyData = new Float32Array(micAnalyser.frequencyBinCount);
     source.connect(micAnalyser);
     resetMicStats();
     if (micFrame) {
@@ -1645,10 +1978,6 @@ function bindEvents() {
     updateBeatDisplay();
   });
 
-  $("#micSensitivity").addEventListener("input", (event) => {
-    micSensitivity = Number(event.target.value);
-    $("#micSensitivityValue").textContent = `${micSensitivity.toFixed(1)}x`;
-  });
   $("#tuningSelect").addEventListener("change", (event) => {
     tuningA4 = Number(event.target.value);
     $$("[data-tuning-value]").forEach((button) => {
@@ -1705,6 +2034,15 @@ window.chromaticDebug = {
   },
   get pitchLog() {
     return [...pitchDebugLog];
+  },
+  get pitchDetectionMode() {
+    return pitchDetectionMode;
+  },
+  setPitchDetectionMode(mode) {
+    if (!PITCH_DETECTION_MODES[mode]) return false;
+    pitchDetectionMode = mode;
+    resetPitchTracker();
+    return true;
   },
 };
 
