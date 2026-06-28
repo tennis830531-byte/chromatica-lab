@@ -327,6 +327,9 @@ const FINE_TRACKER_CONFIG = {
   highQualityThreshold: 0.11,
   maxJumpCents: 160,
 };
+const NATURAL_BOUNDARY_SWITCH_CENTS = 65;
+const NATURAL_BOUNDARY_DIRECT_CENTS = 45;
+const NATURAL_BOUNDARY_PENDING_FRAMES = 2;
 const PITCH_DETECTION_MODES = {
   stable: {
     minRms: () => Math.max(micSilentRms * 2.2, 0.0052),
@@ -360,6 +363,8 @@ let smoothedCents = null;
 let stablePitchDisplay = null;
 let fineRejectCount = 0;
 let lastFineAcceptedAt = 0;
+let naturalBoundaryPendingNote = null;
+let naturalBoundaryPendingCount = 0;
 let lastPitchAt = 0;
 let lastPitchUiUpdateAt = 0;
 let lastPitchAnalysisAt = 0;
@@ -1310,6 +1315,33 @@ function midiToFreq(midi, a4 = tuningA4) {
   return a4 * 2 ** ((midi - 69) / 12);
 }
 
+function getNoteLetter(noteName) {
+  return /^([A-G])/.exec(noteName || "")?.[1] || null;
+}
+
+function isNaturalBoundaryPair(fromNoteName, toNoteName) {
+  const from = getNoteLetter(fromNoteName);
+  const to = getNoteLetter(toNoteName);
+  return (
+    (from === "E" && to === "F") ||
+    (from === "F" && to === "E") ||
+    (from === "B" && to === "C") ||
+    (from === "C" && to === "B")
+  );
+}
+
+function getAdjacentNaturalBoundaryNote(lockedNote, direction) {
+  if (!lockedNote) return null;
+  const lockedMidi = Number.isFinite(lockedNote.midi) ? lockedNote.midi : noteNameToMidi(lockedNote.name);
+  const midi = lockedMidi + direction;
+  const note = {
+    name: midiToNoteName(midi),
+    midi,
+    frequency: midiToFreq(midi, tuningA4),
+  };
+  return isNaturalBoundaryPair(lockedNote.name, note.name) ? note : null;
+}
+
 function buildNoteRange(lowNote, highNote, a4 = tuningA4) {
   const lowMidi = noteNameToMidi(lowNote);
   const highMidi = noteNameToMidi(highNote);
@@ -1436,6 +1468,107 @@ function selectPitchCandidate(measurement) {
     selected,
     selectedReason: selected.source === "raw" ? "yin-raw-fundamental" : `harmonic-correction-${selected.source}`,
     rejectedReason: null,
+  };
+}
+
+function getNaturalBoundarySourceFrequency(fine, detectorMeasurement) {
+  if (Number.isFinite(fine?.frequency)) return fine.frequency;
+  if (Number.isFinite(fine?.rawFrequency)) return fine.rawFrequency;
+  if (Number.isFinite(detectorMeasurement?.correctedFrequency)) return detectorMeasurement.correctedFrequency;
+  if (Number.isFinite(detectorMeasurement?.detectedFrequency)) return detectorMeasurement.detectedFrequency;
+  if (Number.isFinite(detectorMeasurement?.frequency)) return detectorMeasurement.frequency;
+  return null;
+}
+
+function maybeSwitchNaturalBoundary(rawCents, fine, detectorMeasurement) {
+  if (!activeNearestNote || !Number.isFinite(rawCents)) {
+    return { switched: false, pending: false, reason: "boundary-no-active-note" };
+  }
+
+  const direction = rawCents >= NATURAL_BOUNDARY_SWITCH_CENTS
+    ? 1
+    : rawCents <= -NATURAL_BOUNDARY_SWITCH_CENTS
+      ? -1
+      : 0;
+  if (!direction) {
+    naturalBoundaryPendingNote = null;
+    naturalBoundaryPendingCount = 0;
+    return { switched: false, pending: false, reason: "boundary-cents-inside" };
+  }
+
+  const candidate = getAdjacentNaturalBoundaryNote(activeNearestNote, direction);
+  if (!candidate) {
+    naturalBoundaryPendingNote = null;
+    naturalBoundaryPendingCount = 0;
+    return { switched: false, pending: false, reason: "boundary-not-natural-pair" };
+  }
+
+  const sourceFrequency = getNaturalBoundarySourceFrequency(fine, detectorMeasurement);
+  const nearestFromSource = findNearestAllowedNote(sourceFrequency);
+  const centsToCandidate = Number.isFinite(sourceFrequency)
+    ? 1200 * Math.log2(sourceFrequency / candidate.frequency)
+    : null;
+  const detectorNearestName =
+    detectorMeasurement?.nearestNote ||
+    detectorMeasurement?.selectedCandidate?.nearestNote ||
+    nearestFromSource?.name ||
+    null;
+  const detectorNearCandidate =
+    detectorNearestName === candidate.name ||
+    (Number.isFinite(centsToCandidate) && Math.abs(centsToCandidate) <= NATURAL_BOUNDARY_DIRECT_CENTS);
+
+  if (!detectorNearCandidate) {
+    naturalBoundaryPendingNote = null;
+    naturalBoundaryPendingCount = 0;
+    return {
+      switched: false,
+      pending: false,
+      reason: "boundary-detector-not-adjacent",
+      candidate,
+      sourceFrequency,
+      centsToCandidate,
+      detectorNearestName,
+    };
+  }
+
+  if (naturalBoundaryPendingNote?.name === candidate.name) {
+    naturalBoundaryPendingCount += 1;
+  } else {
+    naturalBoundaryPendingNote = candidate;
+    naturalBoundaryPendingCount = 1;
+  }
+
+  const directDetectorSwitch = detectorNearestName === candidate.name;
+  const readyToSwitch = directDetectorSwitch || naturalBoundaryPendingCount >= NATURAL_BOUNDARY_PENDING_FRAMES;
+  if (!readyToSwitch) {
+    return {
+      switched: false,
+      pending: true,
+      reason: "boundary-pending",
+      candidate,
+      sourceFrequency,
+      centsToCandidate,
+      detectorNearestName,
+      naturalBoundaryPendingCount,
+    };
+  }
+
+  const previousNote = activeNearestNote;
+  activeNearestNote = candidate;
+  pendingNearestNote = null;
+  pendingNearestNoteCount = 0;
+  activeNoteConfidence = Math.max(activeNoteConfidence * 0.7, detectorMeasurement?.confidence || fine?.confidence || 0);
+  activeNoteRms = detectorMeasurement?.rms || fine?.rms || activeNoteRms;
+  resetFineTrackerForNoteSwitch();
+  return {
+    switched: true,
+    pending: false,
+    reason: "natural-boundary-switch",
+    previousNote,
+    candidate,
+    sourceFrequency,
+    centsToCandidate,
+    detectorNearestName,
   };
 }
 
@@ -1639,6 +1772,8 @@ function resetFineTrackerForNoteSwitch() {
   smoothedCents = null;
   fineRejectCount = 0;
   lastFineAcceptedAt = 0;
+  naturalBoundaryPendingNote = null;
+  naturalBoundaryPendingCount = 0;
 }
 
 function updatePitchTuner(pitch, waiting = false) {
@@ -1706,6 +1841,8 @@ function resetPitchTracker() {
   stablePitchDisplay = null;
   fineRejectCount = 0;
   lastFineAcceptedAt = 0;
+  naturalBoundaryPendingNote = null;
+  naturalBoundaryPendingCount = 0;
   lastPitchAt = 0;
   lastPitchUiUpdateAt = 0;
   lastPitchAnalysisAt = 0;
@@ -1775,6 +1912,14 @@ function logPitchDebug(measurement) {
     blockedReason: measurement.blockedReason || measurement.reason,
     noteSwitchReason: measurement.noteSwitchReason,
     centsUpdateReason: measurement.centsUpdateReason,
+    naturalBoundarySwitch: measurement.naturalBoundarySwitch,
+    naturalBoundaryPending: measurement.naturalBoundaryPending,
+    naturalBoundaryReason: measurement.naturalBoundaryReason,
+    naturalBoundaryCandidate: measurement.naturalBoundaryCandidate,
+    naturalBoundaryPreviousNote: measurement.naturalBoundaryPreviousNote,
+    naturalBoundaryPendingCount: measurement.naturalBoundaryPendingCount,
+    boundarySourceFrequency: measurement.boundarySourceFrequency,
+    boundaryCentsToCandidate: measurement.boundaryCentsToCandidate,
     candidateList: measurement.candidateList,
     selectedReason: measurement.selectedReason,
     rejectedReason: measurement.rejectedReason,
@@ -1949,10 +2094,50 @@ function updateFineCentsTrackerEveryFrame(detectorMeasurement) {
     Number.isFinite(detectorCents) &&
     Math.abs(detectorCents) <= FINE_TRACKER_CONFIG.detectorFallbackRangeCents &&
     (detectorMeasurement.confidence || 0) >= Math.max(0.26, getAdjustedQualityThreshold(activeNearestNote.frequency) - 0.18);
-  const rawCents = canUseFineCents ? fine.cents : canUseDetectorCents ? detectorCents : null;
-  const centsUpdateReason = canUseFineCents ? "fine-waveform-contour" : canUseDetectorCents ? "detector-cents-fallback" : "fine-rejected";
+  let rawCents = canUseFineCents ? fine.cents : canUseDetectorCents ? detectorCents : null;
+  let centsUpdateReason = canUseFineCents ? "fine-waveform-contour" : canUseDetectorCents ? "detector-cents-fallback" : "fine-rejected";
+  const boundaryRawCents = Number.isFinite(fine?.cents) ? fine.cents : detectorCents;
+  const boundarySwitch = maybeSwitchNaturalBoundary(boundaryRawCents, fine, detectorMeasurement);
 
-  if (rawCents === null) {
+  if (boundarySwitch.switched) {
+    const sourceFrequency = boundarySwitch.sourceFrequency;
+    rawCents = Number.isFinite(sourceFrequency)
+      ? 1200 * Math.log2(sourceFrequency / activeNearestNote.frequency)
+      : boundarySwitch.centsToCandidate;
+    centsUpdateReason = "natural-boundary-switch";
+    if (Number.isFinite(rawCents)) {
+      smoothedCents = rawCents;
+    }
+  } else if (boundarySwitch.pending) {
+    const blockedMeasurement = {
+      ...(detectorMeasurement || {}),
+      lockedNote: activeNearestNote.name,
+      referenceFrequency: activeNearestNote.frequency,
+      rawCents: boundaryRawCents,
+      fineTracker: fine,
+      fineTrackerFrequency: fine?.frequency || fine?.rawFrequency || null,
+      fineTrackerConfidence: fine?.confidence || 0,
+      fineTrackerQuality: fine?.quality || 0,
+      fineTrackerReason: fine?.reason || null,
+      fineTrackerGateReason: "natural-boundary-pending",
+      fineTrackerValid: false,
+      naturalBoundarySwitch: false,
+      naturalBoundaryPending: true,
+      naturalBoundaryCandidate: boundarySwitch.candidate?.name || null,
+      naturalBoundaryPendingCount: boundarySwitch.naturalBoundaryPendingCount,
+      boundarySourceFrequency: boundarySwitch.sourceFrequency,
+      boundaryCentsToCandidate: boundarySwitch.centsToCandidate,
+      detectionStatus: "blocked",
+      blockedReason: "natural-boundary-pending",
+      centsUpdateReason: "natural-boundary-hold-old-note",
+      detectorCents,
+      isHighRegister,
+    };
+    logPitchDebug(blockedMeasurement);
+    return null;
+  }
+
+  if (!Number.isFinite(rawCents)) {
     fineRejectCount += 1;
     if (fineRejectCount >= 3) {
       smoothedCents = null;
@@ -2057,6 +2242,14 @@ function updateFineCentsTrackerEveryFrame(detectorMeasurement) {
     fineTrackerGateReason: fineGate.reason,
     fineTrackerValid: canUseFineCents,
     fineTrackerActive: canUseFineCents,
+    naturalBoundarySwitch: boundarySwitch.switched,
+    naturalBoundaryPending: boundarySwitch.pending,
+    naturalBoundaryReason: boundarySwitch.reason,
+    naturalBoundaryCandidate: boundarySwitch.candidate?.name || null,
+    naturalBoundaryPreviousNote: boundarySwitch.previousNote?.name || null,
+    naturalBoundaryPendingCount,
+    boundarySourceFrequency: boundarySwitch.sourceFrequency || null,
+    boundaryCentsToCandidate: boundarySwitch.centsToCandidate,
     fineTrackerBufferSize: fine?.activeBufferSize || fineFrame?.activeBufferSize || null,
     selectedFineLag: fine?.selectedFineLag || null,
     minFineLag: fine?.minFineLag || null,
@@ -2651,7 +2844,56 @@ window.chromaticDebug = {
         rejectReason: gateWrongReference.reason,
       });
     }
-    return results;
+    const boundaryPairs = [
+      ["E5", "F5"],
+      ["E6", "F6"],
+      ["B5", "C6"],
+      ["B6", "C7"],
+      ["F5", "E5"],
+      ["C6", "B5"],
+    ];
+    const boundaryResults = boundaryPairs.map(([fromName, toName]) => {
+      const from = {
+        name: fromName,
+        midi: noteNameToMidi(fromName),
+        frequency: midiToFreq(noteNameToMidi(fromName), tuningA4),
+      };
+      const to = {
+        name: toName,
+        midi: noteNameToMidi(toName),
+        frequency: midiToFreq(noteNameToMidi(toName), tuningA4),
+      };
+      activeNearestNote = from;
+      resetFineTrackerForNoteSwitch();
+      const fine = {
+        valid: true,
+        frequency: to.frequency,
+        rawFrequency: to.frequency,
+        cents: 1200 * Math.log2(to.frequency / from.frequency),
+        confidence: 0.35,
+        quality: 0.35,
+        rms: 0.02,
+      };
+      const measurement = {
+        correctedFrequency: to.frequency,
+        detectedFrequency: to.frequency,
+        nearestNote: to.name,
+        selectedCandidate: { nearestNote: to.name },
+        confidence: 0.45,
+        rms: 0.02,
+      };
+      const switched = maybeSwitchNaturalBoundary(fine.cents, fine, measurement);
+      return {
+        from: fromName,
+        to: toName,
+        rawCents: Math.round(fine.cents),
+        switched: switched.switched,
+        reason: switched.reason,
+        lockedNote: activeNearestNote?.name || null,
+      };
+    });
+    resetPitchTracker();
+    return { gateResults: results, boundaryResults };
   },
 };
 
