@@ -320,6 +320,11 @@ const FINE_TRACKER_CONFIG = {
   searchCents: 140,
   minCorrelation: 0.12,
   highMinCorrelation: 0.08,
+  validRangeCents: 90,
+  releaseRangeCents: 120,
+  detectorFallbackRangeCents: 85,
+  normalQualityThreshold: 0.16,
+  highQualityThreshold: 0.11,
   maxJumpCents: 160,
 };
 const PITCH_DETECTION_MODES = {
@@ -353,6 +358,8 @@ let activeNoteConfidence = 0;
 let activeNoteRms = 0;
 let smoothedCents = null;
 let stablePitchDisplay = null;
+let fineRejectCount = 0;
+let lastFineAcceptedAt = 0;
 let lastPitchAt = 0;
 let lastPitchUiUpdateAt = 0;
 let lastPitchAnalysisAt = 0;
@@ -1515,7 +1522,7 @@ function estimateFinePitchNearLockedNote(frame, lockedNote) {
   const { buffer, rms, sampleRate, activeBufferSize } = frame;
   const minRms = Math.max(0.0018, getPitchRmsThreshold() * 0.72);
   if (rms < minRms) {
-    return { frequency: null, rms, confidence: 0, reason: "fine-rms-low", activeBufferSize };
+    return { frequency: null, rms, confidence: 0, quality: 0, valid: false, reason: "fine-rms-low", activeBufferSize };
   }
 
   const referenceFrequency = lockedNote.frequency;
@@ -1524,7 +1531,7 @@ function estimateFinePitchNearLockedNote(frame, lockedNote) {
   const minLag = Math.max(2, Math.floor(sampleRate / highFrequency));
   const maxLag = Math.min(buffer.length - 3, Math.ceil(sampleRate / lowFrequency));
   if (maxLag <= minLag) {
-    return { frequency: null, rms, confidence: 0, reason: "fine-invalid-range", activeBufferSize };
+    return { frequency: null, rms, confidence: 0, quality: 0, valid: false, reason: "fine-invalid-range", activeBufferSize };
   }
 
   let bestLag = -1;
@@ -1545,23 +1552,35 @@ function estimateFinePitchNearLockedNote(frame, lockedNote) {
       frequency: null,
       rms,
       confidence: Math.max(0, bestCorrelation),
+      quality: Math.max(0, bestCorrelation),
+      valid: false,
       reason: "fine-low-correlation",
       activeBufferSize,
+      selectedFineLag: bestLag,
+      minFineLag: minLag,
+      maxFineLag: maxLag,
     };
   }
 
   const refinedLag = refineCorrelationLag(buffer, bestLag);
   const frequency = sampleRate / refinedLag;
   const cents = 1200 * Math.log2(frequency / referenceFrequency);
+  const nearestNote = findNearestAllowedNote(frequency);
+  const centsFromNearest = nearestNote ? 1200 * Math.log2(frequency / nearestNote.frequency) : null;
   if (!Number.isFinite(frequency) || !Number.isFinite(cents) || Math.abs(cents) > FINE_TRACKER_CONFIG.maxJumpCents) {
     return {
       frequency: null,
       rms,
       confidence: Math.max(0, bestCorrelation),
+      quality: Math.max(0, bestCorrelation),
+      valid: false,
       reason: "fine-outlier",
       activeBufferSize,
       rawFrequency: frequency,
       rawCents: cents,
+      selectedFineLag: refinedLag,
+      minFineLag: minLag,
+      maxFineLag: maxLag,
     };
   }
 
@@ -1570,10 +1589,56 @@ function estimateFinePitchNearLockedNote(frame, lockedNote) {
     cents,
     rms,
     confidence: Math.max(0, Math.min(1, bestCorrelation)),
+    quality: Math.max(0, Math.min(1, bestCorrelation)),
+    valid: true,
     reason: "fine-waveform-lock",
     activeBufferSize,
     referenceFrequency,
+    nearestNote: nearestNote?.name || null,
+    nearestNoteFrequency: nearestNote?.frequency || null,
+    centsFromNearest,
+    selectedFineLag: refinedLag,
+    minFineLag: minLag,
+    maxFineLag: maxLag,
   };
+}
+
+function validateFinePitchResult(fine, lockedNote) {
+  if (!lockedNote) return { valid: false, reason: "fine-no-locked-note" };
+  if (!fine?.valid || !Number.isFinite(fine.frequency) || !Number.isFinite(fine.cents)) {
+    return { valid: false, reason: fine?.reason || "fine-invalid-frequency" };
+  }
+  const qualityThreshold = isHighRegisterFrequency(lockedNote.frequency)
+    ? FINE_TRACKER_CONFIG.highQualityThreshold
+    : FINE_TRACKER_CONFIG.normalQualityThreshold;
+  if ((fine.quality || fine.confidence || 0) < qualityThreshold) {
+    return { valid: false, reason: "fine-quality-low", qualityThreshold };
+  }
+  if (Math.abs(fine.cents) > FINE_TRACKER_CONFIG.validRangeCents) {
+    return { valid: false, reason: "fine-cents-outside-valid-range", qualityThreshold };
+  }
+  if (
+    fine.nearestNote &&
+    fine.nearestNote !== lockedNote.name &&
+    Math.abs(fine.cents) > VIBRATO_TRACKING_RANGE_CENTS
+  ) {
+    return { valid: false, reason: "fine-nearest-note-mismatch", qualityThreshold };
+  }
+  if (
+    !Number.isFinite(fine.selectedFineLag) ||
+    fine.selectedFineLag < fine.minFineLag ||
+    fine.selectedFineLag > fine.maxFineLag
+  ) {
+    return { valid: false, reason: "fine-lag-out-of-range", qualityThreshold };
+  }
+  return { valid: true, reason: "fine-valid", qualityThreshold };
+}
+
+function resetFineTrackerForNoteSwitch() {
+  pitchCentsWindow = [];
+  smoothedCents = null;
+  fineRejectCount = 0;
+  lastFineAcceptedAt = 0;
 }
 
 function updatePitchTuner(pitch, waiting = false) {
@@ -1639,6 +1704,8 @@ function resetPitchTracker() {
   activeNoteRms = 0;
   smoothedCents = null;
   stablePitchDisplay = null;
+  fineRejectCount = 0;
+  lastFineAcceptedAt = 0;
   lastPitchAt = 0;
   lastPitchUiUpdateAt = 0;
   lastPitchAnalysisAt = 0;
@@ -1775,6 +1842,10 @@ function updateLockedNoteWithDetectorV2(measurement) {
     Number.isFinite(centsRelativeToExistingLock) &&
     Math.abs(centsRelativeToExistingLock) <= VIBRATO_TRACKING_RANGE_CENTS &&
     measurement.rms >= rmsThreshold;
+  const likelyNewNote =
+    Boolean(existingLockedNote) &&
+    Number.isFinite(centsRelativeToExistingLock) &&
+    Math.abs(centsRelativeToExistingLock) > FINE_TRACKER_CONFIG.releaseRangeCents;
   const lowConfidenceButTrackable =
     vibratoTrackingActive &&
     (measurement.confidence || 0) >= Math.max(0.22, qualityThreshold - 0.22);
@@ -1795,10 +1866,9 @@ function updateLockedNoteWithDetectorV2(measurement) {
     pendingNearestNoteCount = 0;
     activeNoteConfidence = measurement.confidence || 0;
     activeNoteRms = measurement.rms || 0;
-    pitchCentsWindow = [];
-    smoothedCents = null;
+    resetFineTrackerForNoteSwitch();
     noteSwitchReason = "initial-lock";
-  } else if (nearestNote.name !== activeNearestNote.name && !vibratoTrackingActive) {
+  } else if (nearestNote.name !== activeNearestNote.name && (!vibratoTrackingActive || likelyNewNote)) {
     if (pendingNearestNote?.name === nearestNote.name) {
       pendingNearestNoteCount += 1;
     } else {
@@ -1808,15 +1878,14 @@ function updateLockedNoteWithDetectorV2(measurement) {
     const confidenceGain = (measurement.confidence || 0) >= activeNoteConfidence + 0.15;
     const absoluteConfidenceSwitch = (measurement.confidence || 0) >= 0.75;
     const strongerRms = activeNoteRms > 0 && (measurement.rms || 0) >= activeNoteRms * 1.2;
-    const stableNewNote = pendingNearestNoteCount >= config.noteSwitchFrames;
+    const stableNewNote = pendingNearestNoteCount >= (likelyNewNote ? 1 : config.noteSwitchFrames);
     if (stableNewNote || confidenceGain || strongerRms || absoluteConfidenceSwitch) {
       activeNearestNote = nearestNote;
       pendingNearestNote = null;
       pendingNearestNoteCount = 0;
       activeNoteConfidence = measurement.confidence || 0;
       activeNoteRms = measurement.rms || 0;
-      pitchCentsWindow = [];
-      smoothedCents = null;
+      resetFineTrackerForNoteSwitch();
       noteSwitchReason = stableNewNote
         ? "stable-new-note-switch"
         : confidenceGain
@@ -1856,6 +1925,7 @@ function updateLockedNoteWithDetectorV2(measurement) {
   measurement.isHighRegister = isHighRegister;
   measurement.activeBufferSize = measurement.activeBufferSize || measurement.detectorV2?.activeBufferSize || null;
   measurement.vibratoTrackingActive = vibratoTrackingActive;
+  measurement.likelyNewNote = likelyNewNote;
   measurement.qualityThresholdAdjusted = qualityThreshold;
   measurement.noteSwitchReason = noteSwitchReason;
   measurement.lockedChanged = lockedChanged;
@@ -1867,39 +1937,99 @@ function updateFineCentsTrackerEveryFrame(detectorMeasurement) {
   if (!activeNearestNote) return null;
   const fineFrame = buildPitchBuffer(getFineTrackerBufferSize());
   const fine = estimateFinePitchNearLockedNote(fineFrame, activeNearestNote);
+  const fineGate = validateFinePitchResult(fine, activeNearestNote);
   const isHighRegister = isHighRegisterFrequency(activeNearestNote.frequency) || isHighRegisterFrequency(fine?.frequency) || detectorMeasurement?.isHighRegister;
   const detectorCents = detectorMeasurement?.correctedFrequency
     ? 1200 * Math.log2(detectorMeasurement.correctedFrequency / activeNearestNote.frequency)
     : null;
-  const canUseDetectorCents = Number.isFinite(detectorCents) && Math.abs(detectorCents) <= FINE_TRACKER_RANGE_CENTS;
-  const rawCents = Number.isFinite(fine?.cents)
-    ? fine.cents
-    : canUseDetectorCents
-      ? detectorCents
-      : null;
+  const canUseFineCents = fineGate.valid;
+  const canUseDetectorCents =
+    !canUseFineCents &&
+    detectorMeasurement?.detectionStatus === "detected" &&
+    Number.isFinite(detectorCents) &&
+    Math.abs(detectorCents) <= FINE_TRACKER_CONFIG.detectorFallbackRangeCents &&
+    (detectorMeasurement.confidence || 0) >= Math.max(0.26, getAdjustedQualityThreshold(activeNearestNote.frequency) - 0.18);
+  const rawCents = canUseFineCents ? fine.cents : canUseDetectorCents ? detectorCents : null;
+  const centsUpdateReason = canUseFineCents ? "fine-waveform-contour" : canUseDetectorCents ? "detector-cents-fallback" : "fine-rejected";
 
   if (rawCents === null) {
+    fineRejectCount += 1;
+    if (fineRejectCount >= 3) {
+      smoothedCents = null;
+    }
     const blockedMeasurement = {
       ...(detectorMeasurement || {}),
       lockedNote: activeNearestNote.name,
       referenceFrequency: activeNearestNote.frequency,
       fineTracker: fine,
+    fineTrackerFrequency: fine?.frequency || fine?.rawFrequency || null,
+      fineTrackerConfidence: fine?.confidence || 0,
+      fineTrackerQuality: fine?.quality || 0,
+      fineTrackerReason: fine?.reason || null,
+      fineTrackerGateReason: fineGate.reason,
+      fineTrackerValid: false,
+      fineRejectCount,
+      selectedFineLag: fine?.selectedFineLag || null,
+      minFineLag: fine?.minFineLag || null,
+      maxFineLag: fine?.maxFineLag || null,
       detectionStatus: detectorMeasurement?.detectionStatus || "blocked",
-      blockedReason: fine?.reason || detectorMeasurement?.blockedReason || detectorMeasurement?.reason || "fine-no-frequency",
-      centsUpdateReason: "fine-tracker-blocked",
+      blockedReason: fineGate.reason || fine?.reason || detectorMeasurement?.blockedReason || detectorMeasurement?.reason || "fine-no-frequency",
+      centsUpdateReason,
+      detectorCents,
+      likelyNewNote: detectorMeasurement?.likelyNewNote,
       isHighRegister,
     };
     logPitchDebug(blockedMeasurement);
     return null;
   }
 
+  if (Math.abs(rawCents) > FINE_TRACKER_CONFIG.releaseRangeCents) {
+    fineRejectCount += 1;
+    smoothedCents = null;
+    logPitchDebug({
+      ...(detectorMeasurement || {}),
+      lockedNote: activeNearestNote.name,
+      referenceFrequency: activeNearestNote.frequency,
+      rawCents,
+      fineTracker: fine,
+      fineTrackerGateReason: "fine-release-range-exceeded",
+      fineTrackerValid: false,
+      fineRejectCount,
+      detectionStatus: "blocked",
+      blockedReason: "fine-release-range-exceeded",
+      centsUpdateReason: "fine-rejected-release-range",
+      isHighRegister,
+    });
+    return null;
+  }
+
+  fineRejectCount = 0;
   const smoothingMode = isHighRegister ? "contour" : "fast";
-  const smoothingAlpha = isHighRegister ? 0.96 : 0.88;
+  const smoothingAlpha = isHighRegister ? 0.82 : 0.72;
   const previous = smoothedCents;
   smoothedCents = previous === null || !Number.isFinite(previous)
     ? rawCents
     : previous + (rawCents - previous) * smoothingAlpha;
   const displayCents = Math.round(smoothedCents);
+  if (Math.abs(displayCents) > FINE_TRACKER_CONFIG.validRangeCents + 8) {
+    fineRejectCount += 1;
+    smoothedCents = null;
+    logPitchDebug({
+      ...(detectorMeasurement || {}),
+      lockedNote: activeNearestNote.name,
+      referenceFrequency: activeNearestNote.frequency,
+      rawCents,
+      smoothedCents: displayCents,
+      fineTracker: fine,
+      fineTrackerGateReason: "smoothed-cents-saturation-guard",
+      fineTrackerValid: false,
+      detectionStatus: "blocked",
+      blockedReason: "smoothed-cents-saturation-guard",
+      centsUpdateReason: "fine-rejected-saturation-guard",
+      isHighRegister,
+    });
+    return null;
+  }
   const now = performance.now();
   const display = {
     nearestNote: activeNearestNote,
@@ -1922,19 +2052,29 @@ function updateFineCentsTrackerEveryFrame(detectorMeasurement) {
     smoothedCents: displayCents,
     fineTrackerFrequency: fine?.frequency || null,
     fineTrackerConfidence: fine?.confidence || 0,
+    fineTrackerQuality: fine?.quality || 0,
     fineTrackerReason: fine?.reason || null,
-    fineTrackerActive: Boolean(fine?.frequency),
+    fineTrackerGateReason: fineGate.reason,
+    fineTrackerValid: canUseFineCents,
+    fineTrackerActive: canUseFineCents,
     fineTrackerBufferSize: fine?.activeBufferSize || fineFrame?.activeBufferSize || null,
+    selectedFineLag: fine?.selectedFineLag || null,
+    minFineLag: fine?.minFineLag || null,
+    maxFineLag: fine?.maxFineLag || null,
+    fineRejectCount,
+    likelyNewNote: detectorMeasurement?.likelyNewNote,
+    lastFineAcceptedAt: now,
     vibratoTrackingActive: Math.abs(rawCents) <= VIBRATO_TRACKING_RANGE_CENTS,
     smoothingMode,
     isHighRegister,
     detectionStatus: "detected",
     blockedReason: null,
-    centsUpdateReason: fine?.frequency ? "fine-waveform-contour" : "detector-cents-fallback",
+    centsUpdateReason,
   };
   logPitchDebug(debugMeasurement);
   stablePitchDisplay = display;
   lastPitchAt = now;
+  lastFineAcceptedAt = now;
   pitchCentsHistory.push({ at: now, cents: displayCents });
   pitchCentsHistory = pitchCentsHistory.filter((entry) => now - entry.at <= 1000);
   return display;
@@ -2478,6 +2618,40 @@ window.chromaticDebug = {
     pitchDetectionMode = mode;
     resetPitchTracker();
     return true;
+  },
+  runFineTrackerSequenceTest() {
+    const notes = ["C5", "D5", "E5", "B5", "C6", "D6", "G6", "C7"];
+    const results = [];
+    resetPitchTracker();
+    for (const noteName of notes) {
+      const note = {
+        name: noteName,
+        midi: noteNameToMidi(noteName),
+        frequency: midiToFreq(noteNameToMidi(noteName), tuningA4),
+      };
+      activeNearestNote = note;
+      resetFineTrackerForNoteSwitch();
+      const inTune = { valid: true, frequency: note.frequency, cents: 0, confidence: 0.4, quality: 0.4, selectedFineLag: 40, minFineLag: 30, maxFineLag: 50 };
+      const gateInTune = validateFinePitchResult(inTune, note);
+      const wrongReference = {
+        valid: true,
+        frequency: note.frequency * 2 ** (220 / 1200),
+        cents: 220,
+        confidence: 0.4,
+        quality: 0.4,
+        selectedFineLag: 40,
+        minFineLag: 30,
+        maxFineLag: 50,
+      };
+      const gateWrongReference = validateFinePitchResult(wrongReference, note);
+      results.push({
+        note: noteName,
+        acceptsInTune: gateInTune.valid,
+        rejectsSaturatedCents: !gateWrongReference.valid,
+        rejectReason: gateWrongReference.reason,
+      });
+    }
+    return results;
   },
 };
 
