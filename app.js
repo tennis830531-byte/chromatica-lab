@@ -645,8 +645,10 @@ function renderCurve(activeBeat = 0) {
 }
 
 function renderMicCurve() {
-  $("#micCurve").style.setProperty("--samples", liveLevels.length);
-  $("#micCurve").innerHTML = liveLevels
+  const curve = $("#micCurve");
+  if (!curve) return;
+  curve.style.setProperty("--samples", liveLevels.length);
+  curve.innerHTML = liveLevels
     .map((level, index) => {
       const active = phase === "play" && index === liveLevels.length - 1 ? "active" : "";
       return `<div class="mic-bar ${active}" style="height:${Math.max(4, Math.round(level * 84))}px"></div>`;
@@ -733,8 +735,6 @@ function resetMicStats() {
   beatLevelCounts = Array.from({ length: exercise.playBeats }, () => 0);
   playLevels = [];
   currentStabilityScore = null;
-  $("#micLevelBar").style.width = "0%";
-  $("#liveVolume").textContent = "0%";
   resetPitchTracker();
   $("#stabilityStat span").textContent = "穩定度";
   $("#stabilityScore").textContent = "--";
@@ -751,8 +751,6 @@ function resetMicCycle() {
   beatLevelCounts = Array.from({ length: exercise.playBeats }, () => 0);
   playLevels = [];
   currentStabilityScore = null;
-  $("#micLevelBar").style.width = "0%";
-  $("#liveVolume").textContent = "0%";
   resetPitchTracker();
   $("#stabilityStat span").textContent = "穩定度";
   $("#stabilityScore").textContent = "--";
@@ -2388,7 +2386,6 @@ function updateMicMonitor() {
   const rawSignal = readMicSignal();
   const gateRatio = Math.max(0.45, 1.05 - micSensitivity * 0.11);
   const scoreSignal = isListeningWindow ? Math.max(0, rawSignal - micSilentRms * gateRatio) : 0;
-  const meterLevel = isListeningWindow ? signalToMeterLevel(rawSignal) : 0;
   const rawCurveLevel = isListeningWindow ? signalToCurveLevel(rawSignal) : 0;
   if (isListeningWindow) {
     displayEnvelopeLevel =
@@ -2398,9 +2395,6 @@ function updateMicMonitor() {
   } else {
     displayEnvelopeLevel = 0;
   }
-  const percent = Math.round(meterLevel * 100);
-  $("#micLevelBar").style.width = `${percent}%`;
-  $("#liveVolume").textContent = `${percent}%`;
   updateLivePitch();
 
   if (isListeningWindow) {
