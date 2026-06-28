@@ -23,6 +23,7 @@ const exercises = [
     ],
     instruction: "用 mp 音量穩定吹 8 拍，注意聲音不要前大後小。",
     scored: true,
+    showStability: false,
   },
   {
     id: "dynamic-layers",
@@ -402,6 +403,11 @@ function registerServiceWorker() {
 
 function isCurrentExerciseScored() {
   return exercises[selectedExercise].scored === true;
+}
+
+function shouldShowStability() {
+  const exercise = exercises[selectedExercise];
+  return isCurrentExerciseScored() && exercise.showStability !== false;
 }
 
 function getExercisePattern(exercise) {
@@ -2514,7 +2520,9 @@ function renderExercise() {
       .join("");
     $("#variantSelect").value = String(selectedVariants[exercise.id] || 0);
   }
-  $("#stabilityStat").classList.toggle("hidden", !isCurrentExerciseScored());
+  $("#toneCardTitle").textContent = shouldShowStability() ? "音量與穩定度" : "音量曲線";
+  $(".practice-data-grid").classList.toggle("single", !shouldShowStability());
+  $("#stabilityStat").classList.toggle("hidden", !shouldShowStability());
   renderDailyGoals();
   renderExercises();
   renderCurve(phase === "play" ? beat : 0);

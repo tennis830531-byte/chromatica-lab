@@ -1022,6 +1022,10 @@ p {
   margin-bottom: 16px;
 }
 
+.practice-data-grid.single {
+  grid-template-columns: 1fr;
+}
+
 .data-card {
   padding: 16px;
   box-shadow: var(--shadow-soft);
