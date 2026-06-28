@@ -286,18 +286,32 @@ const tunerMode = "full-range";
 const harpType = "chromatic";
 const allowedRange = { lowNote: "C1", highNote: "D7" };
 const correctionRange = { lowNote: "C3", highNote: "D7" };
+const HIGH_REGISTER_START_HZ = 950;
+const VIBRATO_TRACKING_RANGE_CENTS = 80;
+const DETECTOR_RANGE = {
+  minFundamentalHz: 80,
+  maxFundamentalHz: 2600,
+  maxRawAnalysisHz: 5000,
+  displayMinHz: 120,
+  displayMaxHz: 2400,
+};
 const YIN_CONFIG = {
   threshold: 0.14,
+  highThreshold: 0.18,
   fallbackThreshold: 0.26,
+  highFallbackThreshold: 0.32,
   probabilityThreshold: 0.52,
-  minFrequency: 120,
-  maxFrequency: 2200,
-  bufferSize: 8192,
+  minFrequency: DETECTOR_RANGE.minFundamentalHz,
+  maxFrequency: DETECTOR_RANGE.maxFundamentalHz,
+  bufferSize: 4096,
+  highBufferSize: 2048,
+  analyserSize: 8192,
 };
 const MPM_CONFIG = {
   clarityThreshold: 0.52,
-  minFrequency: 120,
-  maxFrequency: 2200,
+  highClarityThreshold: 0.44,
+  minFrequency: DETECTOR_RANGE.minFundamentalHz,
+  maxFrequency: DETECTOR_RANGE.maxFundamentalHz,
 };
 const PITCH_DETECTION_MODES = {
   stable: {
@@ -852,29 +866,52 @@ function readMicSignal() {
   return Math.max(rms, peakToPeak * 0.72, spectralSignal);
 }
 
-function buildPitchBuffer() {
+function isHighRegisterFrequency(frequency) {
+  return Number.isFinite(frequency) && frequency >= HIGH_REGISTER_START_HZ;
+}
+
+function getActivePitchBufferSize(estimatedFrequency = null) {
+  if (isHighRegisterFrequency(estimatedFrequency || activeNearestNote?.frequency || stablePitchDisplay?.detectedFrequency)) {
+    return YIN_CONFIG.highBufferSize;
+  }
+  return YIN_CONFIG.bufferSize;
+}
+
+function buildPitchBuffer(bufferSize = getActivePitchBufferSize()) {
   if (!micAnalyser || !micData || !audioContext) return null;
-  const buffer = new Float32Array(micData.length);
   if (micFloatTimeData) {
     micAnalyser.getFloatTimeDomainData(micFloatTimeData);
   }
+  const sourceLength = micFloatTimeData?.length || micData.length;
+  const activeBufferSize = Math.max(512, Math.min(bufferSize, sourceLength));
+  const sourceOffset = Math.max(0, sourceLength - activeBufferSize);
+  const buffer = new Float32Array(activeBufferSize);
   let rmsSum = 0;
   let mean = 0;
-  for (let i = 0; i < micData.length; i += 1) {
-    const value = micFloatTimeData ? micFloatTimeData[i] : (micData[i] - 128) / 128;
+  for (let i = 0; i < activeBufferSize; i += 1) {
+    const sourceIndex = sourceOffset + i;
+    const value = micFloatTimeData ? micFloatTimeData[sourceIndex] : (micData[sourceIndex] - 128) / 128;
     mean += value;
   }
-  mean /= micData.length;
+  mean /= activeBufferSize;
   let previous = 0;
-  for (let i = 0; i < micData.length; i += 1) {
-    const raw = (micFloatTimeData ? micFloatTimeData[i] : (micData[i] - 128) / 128) - mean;
-    const value = raw - previous * 0.08;
+  const preEmphasis = activeBufferSize <= YIN_CONFIG.highBufferSize ? 0.04 : 0.08;
+  for (let i = 0; i < activeBufferSize; i += 1) {
+    const sourceIndex = sourceOffset + i;
+    const raw = (micFloatTimeData ? micFloatTimeData[sourceIndex] : (micData[sourceIndex] - 128) / 128) - mean;
+    const value = raw - previous * preEmphasis;
     previous = raw;
     buffer[i] = value;
     rmsSum += value * value;
   }
   const rms = Math.sqrt(rmsSum / buffer.length);
-  return { buffer, rms, sampleRate: audioContext.sampleRate };
+  return {
+    buffer,
+    rms,
+    sampleRate: audioContext.sampleRate,
+    activeBufferSize,
+    isHighRegisterWindow: activeBufferSize <= YIN_CONFIG.highBufferSize,
+  };
 }
 
 function detectPitchV1(frame = buildPitchBuffer()) {
@@ -884,8 +921,8 @@ function detectPitchV1(frame = buildPitchBuffer()) {
   const rmsThreshold = getPitchRmsThreshold();
   if (rms < rmsThreshold) return { frequency: null, confidence: 0, rms, dominantEnergy, reason: "quiet" };
 
-  const minFrequency = 100;
-  const maxFrequency = 2800;
+  const minFrequency = DETECTOR_RANGE.minFundamentalHz;
+  const maxFrequency = DETECTOR_RANGE.maxFundamentalHz;
   const minLag = Math.floor(sampleRate / maxFrequency);
   const maxLag = Math.min(buffer.length - 1, Math.floor(sampleRate / minFrequency));
   let bestLag = -1;
@@ -929,9 +966,10 @@ function detectPitchV2(frame = buildPitchBuffer()) {
   if (!frame) return null;
   const yinResult = detectYinPitch(frame);
   const config = getPitchDetectionConfig();
+  const qualityThreshold = getAdjustedQualityThreshold(yinResult?.frequency);
   const shouldRunMpm =
     !yinResult?.frequency ||
-    (yinResult.confidence || 0) < config.qualityThreshold + 0.12 ||
+    (yinResult.confidence || 0) < qualityThreshold + 0.12 ||
     yinResult.reason === "low-yin-confidence";
   const mpmResult = shouldRunMpm ? detectMpmPitch(frame) : null;
   const candidates = [yinResult, mpmResult].filter((item) => item?.frequency);
@@ -962,7 +1000,7 @@ function detectPitchV2(frame = buildPitchBuffer()) {
 
 function detectYinPitch(frame) {
   if (!frame) return null;
-  const { buffer, rms, sampleRate } = frame;
+  const { buffer, rms, sampleRate, activeBufferSize, isHighRegisterWindow } = frame;
   const dominantEnergy = getDominantEnergy();
   const config = getPitchDetectionConfig();
   const minRms = getPitchRmsThreshold();
@@ -995,7 +1033,8 @@ function detectYinPitch(frame) {
   for (let tau = 1; tau <= maxTau; tau += 1) {
     runningSum += difference[tau];
     cmnd[tau] = runningSum > 0 ? (difference[tau] * tau) / runningSum : 1;
-    if (tau >= minTau && cmnd[tau] < YIN_CONFIG.threshold) {
+    const threshold = isHighRegisterWindow ? YIN_CONFIG.highThreshold : YIN_CONFIG.threshold;
+    if (tau >= minTau && cmnd[tau] < threshold) {
       selectedTau = tau;
       while (selectedTau + 1 <= maxTau && cmnd[selectedTau + 1] < cmnd[selectedTau]) {
         selectedTau += 1;
@@ -1009,7 +1048,8 @@ function detectYinPitch(frame) {
     }
   }
 
-  if (selectedTau < minTau || selectedValue > YIN_CONFIG.fallbackThreshold) {
+  const fallbackThreshold = isHighRegisterWindow ? YIN_CONFIG.highFallbackThreshold : YIN_CONFIG.fallbackThreshold;
+  if (selectedTau < minTau || selectedValue > fallbackThreshold) {
     return { frequency: null, confidence: 0, rms, dominantEnergy, reason: "no-yin-period", detector: "yin-v2", minRms };
   }
 
@@ -1028,7 +1068,8 @@ function detectYinPitch(frame) {
       rawFrequency,
     };
   }
-  if (confidence < Math.min(YIN_CONFIG.probabilityThreshold, config.qualityThreshold)) {
+  const qualityThreshold = getAdjustedQualityThreshold(rawFrequency);
+  if (confidence < Math.min(YIN_CONFIG.probabilityThreshold, qualityThreshold)) {
     return {
       frequency: rawFrequency,
       confidence,
@@ -1039,6 +1080,8 @@ function detectYinPitch(frame) {
       minRms,
       yinTau: interpolatedTau,
       yinValue: selectedValue,
+      activeBufferSize,
+      isHighRegister: isHighRegisterFrequency(rawFrequency),
     };
   }
   return {
@@ -1051,12 +1094,14 @@ function detectYinPitch(frame) {
     minRms,
     yinTau: interpolatedTau,
     yinValue: selectedValue,
+    activeBufferSize,
+    isHighRegister: isHighRegisterFrequency(rawFrequency),
   };
 }
 
 function detectMpmPitch(frame) {
   if (!frame) return null;
-  const { buffer, rms, sampleRate } = frame;
+  const { buffer, rms, sampleRate, activeBufferSize, isHighRegisterWindow } = frame;
   const dominantEnergy = getDominantEnergy();
   const minRms = getPitchRmsThreshold();
   if (rms < minRms) {
@@ -1068,6 +1113,7 @@ function detectMpmPitch(frame) {
   let bestClarity = 0;
   let previousNsdf = 0;
   let rising = false;
+  const clarityThreshold = isHighRegisterWindow ? MPM_CONFIG.highClarityThreshold : MPM_CONFIG.clarityThreshold;
 
   for (let tau = minTau; tau <= maxTau; tau += 1) {
     let acf = 0;
@@ -1082,7 +1128,7 @@ function detectMpmPitch(frame) {
     const nsdf = divisor > 0 ? (2 * acf) / divisor : 0;
     if (nsdf > previousNsdf) {
       rising = true;
-    } else if (rising && previousNsdf > bestClarity && previousNsdf > MPM_CONFIG.clarityThreshold) {
+    } else if (rising && previousNsdf > bestClarity && previousNsdf > clarityThreshold) {
       bestClarity = previousNsdf;
       bestTau = tau - 1;
       rising = false;
@@ -1107,6 +1153,8 @@ function detectMpmPitch(frame) {
     detector: "mpm-v2",
     minRms,
     mpmTau: refinedTau,
+    activeBufferSize,
+    isHighRegister: isHighRegisterFrequency(frequency),
   };
 }
 
@@ -1124,7 +1172,18 @@ function detectPitch() {
   const frame = buildPitchBuffer();
   if (!frame) return null;
   const v1 = detectorV1.detect(frame);
-  const v2 = detectorV2.detect(frame);
+  let v2 = detectorV2.detect(frame);
+  if (isHighRegisterFrequency(v2?.frequency) && frame.activeBufferSize > YIN_CONFIG.highBufferSize) {
+    const highFrame = buildPitchBuffer(YIN_CONFIG.highBufferSize);
+    const highV2 = detectorV2.detect(highFrame);
+    if (highV2?.frequency && (highV2.confidence || 0) >= Math.max(0.28, (v2.confidence || 0) - 0.1)) {
+      v2 = {
+        ...highV2,
+        fullWindowDetector: summarizeDetectorResult(v2),
+        selectedReason: "high-register-short-window",
+      };
+    }
+  }
   return {
     ...(v2 || {}),
     detectorV1: summarizeDetectorResult(v1),
@@ -1136,8 +1195,8 @@ function getDominantEnergy() {
   if (!micFrequencyData || !audioContext) return 0;
   const sampleRate = audioContext.sampleRate;
   const hzPerBin = sampleRate / micAnalyser.fftSize;
-  const minBin = Math.max(1, Math.floor(100 / hzPerBin));
-  const maxBin = Math.min(micFrequencyData.length - 2, Math.ceil(2800 / hzPerBin));
+  const minBin = Math.max(1, Math.floor(DETECTOR_RANGE.minFundamentalHz / hzPerBin));
+  const maxBin = Math.min(micFrequencyData.length - 2, Math.ceil(DETECTOR_RANGE.maxRawAnalysisHz / hzPerBin));
   let peakValue = 0;
   let total = 0;
   let count = 0;
@@ -1272,6 +1331,11 @@ function getPitchRmsThreshold() {
   return getPitchDetectionConfig().minRms();
 }
 
+function getAdjustedQualityThreshold(frequency) {
+  const base = getPitchDetectionConfig().qualityThreshold;
+  return isHighRegisterFrequency(frequency) ? Math.max(0.28, base - 0.08) : base;
+}
+
 function isFrequencyInCorrectionRange(freq) {
   const low = midiToFreq(noteNameToMidi(correctionRange.lowNote), tuningA4);
   const high = midiToFreq(noteNameToMidi(correctionRange.highNote), tuningA4);
@@ -1279,16 +1343,17 @@ function isFrequencyInCorrectionRange(freq) {
 }
 
 function buildPitchCandidates(rawFrequency) {
+  const rawIsHigh = isHighRegisterFrequency(rawFrequency);
   const candidateSources = [
     { frequency: rawFrequency, source: "raw", octavePenalty: 0 },
-    { frequency: rawFrequency / 2, source: "raw/2", octavePenalty: 0.04 },
+    { frequency: rawFrequency / 2, source: "raw/2", octavePenalty: rawIsHigh ? 0.48 : 0.04 },
     { frequency: rawFrequency * 2, source: "raw*2", octavePenalty: 0.34 },
-    { frequency: (rawFrequency / 3) * 2, source: "raw/3*2", octavePenalty: 0.16 },
+    { frequency: (rawFrequency / 3) * 2, source: "raw/3*2", octavePenalty: rawIsHigh ? 0.32 : 0.16 },
     { frequency: rawFrequency * 1.5, source: "raw*3/2", octavePenalty: 0.22 },
   ];
   const seen = new Set();
   return candidateSources
-    .filter(({ frequency }) => Number.isFinite(frequency) && frequency >= YIN_CONFIG.minFrequency && frequency <= YIN_CONFIG.maxFrequency)
+    .filter(({ frequency }) => Number.isFinite(frequency) && frequency >= DETECTOR_RANGE.minFundamentalHz && frequency <= DETECTOR_RANGE.maxRawAnalysisHz)
     .filter(({ frequency }) => {
       const key = Math.round(frequency * 10);
       if (seen.has(key)) return false;
@@ -1307,8 +1372,13 @@ function buildPitchCandidates(rawFrequency) {
       const absCentsPenalty = absCents / 50;
       const confidenceBonus = 0;
       const lockPenalty = activeNearestNote ? Math.min(0.28, lockedDistance / 600) : 0;
+      const highRawBonus = rawIsHigh && source === "raw" && absCents <= 45 ? 0.22 : 0;
+      const lockedHighBonus =
+        rawIsHigh && activeNearestNote && isHighRegisterFrequency(activeNearestNote.frequency) && lockedDistance <= VIBRATO_TRACKING_RANGE_CENTS
+          ? 0.2
+          : 0;
       const finalScore = nearest && inRange
-        ? absCentsPenalty - harmonicScore * 0.72 - confidenceBonus + octavePenalty + lockPenalty
+        ? absCentsPenalty - harmonicScore * 0.62 - confidenceBonus + octavePenalty + lockPenalty - highRawBonus - lockedHighBonus
         : Infinity;
       return {
         frequency,
@@ -1384,12 +1454,24 @@ function getFrequencyEnergy(frequency) {
   return Math.max(0, Math.min(1, (maxDb + 100) / 72));
 }
 
-function smoothCents(previous, current) {
+function smoothCentsNormal(previous, current) {
   if (previous === null || !Number.isFinite(previous)) return current;
   const diff = Math.abs(current - previous);
   if (diff <= 3) return previous + (current - previous) * 0.25;
   if (diff <= 15) return previous + (current - previous) * 0.55;
-  return previous + (current - previous) * 0.75;
+  return previous + (current - previous) * 0.78;
+}
+
+function smoothCentsFast(previous, current) {
+  if (previous === null || !Number.isFinite(previous)) return current;
+  const diff = Math.abs(current - previous);
+  if (diff <= 3) return previous + (current - previous) * 0.45;
+  if (diff <= 15) return previous + (current - previous) * 0.75;
+  return previous + (current - previous) * 0.9;
+}
+
+function smoothCents(previous, current, mode = "normal") {
+  return mode === "fast" ? smoothCentsFast(previous, current) : smoothCentsNormal(previous, current);
 }
 
 function updatePitchTuner(pitch, waiting = false) {
@@ -1478,6 +1560,7 @@ function logPitchDebug(measurement) {
     noiseFloor: micSilentRms,
     minRms: measurement.minRms ?? getPitchRmsThreshold(),
     qualityThreshold: config.qualityThreshold,
+    qualityThresholdAdjusted: measurement.qualityThresholdAdjusted ?? getAdjustedQualityThreshold(measurement.correctedFrequency || measurement.frequency),
     harmonicThreshold: config.harmonicThreshold,
     detectorV1: measurement.detectorV1,
     detectorV2: {
@@ -1492,6 +1575,8 @@ function logPitchDebug(measurement) {
     selectedDetector: measurement.selectedDetector,
     rawFreq: measurement.frequency,
     rawFrequency: measurement.frequency,
+    isHighRegister: measurement.isHighRegister,
+    activeBufferSize: measurement.activeBufferSize,
     detectedFrequency: measurement.detectedFrequency,
     correctedFrequency: measurement.correctedFrequency,
     selectedCandidateFrequency: measurement.selectedCandidateFrequency,
@@ -1503,6 +1588,7 @@ function logPitchDebug(measurement) {
     nearestNote: measurement.nearestNote,
     nearestNoteFrequency: measurement.nearestNoteFrequency,
     centsFromNearest: measurement.centsFromNearest,
+    centsRelativeToLockedNote: measurement.centsRelativeToLockedNote,
     absCents: measurement.absCents,
     harmonicScore: measurement.harmonicScore,
     finalScore: measurement.finalScore,
@@ -1514,6 +1600,8 @@ function logPitchDebug(measurement) {
     rawCents: measurement.rawCents,
     centsFromTarget: measurement.centsFromTarget,
     smoothedCents: measurement.smoothedCents ?? stablePitchDisplay?.cents ?? null,
+    vibratoTrackingActive: measurement.vibratoTrackingActive,
+    smoothingMode: measurement.smoothingMode,
     detectionStatus: measurement.detectionStatus || (measurement.frequency ? "detected" : "blocked"),
     blockedReason: measurement.blockedReason || measurement.reason,
     noteSwitchReason: measurement.noteSwitchReason,
@@ -1531,24 +1619,21 @@ function processPitchMeasurement(measurement) {
   if (
     !measurement?.frequency ||
     measurement.rms < rmsThreshold ||
-    measurement.frequency < YIN_CONFIG.minFrequency ||
-    measurement.frequency > YIN_CONFIG.maxFrequency ||
-    measurement.confidence < config.qualityThreshold
+    measurement.frequency < DETECTOR_RANGE.minFundamentalHz ||
+    measurement.frequency > DETECTOR_RANGE.maxRawAnalysisHz
   ) {
     const reason = !measurement?.frequency
       ? "no-frequency"
       : measurement.rms < rmsThreshold
         ? "low-rms"
-        : measurement.confidence < config.qualityThreshold
-          ? "low-confidence"
-          : "out-of-range";
+        : "out-of-range";
     logPitchDebug({
       ...(measurement || {}),
       detectionStatus: reason === "low-rms" ? "too-quiet" : "blocked",
       blockedReason: reason,
       reason,
       minRms: rmsThreshold,
-      qualityThreshold: config.qualityThreshold,
+      qualityThreshold: getAdjustedQualityThreshold(measurement?.frequency),
     });
     return null;
   }
@@ -1575,6 +1660,29 @@ function processPitchMeasurement(measurement) {
   const correctedFrequency = correction.selected.frequency;
   const nearestNote = findNearestAllowedNote(correctedFrequency);
   if (!nearestNote) return null;
+  const existingLockedNote = activeNearestNote;
+  const centsRelativeToExistingLock = existingLockedNote
+    ? 1200 * Math.log2(correctedFrequency / existingLockedNote.frequency)
+    : null;
+  const isHighRegister = isHighRegisterFrequency(correctedFrequency) || isHighRegisterFrequency(measurement.frequency) || isHighRegisterFrequency(existingLockedNote?.frequency);
+  const qualityThreshold = getAdjustedQualityThreshold(correctedFrequency);
+  const vibratoTrackingActive =
+    Boolean(existingLockedNote) &&
+    Number.isFinite(centsRelativeToExistingLock) &&
+    Math.abs(centsRelativeToExistingLock) <= VIBRATO_TRACKING_RANGE_CENTS &&
+    measurement.rms >= rmsThreshold;
+  const lowConfidenceButTrackable =
+    vibratoTrackingActive &&
+    (measurement.confidence || 0) >= Math.max(0.22, qualityThreshold - 0.22);
+  if ((measurement.confidence || 0) < qualityThreshold && !lowConfidenceButTrackable) {
+    measurement.detectionStatus = "blocked";
+    measurement.blockedReason = "low-confidence";
+    measurement.qualityThresholdAdjusted = qualityThreshold;
+    measurement.isHighRegister = isHighRegister;
+    measurement.vibratoTrackingActive = false;
+    logPitchDebug(measurement);
+    return null;
+  }
   const previousLockedNote = activeNearestNote;
   let noteSwitchReason = "same-note";
   if (!activeNearestNote) {
@@ -1586,7 +1694,7 @@ function processPitchMeasurement(measurement) {
     pitchCentsWindow = [];
     smoothedCents = null;
     noteSwitchReason = "initial-lock";
-  } else if (nearestNote.name !== activeNearestNote.name) {
+  } else if (nearestNote.name !== activeNearestNote.name && !vibratoTrackingActive) {
     if (pendingNearestNote?.name === nearestNote.name) {
       pendingNearestNoteCount += 1;
     } else {
@@ -1627,9 +1735,10 @@ function processPitchMeasurement(measurement) {
   const rawCents = 1200 * Math.log2(correctedFrequency / referenceFrequency);
   pitchCentsWindow.push(rawCents);
   pitchCentsWindow = pitchCentsWindow.slice(-3);
-  const centsBase = median(pitchCentsWindow);
+  const smoothingMode = isHighRegister || vibratoTrackingActive ? "fast" : "normal";
+  const centsBase = smoothingMode === "fast" ? rawCents : median(pitchCentsWindow);
   if (centsBase === null) return null;
-  smoothedCents = lockedChanged ? rawCents : smoothCents(smoothedCents, centsBase);
+  smoothedCents = lockedChanged ? rawCents : smoothCents(smoothedCents, centsBase, smoothingMode);
   const displayCents = Math.round(smoothedCents);
 
   measurement.detectedFrequency = correctedFrequency;
@@ -1643,6 +1752,7 @@ function processPitchMeasurement(measurement) {
   measurement.nearestNote = nearestNote.name;
   measurement.nearestNoteFrequency = nearestNote.frequency;
   measurement.centsFromNearest = rawCents;
+  measurement.centsRelativeToLockedNote = rawCents;
   measurement.absCents = Math.abs(rawCents);
   measurement.rawCents = rawCents;
   measurement.harmonicScore = correction.selected.harmonicScore;
@@ -1653,8 +1763,19 @@ function processPitchMeasurement(measurement) {
   measurement.detectionStatus = "detected";
   measurement.blockedReason = null;
   measurement.smoothedCents = displayCents;
+  measurement.isHighRegister = isHighRegister;
+  measurement.activeBufferSize = measurement.activeBufferSize || measurement.detectorV2?.activeBufferSize || null;
+  measurement.vibratoTrackingActive = vibratoTrackingActive;
+  measurement.smoothingMode = smoothingMode;
+  measurement.qualityThresholdAdjusted = qualityThreshold;
   measurement.noteSwitchReason = noteSwitchReason;
-  measurement.centsUpdateReason = lockedChanged ? "note-switched-reset" : "adaptive-smoothing";
+  measurement.centsUpdateReason = lockedChanged
+    ? "note-switched-reset"
+    : vibratoTrackingActive
+      ? "vibrato-tracking-fast"
+      : smoothingMode === "fast"
+        ? "high-register-fast"
+        : "adaptive-smoothing";
   logPitchDebug(measurement);
   const display = {
     nearestNote: activeNearestNote,
@@ -1670,12 +1791,19 @@ function processPitchMeasurement(measurement) {
 
 function isCandidateReliable(candidate, measurement, config) {
   if (!candidate) return false;
-  if (candidate.harmonicScore >= config.harmonicThreshold) return true;
+  const isHighRegister = isHighRegisterFrequency(candidate.frequency) || isHighRegisterFrequency(measurement.frequency);
+  const harmonicThreshold = isHighRegister ? Math.max(0.04, config.harmonicThreshold - 0.08) : config.harmonicThreshold;
+  if (candidate.harmonicScore >= harmonicThreshold) return true;
+  const centsToLock = activeNearestNote ? Math.abs(1200 * Math.log2(candidate.frequency / activeNearestNote.frequency)) : Infinity;
+  if (Number.isFinite(centsToLock) && centsToLock <= VIBRATO_TRACKING_RANGE_CENTS && (measurement.rms || 0) >= getPitchRmsThreshold()) {
+    return true;
+  }
   const closeToNote = candidate.absCents <= 18;
   const veryCloseToNote = candidate.absCents <= 10;
-  const confidentDetector = (measurement.confidence || 0) >= config.qualityThreshold + 0.08;
+  const qualityThreshold = getAdjustedQualityThreshold(candidate.frequency);
+  const confidentDetector = (measurement.confidence || 0) >= qualityThreshold + (isHighRegister ? 0.02 : 0.08);
   const strongEnough = (measurement.rms || 0) >= getPitchRmsThreshold() * 1.35;
-  return (closeToNote && confidentDetector) || (veryCloseToNote && strongEnough);
+  return (closeToNote && confidentDetector) || (veryCloseToNote && strongEnough) || (isHighRegister && candidate.source === "raw" && candidate.absCents <= 28);
 }
 
 function updateLivePitch() {
@@ -1684,19 +1812,19 @@ function updateLivePitch() {
     updatePitchTuner(stablePitchDisplay, true);
     return;
   }
-  if (now - lastPitchAnalysisAt < 55) return;
+  if (now - lastPitchAnalysisAt < 38) return;
   lastPitchAnalysisAt = now;
   const measurement = detectPitch();
   const pitch = processPitchMeasurement(measurement);
   if (pitch) {
-    if (now - lastPitchUiUpdateAt >= 60) {
+    if (now - lastPitchUiUpdateAt >= 45) {
       updatePitchTuner(pitch);
       lastPitchUiUpdateAt = now;
     }
     return;
   }
   if (stablePitchDisplay) {
-    if (now - lastPitchUiUpdateAt >= 60) {
+    if (now - lastPitchUiUpdateAt >= 45) {
       updatePitchTuner(stablePitchDisplay);
       updatePitchStatusText(measurement);
       lastPitchUiUpdateAt = now;
@@ -1833,8 +1961,8 @@ async function startMic() {
     });
     const source = audioContext.createMediaStreamSource(micStream);
     micAnalyser = audioContext.createAnalyser();
-    micAnalyser.fftSize = YIN_CONFIG.bufferSize;
-    micAnalyser.smoothingTimeConstant = 0.18;
+    micAnalyser.fftSize = YIN_CONFIG.analyserSize;
+    micAnalyser.smoothingTimeConstant = 0.12;
     micData = new Uint8Array(micAnalyser.fftSize);
     micFloatTimeData = new Float32Array(micAnalyser.fftSize);
     micFrequencyData = new Uint8Array(micAnalyser.frequencyBinCount);

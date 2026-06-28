@@ -1195,7 +1195,7 @@ p {
   background: var(--text-muted);
   box-shadow: 0 2px 8px rgba(72, 48, 28, 0.24);
   transform: translate(-50%, -50%);
-  transition: left 80ms linear, background 120ms ease;
+  transition: left 45ms linear, background 80ms ease;
 }
 
 .tuner-note {
