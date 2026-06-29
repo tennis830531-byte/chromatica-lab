@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-17" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-18" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -193,7 +193,7 @@
               <div id="exerciseList" class="exercise-buttons"></div>
             </aside>
 
-            <section class="player" aria-live="polite">
+            <section id="long-tone-practice-main" class="player" aria-live="polite">
               <div class="player-top">
                 <div>
                   <p class="eyebrow" id="exerciseLevel">初階</p>
@@ -208,7 +208,7 @@
               </div>
 
               <div class="tone-card paper-card">
-                <h3 class="card-title" id="toneCardTitle">音量曲線</h3>
+                <h3 class="card-title" id="toneCardTitle">長音示意</h3>
                 <div class="practice-data-grid">
                   <div class="data-card">
                     <span>目前音量</span>
@@ -219,12 +219,16 @@
                     <strong id="stabilityScore">--</strong>
                   </div>
                 </div>
-                <div class="curve-head">
-                  <span>音量曲線</span>
-                  <strong id="patternText">mp</strong>
+                <div class="long-tone-illustration" aria-label="長音平穩延伸示意圖">
+                  <div>
+                    <span>長音示意</span>
+                    <p>保持氣流平穩，讓長音自然、均勻地延伸。</p>
+                  </div>
+                  <svg viewBox="0 0 320 96" role="img" aria-hidden="true" focusable="false">
+                    <path class="wave-guide" d="M18 48 H302" />
+                    <path class="wave-line" d="M18 48 C42 26 66 26 90 48 S138 70 162 48 S210 26 234 48 S282 70 302 48" />
+                  </svg>
                 </div>
-                <div class="curve-zones"><span>過小</span><span>適中</span><span>過大</span></div>
-                <div id="dynamicCurve" class="dynamic-curve"></div>
               </div>
 
               <div class="mic-card paper-card">
@@ -378,6 +382,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-17"></script>
+    <script src="./app.js?v=refresh-18"></script>
   </body>
 </html>

@@ -638,28 +638,19 @@ function dynamicHeight(dynamic) {
 }
 
 function renderCurve(activeBeat = 0) {
-  const exercise = exercises[selectedExercise];
-  const pattern = getExercisePattern(exercise);
-  const curve = $("#dynamicCurve");
-  curve.style.setProperty("--beats", exercise.playBeats);
-  curve.innerHTML = Array.from({ length: exercise.playBeats }, (_, index) => {
-    const beatNumber = index + 1;
-    const dynamic = interpolateDynamic(pattern, beatNumber);
-    const active = phase === "play" && beatNumber === activeBeat ? "active" : "";
-    return `<div class="bar ${active}" title="${beatNumber}: ${dynamic}" style="height:${dynamicHeight(dynamic)}px"></div>`;
-  }).join("");
+  void activeBeat;
 }
 
 function renderMicCurve() {
-  const curve = $("#micCurve");
-  if (!curve) return;
-  curve.style.setProperty("--samples", liveLevels.length);
-  curve.innerHTML = liveLevels
-    .map((level, index) => {
-      const active = phase === "play" && index === liveLevels.length - 1 ? "active" : "";
-      return `<div class="mic-bar ${active}" style="height:${Math.max(4, Math.round(level * 84))}px"></div>`;
-    })
-    .join("");
+}
+
+function scrollToLongTonePracticeMain() {
+  requestAnimationFrame(() => {
+    $("#long-tone-practice-main")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  });
 }
 
 function getAverageCycleScore() {
@@ -2502,7 +2493,6 @@ function renderExercise() {
   $("#exerciseInstruction").textContent = exercise.title;
   $("#beatTotal").textContent = `/ ${exercise.playBeats} 拍`;
   $("#currentDynamic").textContent = interpolateDynamic(pattern, Math.max(1, beat));
-  $("#patternText").textContent = getExerciseDynamicSummary(exercise);
   $("#prepareBeats").textContent = `${exercise.prepareBeats} 拍`;
   $("#playBeats").textContent = `${exercise.playBeats} 拍`;
   $("#restBeats").textContent = `${exercise.restBeats} 拍`;
@@ -2520,7 +2510,7 @@ function renderExercise() {
       .join("");
     $("#variantSelect").value = String(selectedVariants[exercise.id] || 0);
   }
-  $("#toneCardTitle").textContent = shouldShowStability() ? "音量與穩定度" : "音量曲線";
+  $("#toneCardTitle").textContent = "長音示意";
   $(".practice-data-grid").classList.toggle("single", !shouldShowStability());
   $("#stabilityStat").classList.toggle("hidden", !shouldShowStability());
   renderDailyGoals();
@@ -2631,6 +2621,7 @@ function stepPractice() {
 
 function startPractice() {
   const exercise = exercises[selectedExercise];
+  let shouldScrollAfterStart = false;
   if (timer) {
     clearInterval(timer);
     timer = null;
@@ -2643,12 +2634,14 @@ function startPractice() {
     beat = 0;
     cycle = 1;
     resetMicStats();
+    shouldScrollAfterStart = true;
   }
 
   $("#startPauseBtn").textContent = "暫停";
   stepPractice();
   timer = setInterval(stepPractice, 60000 / bpm);
   updateBeatDisplay();
+  if (shouldScrollAfterStart) scrollToLongTonePracticeMain();
 }
 
 function stopPractice(done = false) {

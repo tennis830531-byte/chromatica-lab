@@ -962,6 +962,10 @@ p {
   box-shadow: none;
 }
 
+#long-tone-practice-main {
+  scroll-margin-top: 96px;
+}
+
 .player-top,
 .player-actions {
   display: grid;
@@ -1045,112 +1049,57 @@ p {
   font-weight: 800;
 }
 
-.curve-head span,
-.mic-head span,
+.long-tone-illustration span,
 .daily-goal-copy span {
   color: var(--text-main);
   font-size: 18px;
   font-weight: 800;
 }
 
-.curve-head strong,
-.live-volume-pill {
-  color: var(--text-main);
-  font-size: 15px;
-}
-
-.curve-zones {
+.long-tone-illustration {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  margin: 8px 0 10px;
-  overflow: hidden;
+  gap: 14px;
+  padding: 16px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 253, 249, 0.72), rgba(252, 247, 239, 0.86)),
+    repeating-linear-gradient(0deg, transparent 0 19px, rgba(231, 216, 200, 0.42) 20px 21px);
 }
 
-.curve-zones span {
-  padding: 7px 6px;
-  color: var(--text-muted);
-  background: rgba(255, 253, 249, 0.68);
-  font-size: 12px;
-  font-weight: 700;
-  text-align: center;
+.long-tone-illustration p {
+  margin-top: 6px;
+  color: var(--text-body);
+  font-size: 14px;
+  line-height: 1.6;
 }
 
-.curve-zones span:nth-child(2) {
-  color: var(--primary);
-  background: rgba(212, 165, 90, 0.20);
+.long-tone-illustration svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 84px;
 }
 
-.dynamic-curve {
-  display: grid;
-  grid-template-columns: repeat(var(--beats), minmax(18px, 1fr));
-  align-items: end;
-  gap: 6px;
-  min-height: 116px;
-  padding: 12px 0;
+.wave-guide {
+  fill: none;
+  stroke: rgba(154, 134, 119, 0.26);
+  stroke-width: 2;
+  stroke-dasharray: 6 8;
 }
 
-.bar {
-  min-height: 14px;
-  border-radius: 999px 999px 7px 7px;
-  background: rgba(122, 78, 45, 0.14);
-}
-
-.bar.active {
-  background: var(--primary);
-  box-shadow: 0 0 0 3px rgba(212, 165, 90, 0.18);
+.wave-line {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .mic-panel {
   margin-top: 0;
   padding-top: 0;
   border-top: 0;
-}
-
-.mic-head-meta {
-  display: flex;
-}
-
-.live-volume-pill {
-  padding: 6px 10px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(255, 253, 249, 0.72);
-}
-
-.mic-meter {
-  height: 10px;
-  margin-top: 10px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(240, 231, 220, 0.9);
-}
-
-#micLevelBar {
-  width: 0%;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--primary), var(--accent));
-}
-
-.mic-curve {
-  display: grid;
-  grid-template-columns: repeat(var(--samples), minmax(3px, 1fr));
-  align-items: end;
-  gap: 3px;
-  min-height: 70px;
-  margin-top: 12px;
-}
-
-.mic-bar {
-  min-height: 3px;
-  border-radius: 999px 999px 2px 2px;
-  background: rgba(122, 78, 45, 0.16);
-}
-
-.mic-bar.active {
-  background: var(--accent);
 }
 
 .pitch-tuner {
@@ -1729,5 +1678,11 @@ input[type="range"] {
 @media (min-width: 431px) {
   .app-shell {
     border-inline: 1px solid rgba(231, 216, 200, 0.74);
+  }
+}
+
+@media (max-width: 640px) {
+  #long-tone-practice-main {
+    scroll-margin-top: 88px;
   }
 }
