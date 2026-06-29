@@ -999,15 +999,25 @@ p {
 }
 
 .practice-status-card strong {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   margin: 12px 0 6px;
   font-size: 36px;
   line-height: 1;
 }
 
+.practice-status-card strong span {
+  display: inline;
+  color: #fffdf9;
+  font-size: inherit;
+  font-weight: 800;
+}
+
 .practice-status-card small {
   color: rgba(255, 253, 249, 0.82);
-  font-size: 15px;
+  font-size: 22px;
+  font-weight: 800;
 }
 
 .tone-card,
