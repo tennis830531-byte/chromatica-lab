@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-18-target" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-18-wave" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -218,15 +218,16 @@
 
               <div class="tone-card paper-card">
                 <h3 class="card-title" id="toneCardTitle">長音示意</h3>
-                <div class="long-tone-illustration" aria-label="長音平穩延伸示意圖">
+                <div id="waveGuide" class="long-tone-illustration" data-type="stable" aria-label="長音練習示意圖">
                   <div>
-                    <span>長音示意</span>
-                    <p>保持氣流平穩，讓長音自然、均勻地延伸。</p>
+                    <span id="waveGuideTitle">平穩長音</span>
+                    <p id="waveGuideText">自然起音，平穩延伸，輕柔收尾。</p>
                   </div>
                   <svg viewBox="0 0 320 96" role="img" aria-hidden="true" focusable="false">
                     <path class="wave-guide" d="M18 48 H302" />
-                    <path class="wave-line" d="M18 48 C42 26 66 26 90 48 S138 70 162 48 S210 26 234 48 S282 70 302 48" />
+                    <path id="waveLine" class="wave-line" d="M24 68 C42 68 44 38 66 38 H250 C276 38 278 68 296 68" />
                   </svg>
+                  <div id="waveLabels" class="wave-labels hidden" aria-hidden="true"></div>
                 </div>
               </div>
 
@@ -381,6 +382,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-18-target"></script>
+    <script src="./app.js?v=refresh-18-wave"></script>
   </body>
 </html>

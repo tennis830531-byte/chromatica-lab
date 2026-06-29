@@ -1041,13 +1041,13 @@ p {
 
 .practice-target-card strong {
   color: var(--text-main);
-  font-size: 20px;
+  font-size: clamp(18px, 4.8vw, 24px);
   font-weight: 850;
 }
 
 .practice-target-card b {
   color: var(--primary);
-  font-size: 28px;
+  font-size: clamp(24px, 7vw, 34px);
 }
 
 .card-title {
@@ -1099,6 +1099,33 @@ p {
   stroke-width: 7;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.long-tone-illustration[data-type="layers"] .wave-line {
+  stroke-linejoin: round;
+}
+
+.long-tone-illustration[data-type="crescendo"] .wave-line,
+.long-tone-illustration[data-type="decrescendo"] .wave-line,
+.long-tone-illustration[data-type="mountain"] .wave-line {
+  stroke-width: 8;
+}
+
+.wave-labels {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: -6px;
+}
+
+.wave-labels span {
+  padding: 5px 6px;
+  border: 1px solid rgba(231, 216, 200, 0.86);
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: rgba(255, 253, 249, 0.62);
+  font-size: 12px;
+  text-align: center;
 }
 
 .mic-panel {

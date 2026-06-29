@@ -445,6 +445,56 @@ function getExerciseDynamicSummary(exercise) {
   return pattern.map((item) => item.dynamic).join(" → ");
 }
 
+function getExerciseWaveGuide(exercise) {
+  const guides = {
+    "steady-8": {
+      type: "stable",
+      title: "平穩長音",
+      text: "自然起音，平穩延伸，輕柔收尾。",
+      path: "M24 68 C42 68 44 38 66 38 H250 C276 38 278 68 296 68",
+    },
+    "dynamic-layers": {
+      type: "layers",
+      title: "音量分層",
+      text: "感受不同力度的層次變化。",
+      path: "M24 72 H88 V60 H152 V48 H216 V34 H296",
+      markers: ["p", "mp", "mf", "f"],
+    },
+    "crescendo-8": {
+      type: "crescendo",
+      title: "漸強",
+      text: "由弱漸強，讓聲音慢慢站起來。",
+      path: "M24 72 C78 70 118 58 160 48 S238 28 296 26",
+    },
+    "decrescendo-8": {
+      type: "decrescendo",
+      title: "漸弱",
+      text: "由強漸弱，讓聲音自然放下來。",
+      path: "M24 26 C82 28 120 40 160 48 S238 70 296 72",
+    },
+    "swell-12": {
+      type: "mountain",
+      title: "山形長音",
+      text: "由弱漸強，再自然回落。",
+      path: "M24 72 C78 68 108 28 160 28 S242 68 296 72",
+    },
+  };
+  return guides[exercise.id] || guides["steady-8"];
+}
+
+function renderWaveGuide() {
+  const guide = getExerciseWaveGuide(exercises[selectedExercise]);
+  $("#waveGuideTitle").textContent = guide.title;
+  $("#waveGuideText").textContent = guide.text;
+  $("#waveLine").setAttribute("d", guide.path);
+  $("#waveGuide").dataset.type = guide.type;
+  const labels = $("#waveLabels");
+  labels.innerHTML = guide.markers
+    ? guide.markers.map((marker) => `<span>${marker}</span>`).join("")
+    : "";
+  labels.classList.toggle("hidden", !guide.markers);
+}
+
 function getPatternSummary(pattern) {
   if (pattern.length > 3) {
     return `${pattern[0].dynamic} → ${pattern[pattern.length - 1].dynamic}`;
@@ -2492,7 +2542,7 @@ function renderExercise() {
   $("#exerciseTitle").textContent = exercise.title;
   $("#exerciseInstruction").textContent = exercise.title;
   $("#beatTotal").textContent = `/ ${exercise.playBeats} 拍`;
-  $("#currentDynamic").textContent = interpolateDynamic(pattern, Math.max(1, beat));
+  $("#currentDynamic").textContent = getExerciseDynamicSummary(exercise);
   $("#prepareBeats").textContent = `${exercise.prepareBeats} 拍`;
   $("#playBeats").textContent = `${exercise.playBeats} 拍`;
   $("#restBeats").textContent = `${exercise.restBeats} 拍`;
@@ -2512,6 +2562,7 @@ function renderExercise() {
   }
   $("#toneCardTitle").textContent = "長音示意";
   $("#stabilityStat").classList.toggle("hidden", !shouldShowStability());
+  renderWaveGuide();
   renderDailyGoals();
   renderExercises();
   renderCurve(phase === "play" ? beat : 0);
@@ -2563,8 +2614,6 @@ function updateBeatDisplay() {
     : phase === "rest"
       ? `/ ${exercise.restBeats} 拍`
       : `/ ${exercise.playBeats} 拍`;
-  $("#currentDynamic").textContent =
-    phase === "play" ? interpolateDynamic(pattern, beat) : interpolateDynamic(pattern, 1);
   updatePhaseLabel();
   renderCurve(phase === "play" ? beat : 0);
 }
