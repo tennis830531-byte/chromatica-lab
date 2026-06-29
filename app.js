@@ -2511,7 +2511,6 @@ function renderExercise() {
     $("#variantSelect").value = String(selectedVariants[exercise.id] || 0);
   }
   $("#toneCardTitle").textContent = "長音示意";
-  $(".practice-data-grid").classList.toggle("single", !shouldShowStability());
   $("#stabilityStat").classList.toggle("hidden", !shouldShowStability());
   renderDailyGoals();
   renderExercises();

@@ -1015,38 +1015,33 @@ p {
   padding: 18px;
 }
 
-.card-title {
-  margin-bottom: 14px;
-}
-
-.practice-data-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.practice-target-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  padding: 16px 18px;
 }
 
-.practice-data-grid.single {
-  grid-template-columns: 1fr;
-}
-
-.data-card {
-  padding: 16px;
-  box-shadow: var(--shadow-soft);
-}
-
-.data-card span {
+.practice-target-card span {
   color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 800;
 }
 
-.data-card strong {
-  display: block;
-  margin-top: 8px;
+.practice-target-card strong {
+  color: var(--text-main);
+  font-size: 20px;
+  font-weight: 850;
+}
+
+.practice-target-card b {
   color: var(--primary);
   font-size: 28px;
-  font-weight: 800;
+}
+
+.card-title {
+  margin-bottom: 14px;
 }
 
 .long-tone-illustration span,

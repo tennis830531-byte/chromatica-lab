@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-18" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-18-target" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -207,18 +207,17 @@
                 <em id="cycleStatus">第 1 次 / 共 4 次</em>
               </div>
 
+              <div class="practice-target-card paper-card">
+                <span>練習目標：</span>
+                <strong><b id="currentDynamic">mp</b> 音量</strong>
+              </div>
+              <div class="hidden" id="stabilityStat" aria-hidden="true">
+                <span>穩定度</span>
+                <strong id="stabilityScore">--</strong>
+              </div>
+
               <div class="tone-card paper-card">
                 <h3 class="card-title" id="toneCardTitle">長音示意</h3>
-                <div class="practice-data-grid">
-                  <div class="data-card">
-                    <span>目前音量</span>
-                    <strong id="currentDynamic">mp</strong>
-                  </div>
-                  <div class="data-card" id="stabilityStat">
-                    <span>穩定度</span>
-                    <strong id="stabilityScore">--</strong>
-                  </div>
-                </div>
                 <div class="long-tone-illustration" aria-label="長音平穩延伸示意圖">
                   <div>
                     <span>長音示意</span>
@@ -382,6 +381,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-18"></script>
+    <script src="./app.js?v=refresh-18-target"></script>
   </body>
 </html>
