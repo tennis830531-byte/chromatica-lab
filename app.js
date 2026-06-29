@@ -195,42 +195,6 @@ const exercises = [
       },
     ],
   },
-  {
-    id: "soft-attack-release",
-    title: "柔起音與收音",
-    level: "挑戰",
-    bpm: 56,
-    prepareBeats: 4,
-    playBeats: 8,
-    restBeats: 4,
-    pattern: [
-      { beat: 1, dynamic: "p" },
-      { beat: 2, dynamic: "mp" },
-      { beat: 7, dynamic: "mp" },
-      { beat: 8, dynamic: "p" },
-    ],
-    instruction: "起音不要爆，最後一拍收乾淨，聲音小但不要虛。",
-    variants: [
-      {
-        label: "p 起音收音",
-        pattern: [
-          { beat: 1, dynamic: "p" },
-          { beat: 2, dynamic: "mp" },
-          { beat: 7, dynamic: "mp" },
-          { beat: 8, dynamic: "p" },
-        ],
-      },
-      {
-        label: "mf 起音收音",
-        pattern: [
-          { beat: 1, dynamic: "mp" },
-          { beat: 2, dynamic: "mf" },
-          { beat: 7, dynamic: "mf" },
-          { beat: 8, dynamic: "mp" },
-        ],
-      },
-    ],
-  },
 ];
 
 const chromaticLayouts = {
@@ -260,7 +224,7 @@ const chromaticLayouts = {
 let currentView = "intro";
 let selectedHoles = 16;
 let selectedMapHole = null;
-let selectedExercise = 1;
+let selectedExercise = 0;
 let bpm = exercises[0].bpm;
 let selectedTargetVolume = "mp";
 let selectedVariants = {};
