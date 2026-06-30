@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-18-settings-modal" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-18-target-labels" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -206,6 +206,7 @@
                   <span>狀態：<b id="phasePill">待開始</b></span>
                   <strong><span id="currentBeat">0</span> <small id="beatTotal">/ 8 拍</small></strong>
                   <em id="cycleStatus">第 1 次 / 共 4 次</em>
+                  <em>BPM <b id="statusBpm">60</b></em>
                 </div>
                 <div class="practice-status-actions" aria-label="練習控制">
                   <button id="practiceSettingsBtn" class="status-action-btn settings" type="button">設定</button>
@@ -390,6 +391,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-18-settings-modal"></script>
+    <script src="./app.js?v=refresh-18-target-labels"></script>
   </body>
 </html>

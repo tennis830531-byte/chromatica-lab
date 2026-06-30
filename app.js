@@ -397,16 +397,25 @@ function getExerciseInstruction(exercise) {
 
 function getExerciseDynamicSummary(exercise) {
   const pattern = getExercisePattern(exercise);
+  const firstDynamic = pattern[0].dynamic;
+  const lastDynamic = pattern[pattern.length - 1].dynamic;
+  if (firstDynamic === lastDynamic && pattern.every((item) => item.dynamic === firstDynamic)) {
+    return firstDynamic;
+  }
   if (exercise.id === "swell-12" && pattern.length >= 3) {
-    const first = pattern[0].dynamic;
     const peak = pattern[Math.floor(pattern.length / 2)].dynamic;
-    const last = pattern[pattern.length - 1].dynamic;
-    return `${first} → ${peak} → ${last}`;
+    if (firstDynamic === peak && peak === lastDynamic) return firstDynamic;
+    return `${firstDynamic} → ${peak} → ${lastDynamic}`;
   }
   if (["crescendo-8", "decrescendo-8"].includes(exercise.id)) {
-    return `${pattern[0].dynamic} → ${pattern[pattern.length - 1].dynamic}`;
+    return firstDynamic === lastDynamic ? firstDynamic : `${firstDynamic} → ${lastDynamic}`;
   }
   return pattern.map((item) => item.dynamic).join(" → ");
+}
+
+function getPatternDynamicMarkers(exercise) {
+  const markers = getExercisePattern(exercise).map((item) => item.dynamic);
+  return markers.filter((marker, index) => index === 0 || marker !== markers[index - 1]);
 }
 
 function getExerciseWaveGuide(exercise) {
@@ -448,15 +457,18 @@ function getExerciseWaveGuide(exercise) {
 
 function renderWaveGuide() {
   const guide = getExerciseWaveGuide(exercises[selectedExercise]);
+  const exercise = exercises[selectedExercise];
+  const markers = guide.markers || getPatternDynamicMarkers(exercise);
   $("#waveGuideTitle").textContent = guide.title;
   $("#waveGuideText").textContent = guide.text;
   $("#waveLine").setAttribute("d", guide.path);
   $("#waveGuide").dataset.type = guide.type;
   const labels = $("#waveLabels");
-  labels.innerHTML = guide.markers
-    ? guide.markers.map((marker) => `<span>${marker}</span>`).join("")
+  labels.innerHTML = markers.length
+    ? markers.map((marker) => `<span>${marker}</span>`).join("")
     : "";
-  labels.classList.toggle("hidden", !guide.markers);
+  labels.style.setProperty("--wave-label-count", Math.max(markers.length, 1));
+  labels.classList.toggle("hidden", !markers.length);
 }
 
 function getPatternSummary(pattern) {
@@ -586,6 +598,7 @@ function setBpm(nextBpm) {
   bpm = Math.max(40, Math.min(120, Number(nextBpm)));
   $("#bpmInput").value = bpm;
   $("#bpmValue").textContent = bpm;
+  $("#statusBpm").textContent = bpm;
   if (timer) {
     clearInterval(timer);
     timer = setInterval(stepPractice, 60000 / bpm);
@@ -2520,6 +2533,7 @@ function renderExercise() {
   $("#cycleStatus").textContent = `第 ${cycle} 次 / 共 ${totalCycles} 次`;
   $("#bpmInput").value = bpm;
   $("#bpmValue").textContent = bpm;
+  $("#statusBpm").textContent = bpm;
   $("#cycleSelect").value = String(totalCycles);
   $("#targetVolumeSelect").value = selectedTargetVolume;
   $("#targetVolumeSetting").classList.toggle("hidden", !isCurrentExerciseScored());
