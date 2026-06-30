@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-18-controls" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-18-settings-modal" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -255,50 +255,52 @@
                 </div>
               </div>
 
-              <div id="practiceSettingsPanel" class="setting-card paper-card hidden" aria-hidden="true">
-                <div class="setting-card-head">
-                  <h3>練習設定</h3>
-                  <button id="practiceSettingsClose" class="settings-close-btn" type="button" aria-label="關閉練習設定">×</button>
-                </div>
-                <div class="settings-grid">
-                  <label class="setting">
-                    <span>BPM</span>
-                    <div class="stepper">
-                      <button id="bpmMinus" type="button">−</button>
-                      <strong id="bpmValue">60</strong>
-                      <button id="bpmPlus" type="button">＋</button>
-                    </div>
-                    <input id="bpmInput" type="range" min="40" max="120" value="60" />
-                  </label>
-                  <label id="targetVolumeSetting" class="stat">
-                    <span>目標音量</span>
-                    <select id="targetVolumeSelect" class="cycle-select" aria-label="目標音量">
-                      <option value="p">p</option>
-                      <option value="mp" selected>mp</option>
-                      <option value="mf">mf</option>
-                      <option value="f">f</option>
-                    </select>
-                  </label>
-                  <label id="variantSetting" class="stat hidden">
-                    <span>練習組合</span>
-                    <select id="variantSelect" class="cycle-select" aria-label="練習組合"></select>
-                  </label>
-                  <div class="stat">
-                    <span>循環</span>
-                    <strong id="cycleCount">4</strong>
-                    <select id="cycleSelect" class="cycle-select" aria-label="循環次數">
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="4" selected>4</option>
-                      <option value="6">6</option>
-                      <option value="8">8</option>
-                    </select>
+              <div id="practiceSettingsPanel" class="practice-settings-modal hidden" aria-hidden="true">
+                <div class="setting-card paper-card practice-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="practiceSettingsTitle">
+                  <div class="setting-card-head">
+                    <h3 id="practiceSettingsTitle">練習設定</h3>
+                    <button id="practiceSettingsClose" class="settings-close-btn" type="button" aria-label="關閉練習設定">×</button>
                   </div>
-                </div>
-                <div class="flow-grid compact-flow">
-                  <span>準備 <b id="prepareBeats">4 拍</b></span>
-                  <span>吹奏 <b id="playBeats">8 拍</b></span>
-                  <span>休息 <b id="restBeats">4 拍</b></span>
+                  <div class="settings-grid">
+                    <label class="setting">
+                      <span>BPM</span>
+                      <div class="stepper">
+                        <button id="bpmMinus" type="button">−</button>
+                        <strong id="bpmValue">60</strong>
+                        <button id="bpmPlus" type="button">＋</button>
+                      </div>
+                      <input id="bpmInput" type="range" min="40" max="120" value="60" />
+                    </label>
+                    <label id="targetVolumeSetting" class="stat">
+                      <span>目標音量</span>
+                      <select id="targetVolumeSelect" class="cycle-select" aria-label="目標音量">
+                        <option value="p">p</option>
+                        <option value="mp" selected>mp</option>
+                        <option value="mf">mf</option>
+                        <option value="f">f</option>
+                      </select>
+                    </label>
+                    <label id="variantSetting" class="stat hidden">
+                      <span>練習組合</span>
+                      <select id="variantSelect" class="cycle-select" aria-label="練習組合"></select>
+                    </label>
+                    <div class="stat">
+                      <span>循環</span>
+                      <strong id="cycleCount">4</strong>
+                      <select id="cycleSelect" class="cycle-select" aria-label="循環次數">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="4" selected>4</option>
+                        <option value="6">6</option>
+                        <option value="8">8</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="flow-grid compact-flow">
+                    <span>準備 <b id="prepareBeats">4 拍</b></span>
+                    <span>吹奏 <b id="playBeats">8 拍</b></span>
+                    <span>休息 <b id="restBeats">4 拍</b></span>
+                  </div>
                 </div>
               </div>
             </section>
@@ -388,6 +390,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-18-controls"></script>
+    <script src="./app.js?v=refresh-18-settings-modal"></script>
   </body>
 </html>

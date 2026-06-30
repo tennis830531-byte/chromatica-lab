@@ -2793,6 +2793,11 @@ function bindEvents() {
     setPracticeSettingsOpen($("#practiceSettingsPanel").classList.contains("hidden"));
   });
   $("#practiceSettingsClose").addEventListener("click", () => setPracticeSettingsOpen(false));
+  $("#practiceSettingsPanel").addEventListener("click", (event) => {
+    if (event.target.id === "practiceSettingsPanel") {
+      setPracticeSettingsOpen(false);
+    }
+  });
   $("#micGateBtn").addEventListener("click", async () => {
     $("#micGateError").textContent = "";
     const started = await startMic();

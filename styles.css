@@ -1270,6 +1270,29 @@ p {
   padding: 18px;
 }
 
+.practice-settings-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  align-items: end;
+  padding: 18px 14px calc(92px + env(safe-area-inset-bottom));
+  background: rgba(58, 44, 35, 0.34);
+  backdrop-filter: blur(10px);
+}
+
+.practice-settings-modal.hidden {
+  display: none;
+}
+
+.practice-settings-dialog {
+  width: min(100%, 430px);
+  max-height: min(76vh, 680px);
+  margin: 0 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .setting-card-head {
   display: flex;
   align-items: center;
@@ -1707,6 +1730,10 @@ input[type="range"] {
   .status-action-btn {
     min-height: 42px;
     font-size: 14px;
+  }
+
+  .practice-settings-modal {
+    padding: 14px 10px calc(88px + env(safe-area-inset-bottom));
   }
 }
 
