@@ -292,9 +292,10 @@ const FINE_TRACKER_CONFIG = {
   highQualityThreshold: 0.11,
   maxJumpCents: 160,
 };
-const NATURAL_BOUNDARY_SWITCH_CENTS = 65;
-const NATURAL_BOUNDARY_DIRECT_CENTS = 45;
-const NATURAL_BOUNDARY_PENDING_FRAMES = 2;
+const SEMITONE_SWITCH_CENTS = 45;
+const SEMITONE_CONFIRM_CENTS = 55;
+const SEMITONE_RELEASE_CENTS = 65;
+const SEMITONE_PENDING_FRAMES = 2;
 const PITCH_DETECTION_MODES = {
   stable: {
     minRms: () => Math.max(micSilentRms * 2.2, 0.0052),
@@ -1358,16 +1359,22 @@ function isNaturalBoundaryPair(fromNoteName, toNoteName) {
   );
 }
 
-function getAdjacentNaturalBoundaryNote(lockedNote, direction) {
+function isAdjacentSemitone(noteA, noteB) {
+  const nameA = typeof noteA === "string" ? noteA : noteA?.name;
+  const nameB = typeof noteB === "string" ? noteB : noteB?.name;
+  if (!nameA || !nameB) return false;
+  return Math.abs(noteNameToMidi(nameA) - noteNameToMidi(nameB)) === 1;
+}
+
+function getAdjacentSemitoneNote(lockedNote, direction) {
   if (!lockedNote) return null;
   const lockedMidi = Number.isFinite(lockedNote.midi) ? lockedNote.midi : noteNameToMidi(lockedNote.name);
   const midi = lockedMidi + direction;
-  const note = {
+  return {
     name: midiToNoteName(midi),
     midi,
     frequency: midiToFreq(midi, tuningA4),
   };
-  return isNaturalBoundaryPair(lockedNote.name, note.name) ? note : null;
 }
 
 function buildNoteRange(lowNote, highNote, a4 = tuningA4) {
@@ -1508,27 +1515,27 @@ function getNaturalBoundarySourceFrequency(fine, detectorMeasurement) {
   return null;
 }
 
-function maybeSwitchNaturalBoundary(rawCents, fine, detectorMeasurement) {
+function maybeSwitchAdjacentSemitone(rawCents, fine, detectorMeasurement) {
   if (!activeNearestNote || !Number.isFinite(rawCents)) {
-    return { switched: false, pending: false, reason: "boundary-no-active-note" };
+    return { switched: false, pending: false, reason: "semitone-no-active-note" };
   }
 
-  const direction = rawCents >= NATURAL_BOUNDARY_SWITCH_CENTS
+  const direction = rawCents >= SEMITONE_SWITCH_CENTS
     ? 1
-    : rawCents <= -NATURAL_BOUNDARY_SWITCH_CENTS
+    : rawCents <= -SEMITONE_SWITCH_CENTS
       ? -1
       : 0;
   if (!direction) {
     naturalBoundaryPendingNote = null;
     naturalBoundaryPendingCount = 0;
-    return { switched: false, pending: false, reason: "boundary-cents-inside" };
+    return { switched: false, pending: false, reason: "semitone-cents-inside" };
   }
 
-  const candidate = getAdjacentNaturalBoundaryNote(activeNearestNote, direction);
+  const candidate = getAdjacentSemitoneNote(activeNearestNote, direction);
   if (!candidate) {
     naturalBoundaryPendingNote = null;
     naturalBoundaryPendingCount = 0;
-    return { switched: false, pending: false, reason: "boundary-not-natural-pair" };
+    return { switched: false, pending: false, reason: "semitone-no-adjacent-note" };
   }
 
   const sourceFrequency = getNaturalBoundarySourceFrequency(fine, detectorMeasurement);
@@ -1542,8 +1549,11 @@ function maybeSwitchNaturalBoundary(rawCents, fine, detectorMeasurement) {
     nearestFromSource?.name ||
     null;
   const detectorNearCandidate =
-    detectorNearestName === candidate.name ||
-    (Number.isFinite(centsToCandidate) && Math.abs(centsToCandidate) <= NATURAL_BOUNDARY_DIRECT_CENTS);
+    isAdjacentSemitone(detectorNearestName, activeNearestNote.name) &&
+    (
+      detectorNearestName === candidate.name ||
+      (Number.isFinite(centsToCandidate) && Math.abs(centsToCandidate) <= SEMITONE_CONFIRM_CENTS)
+    );
 
   if (!detectorNearCandidate) {
     naturalBoundaryPendingNote = null;
@@ -1551,7 +1561,7 @@ function maybeSwitchNaturalBoundary(rawCents, fine, detectorMeasurement) {
     return {
       switched: false,
       pending: false,
-      reason: "boundary-detector-not-adjacent",
+      reason: "semitone-detector-not-adjacent",
       candidate,
       sourceFrequency,
       centsToCandidate,
@@ -1567,12 +1577,18 @@ function maybeSwitchNaturalBoundary(rawCents, fine, detectorMeasurement) {
   }
 
   const directDetectorSwitch = detectorNearestName === candidate.name;
-  const readyToSwitch = directDetectorSwitch || naturalBoundaryPendingCount >= NATURAL_BOUNDARY_PENDING_FRAMES;
+  const confirmedByCents = Math.abs(rawCents) >= SEMITONE_CONFIRM_CENTS;
+  const releaseExceeded = Math.abs(rawCents) >= SEMITONE_RELEASE_CENTS;
+  const readyToSwitch =
+    (confirmedByCents && detectorNearCandidate) ||
+    directDetectorSwitch ||
+    releaseExceeded ||
+    naturalBoundaryPendingCount >= SEMITONE_PENDING_FRAMES;
   if (!readyToSwitch) {
     return {
       switched: false,
       pending: true,
-      reason: "boundary-pending",
+      reason: "semitone-pending",
       candidate,
       sourceFrequency,
       centsToCandidate,
@@ -1591,7 +1607,9 @@ function maybeSwitchNaturalBoundary(rawCents, fine, detectorMeasurement) {
   return {
     switched: true,
     pending: false,
-    reason: "natural-boundary-switch",
+    reason: isNaturalBoundaryPair(previousNote.name, candidate.name)
+      ? "natural-boundary-switch"
+      : "adjacent-semitone-switch",
     previousNote,
     candidate,
     sourceFrequency,
@@ -1809,6 +1827,7 @@ function updatePitchTuner(pitch, waiting = false) {
   const homeNote = $("#homePitchNote");
   const homeCents = $("#homePitchCents");
   const homeStatus = $("#homeTunerStatus");
+  const homeNeedle = $("#homePitchNeedle");
   if (!pitch || waiting) {
     if (stablePitchDisplay) {
       updatePitchTuner(stablePitchDisplay);
@@ -1820,6 +1839,7 @@ function updatePitchTuner(pitch, waiting = false) {
       if (homeNote) homeNote.textContent = "--";
       if (homeCents) homeCents.textContent = "等待收音";
       if (homeStatus) homeStatus.textContent = "等待收音";
+      if (homeNeedle) homeNeedle.style.left = "50%";
     }
     return;
   }
@@ -1834,6 +1854,7 @@ function updatePitchTuner(pitch, waiting = false) {
   if (homeNote) homeNote.textContent = pitch.nearestNote.name;
   if (homeCents) homeCents.textContent = `${formatSignedCents(pitch.cents)} cents`;
   if (homeStatus) homeStatus.textContent = "收音中";
+  if (homeNeedle) homeNeedle.style.left = `${position}%`;
 }
 
 function getPitchStatusText(measurement) {
@@ -1948,6 +1969,14 @@ function logPitchDebug(measurement) {
     naturalBoundaryPendingCount: measurement.naturalBoundaryPendingCount,
     boundarySourceFrequency: measurement.boundarySourceFrequency,
     boundaryCentsToCandidate: measurement.boundaryCentsToCandidate,
+    coarseDetectedNote: measurement.nearestNote,
+    fineCentsRaw: measurement.rawCents,
+    fineCentsSmoothed: measurement.smoothedCents ?? stablePitchDisplay?.cents ?? null,
+    isAdjacentSemitoneCandidate: measurement.isAdjacentSemitoneCandidate,
+    semitoneSwitchTriggered: measurement.semitoneSwitchTriggered,
+    semitoneSwitchReason: measurement.semitoneSwitchReason,
+    lastLockedNoteBeforeSwitch: measurement.lastLockedNoteBeforeSwitch,
+    lastLockedNoteAfterSwitch: measurement.lastLockedNoteAfterSwitch,
     candidateList: measurement.candidateList,
     selectedReason: measurement.selectedReason,
     rejectedReason: measurement.rejectedReason,
@@ -2125,14 +2154,14 @@ function updateFineCentsTrackerEveryFrame(detectorMeasurement) {
   let rawCents = canUseFineCents ? fine.cents : canUseDetectorCents ? detectorCents : null;
   let centsUpdateReason = canUseFineCents ? "fine-waveform-contour" : canUseDetectorCents ? "detector-cents-fallback" : "fine-rejected";
   const boundaryRawCents = Number.isFinite(fine?.cents) ? fine.cents : detectorCents;
-  const boundarySwitch = maybeSwitchNaturalBoundary(boundaryRawCents, fine, detectorMeasurement);
+  const boundarySwitch = maybeSwitchAdjacentSemitone(boundaryRawCents, fine, detectorMeasurement);
 
   if (boundarySwitch.switched) {
     const sourceFrequency = boundarySwitch.sourceFrequency;
     rawCents = Number.isFinite(sourceFrequency)
       ? 1200 * Math.log2(sourceFrequency / activeNearestNote.frequency)
       : boundarySwitch.centsToCandidate;
-    centsUpdateReason = "natural-boundary-switch";
+    centsUpdateReason = boundarySwitch.reason;
     if (Number.isFinite(rawCents)) {
       smoothedCents = rawCents;
     }
@@ -2153,6 +2182,11 @@ function updateFineCentsTrackerEveryFrame(detectorMeasurement) {
       naturalBoundaryPending: true,
       naturalBoundaryCandidate: boundarySwitch.candidate?.name || null,
       naturalBoundaryPendingCount: boundarySwitch.naturalBoundaryPendingCount,
+      isAdjacentSemitoneCandidate: true,
+      semitoneSwitchTriggered: false,
+      semitoneSwitchReason: boundarySwitch.reason,
+      lastLockedNoteBeforeSwitch: activeNearestNote.name,
+      lastLockedNoteAfterSwitch: activeNearestNote.name,
       boundarySourceFrequency: boundarySwitch.sourceFrequency,
       boundaryCentsToCandidate: boundarySwitch.centsToCandidate,
       detectionStatus: "blocked",
@@ -2275,6 +2309,11 @@ function updateFineCentsTrackerEveryFrame(detectorMeasurement) {
     naturalBoundaryReason: boundarySwitch.reason,
     naturalBoundaryCandidate: boundarySwitch.candidate?.name || null,
     naturalBoundaryPreviousNote: boundarySwitch.previousNote?.name || null,
+    isAdjacentSemitoneCandidate: Boolean(boundarySwitch.candidate),
+    semitoneSwitchTriggered: boundarySwitch.switched,
+    semitoneSwitchReason: boundarySwitch.reason,
+    lastLockedNoteBeforeSwitch: boundarySwitch.previousNote?.name || activeNearestNote.name,
+    lastLockedNoteAfterSwitch: activeNearestNote.name,
     naturalBoundaryPendingCount,
     boundarySourceFrequency: boundarySwitch.sourceFrequency || null,
     boundaryCentsToCandidate: boundarySwitch.centsToCandidate,
@@ -2544,7 +2583,7 @@ function renderExercise() {
       .join("");
     $("#variantSelect").value = String(selectedVariants[exercise.id] || 0);
   }
-  $("#toneCardTitle").textContent = "長音示意";
+  $("#toneCardTitle").textContent = "練習目標";
   $("#stabilityStat").classList.toggle("hidden", !shouldShowStability());
   renderWaveGuide();
   renderDailyGoals();
@@ -2885,8 +2924,16 @@ window.chromaticDebug = {
       });
     }
     const boundaryPairs = [
+      ["C6", "C#6"],
+      ["C#6", "C6"],
+      ["D6", "D#6"],
+      ["D#6", "D6"],
       ["E5", "F5"],
       ["E6", "F6"],
+      ["F6", "F#6"],
+      ["F#6", "F6"],
+      ["G6", "G#6"],
+      ["G#6", "G6"],
       ["B5", "C6"],
       ["B6", "C7"],
       ["F5", "E5"],
@@ -2922,7 +2969,7 @@ window.chromaticDebug = {
         confidence: 0.45,
         rms: 0.02,
       };
-      const switched = maybeSwitchNaturalBoundary(fine.cents, fine, measurement);
+      const switched = maybeSwitchAdjacentSemitone(fine.cents, fine, measurement);
       return {
         from: fromName,
         to: toName,

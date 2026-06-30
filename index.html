@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-18-status-balance" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-21" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -106,7 +106,13 @@
               <img class="ui-section-illustration" src="./public/assets/chromatic-refresh/feature/tuner_badge.png" alt="" aria-hidden="true" />
             </div>
             <div class="mini-tuner-scale" aria-hidden="true">
-              <span>-50</span><i></i><span>0</span><i></i><span>+50</span>
+              <div class="mini-tuner-track">
+                <i></i>
+                <b id="homePitchNeedle"></b>
+              </div>
+              <div class="mini-tuner-labels">
+                <span>-50</span><span>0</span><span>+50</span>
+              </div>
             </div>
             <p class="home-tuner-hint">吹奏時會顯示最接近的音名與 cents 誤差。</p>
           </div>
@@ -389,6 +395,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-18-status-balance"></script>
+    <script src="./app.js?v=refresh-21"></script>
   </body>
 </html>
