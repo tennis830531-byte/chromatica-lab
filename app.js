@@ -2525,12 +2525,12 @@ function renderExercise() {
   $("#exerciseTitle").textContent = exercise.title;
   $("#exerciseInstruction").textContent = exercise.title;
   $("#beatTotal").textContent = `/ ${exercise.playBeats} 拍`;
-  $("#currentDynamic").textContent = getExerciseDynamicSummary(exercise);
   $("#prepareBeats").textContent = `${exercise.prepareBeats} 拍`;
   $("#playBeats").textContent = `${exercise.playBeats} 拍`;
   $("#restBeats").textContent = `${exercise.restBeats} 拍`;
   $("#cycleCount").textContent = totalCycles;
-  $("#cycleStatus").textContent = `第 ${cycle} 次 / 共 ${totalCycles} 次`;
+  $("#currentCycle").textContent = cycle;
+  $("#cycleTotal").textContent = `/ ${totalCycles} 次`;
   $("#bpmInput").value = bpm;
   $("#bpmValue").textContent = bpm;
   $("#statusBpm").textContent = bpm;
@@ -2592,7 +2592,8 @@ function updateBeatDisplay() {
   const displayBeat = phase === "play" ? beat : phase === "idle" || phase === "done" ? 0 : beat;
   $("#currentBeat").textContent = displayBeat;
   $("#cycleCount").textContent = totalCycles;
-  $("#cycleStatus").textContent = `第 ${cycle} 次 / 共 ${totalCycles} 次`;
+  $("#currentCycle").textContent = cycle;
+  $("#cycleTotal").textContent = `/ ${totalCycles} 次`;
   $("#beatTotal").textContent = phase === "prepare"
     ? `/ ${exercise.prepareBeats} 拍`
     : phase === "rest"

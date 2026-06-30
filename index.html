@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-18-target-labels" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-18-status-balance" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -203,10 +203,12 @@
 
               <div class="status-card practice-status-card">
                 <div class="practice-status-copy">
-                  <span>狀態：<b id="phasePill">待開始</b></span>
-                  <strong><span id="currentBeat">0</span> <small id="beatTotal">/ 8 拍</small></strong>
-                  <em id="cycleStatus">第 1 次 / 共 4 次</em>
-                  <em>BPM <b id="statusBpm">60</b></em>
+                  <span class="status-phase">狀態：<b id="phasePill">待開始</b></span>
+                  <div class="status-metrics">
+                    <strong class="status-metric beat-metric"><span id="currentBeat">0</span> <small id="beatTotal">/ 8 拍</small></strong>
+                    <strong class="status-metric cycle-metric"><span id="currentCycle">1</span> <small id="cycleTotal">/ 4 次</small></strong>
+                    <strong class="status-metric bpm-metric"><span id="statusBpm">60</span> <small>BPM</small></strong>
+                  </div>
                 </div>
                 <div class="practice-status-actions" aria-label="練習控制">
                   <button id="practiceSettingsBtn" class="status-action-btn settings" type="button">設定</button>
@@ -215,17 +217,13 @@
                 </div>
               </div>
 
-              <div class="practice-target-card paper-card">
-                <span>練習目標：</span>
-                <strong><b id="currentDynamic">mp</b> 音量</strong>
-              </div>
               <div class="hidden" id="stabilityStat" aria-hidden="true">
                 <span>穩定度</span>
                 <strong id="stabilityScore">--</strong>
               </div>
 
               <div class="tone-card paper-card">
-                <h3 class="card-title" id="toneCardTitle">長音示意</h3>
+                <h3 class="card-title" id="toneCardTitle">練習目標</h3>
                 <div id="waveGuide" class="long-tone-illustration" data-type="stable" aria-label="長音練習示意圖">
                   <div>
                     <span id="waveGuideTitle">平穩長音</span>
@@ -391,6 +389,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-18-target-labels"></script>
+    <script src="./app.js?v=refresh-18-status-balance"></script>
   </body>
 </html>

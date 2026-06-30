@@ -990,15 +990,16 @@ p {
 }
 
 .practice-status-copy {
+  display: grid;
+  align-content: space-between;
+  gap: 12px;
   min-width: 0;
 }
 
-.practice-status-card span,
-.practice-status-card em {
+.status-phase {
   display: block;
   color: rgba(255, 253, 249, 0.82);
   font-size: 13px;
-  font-style: normal;
   font-weight: 700;
 }
 
@@ -1006,26 +1007,44 @@ p {
   color: #fffdf9;
 }
 
-.practice-status-card strong {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  margin: 12px 0 6px;
-  font-size: 36px;
+.status-metrics {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 0.9fr;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.status-metric {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 6px;
+  border: 1px solid rgba(255, 253, 249, 0.13);
+  border-radius: 16px;
+  background: rgba(255, 253, 249, 0.06);
   line-height: 1;
 }
 
-.practice-status-card strong span {
-  display: inline;
+.status-metric span {
+  display: block;
   color: #fffdf9;
-  font-size: inherit;
-  font-weight: 800;
+  font-size: clamp(26px, 7vw, 38px);
+  font-weight: 850;
+  letter-spacing: 0;
 }
 
-.practice-status-card small {
-  color: rgba(255, 253, 249, 0.82);
-  font-size: 22px;
+.status-metric small {
+  display: block;
+  color: rgba(255, 253, 249, 0.78);
+  font-size: clamp(12px, 3.2vw, 16px);
   font-weight: 800;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.bpm-metric span {
+  font-size: clamp(24px, 6.4vw, 34px);
 }
 
 .practice-status-actions {
@@ -1063,40 +1082,6 @@ p {
 .tone-card,
 .mic-card {
   padding: 18px;
-}
-
-.practice-target-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 18px;
-  overflow: hidden;
-}
-
-.practice-target-card span {
-  flex: 0 0 auto;
-  color: var(--text-muted);
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.practice-target-card strong {
-  min-width: 0;
-  color: var(--text-main);
-  font-size: clamp(15px, 3.7vw, 22px);
-  font-weight: 850;
-  line-height: 1.12;
-  overflow: hidden;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.practice-target-card b {
-  color: var(--primary);
-  font-size: clamp(18px, 5.2vw, 30px);
-  white-space: nowrap;
 }
 
 .card-title {

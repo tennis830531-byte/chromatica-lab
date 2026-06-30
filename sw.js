@@ -1,9 +1,9 @@
-const CACHE_NAME = "chromatica-lab-refresh-18-target-labels";
+const CACHE_NAME = "chromatica-lab-refresh-18-status-balance";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=refresh-18-target-labels",
-  "./app.js?v=refresh-18-target-labels",
+  "./styles.css?v=refresh-18-status-balance",
+  "./app.js?v=refresh-18-status-balance",
   "./manifest.webmanifest",
   "./public/assets/chromatic-refresh/brand/chl_brand_badge.png",
   "./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png",
