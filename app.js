@@ -592,6 +592,12 @@ function setBpm(nextBpm) {
   }
 }
 
+function setPracticeSettingsOpen(isOpen) {
+  const panel = $("#practiceSettingsPanel");
+  panel.classList.toggle("hidden", !isOpen);
+  panel.setAttribute("aria-hidden", isOpen ? "false" : "true");
+}
+
 function updateAudioStatus(text) {
   const status = $("#audioMicStatus");
   if (status) status.textContent = text;
@@ -2634,6 +2640,7 @@ function stepPractice() {
 function startPractice() {
   const exercise = exercises[selectedExercise];
   let shouldScrollAfterStart = false;
+  setPracticeSettingsOpen(false);
   if (timer) {
     clearInterval(timer);
     timer = null;
@@ -2697,6 +2704,7 @@ function bindEvents() {
     const button = event.target.closest("[data-exercise]");
     if (!button) return;
     stopPractice(false);
+    setPracticeSettingsOpen(false);
     selectedExercise = Number(button.dataset.exercise);
     $("#bpmInput").value = exercises[selectedExercise].bpm;
     bpm = exercises[selectedExercise].bpm;
@@ -2736,6 +2744,7 @@ function bindEvents() {
   $("#dailyGoalList").addEventListener("click", (event) => {
     const button = event.target.closest("[data-goal-exercise]");
     if (!button) return;
+    setPracticeSettingsOpen(false);
     selectedExercise = Number(button.dataset.goalExercise);
     if (button.dataset.goalVolume) {
       selectedTargetVolume = button.dataset.goalVolume;
@@ -2780,6 +2789,10 @@ function bindEvents() {
 
   $("#startPauseBtn").addEventListener("click", startPractice);
   $("#resetBtn").addEventListener("click", () => stopPractice(false));
+  $("#practiceSettingsBtn").addEventListener("click", () => {
+    setPracticeSettingsOpen($("#practiceSettingsPanel").classList.contains("hidden"));
+  });
+  $("#practiceSettingsClose").addEventListener("click", () => setPracticeSettingsOpen(false));
   $("#micGateBtn").addEventListener("click", async () => {
     $("#micGateError").textContent = "";
     const started = await startMic();
