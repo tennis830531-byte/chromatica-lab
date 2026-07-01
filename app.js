@@ -433,7 +433,6 @@ function getExerciseWaveGuide(exercise) {
       title: "音量分層",
       text: "感受不同力度的層次變化。",
       path: "M24 72 H88 V60 H152 V48 H216 V34 H296",
-      markers: ["p", "mp", "mf", "f"],
     },
     "crescendo-8": {
       type: "crescendo",
@@ -3203,17 +3202,8 @@ function bindEvents() {
 
   $("#tuningSelect").addEventListener("change", (event) => {
     tuningA4 = Number(event.target.value);
-    $$("[data-tuning-value]").forEach((button) => {
-      button.classList.toggle("active", Number(button.dataset.tuningValue) === tuningA4);
-    });
     refreshAllowedNotes();
     resetPitchTracker();
-  });
-  $$("[data-tuning-value]").forEach((button) => {
-    button.addEventListener("click", () => {
-      $("#tuningSelect").value = button.dataset.tuningValue;
-      $("#tuningSelect").dispatchEvent(new Event("change"));
-    });
   });
   $("#calibrateMicBtn").addEventListener("click", calibrateMic);
   $("#audioCalibrateBtn").addEventListener("click", calibrateMic);

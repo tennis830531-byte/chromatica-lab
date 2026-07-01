@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-34" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-35" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -106,26 +106,6 @@
             </div>
           </div>
 
-          <div class="today-card paper-card">
-            <div class="today-head">
-              <div class="today-copy">
-                <span class="card-label">今日練習</span>
-                <h3>8 拍平穩長音</h3>
-                <p>用 mp 音量穩定吹奏，注意起音、中段與收尾。</p>
-              </div>
-              <div class="today-card-media media-box">
-                <img class="ui-mascot today-bird" src="./public/assets/chromatic-refresh/feature/long_tone_bird.png" alt="" aria-hidden="true" />
-              </div>
-            </div>
-            <div class="flow-grid">
-              <span>準備 <b>4 拍</b></span>
-              <span>吹奏 <b>8 拍</b></span>
-              <span>休息 <b>4 拍</b></span>
-              <span>循環 <b>4 次</b></span>
-            </div>
-            <button class="primary-btn today-start" data-jump="longtone" type="button">開始練習</button>
-          </div>
-
           <div class="home-tuner-card paper-card">
             <div class="card-row-head">
               <span class="card-label">全音域調音器</span>
@@ -160,21 +140,6 @@
             </div>
           </div>
 
-          <div class="intro-note paper-card">
-            <div>
-              <h3>認識半音階口琴</h3>
-              <p>半音階口琴有吹音、吸音，也有側邊按鍵讓音升高半音。先建立音位方向感，再進入長音練習。</p>
-              <div class="feature-chips">
-                <span class="chip">吹音 / 吸音</span>
-                <span class="chip">側邊按鍵</span>
-                <span class="chip">音位方向感</span>
-              </div>
-            </div>
-            <div class="intro-media media-box">
-              <img class="ui-section-illustration" src="./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png" alt="" aria-hidden="true" />
-            </div>
-          </div>
-
         </section>
 
         <section id="practicehub" class="view">
@@ -188,7 +153,7 @@
           <section id="practice-hub-section" class="practice-hub-section paper-card">
             <div class="practice-hub-head">
               <div>
-                <span class="section-kicker">開始練習</span>
+                <span class="section-kicker">練習項目</span>
                 <h3>選擇今天想練的項目</h3>
                 <p>從長音開始累積基本功，後續練習室會逐步開放。</p>
               </div>
@@ -239,6 +204,21 @@
               <p class="eyebrow">音符地圖</p>
               <h2>音符地圖</h2>
               <p>切換琴型後左右滑動，逐孔查看吹音、吸音與按鍵音。</p>
+            </div>
+          </div>
+
+          <div class="intro-note paper-card">
+            <div>
+              <h3>認識半音階口琴</h3>
+              <p>半音階口琴有吹音、吸音，也有側邊按鍵讓音升高半音。先建立音位方向感，再進入長音練習。</p>
+              <div class="feature-chips">
+                <span class="chip">吹音 / 吸音</span>
+                <span class="chip">側邊按鍵</span>
+                <span class="chip">音位方向感</span>
+              </div>
+            </div>
+            <div class="intro-media media-box">
+              <img class="ui-section-illustration" src="./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png" alt="" aria-hidden="true" />
             </div>
           </div>
 
@@ -451,22 +431,17 @@
             </div>
             <div class="audio-setting-card paper-card">
               <h3>調音基準</h3>
-              <div class="segmented-control" role="group" aria-label="調音基準">
-                <button class="active" data-tuning-value="440" type="button">A4 = 440</button>
-                <button data-tuning-value="441" type="button">A4 = 441</button>
-                <button data-tuning-value="442" type="button">A4 = 442</button>
-                <button data-tuning-value="443" type="button">A4 = 443</button>
-                <button data-tuning-value="444" type="button">A4 = 444</button>
-                <button data-tuning-value="445" type="button">A4 = 445</button>
-              </div>
-              <select id="tuningSelect" hidden aria-label="調音基準">
-                <option value="440" selected>A4 = 440</option>
-                <option value="441">A4 = 441</option>
-                <option value="442">A4 = 442</option>
-                <option value="443">A4 = 443</option>
-                <option value="444">A4 = 444</option>
-                <option value="445">A4 = 445</option>
-              </select>
+              <label class="setting-select-wrap">
+                <span>標準音高</span>
+                <select id="tuningSelect" aria-label="調音基準">
+                  <option value="440" selected>A4 = 440</option>
+                  <option value="441">A4 = 441</option>
+                  <option value="442">A4 = 442</option>
+                  <option value="443">A4 = 443</option>
+                  <option value="444">A4 = 444</option>
+                  <option value="445">A4 = 445</option>
+                </select>
+              </label>
             </div>
             <div class="headphone-note">建議戴耳機，避免節拍器影響收音。</div>
           </div>
@@ -482,6 +457,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-34"></script>
+    <script src="./app.js?v=refresh-35"></script>
   </body>
 </html>
