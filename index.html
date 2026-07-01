@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-28" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-29" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -156,8 +156,33 @@
               <button class="quick-card" data-jump="map" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/note_map_explorer.png" alt="" /></span><strong>音符地圖</strong><span>探索每個音位，建立方向感</span><b>›</b></button>
               <button class="quick-card" data-jump="audio" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/mic_settings_icon.png" alt="" /></span><strong>收音設定</strong><span>調整麥克風與調音基準</span><b>›</b></button>
               <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" /></span><strong>每日目標</strong><span>建立練習習慣，累積進步</span><b>›</b></button>
-              <button class="quick-card" data-jump="intro" data-scroll-target="practice-hub-section" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/practice_record_icon.png" alt="" /></span><strong>開始練習</strong><span>進入各種練習室</span><b>›</b></button>
+              <button class="quick-card" data-jump="practicehub" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/practice_record_icon.png" alt="" /></span><strong>開始練習</strong><span>進入各種練習室</span><b>›</b></button>
             </div>
+          </div>
+
+          <div class="intro-note paper-card">
+            <div>
+              <h3>認識半音階口琴</h3>
+              <p>半音階口琴有吹音、吸音，也有側邊按鍵讓音升高半音。先建立音位方向感，再進入長音練習。</p>
+              <div class="feature-chips">
+                <span class="chip">吹音 / 吸音</span>
+                <span class="chip">側邊按鍵</span>
+                <span class="chip">音位方向感</span>
+              </div>
+            </div>
+            <div class="intro-media media-box">
+              <img class="ui-section-illustration" src="./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png" alt="" aria-hidden="true" />
+            </div>
+          </div>
+
+        </section>
+
+        <section id="practicehub" class="view">
+          <div class="section-head compact">
+            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/icon/practice_record_icon.png" alt="" aria-hidden="true" />
+            <p class="eyebrow">練習室入口</p>
+            <h2>開始練習</h2>
+            <p>選擇今天想練的項目，從長音開始慢慢累積基本功。</p>
           </div>
 
           <section id="practice-hub-section" class="practice-hub-section paper-card">
@@ -205,22 +230,6 @@
               </article>
             </div>
           </section>
-
-          <div class="intro-note paper-card">
-            <div>
-              <h3>認識半音階口琴</h3>
-              <p>半音階口琴有吹音、吸音，也有側邊按鍵讓音升高半音。先建立音位方向感，再進入長音練習。</p>
-              <div class="feature-chips">
-                <span class="chip">吹音 / 吸音</span>
-                <span class="chip">側邊按鍵</span>
-                <span class="chip">音位方向感</span>
-              </div>
-            </div>
-            <div class="intro-media media-box">
-              <img class="ui-section-illustration" src="./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png" alt="" aria-hidden="true" />
-            </div>
-          </div>
-
         </section>
 
         <section id="map" class="view">
@@ -465,12 +474,12 @@
       <nav class="bottom-nav" aria-label="手機底部導覽">
         <button class="bottom-nav-item active" data-view="intro" type="button"><span>⌂</span>首頁</button>
         <button class="bottom-nav-item" data-view="map" type="button"><span>♪</span>音符</button>
-        <button class="bottom-nav-item" data-view="intro" data-nav-target="practice-hub-section" data-scroll-target="practice-hub-section" type="button"><span>◉</span>練習</button>
+        <button class="bottom-nav-item" data-view="practicehub" type="button"><span>◉</span>練習</button>
         <button class="bottom-nav-item" data-view="daily" type="button"><span>✓</span>目標</button>
         <button class="bottom-nav-item" data-view="audio" type="button"><span>⚙</span>設定</button>
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-28"></script>
+    <script src="./app.js?v=refresh-29"></script>
   </body>
 </html>

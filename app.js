@@ -894,7 +894,7 @@ function renderNoteMap() {
 function activateViewButton(view, target = "") {
   $$("[data-view]").forEach((item) => {
     const itemTarget = item.dataset.navTarget || "";
-    const isPracticeNav = itemTarget === "practice-hub-section";
+    const isPracticeNav = item.dataset.view === "practicehub";
     const matches = (item.dataset.view === view && itemTarget === target) || (isPracticeNav && view === "longtone");
     if (item.classList.contains("nav-item") || item.classList.contains("bottom-nav-item") || item.classList.contains("icon-btn")) {
       item.classList.toggle("active", matches);
