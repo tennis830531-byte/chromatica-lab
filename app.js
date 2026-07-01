@@ -474,8 +474,13 @@ function renderWaveGuide() {
 }
 
 function getPatternSummary(pattern) {
+  if (!pattern.length) return "";
+  const firstDynamic = pattern[0].dynamic;
+  if (pattern.every((item) => item.dynamic === firstDynamic)) {
+    return firstDynamic;
+  }
   if (pattern.length > 3) {
-    return `${pattern[0].dynamic} → ${pattern[pattern.length - 1].dynamic}`;
+    return `${firstDynamic} → ${pattern[pattern.length - 1].dynamic}`;
   }
   return pattern.map((item) => item.dynamic).join(" → ");
 }
@@ -784,6 +789,7 @@ function renderStreakSummary() {
   const todayCompleted = getHistoryStatus(history[getTodayKey()]) === "completed";
   const currentStreak = calculateCurrentStreak(history);
   const longest = updateLongestStreak(history);
+  const todayWeekday = new Date().getDay() || 7;
   $("#streakDays").textContent = currentStreak;
   $("#freezeCount").textContent = getFreezeCount();
   $("#modalFreezeCount").textContent = getFreezeCount();
@@ -795,6 +801,9 @@ function renderStreakSummary() {
     : "今天完成第一次有效練習，就能延續你的紀錄。";
   $("#longestStreak").textContent = longest;
   $("#monthCompletedDays").textContent = calculateMonthCompletedDays(history);
+  $$("[data-weekday]").forEach((day) => {
+    day.classList.toggle("today", Number(day.dataset.weekday) === todayWeekday);
+  });
   renderStreakCalendar(history);
 }
 
@@ -2896,7 +2905,7 @@ function renderExercises() {
       const variantLabel = getExerciseVariantLabel(exercise);
       const summary = ["crescendo-8", "decrescendo-8", "swell-12"].includes(exercise.id)
         ? getExerciseDynamicSummary(exercise)
-        : variantLabel || pattern.map((item) => item.dynamic).join(" → ");
+        : variantLabel || getPatternSummary(pattern);
       return `
         <button class="exercise-btn ${index === selectedExercise ? "active" : ""}" data-exercise="${index}">
           <strong>${exercise.title}</strong>

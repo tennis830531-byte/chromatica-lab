@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-30" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-31" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -415,15 +415,17 @@
                 <div class="daily-goal-title-row">
                   <span class="section-kicker">每日目標</span>
                 </div>
-                <span id="dailyGoalSummary">今日完成 0 / 18 個練習</span>
+                <div class="daily-goal-summary-row">
+                  <span id="dailyGoalSummary">今日完成 0 / 18 個練習</span>
+                  <div class="daily-goal-sticky">
+                    <img class="ui-section-illustration" src="./public/assets/chromatic-refresh/note/encouragement_note.png" alt="" aria-hidden="true" />
+                  </div>
+                </div>
                 <p>今天也比昨天更進一步</p>
-              </div>
-              <div class="daily-goal-sticky">
-                <img class="ui-section-illustration" src="./public/assets/chromatic-refresh/note/encouragement_note.png" alt="" aria-hidden="true" />
               </div>
             </div>
             <div class="week-progress" aria-label="一週進度">
-              <span>一<i></i></span><span>二<i></i></span><span>三<i></i></span><span>四<i></i></span><span>五<i></i></span><span>六<i></i></span><span>日<i></i></span>
+              <span data-weekday="1">一<i></i></span><span data-weekday="2">二<i></i></span><span data-weekday="3">三<i></i></span><span data-weekday="4">四<i></i></span><span data-weekday="5">五<i></i></span><span data-weekday="6">六<i></i></span><span data-weekday="7">日<i></i></span>
             </div>
             <div id="dailyGoalList" class="daily-goal-list"></div>
           </div>
@@ -480,6 +482,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-30"></script>
+    <script src="./app.js?v=refresh-31"></script>
   </body>
 </html>

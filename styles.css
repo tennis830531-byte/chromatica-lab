@@ -1732,10 +1732,7 @@ input[type="range"] {
 }
 
 .daily-goal-top {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 14px;
+  display: block;
   margin-bottom: 16px;
 }
 
@@ -1750,6 +1747,13 @@ input[type="range"] {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.daily-goal-summary-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
 }
 
 .section-kicker {
@@ -1779,10 +1783,10 @@ input[type="range"] {
 }
 
 .daily-goal-sticky {
-  width: clamp(80px, 20vw, 118px);
+  width: clamp(72px, 18vw, 104px);
   flex-shrink: 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-end;
   opacity: 0.88;
   pointer-events: none;
@@ -1819,7 +1823,11 @@ input[type="range"] {
   background: var(--line);
 }
 
-.week-progress span:first-child i {
+.week-progress span.today {
+  color: var(--primary);
+}
+
+.week-progress span.today i {
   background: var(--accent);
 }
 
@@ -2257,14 +2265,17 @@ input[type="range"] {
 
 @media (max-width: 420px) {
   .daily-goal-top {
-    grid-template-columns: 1fr;
-    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .daily-goal-summary-row {
+    gap: 10px;
   }
 
   .daily-goal-sticky {
-    width: min(100%, 128px);
-    justify-content: flex-start;
-    margin-top: 2px;
+    width: 76px;
+    justify-content: flex-end;
+    margin-top: 0;
   }
 }
 
