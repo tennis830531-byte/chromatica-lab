@@ -622,19 +622,7 @@ p {
   width: 58px;
   height: 58px;
   border-radius: 17px;
-  background: rgba(246, 238, 229, 0.82);
-}
-
-.quick-card:nth-child(2) .quick-card-icon {
   background: var(--accent-soft);
-}
-
-.quick-card:nth-child(3) .quick-card-icon {
-  background: #f3e6dc;
-}
-
-.quick-card:nth-child(4) .quick-card-icon {
-  background: #fbefd8;
 }
 
 .quick-card img {
