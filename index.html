@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-22" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-23" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -41,6 +41,39 @@
         <h2 id="goalToastTitle">恭喜完成</h2>
         <p id="goalToastText">你已完成今日目標。</p>
         <button id="goalToastClose" class="primary-btn" type="button">知道了</button>
+      </div>
+    </div>
+
+    <div id="calendarModal" class="calendar-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="calendarModalTitle">
+      <div class="calendar-modal">
+        <div class="calendar-modal-head">
+          <div>
+            <p class="eyebrow">連續學習</p>
+            <h2 id="calendarModalTitle">連續練習日曆</h2>
+          </div>
+          <button id="calendarCloseBtn" class="calendar-close" type="button" aria-label="關閉日曆">×</button>
+        </div>
+        <div class="calendar-summary">
+          <span>目前連續 <b id="modalCurrentStreak">0</b> 天</span>
+          <span>最長紀錄 <b id="longestStreak">0</b> 天</span>
+          <span>本月完成 <b id="monthCompletedDays">0</b> 天</span>
+          <span>學習凍結 <b id="modalFreezeCount">0</b> 張</span>
+        </div>
+        <div class="calendar-month-title" id="calendarMonthTitle">本月日曆</div>
+        <div class="calendar-weekdays" aria-hidden="true">
+          <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+        </div>
+        <div id="streakCalendarGrid" class="calendar-grid"></div>
+        <div class="calendar-legend" aria-label="日曆圖例">
+          <span><b class="legend-done">♪</b> 已完成</span>
+          <span><b class="legend-frozen">❄</b> 凍結</span>
+          <span><b class="legend-missed">○</b> 未完成</span>
+          <span><b class="legend-today"></b> 今天</span>
+        </div>
+        <div class="freeze-rule">
+          <strong>學習凍結規則</strong>
+          <p>連續練習每滿 7 天，可獲得 1 張學習凍結，最多持有 3 張。漏練一天時可使用 1 張凍結保住連續紀錄。</p>
+        </div>
       </div>
     </div>
 
@@ -335,6 +368,7 @@
                 <button id="dismissFreezeBtn" type="button">先不要</button>
               </div>
             </div>
+            <p id="dailyStreakMessage" class="daily-streak-message hidden">已達成今日連續學習目標</p>
             <div class="daily-goal-top">
               <div class="daily-goal-copy">
                 <div class="daily-goal-title-row">
@@ -353,13 +387,6 @@
               <span>一<i></i></span><span>二<i></i></span><span>三<i></i></span><span>四<i></i></span><span>五<i></i></span><span>六<i></i></span><span>日<i></i></span>
             </div>
             <div id="dailyGoalList" class="daily-goal-list"></div>
-            <div id="streakCalendar" class="streak-calendar hidden" aria-label="連續練習日曆">
-              <div class="streak-calendar-stats">
-                <span>最長連續 <b id="longestStreak">0</b> 天</span>
-                <span>本月完成 <b id="monthCompletedDays">0</b> 天</span>
-              </div>
-              <div id="streakCalendarGrid" class="streak-calendar-grid"></div>
-            </div>
           </div>
         </section>
 
@@ -421,6 +448,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-22"></script>
+    <script src="./app.js?v=refresh-23"></script>
   </body>
 </html>

@@ -500,6 +500,11 @@ function getDailyGoalKey() {
   return `chromatica-daily-goal-${getTodayKey()}`;
 }
 
+const FREEZE_MAX = 3;
+const FREEZE_INITIAL = 2;
+const FREEZE_REWARD_INTERVAL = 7;
+let dailyStreakFeedback = "";
+
 function addDays(date, offset) {
   const next = new Date(date);
   next.setDate(next.getDate() + offset);
@@ -523,12 +528,22 @@ function setPracticeHistory(history) {
 }
 
 function getFreezeCount() {
-  const value = Number(localStorage.getItem("freezeCount"));
-  return Number.isFinite(value) ? value : 0;
+  const stored = localStorage.getItem("chromatica.freezeCount");
+  if (stored !== null) {
+    const value = Number(stored);
+    return Number.isFinite(value) ? value : FREEZE_INITIAL;
+  }
+  const legacy = localStorage.getItem("freezeCount");
+  const initial = legacy === null ? FREEZE_INITIAL : Number(legacy);
+  const value = Number.isFinite(initial) ? initial : FREEZE_INITIAL;
+  setFreezeCount(value);
+  return value;
 }
 
 function setFreezeCount(value) {
-  localStorage.setItem("freezeCount", String(Math.max(0, value)));
+  const nextValue = Math.max(0, Math.min(FREEZE_MAX, value));
+  localStorage.setItem("chromatica.freezeCount", String(nextValue));
+  localStorage.setItem("freezeCount", String(nextValue));
 }
 
 function getLongestStreak() {
@@ -540,8 +555,24 @@ function setLongestStreak(value) {
   localStorage.setItem("longestStreak", String(Math.max(0, value)));
 }
 
+function getLastRewardedStreak() {
+  const value = Number(localStorage.getItem("chromatica.lastRewardedStreak"));
+  return Number.isFinite(value) ? value : 0;
+}
+
+function setLastRewardedStreak(value) {
+  localStorage.setItem("chromatica.lastRewardedStreak", String(Math.max(0, value)));
+}
+
+function getHistoryStatus(entry) {
+  if (!entry) return "";
+  if (typeof entry === "string") return entry;
+  return entry.status || "";
+}
+
 function isPracticeProtected(history, dateKey) {
-  return history[dateKey] === "completed" || history[dateKey] === "frozen";
+  const status = getHistoryStatus(history[dateKey]);
+  return status === "completed" || status === "frozen";
 }
 
 function calculateCurrentStreak(history) {
@@ -557,7 +588,7 @@ function calculateCurrentStreak(history) {
 
 function calculateMonthCompletedDays(history) {
   const prefix = getDateKey().slice(0, 8);
-  return Object.entries(history).filter(([dateKey, status]) => dateKey.startsWith(prefix) && status === "completed").length;
+  return Object.entries(history).filter(([dateKey, entry]) => dateKey.startsWith(prefix) && getHistoryStatus(entry) === "completed").length;
 }
 
 function updateLongestStreak(history) {
@@ -567,14 +598,48 @@ function updateLongestStreak(history) {
   return longest;
 }
 
+function maybeRewardFreeze(currentStreak) {
+  if (currentStreak <= 0 || currentStreak % FREEZE_REWARD_INTERVAL !== 0) {
+    return { rewarded: false, freezeCount: getFreezeCount() };
+  }
+  if (currentStreak === getLastRewardedStreak()) {
+    return { rewarded: false, freezeCount: getFreezeCount() };
+  }
+  const currentFreezeCount = getFreezeCount();
+  const nextFreezeCount = Math.min(FREEZE_MAX, currentFreezeCount + 1);
+  setFreezeCount(nextFreezeCount);
+  setLastRewardedStreak(currentStreak);
+  return { rewarded: nextFreezeCount > currentFreezeCount, freezeCount: nextFreezeCount };
+}
+
 function markPracticeCompletedToday() {
   const history = getPracticeHistory();
   const todayKey = getTodayKey();
-  if (history[todayKey] !== "completed") {
-    history[todayKey] = "completed";
-    setPracticeHistory(history);
+  const currentEntry = history[todayKey];
+  const isFirstCompletionToday = getHistoryStatus(currentEntry) !== "completed";
+  if (isFirstCompletionToday) {
+    history[todayKey] = {
+      status: "completed",
+      completedAt: new Date().toISOString(),
+      practiceCount: 1,
+    };
+  } else if (typeof currentEntry === "object") {
+    currentEntry.practiceCount = (currentEntry.practiceCount || 1) + 1;
+    history[todayKey] = currentEntry;
+  } else {
+    history[todayKey] = {
+      status: "completed",
+      completedAt: new Date().toISOString(),
+      practiceCount: 2,
+    };
   }
+  setPracticeHistory(history);
+  const currentStreak = calculateCurrentStreak(history);
   updateLongestStreak(history);
+  const reward = isFirstCompletionToday
+    ? maybeRewardFreeze(currentStreak)
+    : { rewarded: false, freezeCount: getFreezeCount() };
+  return { isFirstCompletionToday, currentStreak, reward };
 }
 
 function shouldShowFreezePrompt(history) {
@@ -590,7 +655,10 @@ function useLearningFreeze() {
   if (freezeCount <= 0) return;
   const yesterdayKey = getDateKey(addDays(new Date(), -1));
   if (!isPracticeProtected(history, yesterdayKey)) {
-    history[yesterdayKey] = "frozen";
+    history[yesterdayKey] = {
+      status: "frozen",
+      frozenAt: new Date().toISOString(),
+    };
     setPracticeHistory(history);
     setFreezeCount(freezeCount - 1);
     updateLongestStreak(history);
@@ -603,32 +671,73 @@ function dismissLearningFreezePrompt() {
   renderStreakSummary();
 }
 
+function getMonthCalendarDays(history) {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const leadingBlanks = (firstDay.getDay() + 6) % 7;
+  const days = Array.from({ length: leadingBlanks }, () => null);
+  for (let day = 1; day <= lastDay.getDate(); day += 1) {
+    days.push(new Date(year, month, day));
+  }
+  while (days.length % 7 !== 0) days.push(null);
+  return days.map((date) => {
+    if (!date) return { blank: true };
+    const key = getDateKey(date);
+    const status = getHistoryStatus(history[key]);
+    const isToday = key === getTodayKey();
+    const isFuture = date > today && !isToday;
+    const isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return {
+      key,
+      day: date.getDate(),
+      status,
+      isToday,
+      isFuture,
+      isMissed: isPast && !status,
+    };
+  });
+}
+
 function renderStreakCalendar(history) {
   const today = new Date();
-  const days = Array.from({ length: 28 }, (_, index) => addDays(today, index - 27));
+  $("#calendarMonthTitle").textContent = `${today.getFullYear()} 年 ${today.getMonth() + 1} 月`;
+  const days = getMonthCalendarDays(history);
   $("#streakCalendarGrid").innerHTML = days
-    .map((date) => {
-      const key = getDateKey(date);
-      const status = history[key];
-      const day = date.getDate();
-      const className = status === "completed" ? "done" : status === "frozen" ? "frozen" : "";
-      return `<span class="calendar-day ${className}">${day}</span>`;
+    .map((item) => {
+      if (item.blank) return `<span class="calendar-day blank" aria-hidden="true"></span>`;
+      const className = [
+        item.status === "completed" ? "done" : "",
+        item.status === "frozen" ? "frozen" : "",
+        item.isMissed ? "missed" : "",
+        item.isToday ? "today" : "",
+        item.isFuture ? "future" : "",
+      ].filter(Boolean).join(" ");
+      const marker = item.status === "completed" ? "♪" : item.status === "frozen" ? "❄" : "";
+      return `<span class="calendar-day ${className}"><b>${item.day}</b><i>${marker}</i></span>`;
     })
     .join("");
 }
 
-function renderStreakSummary() {
+function renderStreakSummary(message = "") {
   const history = getPracticeHistory();
-  const todayCompleted = history[getTodayKey()] === "completed";
+  const todayCompleted = getHistoryStatus(history[getTodayKey()]) === "completed";
   const currentStreak = calculateCurrentStreak(history);
   const longest = updateLongestStreak(history);
   $("#streakDays").textContent = currentStreak;
   $("#freezeCount").textContent = getFreezeCount();
+  $("#modalFreezeCount").textContent = getFreezeCount();
+  $("#modalCurrentStreak").textContent = currentStreak;
   $("#todayPracticeStatus").textContent = todayCompleted ? "今日已完成" : "今日尚未完成";
   $("#todayPracticeStatus").classList.toggle("complete", todayCompleted);
   $("#longestStreak").textContent = longest;
   $("#monthCompletedDays").textContent = calculateMonthCompletedDays(history);
   $("#freezePrompt").classList.toggle("hidden", !shouldShowFreezePrompt(history));
+  const feedback = message || dailyStreakFeedback || (todayCompleted ? "已達成今日連續學習目標" : "");
+  $("#dailyStreakMessage").textContent = feedback;
+  $("#dailyStreakMessage").classList.toggle("hidden", !feedback);
   renderStreakCalendar(history);
 }
 
@@ -882,11 +991,16 @@ function markDailyGoalDone(goalId) {
   const wasDone = state[goalId] === true;
   state[goalId] = true;
   setDailyGoalState(state);
-  markPracticeCompletedToday();
+  const streakResult = markPracticeCompletedToday();
+  if (streakResult.isFirstCompletionToday) {
+    dailyStreakFeedback = streakResult.reward.rewarded
+      ? `連續練習 ${streakResult.currentStreak} 天！獲得 1 張學習凍結。`
+      : `今日目標已完成，已連續練習 ${streakResult.currentStreak} 天。`;
+  }
   renderDailyGoals();
   const tasks = getDailyGoalTasks();
   const isAllDone = tasks.every((task) => state[task.id] === true);
-  return { isNew: !wasDone, isAllDone };
+  return { isNew: !wasDone, isAllDone, streakResult };
 }
 
 function showGoalCompletedDialog(title) {
@@ -899,6 +1013,25 @@ function showAllGoalsCompletedDialog() {
   $("#goalToastTitle").textContent = "今日目標完成";
   $("#goalToastText").textContent = "恭喜你已完成今日所有目標。";
   $("#goalToast").classList.remove("hidden");
+}
+
+function showDailyStreakFeedback(streakResult) {
+  if (!streakResult?.isFirstCompletionToday) return;
+  if (streakResult.reward.rewarded) {
+    $("#goalToastTitle").textContent = `連續練習 ${streakResult.currentStreak} 天！`;
+    $("#goalToastText").textContent = "獲得 1 張學習凍結。";
+  } else {
+    $("#goalToastTitle").textContent = "今日目標已完成";
+    $("#goalToastText").textContent = `已連續練習 ${streakResult.currentStreak} 天，明天再來延續紀錄。`;
+  }
+  $("#goalToast").classList.remove("hidden");
+}
+
+function setCalendarModalOpen(isOpen) {
+  const modal = $("#calendarModal");
+  modal.classList.toggle("hidden", !isOpen);
+  document.body.classList.toggle("modal-open", isOpen);
+  if (isOpen) renderStreakSummary();
 }
 
 function resetMicStats() {
@@ -2816,7 +2949,9 @@ function stepPractice() {
           ? `${exercise.title} ${getExerciseVariantLabel(exercise)}`
           : exercise.title;
       const goalResult = markDailyGoalDone(currentGoalId);
-      if (goalResult.isNew && goalResult.isAllDone) {
+      if (goalResult.streakResult?.isFirstCompletionToday) {
+        showDailyStreakFeedback(goalResult.streakResult);
+      } else if (goalResult.isNew && goalResult.isAllDone) {
         showAllGoalsCompletedDialog();
       } else if (goalResult.isNew) {
         showGoalCompletedDialog(currentGoalTitle);
@@ -2961,9 +3096,12 @@ function bindEvents() {
   });
 
   $("#calendarToggle").addEventListener("click", () => {
-    const calendar = $("#streakCalendar");
-    const isHidden = calendar.classList.toggle("hidden");
-    $("#calendarToggle").textContent = isHidden ? "查看日曆" : "收起日曆";
+    setCalendarModalOpen(true);
+  });
+
+  $("#calendarCloseBtn").addEventListener("click", () => setCalendarModalOpen(false));
+  $("#calendarModal").addEventListener("click", (event) => {
+    if (event.target.id === "calendarModal") setCalendarModalOpen(false);
   });
 
   $("#useFreezeBtn").addEventListener("click", useLearningFreeze);
