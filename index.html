@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-21" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-22" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -320,8 +320,27 @@
             <p>完整完成一個練習後會自動打勾，每天重新開始。</p>
           </div>
           <div class="panel daily-page">
+            <div class="daily-streak-summary" aria-label="連續練習摘要">
+              <span class="streak-pill">連續 <b id="streakDays">0</b> 天</span>
+              <span class="freeze-pill">凍結 <b id="freezeCount">0</b> 張</span>
+              <span class="today-pill" id="todayPracticeStatus">今日尚未完成</span>
+            </div>
+            <div id="freezePrompt" class="freeze-prompt hidden">
+              <div>
+                <strong>昨天沒有練習</strong>
+                <p>使用 1 張學習凍結，可以保住你的連續紀錄。</p>
+              </div>
+              <div class="freeze-actions">
+                <button id="useFreezeBtn" type="button">使用凍結</button>
+                <button id="dismissFreezeBtn" type="button">先不要</button>
+              </div>
+            </div>
             <div class="daily-goal-top">
               <div class="daily-goal-copy">
+                <div class="daily-goal-title-row">
+                  <span class="section-kicker">每日目標</span>
+                  <button id="calendarToggle" class="text-button" type="button">查看日曆</button>
+                </div>
                 <span id="dailyGoalSummary">今日完成 0 / 18 個練習</span>
                 <p>今天也比昨天更進一步</p>
                 <small class="daily-goal-note">完成所選循環次數後打勾</small>
@@ -334,6 +353,13 @@
               <span>一<i></i></span><span>二<i></i></span><span>三<i></i></span><span>四<i></i></span><span>五<i></i></span><span>六<i></i></span><span>日<i></i></span>
             </div>
             <div id="dailyGoalList" class="daily-goal-list"></div>
+            <div id="streakCalendar" class="streak-calendar hidden" aria-label="連續練習日曆">
+              <div class="streak-calendar-stats">
+                <span>最長連續 <b id="longestStreak">0</b> 天</span>
+                <span>本月完成 <b id="monthCompletedDays">0</b> 天</span>
+              </div>
+              <div id="streakCalendarGrid" class="streak-calendar-grid"></div>
+            </div>
           </div>
         </section>
 
@@ -395,6 +421,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-21"></script>
+    <script src="./app.js?v=refresh-22"></script>
   </body>
 </html>
