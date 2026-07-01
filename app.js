@@ -995,7 +995,7 @@ function markDailyGoalDone(goalId) {
   if (streakResult.isFirstCompletionToday) {
     dailyStreakFeedback = streakResult.reward.rewarded
       ? `連續練習 ${streakResult.currentStreak} 天！獲得 1 張學習凍結。`
-      : `今日目標已完成，已連續練習 ${streakResult.currentStreak} 天。`;
+      : "已達成今日連續學習目標";
   }
   renderDailyGoals();
   const tasks = getDailyGoalTasks();
@@ -1015,15 +1015,20 @@ function showAllGoalsCompletedDialog() {
   $("#goalToast").classList.remove("hidden");
 }
 
-function showDailyStreakFeedback(streakResult) {
+function showFirstDailyCompletionToast(practiceName, streakResult) {
   if (!streakResult?.isFirstCompletionToday) return;
+  $("#goalToastTitle").textContent = `完成「${practiceName}」`;
   if (streakResult.reward.rewarded) {
-    $("#goalToastTitle").textContent = `連續練習 ${streakResult.currentStreak} 天！`;
-    $("#goalToastText").textContent = "獲得 1 張學習凍結。";
+    $("#goalToastText").textContent = `今日連續學習目標已達成，已連續練習 ${streakResult.currentStreak} 天。獲得 1 張學習凍結。`;
   } else {
-    $("#goalToastTitle").textContent = "今日目標已完成";
-    $("#goalToastText").textContent = `已連續練習 ${streakResult.currentStreak} 天，明天再來延續紀錄。`;
+    $("#goalToastText").textContent = `今日連續學習目標已達成，已連續練習 ${streakResult.currentStreak} 天。`;
   }
+  $("#goalToast").classList.remove("hidden");
+}
+
+function showPracticeCompletedToast(practiceName) {
+  $("#goalToastTitle").textContent = `完成「${practiceName}」`;
+  $("#goalToastText").textContent = "這項練習已加入今日完成進度。";
   $("#goalToast").classList.remove("hidden");
 }
 
@@ -2950,11 +2955,9 @@ function stepPractice() {
           : exercise.title;
       const goalResult = markDailyGoalDone(currentGoalId);
       if (goalResult.streakResult?.isFirstCompletionToday) {
-        showDailyStreakFeedback(goalResult.streakResult);
-      } else if (goalResult.isNew && goalResult.isAllDone) {
-        showAllGoalsCompletedDialog();
+        showFirstDailyCompletionToast(currentGoalTitle, goalResult.streakResult);
       } else if (goalResult.isNew) {
-        showGoalCompletedDialog(currentGoalTitle);
+        showPracticeCompletedToast(currentGoalTitle);
       }
       stopPractice(true);
       return;
