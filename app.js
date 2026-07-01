@@ -1182,7 +1182,8 @@ function setLongToneIntroOpen(isOpen) {
 
 function confirmLongToneIntro() {
   setLongToneIntroOpen(false);
-  scrollToLongTonePracticeMain();
+  setView("longtone");
+  requestAnimationFrame(scrollToLongTonePracticeMain);
 }
 
 function resetMicStats() {
@@ -3274,7 +3275,6 @@ function bindEvents() {
   });
 
   $("#longToneIntroClose").addEventListener("click", () => setLongToneIntroOpen(false));
-  $("#longToneIntroCancel").addEventListener("click", () => setLongToneIntroOpen(false));
   $("#longToneIntroConfirm").addEventListener("click", confirmLongToneIntro);
   $("#longToneIntroModal").addEventListener("click", (event) => {
     if (event.target.id === "longToneIntroModal") setLongToneIntroOpen(false);
