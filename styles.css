@@ -663,6 +663,107 @@ p {
   line-height: 1;
 }
 
+.practice-hub-section {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  overflow: visible;
+  scroll-margin-top: 96px;
+}
+
+.practice-hub-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.practice-hub-head h3 {
+  margin: 4px 0 6px;
+  color: var(--text-main);
+  font-size: 22px;
+}
+
+.practice-hub-head p {
+  margin: 0;
+  color: var(--text-body);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.practice-hub-head img {
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  background: rgba(243, 227, 199, 0.42);
+}
+
+.practice-room-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.practice-room-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px dashed rgba(122, 78, 45, 0.20);
+  border-radius: 18px;
+  color: var(--text-muted);
+  background: rgba(255, 253, 249, 0.58);
+}
+
+.practice-room-card.available {
+  border-style: solid;
+  color: var(--text-body);
+  background: linear-gradient(180deg, rgba(255, 253, 249, 0.92), rgba(243, 227, 199, 0.48));
+  box-shadow: var(--shadow-soft);
+}
+
+.practice-room-card h4 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.practice-room-card p {
+  margin: 0;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.room-badge {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: rgba(240, 231, 220, 0.82);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.room-badge.open {
+  color: #fffdf9;
+  background: var(--primary);
+}
+
+.room-action {
+  justify-self: stretch;
+  min-height: 42px;
+  border: 0;
+  border-radius: 15px;
+  color: #fffdf9;
+  background: var(--primary);
+  font-size: 14px;
+  font-weight: 900;
+  box-shadow: 0 10px 18px rgba(122, 78, 45, 0.16);
+}
+
 .intro-note {
   display: grid;
   grid-template-columns: 1fr;

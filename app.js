@@ -222,6 +222,7 @@ const chromaticLayouts = {
 };
 
 let currentView = "intro";
+let currentViewTarget = "";
 let selectedHoles = 16;
 let selectedMapHole = null;
 let selectedExercise = 0;
@@ -890,12 +891,22 @@ function renderNoteMap() {
     .join("");
 }
 
-function activateViewButton(view) {
+function activateViewButton(view, target = "") {
   $$("[data-view]").forEach((item) => {
-    const matches = item.dataset.view === view;
+    const itemTarget = item.dataset.navTarget || "";
+    const isPracticeNav = itemTarget === "practice-hub-section";
+    const matches = (item.dataset.view === view && itemTarget === target) || (isPracticeNav && view === "longtone");
     if (item.classList.contains("nav-item") || item.classList.contains("bottom-nav-item") || item.classList.contains("icon-btn")) {
       item.classList.toggle("active", matches);
     }
+  });
+}
+
+function scrollToSection(sectionId) {
+  requestAnimationFrame(() => {
+    const target = document.getElementById(sectionId);
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 
@@ -2931,13 +2942,17 @@ function renderExercise() {
   renderCurve(phase === "play" ? beat : 0);
 }
 
-function setView(view) {
-  const changedView = currentView !== view;
+function setView(view, options = {}) {
+  const target = options.activeTarget || options.scrollTarget || "";
+  const changedView = currentView !== view || currentViewTarget !== target;
   currentView = view;
+  currentViewTarget = target;
   $$(".view").forEach((element) => element.classList.toggle("active", element.id === view));
-  activateViewButton(view);
+  activateViewButton(view, currentViewTarget);
   if (view !== "longtone") stopPractice(false);
-  if (changedView) {
+  if (options.scrollTarget) {
+    scrollToSection(options.scrollTarget);
+  } else if (changedView) {
     requestAnimationFrame(() => {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -3081,14 +3096,20 @@ function stopPractice(done = false) {
 function bindEvents() {
   $$("[data-view]").forEach((button) => {
     button.addEventListener("click", () => {
-      setView(button.dataset.view);
+      setView(button.dataset.view, {
+        activeTarget: button.dataset.navTarget || "",
+        scrollTarget: button.dataset.scrollTarget || "",
+      });
     });
   });
 
   $$("[data-jump]").forEach((button) => {
     button.addEventListener("click", () => {
       const view = button.dataset.jump;
-      setView(view);
+      setView(view, {
+        activeTarget: button.dataset.scrollTarget || "",
+        scrollTarget: button.dataset.scrollTarget || "",
+      });
     });
   });
 

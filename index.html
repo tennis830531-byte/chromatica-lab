@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-27" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-28" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -156,9 +156,55 @@
               <button class="quick-card" data-jump="map" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/note_map_explorer.png" alt="" /></span><strong>音符地圖</strong><span>探索每個音位，建立方向感</span><b>›</b></button>
               <button class="quick-card" data-jump="audio" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/mic_settings_icon.png" alt="" /></span><strong>收音設定</strong><span>調整麥克風與調音基準</span><b>›</b></button>
               <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" /></span><strong>每日目標</strong><span>建立練習習慣，累積進步</span><b>›</b></button>
-              <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/practice_record_icon.png" alt="" /></span><strong>練習紀錄</strong><span>查看歷史紀錄與成長曲線</span><b>›</b></button>
+              <button class="quick-card" data-jump="intro" data-scroll-target="practice-hub-section" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/practice_record_icon.png" alt="" /></span><strong>開始練習</strong><span>進入各種練習室</span><b>›</b></button>
             </div>
           </div>
+
+          <section id="practice-hub-section" class="practice-hub-section paper-card">
+            <div class="practice-hub-head">
+              <div>
+                <span class="section-kicker">開始練習</span>
+                <h3>選擇今天想練的項目</h3>
+                <p>從長音開始累積基本功，後續練習室會逐步開放。</p>
+              </div>
+              <img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/long_tone_bird.png" alt="" aria-hidden="true" />
+            </div>
+            <div class="practice-room-grid">
+              <article class="practice-room-card available">
+                <div>
+                  <span class="room-badge open">已開放</span>
+                  <h4>長音練習室</h4>
+                  <p>練習穩定氣息、音準觀察與音量控制。</p>
+                </div>
+                <button class="room-action" data-jump="longtone" type="button">開始長音練習</button>
+              </article>
+              <article class="practice-room-card">
+                <span class="room-badge">準備中</span>
+                <h4>按鍵練習室</h4>
+                <p>熟悉按鍵音與半音切換。</p>
+              </article>
+              <article class="practice-room-card">
+                <span class="room-badge">準備中</span>
+                <h4>音階練習室</h4>
+                <p>練習音階流暢度與指法方向感。</p>
+              </article>
+              <article class="practice-room-card">
+                <span class="room-badge">準備中</span>
+                <h4>節奏練習室</h4>
+                <p>搭配節拍器練習節奏穩定與跳位。</p>
+              </article>
+              <article class="practice-room-card">
+                <span class="room-badge">準備中</span>
+                <h4>旋律練習室</h4>
+                <p>用短句旋律練習音準、換氣與表情。</p>
+              </article>
+              <article class="practice-room-card">
+                <span class="room-badge">準備中</span>
+                <h4>合奏練習室</h4>
+                <p>練習聲部進入、聽感與合奏默契。</p>
+              </article>
+            </div>
+          </section>
 
           <div class="intro-note paper-card">
             <div>
@@ -175,19 +221,6 @@
             </div>
           </div>
 
-          <div class="soon-home">
-            <div class="soon-heading">
-              <h3>即將開放</h3>
-              <img class="ui-quick-icon" src="./public/assets/chromatic-refresh/state/coming_soon_sign.png" alt="" aria-hidden="true" />
-            </div>
-            <div class="soon-grid">
-              <div><span>按鍵練習室</span><b>準備中</b></div>
-              <div><span>音階練習室</span><b>準備中</b></div>
-              <div><span>節奏練習室</span><b>準備中</b></div>
-              <div><span>旋律練習室</span><b>準備中</b></div>
-              <div><span>合奏練習室</span><b>準備中</b></div>
-            </div>
-          </div>
         </section>
 
         <section id="map" class="view">
@@ -428,23 +461,16 @@
           </div>
         </section>
 
-        <section id="soon" class="view">
-          <div class="coming-soon">
-            <p class="eyebrow">即將開放</p>
-            <h2>後續練習室準備中</h2>
-            <p>第一版先把認識半音階口琴、音符地圖與長音練習室做好。</p>
-          </div>
-        </section>
       </main>
       <nav class="bottom-nav" aria-label="手機底部導覽">
         <button class="bottom-nav-item active" data-view="intro" type="button"><span>⌂</span>首頁</button>
         <button class="bottom-nav-item" data-view="map" type="button"><span>♪</span>音符</button>
-        <button class="bottom-nav-item" data-view="longtone" type="button"><span>◉</span>練習</button>
+        <button class="bottom-nav-item" data-view="intro" data-nav-target="practice-hub-section" data-scroll-target="practice-hub-section" type="button"><span>◉</span>練習</button>
         <button class="bottom-nav-item" data-view="daily" type="button"><span>✓</span>目標</button>
         <button class="bottom-nav-item" data-view="audio" type="button"><span>⚙</span>設定</button>
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-27"></script>
+    <script src="./app.js?v=refresh-28"></script>
   </body>
 </html>
