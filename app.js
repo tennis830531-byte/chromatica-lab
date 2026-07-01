@@ -36,44 +36,54 @@ const exercises = [
     pattern: [
       { beat: 1, dynamic: "p" },
       { beat: 3, dynamic: "mp" },
-      { beat: 6, dynamic: "mf" },
-      { beat: 8, dynamic: "mf" },
+      { beat: 5, dynamic: "mf" },
+      { beat: 7, dynamic: "f" },
     ],
-    instruction: "分辨 p、mp、mf 的差別，音量改變時不要讓音色變粗。",
+    instruction: "分辨四段音量層次，音量改變時不要讓音色變粗。",
     variants: [
-      {
-        label: "p / mp / mf",
-        pattern: [
-          { beat: 1, dynamic: "p" },
-          { beat: 3, dynamic: "mp" },
-          { beat: 6, dynamic: "mf" },
-          { beat: 8, dynamic: "mf" },
-        ],
-      },
-      {
-        label: "mp / mf / f",
-        pattern: [
-          { beat: 1, dynamic: "mp" },
-          { beat: 3, dynamic: "mf" },
-          { beat: 6, dynamic: "f" },
-          { beat: 8, dynamic: "f" },
-        ],
-      },
-      {
-        label: "p / mf / p",
-        pattern: [
-          { beat: 1, dynamic: "p" },
-          { beat: 4, dynamic: "mf" },
-          { beat: 8, dynamic: "p" },
-        ],
-      },
       {
         label: "p / mp / mf / f",
         pattern: [
           { beat: 1, dynamic: "p" },
           { beat: 3, dynamic: "mp" },
           { beat: 5, dynamic: "mf" },
-          { beat: 8, dynamic: "f" },
+          { beat: 7, dynamic: "f" },
+        ],
+      },
+      {
+        label: "f / mf / mp / p",
+        pattern: [
+          { beat: 1, dynamic: "f" },
+          { beat: 3, dynamic: "mf" },
+          { beat: 5, dynamic: "mp" },
+          { beat: 7, dynamic: "p" },
+        ],
+      },
+      {
+        label: "p / mp / mf / p",
+        pattern: [
+          { beat: 1, dynamic: "p" },
+          { beat: 3, dynamic: "mp" },
+          { beat: 5, dynamic: "mf" },
+          { beat: 7, dynamic: "p" },
+        ],
+      },
+      {
+        label: "mp / mf / f / mp",
+        pattern: [
+          { beat: 1, dynamic: "mp" },
+          { beat: 3, dynamic: "mf" },
+          { beat: 5, dynamic: "f" },
+          { beat: 7, dynamic: "mp" },
+        ],
+      },
+      {
+        label: "p / mf / mp / f",
+        pattern: [
+          { beat: 1, dynamic: "p" },
+          { beat: 3, dynamic: "mf" },
+          { beat: 5, dynamic: "mp" },
+          { beat: 7, dynamic: "f" },
         ],
       },
     ],
@@ -99,6 +109,13 @@ const exercises = [
           { beat: 1, dynamic: "p" },
           { beat: 4, dynamic: "mp" },
           { beat: 8, dynamic: "mf" },
+        ],
+      },
+      {
+        label: "p → mp",
+        pattern: [
+          { beat: 1, dynamic: "p" },
+          { beat: 8, dynamic: "mp" },
         ],
       },
       {
@@ -152,6 +169,13 @@ const exercises = [
         ],
       },
       {
+        label: "mp → p",
+        pattern: [
+          { beat: 1, dynamic: "mp" },
+          { beat: 8, dynamic: "p" },
+        ],
+      },
+      {
         label: "f → p",
         pattern: [
           { beat: 1, dynamic: "f" },
@@ -193,6 +217,22 @@ const exercises = [
           { beat: 12, dynamic: "p" },
         ],
       },
+      {
+        label: "p → f → p",
+        pattern: [
+          { beat: 1, dynamic: "p" },
+          { beat: 6, dynamic: "f" },
+          { beat: 12, dynamic: "p" },
+        ],
+      },
+      {
+        label: "mp → mf → mp",
+        pattern: [
+          { beat: 1, dynamic: "mp" },
+          { beat: 6, dynamic: "mf" },
+          { beat: 12, dynamic: "mp" },
+        ],
+      },
     ],
   },
 ];
@@ -219,6 +259,12 @@ const chromaticLayouts = {
     buttonBlow: ["C#4", "F4", "G#4", "C#5", "C#5", "F5", "G#5", "C#6", "C#6", "F6", "G#6", "C#7"],
     buttonDraw: ["D#4", "F#4", "A#4", "C5", "D#5", "F#5", "A#5", "C6", "D#6", "F#6", "A#6", "D7"],
   },
+};
+
+const mapHarmonicaImages = {
+  16: "./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png",
+  14: "./public/assets/chromatic-refresh/feature/harmonica_14_silver.png",
+  12: "./public/assets/chromatic-refresh/feature/harmonica_12_black.png",
 };
 
 let currentView = "intro";
@@ -416,7 +462,13 @@ function getExerciseDynamicSummary(exercise) {
 }
 
 function getPatternDynamicMarkers(exercise) {
-  const markers = getExercisePattern(exercise).map((item) => item.dynamic);
+  const pattern = getExercisePattern(exercise);
+  if (["crescendo-8", "decrescendo-8"].includes(exercise.id)) {
+    const firstDynamic = pattern[0]?.dynamic;
+    const lastDynamic = pattern[pattern.length - 1]?.dynamic;
+    return firstDynamic === lastDynamic ? [firstDynamic] : [firstDynamic, lastDynamic];
+  }
+  const markers = pattern.map((item) => item.dynamic);
   return markers.filter((marker, index) => index === 0 || marker !== markers[index - 1]);
 }
 
@@ -882,8 +934,13 @@ function makeLayout(holeCount) {
 
 function renderNoteMap() {
   const map = $("#noteMap");
+  const harmonicaImage = $("#mapHarmonicaImage");
   const startIndex = selectedHoles === 16 ? 0 : selectedHoles === 14 ? 2 : 4;
   const layout = makeLayout(16).slice(startIndex);
+
+  if (harmonicaImage) {
+    harmonicaImage.src = mapHarmonicaImages[selectedHoles] || mapHarmonicaImages[16];
+  }
 
   map.style.setProperty("--holes", selectedHoles);
   map.innerHTML = layout
@@ -1114,6 +1171,18 @@ function setCalendarModalOpen(isOpen) {
   modal.classList.toggle("hidden", !isOpen);
   document.body.classList.toggle("modal-open", isOpen);
   if (isOpen) renderStreakSummary();
+}
+
+function setLongToneIntroOpen(isOpen) {
+  const modal = $("#longToneIntroModal");
+  if (!modal) return;
+  modal.classList.toggle("hidden", !isOpen);
+  document.body.classList.toggle("modal-open", isOpen);
+}
+
+function confirmLongToneIntro() {
+  setLongToneIntroOpen(false);
+  scrollToLongTonePracticeMain();
 }
 
 function resetMicStats() {
@@ -3121,6 +3190,10 @@ function bindEvents() {
     });
   });
 
+  $$("[data-longtone-intro]").forEach((button) => {
+    button.addEventListener("click", () => setLongToneIntroOpen(true));
+  });
+
   $$(".map-model").forEach((button) => {
     button.addEventListener("click", () => {
       selectedHoles = Number(button.dataset.modelHoles);
@@ -3198,6 +3271,13 @@ function bindEvents() {
   $("#calendarCloseBtn").addEventListener("click", () => setCalendarModalOpen(false));
   $("#calendarModal").addEventListener("click", (event) => {
     if (event.target.id === "calendarModal") setCalendarModalOpen(false);
+  });
+
+  $("#longToneIntroClose").addEventListener("click", () => setLongToneIntroOpen(false));
+  $("#longToneIntroCancel").addEventListener("click", () => setLongToneIntroOpen(false));
+  $("#longToneIntroConfirm").addEventListener("click", confirmLongToneIntro);
+  $("#longToneIntroModal").addEventListener("click", (event) => {
+    if (event.target.id === "longToneIntroModal") setLongToneIntroOpen(false);
   });
 
   $("#tuningSelect").addEventListener("change", (event) => {

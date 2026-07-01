@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-35" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-36" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -73,6 +73,49 @@
         <div class="freeze-rule">
           <strong>學習凍結規則</strong>
           <p>初始不發放凍結卡。每連續練習 7 天，可獲得 1 張學習凍結，最多持有 3 張。若中間漏練，之後回來完成練習時，系統會自動使用足夠的凍結卡補上空缺，讓連續紀錄延續。凍結日不算真正完成練習。</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="longToneIntroModal" class="longtone-intro-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="longToneIntroTitle">
+      <div class="longtone-intro-sheet">
+        <div class="longtone-intro-head">
+          <div>
+            <p class="eyebrow">長音練習室</p>
+            <h2 id="longToneIntroTitle">開始長音練習前</h2>
+            <p>長音不是把音吹久而已，而是練習氣息、嘴型、音量與音準的穩定。</p>
+          </div>
+          <button id="longToneIntroClose" class="calendar-close" type="button" aria-label="關閉說明">×</button>
+        </div>
+        <div class="longtone-intro-hero media-box" aria-hidden="true">
+          <img src="./public/assets/chromatic-refresh/feature/teacher_bird_notice.png" alt="" />
+        </div>
+        <div class="longtone-intro-body">
+          <section class="longtone-intro-block">
+            <h3>長音練習要注意什麼？</h3>
+            <div class="intro-tip-grid">
+              <article><span>呼吸</span><p>保持身體放鬆，用穩定氣流吹奏，不要用蠻力把音推出去。</p></article>
+              <article><span>嘴型</span><p>嘴唇輕輕包住口琴，不要咬緊，口腔保持自然打開。</p></article>
+              <article><span>音量變化</span><p>先以 mp 音量練習，注意音量不要忽大忽小。</p></article>
+              <article><span>弱起</span><p>起音不要爆開，讓聲音自然進來。</p></article>
+              <article><span>收尾</span><p>尾音不要硬切，讓氣流自然收住。</p></article>
+              <article><span>音準</span><p>練習時可以搭配內建調音器觀察 cents，留意音準是否往上飄或往下掉。</p></article>
+            </div>
+          </section>
+          <section class="longtone-intro-block">
+            <h3>開始前可以調整</h3>
+            <ul class="intro-setting-list">
+              <li><b>BPM</b><span>設定練習速度</span></li>
+              <li><b>目標組合</b><span>選擇平穩長音、音量分層、漸強、漸弱、山形等練習項目</span></li>
+              <li><b>循環次數</b><span>設定要練幾組</span></li>
+              <li><b>目標音量</b><span>選擇 p / mp / mf / f</span></li>
+            </ul>
+          </section>
+          <p class="longtone-intro-reminder">先不用追求大聲，先讓每一個音穩定、乾淨、自然。</p>
+        </div>
+        <div class="longtone-intro-actions">
+          <button id="longToneIntroConfirm" class="primary-btn" type="button">我知道了，開始練習</button>
+          <button id="longToneIntroCancel" class="ghost-btn" type="button">先不要</button>
         </div>
       </div>
     </div>
@@ -166,7 +209,7 @@
                   <h4>長音練習室</h4>
                   <p>練習穩定氣息、音準觀察與音量控制。</p>
                 </div>
-                <button class="room-action" data-jump="longtone" type="button">開始長音練習</button>
+                <button class="room-action" data-longtone-intro type="button">開始長音練習</button>
               </article>
               <article class="practice-room-card">
                 <span class="room-badge">準備中</span>
@@ -218,7 +261,7 @@
               </div>
             </div>
             <div class="intro-media media-box">
-              <img class="ui-section-illustration" src="./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png" alt="" aria-hidden="true" />
+              <img id="mapHarmonicaImage" class="ui-section-illustration" src="./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png" alt="" aria-hidden="true" />
             </div>
           </div>
 
@@ -392,9 +435,6 @@
             <button id="calendarToggle" class="daily-calendar-button" type="button">查看連續練習日曆 〉</button>
             <div class="daily-goal-top">
               <div class="daily-goal-copy">
-                <div class="daily-goal-title-row">
-                  <span class="section-kicker">每日目標</span>
-                </div>
                 <div class="daily-goal-summary-row">
                   <span id="dailyGoalSummary">今日完成 0 / 18 個練習</span>
                   <div class="daily-goal-sticky">
@@ -457,6 +497,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-35"></script>
+    <script src="./app.js?v=refresh-36"></script>
   </body>
 </html>
