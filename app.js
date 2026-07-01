@@ -262,7 +262,7 @@ const chromaticLayouts = {
 };
 
 const mapHarmonicaImages = {
-  16: "./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png",
+  16: "./public/assets/chromatic-refresh/feature/harmonica_16_clean.png",
   14: "./public/assets/chromatic-refresh/feature/harmonica_14_silver.png",
   12: "./public/assets/chromatic-refresh/feature/harmonica_12_black.png",
 };

@@ -762,7 +762,7 @@ p {
 }
 
 .intro-note img {
-  width: min(100%, 230px);
+  width: min(100%, 360px);
   max-width: 100%;
   object-fit: contain;
   filter: drop-shadow(0 10px 14px rgba(72, 48, 28, 0.10));
