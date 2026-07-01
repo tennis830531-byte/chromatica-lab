@@ -501,7 +501,7 @@ function getDailyGoalKey() {
 }
 
 const FREEZE_MAX = 3;
-const FREEZE_INITIAL = 2;
+const FREEZE_INITIAL = 0;
 const FREEZE_REWARD_INTERVAL = 7;
 let dailyStreakFeedback = "";
 
@@ -533,11 +533,8 @@ function getFreezeCount() {
     const value = Number(stored);
     return Number.isFinite(value) ? value : FREEZE_INITIAL;
   }
-  const legacy = localStorage.getItem("freezeCount");
-  const initial = legacy === null ? FREEZE_INITIAL : Number(legacy);
-  const value = Number.isFinite(initial) ? initial : FREEZE_INITIAL;
-  setFreezeCount(value);
-  return value;
+  setFreezeCount(FREEZE_INITIAL);
+  return FREEZE_INITIAL;
 }
 
 function setFreezeCount(value) {
@@ -566,13 +563,19 @@ function setLastRewardedStreak(value) {
 
 function getHistoryStatus(entry) {
   if (!entry) return "";
-  if (typeof entry === "string") return entry;
-  return entry.status || "";
+  const status = typeof entry === "string" ? entry : entry.status || "";
+  return status === "frozen" ? "freeze" : status;
+}
+
+function getHistoryPracticeCount(entry) {
+  if (!entry) return 0;
+  if (typeof entry === "string") return entry === "completed" ? 1 : 0;
+  return entry.practiceCount || (entry.status === "completed" ? 1 : 0);
 }
 
 function isPracticeProtected(history, dateKey) {
   const status = getHistoryStatus(history[dateKey]);
-  return status === "completed" || status === "frozen";
+  return status === "completed" || status === "freeze";
 }
 
 function calculateCurrentStreak(history) {
@@ -598,6 +601,24 @@ function updateLongestStreak(history) {
   return longest;
 }
 
+function parseDateKey(dateKey) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function daysBetweenKeys(startKey, endKey) {
+  const start = parseDateKey(startKey);
+  const end = parseDateKey(endKey);
+  return Math.round((end - start) / 86400000);
+}
+
+function getPreviousProtectedDateKey(history, todayKey) {
+  return Object.keys(history)
+    .filter((dateKey) => dateKey < todayKey && isPracticeProtected(history, dateKey))
+    .sort()
+    .pop() || "";
+}
+
 function maybeRewardFreeze(currentStreak) {
   if (currentStreak <= 0 || currentStreak % FREEZE_REWARD_INTERVAL !== 0) {
     return { rewarded: false, freezeCount: getFreezeCount() };
@@ -612,25 +633,91 @@ function maybeRewardFreeze(currentStreak) {
   return { rewarded: nextFreezeCount > currentFreezeCount, freezeCount: nextFreezeCount };
 }
 
+function autoApplyFreezeIfNeeded(history, todayKey) {
+  const previousKey = getPreviousProtectedDateKey(history, todayKey);
+  if (!previousKey) {
+    return {
+      applied: false,
+      usedCount: 0,
+      missedDays: 0,
+      streakPreserved: false,
+      streakRestarted: true,
+      insufficient: false,
+    };
+  }
+
+  const gapDays = daysBetweenKeys(previousKey, todayKey);
+  const missedDays = Math.max(0, gapDays - 1);
+  if (missedDays === 0) {
+    return {
+      applied: false,
+      usedCount: 0,
+      missedDays: 0,
+      streakPreserved: true,
+      streakRestarted: false,
+      insufficient: false,
+    };
+  }
+
+  const freezeCount = getFreezeCount();
+  if (freezeCount < missedDays) {
+    return {
+      applied: false,
+      usedCount: 0,
+      missedDays,
+      streakPreserved: false,
+      streakRestarted: true,
+      insufficient: true,
+    };
+  }
+
+  const previousDate = parseDateKey(previousKey);
+  for (let offset = 1; offset <= missedDays; offset += 1) {
+    const freezeKey = getDateKey(addDays(previousDate, offset));
+    history[freezeKey] = {
+      status: "freeze",
+      frozenAt: new Date().toISOString(),
+    };
+  }
+  setFreezeCount(freezeCount - missedDays);
+  return {
+    applied: true,
+    usedCount: missedDays,
+    missedDays,
+    streakPreserved: true,
+    streakRestarted: false,
+    insufficient: false,
+  };
+}
+
 function markPracticeCompletedToday() {
   const history = getPracticeHistory();
   const todayKey = getTodayKey();
   const currentEntry = history[todayKey];
   const isFirstCompletionToday = getHistoryStatus(currentEntry) !== "completed";
+  let freezeResult = {
+    applied: false,
+    usedCount: 0,
+    missedDays: 0,
+    streakPreserved: true,
+    streakRestarted: false,
+    insufficient: false,
+  };
   if (isFirstCompletionToday) {
+    freezeResult = autoApplyFreezeIfNeeded(history, todayKey);
     history[todayKey] = {
       status: "completed",
       completedAt: new Date().toISOString(),
       practiceCount: 1,
     };
   } else if (typeof currentEntry === "object") {
-    currentEntry.practiceCount = (currentEntry.practiceCount || 1) + 1;
+    currentEntry.practiceCount = getHistoryPracticeCount(currentEntry) + 1;
     history[todayKey] = currentEntry;
   } else {
     history[todayKey] = {
       status: "completed",
       completedAt: new Date().toISOString(),
-      practiceCount: 2,
+      practiceCount: getHistoryPracticeCount(currentEntry) + 1,
     };
   }
   setPracticeHistory(history);
@@ -639,36 +726,7 @@ function markPracticeCompletedToday() {
   const reward = isFirstCompletionToday
     ? maybeRewardFreeze(currentStreak)
     : { rewarded: false, freezeCount: getFreezeCount() };
-  return { isFirstCompletionToday, currentStreak, reward };
-}
-
-function shouldShowFreezePrompt(history) {
-  const yesterdayKey = getDateKey(addDays(new Date(), -1));
-  return getFreezeCount() > 0
-    && !sessionStorage.getItem(`freezePromptDismissed-${getTodayKey()}`)
-    && !isPracticeProtected(history, yesterdayKey);
-}
-
-function useLearningFreeze() {
-  const history = getPracticeHistory();
-  const freezeCount = getFreezeCount();
-  if (freezeCount <= 0) return;
-  const yesterdayKey = getDateKey(addDays(new Date(), -1));
-  if (!isPracticeProtected(history, yesterdayKey)) {
-    history[yesterdayKey] = {
-      status: "frozen",
-      frozenAt: new Date().toISOString(),
-    };
-    setPracticeHistory(history);
-    setFreezeCount(freezeCount - 1);
-    updateLongestStreak(history);
-  }
-  renderStreakSummary();
-}
-
-function dismissLearningFreezePrompt() {
-  sessionStorage.setItem(`freezePromptDismissed-${getTodayKey()}`, "true");
-  renderStreakSummary();
+  return { isFirstCompletionToday, currentStreak, reward, freezeResult };
 }
 
 function getMonthCalendarDays(history) {
@@ -710,12 +768,12 @@ function renderStreakCalendar(history) {
       if (item.blank) return `<span class="calendar-day blank" aria-hidden="true"></span>`;
       const className = [
         item.status === "completed" ? "done" : "",
-        item.status === "frozen" ? "frozen" : "",
+        item.status === "freeze" ? "frozen" : "",
         item.isMissed ? "missed" : "",
         item.isToday ? "today" : "",
         item.isFuture ? "future" : "",
       ].filter(Boolean).join(" ");
-      const marker = item.status === "completed" ? "♪" : item.status === "frozen" ? "❄" : "";
+      const marker = item.status === "completed" ? "♪" : item.status === "freeze" ? "❄" : "";
       return `<span class="calendar-day ${className}"><b>${item.day}</b><i>${marker}</i></span>`;
     })
     .join("");
@@ -734,7 +792,6 @@ function renderStreakSummary(message = "") {
   $("#todayPracticeStatus").classList.toggle("complete", todayCompleted);
   $("#longestStreak").textContent = longest;
   $("#monthCompletedDays").textContent = calculateMonthCompletedDays(history);
-  $("#freezePrompt").classList.toggle("hidden", !shouldShowFreezePrompt(history));
   const feedback = message || dailyStreakFeedback || (todayCompleted ? "已達成今日連續學習目標" : "");
   $("#dailyStreakMessage").textContent = feedback;
   $("#dailyStreakMessage").classList.toggle("hidden", !feedback);
@@ -993,9 +1050,11 @@ function markDailyGoalDone(goalId) {
   setDailyGoalState(state);
   const streakResult = markPracticeCompletedToday();
   if (streakResult.isFirstCompletionToday) {
-    dailyStreakFeedback = streakResult.reward.rewarded
-      ? `連續練習 ${streakResult.currentStreak} 天！獲得 1 張學習凍結。`
-      : "已達成今日連續學習目標";
+    if (streakResult.freezeResult.applied) {
+      dailyStreakFeedback = `已自動使用 ${streakResult.freezeResult.usedCount} 張凍結，連續紀錄已保留。`;
+    } else {
+      dailyStreakFeedback = "已達成今日連續學習目標";
+    }
   }
   renderDailyGoals();
   const tasks = getDailyGoalTasks();
@@ -1018,7 +1077,14 @@ function showAllGoalsCompletedDialog() {
 function showFirstDailyCompletionToast(practiceName, streakResult) {
   if (!streakResult?.isFirstCompletionToday) return;
   $("#goalToastTitle").textContent = `完成「${practiceName}」`;
-  if (streakResult.reward.rewarded) {
+  if (streakResult.freezeResult?.applied) {
+    const used = streakResult.freezeResult.usedCount;
+    const gapText = used === 1 ? "補上昨天的空缺" : `補上前 ${used} 天的空缺`;
+    const rewardText = streakResult.reward.rewarded ? "並獲得 1 張學習凍結。" : "";
+    $("#goalToastText").textContent = `已自動使用 ${used} 張學習凍結，${gapText}。今日連續學習目標已達成，已連續練習 ${streakResult.currentStreak} 天。${rewardText}`;
+  } else if (streakResult.freezeResult?.insufficient) {
+    $("#goalToastText").textContent = "今日連續學習目標已達成。因為漏練天數超過持有的學習凍結，連續紀錄已重新開始，今天是新的第 1 天。";
+  } else if (streakResult.reward.rewarded) {
     $("#goalToastText").textContent = `今日連續學習目標已達成，已連續練習 ${streakResult.currentStreak} 天。獲得 1 張學習凍結。`;
   } else {
     $("#goalToastText").textContent = `今日連續學習目標已達成，已連續練習 ${streakResult.currentStreak} 天。`;
@@ -3106,9 +3172,6 @@ function bindEvents() {
   $("#calendarModal").addEventListener("click", (event) => {
     if (event.target.id === "calendarModal") setCalendarModalOpen(false);
   });
-
-  $("#useFreezeBtn").addEventListener("click", useLearningFreeze);
-  $("#dismissFreezeBtn").addEventListener("click", dismissLearningFreezePrompt);
 
   $("#tuningSelect").addEventListener("change", (event) => {
     tuningA4 = Number(event.target.value);

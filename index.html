@@ -72,7 +72,7 @@
         </div>
         <div class="freeze-rule">
           <strong>學習凍結規則</strong>
-          <p>連續練習每滿 7 天，可獲得 1 張學習凍結，最多持有 3 張。漏練一天時可使用 1 張凍結保住連續紀錄。</p>
+          <p>初始不發放凍結卡。每連續練習 7 天，可獲得 1 張學習凍結，最多持有 3 張。若中間漏練，之後回來完成練習時，系統會自動使用足夠的凍結卡補上空缺，讓連續紀錄延續。凍結日不算真正完成練習。</p>
         </div>
       </div>
     </div>
@@ -357,16 +357,6 @@
               <span class="streak-pill">連續 <b id="streakDays">0</b> 天</span>
               <span class="freeze-pill">凍結 <b id="freezeCount">0</b> 張</span>
               <span class="today-pill" id="todayPracticeStatus">今日尚未完成</span>
-            </div>
-            <div id="freezePrompt" class="freeze-prompt hidden">
-              <div>
-                <strong>昨天沒有練習</strong>
-                <p>使用 1 張學習凍結，可以保住你的連續紀錄。</p>
-              </div>
-              <div class="freeze-actions">
-                <button id="useFreezeBtn" type="button">使用凍結</button>
-                <button id="dismissFreezeBtn" type="button">先不要</button>
-              </div>
             </div>
             <p id="dailyStreakMessage" class="daily-streak-message hidden">已達成今日連續學習目標</p>
             <div class="daily-goal-top">
