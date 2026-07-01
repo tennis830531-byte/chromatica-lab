@@ -2932,10 +2932,16 @@ function renderExercise() {
 }
 
 function setView(view) {
+  const changedView = currentView !== view;
   currentView = view;
   $$(".view").forEach((element) => element.classList.toggle("active", element.id === view));
   activateViewButton(view);
   if (view !== "longtone") stopPractice(false);
+  if (changedView) {
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }
 }
 
 function playClick(strong = false) {
