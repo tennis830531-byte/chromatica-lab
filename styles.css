@@ -1499,6 +1499,29 @@ input[type="range"] {
   background: var(--success);
 }
 
+.daily-calendar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 40px;
+  margin: 0 0 14px;
+  padding: 9px 14px;
+  border: 1px solid rgba(122, 78, 45, 0.18);
+  border-radius: 999px;
+  color: var(--primary);
+  background: rgba(243, 227, 199, 0.64);
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: inset 0 1px 0 rgba(255, 253, 249, 0.7);
+}
+
+.daily-calendar-button:active {
+  transform: scale(0.98);
+}
+
 .freeze-prompt {
   display: grid;
   gap: 10px;
