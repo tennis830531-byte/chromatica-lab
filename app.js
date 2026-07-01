@@ -503,7 +503,6 @@ function getDailyGoalKey() {
 const FREEZE_MAX = 3;
 const FREEZE_INITIAL = 0;
 const FREEZE_REWARD_INTERVAL = 7;
-let dailyStreakFeedback = "";
 
 function addDays(date, offset) {
   const next = new Date(date);
@@ -779,7 +778,7 @@ function renderStreakCalendar(history) {
     .join("");
 }
 
-function renderStreakSummary(message = "") {
+function renderStreakSummary() {
   const history = getPracticeHistory();
   const todayCompleted = getHistoryStatus(history[getTodayKey()]) === "completed";
   const currentStreak = calculateCurrentStreak(history);
@@ -790,11 +789,11 @@ function renderStreakSummary(message = "") {
   $("#modalCurrentStreak").textContent = currentStreak;
   $("#todayPracticeStatus").textContent = todayCompleted ? "今日已完成" : "今日尚未完成";
   $("#todayPracticeStatus").classList.toggle("complete", todayCompleted);
+  $("#streakNote").textContent = todayCompleted
+    ? "今天已完成練習，明天再來延續紀錄。"
+    : "今天完成第一次有效練習，就能延續你的紀錄。";
   $("#longestStreak").textContent = longest;
   $("#monthCompletedDays").textContent = calculateMonthCompletedDays(history);
-  const feedback = message || dailyStreakFeedback || (todayCompleted ? "已達成今日連續學習目標" : "");
-  $("#dailyStreakMessage").textContent = feedback;
-  $("#dailyStreakMessage").classList.toggle("hidden", !feedback);
   renderStreakCalendar(history);
 }
 
@@ -1049,13 +1048,6 @@ function markDailyGoalDone(goalId) {
   state[goalId] = true;
   setDailyGoalState(state);
   const streakResult = markPracticeCompletedToday();
-  if (streakResult.isFirstCompletionToday) {
-    if (streakResult.freezeResult.applied) {
-      dailyStreakFeedback = `已自動使用 ${streakResult.freezeResult.usedCount} 張凍結，連續紀錄已保留。`;
-    } else {
-      dailyStreakFeedback = "已達成今日連續學習目標";
-    }
-  }
   renderDailyGoals();
   const tasks = getDailyGoalTasks();
   const isAllDone = tasks.every((task) => state[task.id] === true);

@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-25" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-26" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -353,13 +353,21 @@
             <p>完整完成一個練習後會自動打勾，每天重新開始。</p>
           </div>
           <div class="panel daily-page">
-            <div class="daily-streak-summary" aria-label="連續練習摘要">
-              <span class="streak-pill">連續 <b id="streakDays">0</b> 天</span>
-              <span class="freeze-pill">凍結 <b id="freezeCount">0</b> 張</span>
-              <span class="today-pill" id="todayPracticeStatus">今日尚未完成</span>
+            <div class="daily-streak-hero" aria-label="連續練習摘要">
+              <div class="streak-main">
+                <span class="streak-icon" aria-hidden="true">♪</span>
+                <div>
+                  <p class="streak-label">連續學習</p>
+                  <p class="streak-value"><b id="streakDays">0</b> 天</p>
+                </div>
+              </div>
+              <p id="streakNote" class="streak-note">今天完成第一次有效練習，就能延續你的紀錄。</p>
+              <div class="streak-meta">
+                <span class="today-pill" id="todayPracticeStatus">今日尚未完成</span>
+                <span class="freeze-pill">凍結 <b id="freezeCount">0</b> 張</span>
+              </div>
             </div>
             <button id="calendarToggle" class="daily-calendar-button" type="button">查看連續練習日曆 〉</button>
-            <p id="dailyStreakMessage" class="daily-streak-message hidden">已達成今日連續學習目標</p>
             <div class="daily-goal-top">
               <div class="daily-goal-copy">
                 <div class="daily-goal-title-row">
@@ -438,6 +446,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-25"></script>
+    <script src="./app.js?v=refresh-26"></script>
   </body>
 </html>
