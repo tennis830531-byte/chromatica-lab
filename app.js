@@ -7,8 +7,9 @@ const dynamics = {
 };
 
 const targetVolumes = ["p", "mp", "mf", "f"];
-const CYCLE_OPTIONS = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
+const CYCLE_OPTIONS = [2, 4, 6, 8];
 const MIN_REWARD_CYCLES = 2;
+const MAX_SELECTABLE_CYCLES = 8;
 const MAX_WATER_REWARD_PER_SESSION = 30;
 const PLANT_WATER_REQUIRED = 60;
 const RAIN_BONUS_AMOUNT = 5;
@@ -605,9 +606,9 @@ function normalizeSelectedCycleCount(cycles) {
   const parsed = Number(cycles);
   if (!Number.isFinite(parsed)) return MIN_REWARD_CYCLES;
   if (parsed < MIN_REWARD_CYCLES) return MIN_REWARD_CYCLES;
-  if (parsed > MAX_WATER_REWARD_PER_SESSION) return MAX_WATER_REWARD_PER_SESSION;
+  if (parsed > MAX_SELECTABLE_CYCLES) return MAX_SELECTABLE_CYCLES;
   const even = Math.floor(parsed / 2) * 2;
-  return Math.max(MIN_REWARD_CYCLES, Math.min(even, MAX_WATER_REWARD_PER_SESSION));
+  return Math.max(MIN_REWARD_CYCLES, Math.min(even, MAX_SELECTABLE_CYCLES));
 }
 
 function calculateWaterReward(completedCycles) {
