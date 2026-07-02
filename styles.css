@@ -768,6 +768,10 @@ p {
   filter: drop-shadow(0 10px 14px rgba(72, 48, 28, 0.10));
 }
 
+.intro-note img[data-holes="12"] {
+  width: min(94%, 330px);
+}
+
 .intro-media {
   justify-self: center;
   width: 100%;
@@ -1920,9 +1924,13 @@ input[type="range"] {
 }
 
 .calendar-modal {
-  width: min(100%, 520px);
+  width: min(calc(100vw - 24px), 520px);
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
   max-height: 82vh;
   overflow-y: auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: 28px;
@@ -1970,9 +1978,13 @@ input[type="range"] {
 }
 
 .longtone-intro-sheet {
-  width: min(100%, 540px);
+  width: min(calc(100vw - 24px), 520px);
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
   max-height: 82vh;
   overflow-y: auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: 28px;
@@ -2010,6 +2022,7 @@ input[type="range"] {
 .longtone-intro-hero img {
   display: block;
   width: min(58%, 178px);
+  max-width: 100%;
   height: auto;
   object-fit: contain;
   filter: drop-shadow(0 10px 18px rgba(72, 48, 28, 0.12));
@@ -2127,8 +2140,10 @@ input[type="range"] {
 .calendar-weekdays,
 .calendar-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
 }
 
 .calendar-weekdays {
@@ -2136,6 +2151,8 @@ input[type="range"] {
 }
 
 .calendar-weekdays span {
+  min-width: 0;
+  overflow: hidden;
   text-align: center;
   color: var(--text-muted);
   font-size: 12px;
@@ -2145,7 +2162,9 @@ input[type="range"] {
 .calendar-day {
   display: grid;
   place-items: center;
+  min-width: 0;
   min-height: 36px;
+  overflow: hidden;
   border: 1px solid rgba(231, 216, 200, 0.72);
   border-radius: 12px;
   color: var(--text-muted);
@@ -2159,6 +2178,8 @@ input[type="range"] {
 }
 
 .calendar-day i {
+  max-width: 100%;
+  overflow: hidden;
   min-height: 12px;
   font-style: normal;
   font-size: 10px;
@@ -2386,7 +2407,11 @@ input[type="range"] {
 }
 
 .mic-gate-card {
-  width: min(100%, 390px);
+  width: min(calc(100vw - 24px), 390px);
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   padding: 24px 20px 20px;
   border: 1px solid var(--line);
   border-radius: 30px;
@@ -2405,8 +2430,24 @@ input[type="range"] {
 
 .mic-gate-illustration img {
   width: 148px;
+  max-width: 100%;
+  height: auto;
   object-fit: contain;
   filter: drop-shadow(0 14px 18px rgba(72, 48, 28, 0.12));
+}
+
+.mic-gate-card *,
+.calendar-modal *,
+.longtone-intro-sheet * {
+  box-sizing: border-box;
+}
+
+.mic-gate-card img,
+.calendar-modal img,
+.longtone-intro-sheet img {
+  max-width: 100%;
+  height: auto;
+  display: block;
 }
 
 @media (min-width: 410px) {
@@ -2552,5 +2593,16 @@ input[type="range"] {
 @media (max-width: 640px) {
   #long-tone-practice-main {
     scroll-margin-top: 88px;
+  }
+
+  .mic-gate {
+    padding-inline: 12px;
+  }
+
+  .mic-gate-card,
+  .calendar-modal,
+  .longtone-intro-sheet {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
   }
 }

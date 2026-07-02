@@ -940,6 +940,7 @@ function renderNoteMap() {
 
   if (harmonicaImage) {
     harmonicaImage.src = mapHarmonicaImages[selectedHoles] || mapHarmonicaImages[16];
+    harmonicaImage.dataset.holes = String(selectedHoles);
   }
 
   map.style.setProperty("--holes", selectedHoles);
@@ -1070,6 +1071,18 @@ function scrollToLongTonePracticeMain() {
   });
 }
 
+function scrollToLongTonePageTop() {
+  requestAnimationFrame(() => {
+    const target = $("#longtone");
+    if (!target) return;
+    const top = target.getBoundingClientRect().top + window.scrollY - 12;
+    window.scrollTo({
+      top: Math.max(0, top),
+      behavior: "smooth",
+    });
+  });
+}
+
 function getAverageCycleScore() {
   const finishedScores = cycleScores.filter((score) => score !== null);
   return finishedScores.length
@@ -1183,7 +1196,7 @@ function setLongToneIntroOpen(isOpen) {
 function confirmLongToneIntro() {
   setLongToneIntroOpen(false);
   setView("longtone");
-  requestAnimationFrame(scrollToLongTonePracticeMain);
+  requestAnimationFrame(scrollToLongTonePageTop);
 }
 
 function resetMicStats() {
