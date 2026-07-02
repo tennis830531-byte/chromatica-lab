@@ -754,19 +754,27 @@ function clearGardenFx() {
 
 function playWateringAnimation(stageChanged = false) {
   const layer = $("#gardenFxLayer");
-  restartElementAnimation($("#gardenWateringCan"), "is-watering", 780);
+  restartElementAnimation($("#gardenPrimaryAction"), "is-pressing", 760);
+  restartElementAnimation($("#gardenWateringCan"), "is-watering", 860);
   restartElementAnimation($(".water-balance"), "is-updated", 520);
-  restartElementAnimation($("#gardenProgressBar")?.parentElement, "is-updated", 720);
-  restartElementAnimation($("#gardenPlantImage"), stageChanged ? "is-stage-up" : "is-watered", stageChanged ? 840 : 560);
+  restartElementAnimation($("#gardenProgressBar")?.parentElement, "is-updated", 760);
+  restartElementAnimation($("#gardenPlantImage"), stageChanged ? "is-stage-up" : "is-watered", stageChanged ? 920 : 680);
   if (!layer) return;
   clearGardenFx();
-  const drops = [58, 63, 68, 72];
-  drops.forEach((left, index) => {
+  const drops = [
+    { left: 67, top: 24, delay: 40 },
+    { left: 62, top: 28, delay: 120 },
+    { left: 70, top: 30, delay: 200 },
+    { left: 65, top: 34, delay: 280 },
+    { left: 60, top: 37, delay: 360 },
+  ];
+  drops.forEach((item, index) => {
     const drop = document.createElement("span");
-    drop.className = "water-drop-animation";
+    drop.className = `water-drop-animation watering-droplet droplet-${index + 1}`;
     drop.textContent = "💧";
-    drop.style.setProperty("--drop-left", `${left}%`);
-    drop.style.animationDelay = `${index * 70}ms`;
+    drop.style.setProperty("--drop-left", `${item.left}%`);
+    drop.style.setProperty("--drop-top", `${item.top}%`);
+    drop.style.animationDelay = `${item.delay}ms`;
     layer.appendChild(drop);
   });
   if (stageChanged) {
@@ -780,21 +788,26 @@ function playWateringAnimation(stageChanged = false) {
       layer.appendChild(pop);
     });
   }
-  window.setTimeout(clearGardenFx, 1200);
+  window.setTimeout(clearGardenFx, 1250);
 }
 
 function playRainBonusAnimation() {
   const layer = $("#gardenFxLayer");
   if (!layer) return;
   clearGardenFx();
+  const cloud = document.createElement("span");
+  cloud.className = "rain-bonus-cloud";
+  cloud.textContent = "☁️";
+  layer.appendChild(cloud);
   [16, 28, 42, 56, 70, 82].forEach((left, index) => {
     const rain = document.createElement("span");
-    rain.className = "rain-drop-animation";
+    rain.className = "rain-drop-animation rain-drop";
     rain.textContent = "💧";
     rain.style.setProperty("--rain-left", `${left}%`);
     rain.style.animationDelay = `${index * 55}ms`;
     layer.appendChild(rain);
   });
+  restartElementAnimation($("#gardenPlantImage"), "is-watered", 720);
   window.setTimeout(clearGardenFx, 1300);
 }
 
@@ -926,6 +939,8 @@ function waterCurrentPlant() {
   playWateringAnimation(plant.stage > previousStage);
   if (plant.waterProgress >= PLANT_WATER_REQUIRED) {
     showGardenToast(`${plant.name}成熟了！`, "可以採收這株植物了。");
+  } else if (plant.stage > previousStage) {
+    showGardenToast(`${plant.name}長大了！`, `進入第 ${plant.stage} 階段。`);
   } else {
     showGardenToast("澆水成功！", `${plant.name}吸收了 ${used} 滴水。`);
   }

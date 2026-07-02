@@ -2544,6 +2544,10 @@ input[type="range"] {
   transform: scale(0.96);
 }
 
+.watering-can-button.is-pressing {
+  animation: wateringButtonPulse 0.72s ease-out;
+}
+
 .watering-can-button:disabled {
   cursor: default;
   opacity: 0.54;
@@ -2555,35 +2559,39 @@ input[type="range"] {
   height: auto;
   object-fit: contain;
   opacity: 0.88;
-  transform-origin: 16% 76%;
+  transform-origin: 70% 70%;
+  transition: transform 0.2s ease;
   filter: drop-shadow(0 8px 10px rgba(72, 48, 28, 0.12));
 }
 
 .watering-can.is-watering {
-  animation: wateringTilt 0.72s ease-in-out;
+  animation: wateringTilt 0.86s ease-in-out;
 }
 
 .garden-fx-layer {
   position: absolute;
   inset: 0;
-  z-index: 3;
-  overflow: hidden;
+  z-index: 4;
+  overflow: visible;
   pointer-events: none;
 }
 
 .water-drop-animation,
 .stage-pop-animation,
-.rain-drop-animation {
+.rain-drop-animation,
+.rain-bonus-cloud {
   position: absolute;
   pointer-events: none;
 }
 
 .water-drop-animation {
-  top: 66px;
+  top: var(--drop-top, 28%);
   left: var(--drop-left, 62%);
   color: #5aa8d8;
-  font-size: 19px;
-  animation: dropFall 0.8s ease-in forwards;
+  font-size: 21px;
+  opacity: 0;
+  text-shadow: 0 4px 10px rgba(90, 168, 216, 0.26);
+  animation: dropFall 0.9s ease-in forwards;
 }
 
 .stage-pop-animation {
@@ -2596,12 +2604,23 @@ input[type="range"] {
 }
 
 .rain-drop-animation {
-  top: -12px;
+  top: 24px;
   left: var(--rain-left, 50%);
   color: #5aa8d8;
   font-size: 17px;
   opacity: 0;
   animation: rainFall 0.95s ease-in forwards;
+}
+
+.rain-bonus-cloud {
+  top: 14px;
+  left: 50%;
+  color: #87b6cf;
+  font-size: 34px;
+  opacity: 0;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 8px 12px rgba(72, 48, 28, 0.12));
+  animation: rainCloudPop 0.82s ease-out forwards;
 }
 
 .garden-plant-image {
@@ -2727,40 +2746,47 @@ input[type="range"] {
 
 @keyframes wateringTilt {
   0% { transform: rotate(0deg); }
-  35% { transform: rotate(-18deg) translateY(1px); }
-  70% { transform: rotate(-18deg) translateY(1px); }
+  30% { transform: rotate(-20deg) translateY(-2px); }
+  66% { transform: rotate(-20deg) translateY(-2px); }
   100% { transform: rotate(0deg); }
+}
+
+@keyframes wateringButtonPulse {
+  0% { box-shadow: 0 8px 18px rgba(72, 48, 28, 0.08); }
+  45% { box-shadow: 0 10px 24px rgba(90, 168, 216, 0.24); }
+  100% { box-shadow: 0 8px 18px rgba(72, 48, 28, 0.08); }
 }
 
 @keyframes dropFall {
   0% {
     opacity: 0;
-    transform: translateY(-16px) scale(0.72);
+    transform: translate(-8px, -18px) scale(0.72);
   }
   20% { opacity: 1; }
+  80% { opacity: 1; }
   100% {
     opacity: 0;
-    transform: translateY(62px) scale(1);
+    transform: translate(-34px, 86px) scale(1);
   }
 }
 
 @keyframes plantBounce {
   0% { transform: scale(1); }
-  35% { transform: scale(1.055) translateY(-3px) rotate(-1deg); }
+  35% { transform: scale(1.07) translateY(-5px) rotate(-1deg); }
   70% { transform: scale(0.99) translateY(1px) rotate(1deg); }
   100% { transform: scale(1); }
 }
 
 @keyframes plantStageUp {
-  0% { opacity: 0.52; transform: scale(0.88) translateY(10px); }
-  55% { opacity: 1; transform: scale(1.08) translateY(-5px); }
+  0% { opacity: 0.42; transform: scale(0.82) translateY(10px); }
+  55% { opacity: 1; transform: scale(1.1) translateY(-6px); }
   100% { opacity: 1; transform: scale(1); }
 }
 
 @keyframes progressGlow {
-  0% { filter: brightness(1); box-shadow: 0 0 0 rgba(212, 165, 90, 0); }
-  50% { filter: brightness(1.16); box-shadow: 0 0 18px rgba(212, 165, 90, 0.32); }
-  100% { filter: brightness(1); box-shadow: 0 0 0 rgba(212, 165, 90, 0); }
+  0% { filter: brightness(1); transform: scaleX(1); box-shadow: 0 0 0 rgba(212, 165, 90, 0); }
+  45% { filter: brightness(1.18); transform: scaleX(1.015); box-shadow: 0 0 18px rgba(212, 165, 90, 0.32); }
+  100% { filter: brightness(1); transform: scaleX(1); box-shadow: 0 0 0 rgba(212, 165, 90, 0); }
 }
 
 @keyframes waterCountPulse {
@@ -2796,7 +2822,23 @@ input[type="range"] {
   }
 }
 
+@keyframes rainCloudPop {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px) scale(0.9);
+  }
+  40% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .watering-can-button.is-pressing,
   .watering-can.is-watering,
   .garden-plant-image.is-watered,
   .garden-plant-image.is-stage-up,
@@ -2804,7 +2846,8 @@ input[type="range"] {
   .water-balance.is-updated,
   .water-drop-animation,
   .stage-pop-animation,
-  .rain-drop-animation {
+  .rain-drop-animation,
+  .rain-bonus-cloud {
     animation: none !important;
   }
 }
