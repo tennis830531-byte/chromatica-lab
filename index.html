@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-40" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-41" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -145,7 +145,7 @@
             <div class="hero-actions">
               <button class="hero-plant-slot" data-jump="garden" type="button">
                 <span class="hero-plant-stage"><img id="heroGardenPlant" src="./public/assets/garden/collection/starter-pot.png" alt="" /></span>
-                <span><b id="heroGardenName">花園</b><small id="heroGardenHint">完成練習澆灌植物</small></span>
+                <span><b id="heroGardenName">花園</b><small id="heroGardenHint" hidden></small></span>
               </button>
               <button class="primary-btn" data-jump="practicehub" type="button">開始今天的練習</button>
             </div>
@@ -468,17 +468,16 @@
                 <div class="water-balance"><img src="./public/assets/garden/icons/water-drop.png" alt="" /><span><b id="waterDropCount">0</b> 滴</span></div>
               </div>
               <div class="garden-plant-scene">
-                <img id="gardenWateringCan" class="watering-can" src="./public/assets/garden/icons/watering-can.png" alt="" aria-hidden="true" />
+                <button id="gardenPrimaryAction" class="watering-can-button" type="button" aria-label="澆水">
+                  <img id="gardenWateringCan" class="watering-can" src="./public/assets/garden/icons/watering-can.png" alt="" aria-hidden="true" />
+                </button>
                 <div id="gardenFxLayer" class="garden-fx-layer" aria-hidden="true"></div>
                 <img id="gardenPlantImage" class="garden-plant-image" src="./public/assets/garden/plants/melody-sprout-stage1.png" alt="" />
               </div>
               <div class="garden-progress">
-                <div><span>成長進度</span><b id="gardenProgressText">0 / 60</b></div>
+                <div><span>階段進度</span><b id="gardenProgressText">0 / 20</b></div>
                 <div class="garden-progress-track"><i id="gardenProgressBar"></i></div>
-                <p id="gardenNeedText">還需要 60 滴水可採收。</p>
-              </div>
-              <div class="garden-actions">
-                <button id="gardenPrimaryAction" class="primary-button" type="button">澆水</button>
+                <p id="gardenNeedText">還需要 20 滴水進入下一階段。</p>
               </div>
             </section>
 
@@ -488,7 +487,6 @@
                   <p class="eyebrow">收藏冊</p>
                   <h3>植物圖鑑</h3>
                 </div>
-                <button id="gardenCollectionToggle" class="secondary-button" type="button">查看圖鑑</button>
               </div>
               <div id="gardenCollection" class="garden-collection"></div>
               <p class="garden-hint">採收成熟植物後，可在圖鑑中選一株放到首頁展示。</p>
@@ -543,6 +541,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-40"></script>
+    <script src="./app.js?v=refresh-41"></script>
   </body>
 </html>

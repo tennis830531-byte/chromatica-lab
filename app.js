@@ -12,8 +12,11 @@ const MIN_REWARD_CYCLES = 2;
 const MAX_SELECTABLE_CYCLES = 8;
 const MAX_WATER_REWARD_PER_SESSION = 30;
 const PLANT_WATER_REQUIRED = 60;
+const PLANT_STAGE_WATER_REQUIRED = PLANT_WATER_REQUIRED / 3;
 const RAIN_BONUS_AMOUNT = 5;
 const RAIN_BONUS_CHANCE = 0.1;
+const GARDEN_WATERING_CAN_SRC = "./public/assets/garden/icons/watering-can.png";
+const GARDEN_SHOVEL_SRC = "./public/assets/garden/icons/garden-shovel.png";
 
 const gardenSpecies = [
   {
@@ -733,7 +736,7 @@ function formatWaterRewardText(waterResult) {
   const rainText = waterResult.rain?.triggered
     ? ` 下雨了，額外獲得 ${waterResult.rain.amount} 滴水滴。`
     : "";
-  return `完成 ${waterResult.cycles} 個循環，花園獲得 ${waterResult.water} 滴水滴。${rainText}`;
+  return `獲得 ${waterResult.water} 滴花園水滴。${rainText}`;
 }
 
 function restartElementAnimation(element, className, duration = 900) {
@@ -803,8 +806,12 @@ function renderHeroGarden() {
   const heroImage = $("#heroGardenPlant");
   if (!heroImage) return;
   heroImage.src = featured ? getPlantImage({ ...featured, stage: 3 }) : getPlantImage(plant);
-  $("#heroGardenName").textContent = featured ? featured.name : "花園";
-  $("#heroGardenHint").textContent = featured ? "首頁展示植物" : `${getWaterDrops()} 滴水滴`;
+  $("#heroGardenName").textContent = featured ? featured.name : plant.name;
+  const heroGardenHint = $("#heroGardenHint");
+  if (heroGardenHint) {
+    heroGardenHint.textContent = "";
+    heroGardenHint.hidden = true;
+  }
 }
 
 function renderGardenCollection() {
@@ -836,7 +843,7 @@ function renderGardenCollection() {
         </div>
       `;
     }
-    if (slot === 14 || slot === 37) {
+    if (slot === 2 || slot === 3) {
       return `
         <div class="garden-collection-cell locked">
           <span class="slot-number">${slot}</span>
@@ -860,26 +867,37 @@ function renderGarden() {
   const progress = Math.max(0, Math.min(PLANT_WATER_REQUIRED, plant.waterProgress || 0));
   plant.stage = getPlantStage(progress);
   setCurrentPlant(plant);
-  const need = Math.max(0, PLANT_WATER_REQUIRED - progress);
   const ready = progress >= PLANT_WATER_REQUIRED;
+  const stageProgress = ready ? PLANT_STAGE_WATER_REQUIRED : progress % PLANT_STAGE_WATER_REQUIRED;
+  const stageNeed = Math.max(0, PLANT_STAGE_WATER_REQUIRED - stageProgress);
+  const stageNeedText = plant.stage >= 3
+    ? `還需要 ${stageNeed} 滴水可採收。`
+    : `還需要 ${stageNeed} 滴水進入下一階段。`;
   if ($("#waterDropCount")) $("#waterDropCount").textContent = getWaterDrops();
   if ($("#gardenPlantName")) $("#gardenPlantName").textContent = plant.name;
   if ($("#gardenPlantStage")) $("#gardenPlantStage").textContent = ready ? "可採收" : getStageLabel(plant.stage);
   if ($("#gardenPlantImage")) $("#gardenPlantImage").src = getPlantImage(plant);
-  if ($("#gardenProgressText")) $("#gardenProgressText").textContent = `${progress} / ${PLANT_WATER_REQUIRED}`;
-  if ($("#gardenProgressBar")) $("#gardenProgressBar").style.width = `${Math.min(100, (progress / PLANT_WATER_REQUIRED) * 100)}%`;
-  if ($("#gardenNeedText")) $("#gardenNeedText").textContent = ready ? "植物已成熟，可以採收。" : `還需要 ${need} 滴水可採收。`;
+  if ($("#gardenProgressText")) $("#gardenProgressText").textContent = `${stageProgress} / ${PLANT_STAGE_WATER_REQUIRED}`;
+  if ($("#gardenProgressBar")) $("#gardenProgressBar").style.width = `${Math.min(100, (stageProgress / PLANT_STAGE_WATER_REQUIRED) * 100)}%`;
+  if ($("#gardenNeedText")) $("#gardenNeedText").textContent = ready ? "植物已成熟，可以採收。" : stageNeedText;
   const primaryAction = $("#gardenPrimaryAction");
+  const actionIcon = $("#gardenWateringCan");
   if (primaryAction) {
     if (ready) {
-      primaryAction.textContent = "採收植物";
+      primaryAction.setAttribute("aria-label", "採收植物");
+      primaryAction.title = "採收植物";
       primaryAction.disabled = false;
+      if (actionIcon) actionIcon.src = GARDEN_SHOVEL_SRC;
     } else if (getWaterDrops() <= 0) {
-      primaryAction.textContent = "沒有水滴可澆";
+      primaryAction.setAttribute("aria-label", "沒有水滴可澆");
+      primaryAction.title = "沒有水滴可澆";
       primaryAction.disabled = true;
+      if (actionIcon) actionIcon.src = GARDEN_WATERING_CAN_SRC;
     } else {
-      primaryAction.textContent = "澆水";
+      primaryAction.setAttribute("aria-label", "澆水");
+      primaryAction.title = "澆水";
       primaryAction.disabled = false;
+      if (actionIcon) actionIcon.src = GARDEN_WATERING_CAN_SRC;
     }
   }
   renderGardenCollection();
