@@ -659,31 +659,59 @@ p {
   scroll-margin-top: 96px;
 }
 
-.practice-hub-head {
+.practice-hub-heading {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
+  padding: 0 2px;
+  margin-bottom: 14px;
 }
 
-.practice-hub-head h3 {
+.practice-hub-heading-copy {
+  min-width: 0;
+}
+
+.practice-hub-heading-copy h2 {
   margin: 4px 0 6px;
   color: var(--text-main);
-  font-size: 22px;
+  font-size: 32px;
+  line-height: 1.12;
 }
 
-.practice-hub-head p {
+.practice-hub-heading-copy p:last-child {
   margin: 0;
   color: var(--text-body);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.55;
 }
 
-.practice-hub-head img {
-  width: 72px;
-  height: 72px;
-  border-radius: 22px;
+.practice-hub-heading-illustration {
+  width: clamp(92px, 18vw, 150px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.practice-hub-heading-illustration img {
+  width: 100%;
+  height: auto;
   background: transparent;
+  object-fit: contain;
+}
+
+@media (max-width: 480px) {
+  .practice-hub-heading {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .practice-hub-heading-illustration {
+    width: 96px;
+    justify-self: end;
+    margin-top: -4px;
+  }
 }
 
 .practice-room-grid {
