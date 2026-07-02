@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-39" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-40" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -143,7 +143,10 @@
               </div>
             </div>
             <div class="hero-actions">
-              <div class="hero-plant-slot" aria-hidden="true"></div>
+              <button class="hero-plant-slot" data-jump="garden" type="button">
+                <span class="hero-plant-stage"><img id="heroGardenPlant" src="./public/assets/garden/collection/starter-pot.png" alt="" /></span>
+                <span><b id="heroGardenName">花園</b><small id="heroGardenHint">完成練習澆灌植物</small></span>
+              </button>
               <button class="primary-btn" data-jump="practicehub" type="button">開始今天的練習</button>
             </div>
           </div>
@@ -178,6 +181,7 @@
               <button class="quick-card" data-jump="map" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/note_map_explorer.png" alt="" /></span><strong>音符地圖</strong><span>探索每個音位，建立方向感</span><b>›</b></button>
               <button class="quick-card" data-jump="practicehub" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/practice_record_icon.png" alt="" /></span><strong>開始練習</strong><span>進入各種練習室</span><b>›</b></button>
               <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" /></span><strong>每日目標</strong><span>建立練習習慣，累積進步</span><b>›</b></button>
+              <button class="quick-card" data-jump="garden" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/garden/icons/water-drop.png" alt="" /></span><strong>花園</strong><span>完成練習獲得水滴，澆灌植物</span><b>›</b></button>
               <button class="quick-card" data-jump="audio" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/mic_settings_icon.png" alt="" /></span><strong>收音設定</strong><span>調整麥克風與調音基準</span><b>›</b></button>
             </div>
           </div>
@@ -446,6 +450,53 @@
           </div>
         </section>
 
+        <section id="garden" class="view">
+          <div class="section-head compact">
+            <img class="section-icon ui-quick-icon" src="./public/assets/garden/icons/watering-can.png" alt="" aria-hidden="true" />
+            <p class="eyebrow">口琴植物</p>
+            <h2>花園</h2>
+            <p>完成長音練習獲得水滴，澆灌屬於你的口琴植物。</p>
+          </div>
+
+          <div class="garden-layout">
+            <section class="garden-card paper-card">
+              <div class="garden-card-head">
+                <div>
+                  <p class="eyebrow">目前植物</p>
+                  <h3 id="gardenPlantName">旋律芽芽</h3>
+                  <span id="gardenPlantStage" class="garden-stage-pill">幼苗</span>
+                </div>
+                <div class="water-balance"><img src="./public/assets/garden/icons/water-drop.png" alt="" /><span><b id="waterDropCount">0</b> 滴</span></div>
+              </div>
+              <div class="garden-plant-scene">
+                <img id="gardenWateringCan" class="watering-can" src="./public/assets/garden/icons/watering-can.png" alt="" aria-hidden="true" />
+                <div id="gardenFxLayer" class="garden-fx-layer" aria-hidden="true"></div>
+                <img id="gardenPlantImage" class="garden-plant-image" src="./public/assets/garden/plants/melody-sprout-stage1.png" alt="" />
+              </div>
+              <div class="garden-progress">
+                <div><span>成長進度</span><b id="gardenProgressText">0 / 60</b></div>
+                <div class="garden-progress-track"><i id="gardenProgressBar"></i></div>
+                <p id="gardenNeedText">還需要 60 滴水可採收。</p>
+              </div>
+              <div class="garden-actions">
+                <button id="gardenPrimaryAction" class="primary-button" type="button">澆水</button>
+              </div>
+            </section>
+
+            <section class="garden-card paper-card">
+              <div class="garden-card-head compact">
+                <div>
+                  <p class="eyebrow">收藏冊</p>
+                  <h3>植物圖鑑</h3>
+                </div>
+                <button id="gardenCollectionToggle" class="secondary-button" type="button">查看圖鑑</button>
+              </div>
+              <div id="gardenCollection" class="garden-collection"></div>
+              <p class="garden-hint">採收成熟植物後，可在圖鑑中選一株放到首頁展示。</p>
+            </section>
+          </div>
+        </section>
+
         <section id="audio" class="view">
           <div class="section-head compact">
             <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/icon/mic_settings_icon.png" alt="" aria-hidden="true" />
@@ -488,10 +539,11 @@
         <button class="bottom-nav-item" data-view="map" type="button"><span>♪</span>音符</button>
         <button class="bottom-nav-item" data-view="practicehub" type="button"><span>◉</span>練習</button>
         <button class="bottom-nav-item" data-view="daily" type="button"><span>✓</span>目標</button>
+        <button class="bottom-nav-item" data-view="garden" type="button"><span>♧</span>花園</button>
         <button class="bottom-nav-item" data-view="audio" type="button"><span>⚙</span>設定</button>
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-39"></script>
+    <script src="./app.js?v=refresh-40"></script>
   </body>
 </html>

@@ -140,6 +140,7 @@ p {
 .data-card,
 .audio-settings-panel,
 .daily-page,
+.garden-card,
 .map-toolbar,
 .note-map-wrap {
   background:
@@ -376,7 +377,56 @@ p {
 }
 
 .hero-plant-slot {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
   min-height: 64px;
+  padding: 8px 10px;
+  border: 1px solid rgba(231, 216, 200, 0.86);
+  border-radius: 18px;
+  color: var(--text-main);
+  background: rgba(255, 253, 249, 0.58);
+  text-align: left;
+  box-shadow: var(--shadow-soft);
+}
+
+.hero-plant-stage {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+}
+
+.hero-plant-stage img {
+  display: block;
+  max-width: 100%;
+  max-height: 58px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 10px rgba(72, 48, 28, 0.12));
+}
+
+.hero-plant-slot b,
+.hero-plant-slot small {
+  display: block;
+  min-width: 0;
+}
+
+.hero-plant-slot b {
+  overflow: hidden;
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hero-plant-slot small {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 .hero-actions .primary-btn {
@@ -2358,7 +2408,7 @@ input[type="range"] {
   bottom: 10px;
   z-index: 40;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   width: min(calc(100% - 24px), 406px);
   min-height: 72px;
   padding: 8px;
@@ -2397,6 +2447,352 @@ input[type="range"] {
 
 .bottom-nav-item.complete:not(.active) {
   color: var(--success);
+}
+
+.garden-layout {
+  display: grid;
+  gap: 16px;
+}
+
+.garden-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  overflow: visible;
+}
+
+.garden-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.garden-card-head.compact {
+  align-items: center;
+}
+
+.garden-card h3 {
+  margin: 3px 0 8px;
+  color: var(--text-main);
+  font-size: 24px;
+}
+
+.garden-stage-pill,
+.water-balance,
+.garden-hint,
+.garden-collection-cell small {
+  color: var(--text-muted);
+}
+
+.garden-stage-pill,
+.water-balance {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 253, 249, 0.72);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.water-balance.is-updated {
+  animation: waterCountPulse 0.45s ease-out;
+}
+
+.water-balance img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.garden-plant-scene {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 210px;
+  padding: 16px;
+  border: 1px solid rgba(231, 216, 200, 0.78);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 50% 84%, rgba(143, 163, 107, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(253, 249, 244, 0.52), rgba(243, 227, 199, 0.34));
+}
+
+.watering-can {
+  position: absolute;
+  right: 20px;
+  top: 18px;
+  z-index: 2;
+  width: 62px;
+  height: auto;
+  object-fit: contain;
+  opacity: 0.88;
+  transform-origin: 16% 76%;
+  filter: drop-shadow(0 8px 10px rgba(72, 48, 28, 0.12));
+}
+
+.watering-can.is-watering {
+  animation: wateringTilt 0.72s ease-in-out;
+}
+
+.garden-fx-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.water-drop-animation,
+.stage-pop-animation,
+.rain-drop-animation {
+  position: absolute;
+  pointer-events: none;
+}
+
+.water-drop-animation {
+  top: 66px;
+  left: var(--drop-left, 62%);
+  color: #5aa8d8;
+  font-size: 19px;
+  animation: dropFall 0.8s ease-in forwards;
+}
+
+.stage-pop-animation {
+  left: var(--pop-left, 50%);
+  top: var(--pop-top, 35%);
+  color: var(--accent);
+  font-size: 19px;
+  font-weight: 900;
+  animation: stagePop 0.9s ease-out forwards;
+}
+
+.rain-drop-animation {
+  top: -12px;
+  left: var(--rain-left, 50%);
+  color: #5aa8d8;
+  font-size: 17px;
+  opacity: 0;
+  animation: rainFall 0.95s ease-in forwards;
+}
+
+.garden-plant-image {
+  display: block;
+  width: min(100%, 250px);
+  max-height: 240px;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 16px rgba(72, 48, 28, 0.13));
+}
+
+.garden-plant-image.is-watered {
+  animation: plantBounce 0.52s ease-out;
+}
+
+.garden-plant-image.is-stage-up {
+  animation: plantStageUp 0.78s ease-out;
+}
+
+.garden-progress {
+  display: grid;
+  gap: 8px;
+}
+
+.garden-progress > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-body);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.garden-progress-track {
+  height: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(231, 216, 200, 0.86);
+  border-radius: 999px;
+  background: rgba(255, 253, 249, 0.74);
+}
+
+.garden-progress-track i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--success), var(--accent));
+  transition: width 240ms ease;
+}
+
+.garden-progress-track.is-updated {
+  animation: progressGlow 0.62s ease-out;
+}
+
+.garden-progress p,
+.garden-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.garden-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.garden-actions .primary-button {
+  width: 100%;
+}
+
+.garden-collection {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 410px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.garden-collection-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  min-height: 84px;
+  padding: 8px 5px 6px;
+  border: 1px solid rgba(231, 216, 200, 0.82);
+  border-radius: 16px;
+  background: rgba(255, 253, 249, 0.58);
+}
+
+.garden-collection-cell button {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  border: 0;
+  background: transparent;
+}
+
+.garden-collection-cell img {
+  width: 54px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.garden-collection-cell .slot-number {
+  position: absolute;
+  left: 7px;
+  top: 6px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.garden-collection-cell.featured {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.garden-collection-cell.empty {
+  opacity: 0.72;
+}
+
+.garden-collection-cell.locked img {
+  opacity: 0.7;
+}
+
+@media (max-width: 420px) {
+  .garden-collection {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@keyframes wateringTilt {
+  0% { transform: rotate(0deg); }
+  35% { transform: rotate(-18deg) translateY(1px); }
+  70% { transform: rotate(-18deg) translateY(1px); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes dropFall {
+  0% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.72);
+  }
+  20% { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translateY(62px) scale(1);
+  }
+}
+
+@keyframes plantBounce {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.055) translateY(-3px) rotate(-1deg); }
+  70% { transform: scale(0.99) translateY(1px) rotate(1deg); }
+  100% { transform: scale(1); }
+}
+
+@keyframes plantStageUp {
+  0% { opacity: 0.52; transform: scale(0.88) translateY(10px); }
+  55% { opacity: 1; transform: scale(1.08) translateY(-5px); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes progressGlow {
+  0% { filter: brightness(1); box-shadow: 0 0 0 rgba(212, 165, 90, 0); }
+  50% { filter: brightness(1.16); box-shadow: 0 0 18px rgba(212, 165, 90, 0.32); }
+  100% { filter: brightness(1); box-shadow: 0 0 0 rgba(212, 165, 90, 0); }
+}
+
+@keyframes waterCountPulse {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+
+@keyframes stagePop {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.65) rotate(-8deg);
+  }
+  28% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.08) rotate(7deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-34px) scale(1) rotate(0deg);
+  }
+}
+
+@keyframes rainFall {
+  0% {
+    opacity: 0;
+    transform: translateY(-18px) scale(0.72);
+  }
+  20% { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translateY(132px) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .watering-can.is-watering,
+  .garden-plant-image.is-watered,
+  .garden-plant-image.is-stage-up,
+  .garden-progress-track.is-updated,
+  .water-balance.is-updated,
+  .water-drop-animation,
+  .stage-pop-animation,
+  .rain-drop-animation {
+    animation: none !important;
+  }
 }
 
 .goal-toast {
