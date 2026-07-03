@@ -10,7 +10,7 @@ const targetVolumes = ["p", "mp", "mf", "f"];
 const CYCLE_OPTIONS = [2, 4, 6, 8];
 const MIN_REWARD_CYCLES = 2;
 const MAX_SELECTABLE_CYCLES = 8;
-const MAX_WATER_REWARD_PER_SESSION = 30;
+const MAX_DAILY_WATER_REWARD = 25;
 const PLANT_WATER_REQUIRED = 60;
 const PLANT_STAGE_WATER_REQUIRED = PLANT_WATER_REQUIRED / 3;
 const RAIN_BONUS_AMOUNT = 5;
@@ -54,6 +54,7 @@ const gardenStorageKeys = {
   collection: "chromatica.spiritCollection",
   featured: "chromatica.featuredSpiritId",
   rainBonus: "chromatica.rainBonusState",
+  dailyReward: "chromatica.dailyWaterReward",
 };
 
 const exercises = [
@@ -617,7 +618,31 @@ function normalizeSelectedCycleCount(cycles) {
 function calculateWaterReward(completedCycles) {
   const actual = Math.floor(Number(completedCycles));
   if (!Number.isFinite(actual) || actual < MIN_REWARD_CYCLES) return 0;
-  return Math.min(actual, MAX_WATER_REWARD_PER_SESSION);
+  return Math.min(actual, getRemainingDailyWaterReward());
+}
+
+function getDailyWaterRewardState() {
+  const todayKey = getTodayKey();
+  const stored = readJsonStorage(gardenStorageKeys.dailyReward, null);
+  if (!stored || stored.date !== todayKey) {
+    return { date: todayKey, earned: 0 };
+  }
+  return {
+    date: todayKey,
+    earned: Math.max(0, Math.floor(Number(stored.earned) || 0)),
+  };
+}
+
+function setDailyWaterRewardState(state) {
+  localStorage.setItem(gardenStorageKeys.dailyReward, JSON.stringify({
+    date: state.date || getTodayKey(),
+    earned: Math.max(0, Math.floor(Number(state.earned) || 0)),
+  }));
+}
+
+function getRemainingDailyWaterReward() {
+  const state = getDailyWaterRewardState();
+  return Math.max(0, MAX_DAILY_WATER_REWARD - state.earned);
 }
 
 function getWaterDrops() {
@@ -707,28 +732,40 @@ function addWaterDrops(amount) {
   return added;
 }
 
+function addEarnedWaterDrops(amount) {
+  const state = getDailyWaterRewardState();
+  const added = Math.min(Math.max(0, Math.floor(Number(amount) || 0)), getRemainingDailyWaterReward());
+  if (!added) return 0;
+  setWaterDrops(getWaterDrops() + added);
+  setDailyWaterRewardState({ ...state, earned: state.earned + added });
+  return added;
+}
+
 function maybeTriggerRainBonus() {
   const todayKey = getTodayKey();
   const state = readJsonStorage(gardenStorageKeys.rainBonus, {});
   if (state.lastTriggeredDate === todayKey && state.todayTriggered) {
     return { triggered: false, amount: 0 };
   }
+  const remainingDailyReward = getRemainingDailyWaterReward();
+  if (remainingDailyReward <= 0) return { triggered: false, amount: 0 };
   if (Math.random() >= RAIN_BONUS_CHANCE) return { triggered: false, amount: 0 };
-  addWaterDrops(RAIN_BONUS_AMOUNT);
+  const amount = addEarnedWaterDrops(Math.min(RAIN_BONUS_AMOUNT, remainingDailyReward));
+  if (!amount) return { triggered: false, amount: 0 };
   localStorage.setItem(gardenStorageKeys.rainBonus, JSON.stringify({
     lastTriggeredDate: todayKey,
     todayTriggered: true,
   }));
-  return { triggered: true, amount: RAIN_BONUS_AMOUNT };
+  return { triggered: true, amount };
 }
 
 function awardGardenWaterForPractice(completedCycles) {
   const water = calculateWaterReward(completedCycles);
-  const rain = water > 0 ? maybeTriggerRainBonus() : { triggered: false, amount: 0 };
-  addWaterDrops(water);
+  const addedWater = addEarnedWaterDrops(water);
+  const rain = addedWater > 0 ? maybeTriggerRainBonus() : { triggered: false, amount: 0 };
   renderGarden();
   if (rain.triggered) playRainBonusAnimation();
-  return { cycles: Math.floor(Number(completedCycles)) || 0, water, rain };
+  return { cycles: Math.floor(Number(completedCycles)) || 0, water: addedWater, rain };
 }
 
 function formatWaterRewardText(waterResult) {
@@ -900,16 +937,22 @@ function renderGarden() {
       primaryAction.setAttribute("aria-label", "採收植物");
       primaryAction.title = "採收植物";
       primaryAction.disabled = false;
+      primaryAction.classList.remove("is-empty");
+      primaryAction.classList.add("is-harvest-ready");
       if (actionIcon) actionIcon.src = GARDEN_SHOVEL_SRC;
     } else if (getWaterDrops() <= 0) {
       primaryAction.setAttribute("aria-label", "沒有水滴可澆");
       primaryAction.title = "沒有水滴可澆";
-      primaryAction.disabled = true;
+      primaryAction.disabled = false;
+      primaryAction.classList.remove("is-harvest-ready");
+      primaryAction.classList.add("is-empty");
       if (actionIcon) actionIcon.src = GARDEN_WATERING_CAN_SRC;
     } else {
       primaryAction.setAttribute("aria-label", "澆水");
       primaryAction.title = "澆水";
       primaryAction.disabled = false;
+      primaryAction.classList.remove("is-harvest-ready");
+      primaryAction.classList.remove("is-empty");
       if (actionIcon) actionIcon.src = GARDEN_WATERING_CAN_SRC;
     }
   }
@@ -927,6 +970,8 @@ function waterCurrentPlant() {
   const available = getWaterDrops();
   const used = Math.min(available, remaining);
   if (used <= 0) {
+    restartElementAnimation($("#gardenPrimaryAction"), "is-empty-tap", 520);
+    restartElementAnimation($(".water-balance"), "is-updated", 520);
     showGardenToast("水滴不夠", "水滴不夠，先去完成練習吧。");
     return;
   }
@@ -938,11 +983,11 @@ function waterCurrentPlant() {
   renderGarden();
   playWateringAnimation(plant.stage > previousStage);
   if (plant.waterProgress >= PLANT_WATER_REQUIRED) {
-    showGardenToast(`${plant.name}成熟了！`, "可以採收這株植物了。");
+    showGardenToastAfterAnimation(`${plant.name}成熟了！`, "可以採收這株植物了。");
   } else if (plant.stage > previousStage) {
-    showGardenToast(`${plant.name}長大了！`, `進入第 ${plant.stage} 階段。`);
+    showGardenToastAfterAnimation(`${plant.name}長大了！`, `進入第 ${plant.stage} 階段。`);
   } else {
-    showGardenToast("澆水成功！", `${plant.name}吸收了 ${used} 滴水。`);
+    showGardenToastAfterAnimation("澆水成功！", `${plant.name}吸收了 ${used} 滴水。`);
   }
 }
 
@@ -970,6 +1015,10 @@ function showGardenToast(title, text) {
   $("#goalToastTitle").textContent = title;
   $("#goalToastText").textContent = text;
   $("#goalToast").classList.remove("hidden");
+}
+
+function showGardenToastAfterAnimation(title, text) {
+  window.setTimeout(() => showGardenToast(title, text), 980);
 }
 
 const FREEZE_MAX = 3;

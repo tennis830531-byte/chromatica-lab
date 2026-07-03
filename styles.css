@@ -378,30 +378,31 @@ p {
 
 .hero-plant-slot {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  justify-items: center;
   align-items: center;
-  gap: 10px;
-  min-height: 64px;
-  padding: 8px 10px;
+  gap: 4px;
+  min-height: 88px;
+  padding: 8px 12px 9px;
   border: 1px solid rgba(231, 216, 200, 0.86);
   border-radius: 18px;
   color: var(--text-main);
   background: rgba(255, 253, 249, 0.58);
-  text-align: left;
+  text-align: center;
   box-shadow: var(--shadow-soft);
 }
 
 .hero-plant-stage {
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
+  width: 86px;
+  height: 54px;
 }
 
 .hero-plant-stage img {
   display: block;
   max-width: 100%;
-  max-height: 58px;
+  max-height: 62px;
   object-fit: contain;
   filter: drop-shadow(0 8px 10px rgba(72, 48, 28, 0.12));
 }
@@ -415,7 +416,7 @@ p {
 .hero-plant-slot b {
   overflow: hidden;
   color: var(--primary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 900;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2548,6 +2549,14 @@ input[type="range"] {
   animation: wateringButtonPulse 0.72s ease-out;
 }
 
+.watering-can-button.is-empty {
+  opacity: 0.68;
+}
+
+.watering-can-button.is-empty-tap {
+  animation: emptyWaterShake 0.48s ease-out;
+}
+
 .watering-can-button:disabled {
   cursor: default;
   opacity: 0.54;
@@ -2556,12 +2565,18 @@ input[type="range"] {
 
 .watering-can {
   width: 62px;
+  max-height: 62px;
   height: auto;
   object-fit: contain;
   opacity: 0.88;
   transform-origin: 70% 70%;
   transition: transform 0.2s ease;
   filter: drop-shadow(0 8px 10px rgba(72, 48, 28, 0.12));
+}
+
+.watering-can-button.is-harvest-ready .watering-can {
+  width: 48px;
+  max-height: 54px;
 }
 
 .watering-can.is-watering {
@@ -2625,8 +2640,8 @@ input[type="range"] {
 
 .garden-plant-image {
   display: block;
-  width: min(100%, 250px);
-  max-height: 240px;
+  width: min(calc(100% - 32px), 230px);
+  max-height: 228px;
   object-fit: contain;
   filter: drop-shadow(0 14px 16px rgba(72, 48, 28, 0.13));
 }
@@ -2795,6 +2810,14 @@ input[type="range"] {
   100% { transform: scale(1); }
 }
 
+@keyframes emptyWaterShake {
+  0% { transform: translateX(0); }
+  22% { transform: translateX(-3px); }
+  44% { transform: translateX(3px); }
+  66% { transform: translateX(-2px); }
+  100% { transform: translateX(0); }
+}
+
 @keyframes stagePop {
   0% {
     opacity: 0;
@@ -2839,6 +2862,7 @@ input[type="range"] {
 
 @media (prefers-reduced-motion: reduce) {
   .watering-can-button.is-pressing,
+  .watering-can-button.is-empty-tap,
   .watering-can.is-watering,
   .garden-plant-image.is-watered,
   .garden-plant-image.is-stage-up,
