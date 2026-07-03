@@ -791,11 +791,13 @@ function clearGardenFx() {
 
 function playWateringAnimation(stageChanged = false) {
   const layer = $("#gardenFxLayer");
+  const scene = $(".garden-plant-scene");
+  if (stageChanged) restartElementAnimation(scene, "is-evolving", 1680);
   restartElementAnimation($("#gardenPrimaryAction"), "is-pressing", 760);
   restartElementAnimation($("#gardenWateringCan"), "is-watering", 860);
   restartElementAnimation($(".water-balance"), "is-updated", 520);
   restartElementAnimation($("#gardenProgressBar")?.parentElement, "is-updated", 760);
-  restartElementAnimation($("#gardenPlantImage"), stageChanged ? "is-stage-up" : "is-watered", stageChanged ? 920 : 680);
+  restartElementAnimation($("#gardenPlantImage"), stageChanged ? "is-stage-up" : "is-watered", stageChanged ? 1680 : 680);
   if (!layer) return;
   clearGardenFx();
   const drops = [
@@ -825,7 +827,7 @@ function playWateringAnimation(stageChanged = false) {
       layer.appendChild(pop);
     });
   }
-  window.setTimeout(clearGardenFx, 1250);
+  window.setTimeout(clearGardenFx, stageChanged ? 1800 : 1250);
 }
 
 function playRainBonusAnimation() {
@@ -926,7 +928,12 @@ function renderGarden() {
   if ($("#waterDropCount")) $("#waterDropCount").textContent = getWaterDrops();
   if ($("#gardenPlantName")) $("#gardenPlantName").textContent = plant.name;
   if ($("#gardenPlantStage")) $("#gardenPlantStage").textContent = ready ? "可採收" : getStageLabel(plant.stage);
-  if ($("#gardenPlantImage")) $("#gardenPlantImage").src = getPlantImage(plant);
+  const plantImage = $("#gardenPlantImage");
+  if (plantImage) {
+    plantImage.src = getPlantImage(plant);
+    plantImage.classList.remove("garden-stage-1", "garden-stage-2", "garden-stage-3");
+    plantImage.classList.add(`garden-stage-${plant.stage}`);
+  }
   if ($("#gardenProgressText")) $("#gardenProgressText").textContent = `${stageProgress} / ${PLANT_STAGE_WATER_REQUIRED}`;
   if ($("#gardenProgressBar")) $("#gardenProgressBar").style.width = `${Math.min(100, (stageProgress / PLANT_STAGE_WATER_REQUIRED) * 100)}%`;
   if ($("#gardenNeedText")) $("#gardenNeedText").textContent = ready ? "植物已成熟，可以採收。" : stageNeedText;
@@ -985,9 +992,7 @@ function waterCurrentPlant() {
   if (plant.waterProgress >= PLANT_WATER_REQUIRED) {
     showGardenToastAfterAnimation(`${plant.name}成熟了！`, "可以採收這株植物了。");
   } else if (plant.stage > previousStage) {
-    showGardenToastAfterAnimation(`${plant.name}長大了！`, `進入第 ${plant.stage} 階段。`);
-  } else {
-    showGardenToastAfterAnimation("澆水成功！", `${plant.name}吸收了 ${used} 滴水。`);
+    showGardenToastAfterAnimation(`${plant.name}長大了！`, `進入第 ${plant.stage} 階段。`, 1580);
   }
 }
 
@@ -1017,8 +1022,8 @@ function showGardenToast(title, text) {
   $("#goalToast").classList.remove("hidden");
 }
 
-function showGardenToastAfterAnimation(title, text) {
-  window.setTimeout(() => showGardenToast(title, text), 980);
+function showGardenToastAfterAnimation(title, text, delay = 980) {
+  window.setTimeout(() => showGardenToast(title, text), delay);
 }
 
 const FREEZE_MAX = 3;

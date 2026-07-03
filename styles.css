@@ -2514,13 +2514,38 @@ input[type="range"] {
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 210px;
+  min-height: 238px;
   padding: 16px;
   border: 1px solid rgba(231, 216, 200, 0.78);
   border-radius: 24px;
   background:
     radial-gradient(circle at 50% 84%, rgba(143, 163, 107, 0.18), transparent 34%),
     linear-gradient(180deg, rgba(253, 249, 244, 0.52), rgba(243, 227, 199, 0.34));
+}
+
+.garden-plant-scene::before,
+.garden-plant-scene::after {
+  content: "";
+  position: absolute;
+  inset: 24px 18px;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.garden-plant-scene.is-evolving::before {
+  z-index: 1;
+  background:
+    radial-gradient(circle, rgba(222, 48, 36, 0.42) 0%, rgba(148, 14, 14, 0.28) 34%, rgba(0, 0, 0, 0) 72%);
+  animation: evolutionRedAura 1.62s ease-in-out;
+}
+
+.garden-plant-scene.is-evolving::after {
+  z-index: 2;
+  background:
+    radial-gradient(circle, rgba(10, 8, 8, 0.46) 0%, rgba(38, 24, 24, 0.28) 38%, rgba(0, 0, 0, 0) 74%);
+  animation: evolutionDarkFlash 1.62s ease-in-out;
+  mix-blend-mode: multiply;
 }
 
 .watering-can-button {
@@ -2591,6 +2616,18 @@ input[type="range"] {
   pointer-events: none;
 }
 
+.garden-plant-scene.is-evolving .garden-fx-layer::before {
+  content: "";
+  position: absolute;
+  inset: 18px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle, rgba(255, 244, 220, 0.96) 0%, rgba(255, 190, 96, 0.44) 24%, rgba(210, 28, 28, 0.18) 42%, rgba(0, 0, 0, 0) 68%);
+  animation: evolutionFlashBurst 1.62s ease-in-out;
+}
+
 .water-drop-animation,
 .stage-pop-animation,
 .rain-drop-animation,
@@ -2638,12 +2675,40 @@ input[type="range"] {
   animation: rainCloudPop 0.82s ease-out forwards;
 }
 
+.garden-scene-backdrop {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  z-index: 0;
+  width: min(100%, 440px);
+  max-height: 224px;
+  object-fit: contain;
+  transform: translateX(-50%);
+  opacity: 0.64;
+  pointer-events: none;
+  filter: saturate(0.94) contrast(0.98);
+}
+
 .garden-plant-image {
+  position: relative;
+  z-index: 3;
   display: block;
-  width: min(calc(100% - 32px), 230px);
-  max-height: 228px;
+  width: min(calc(100% - 88px), 168px);
+  max-height: 230px;
   object-fit: contain;
   filter: drop-shadow(0 14px 16px rgba(72, 48, 28, 0.13));
+}
+
+.garden-plant-image.garden-stage-1 {
+  width: min(calc(100% - 118px), 150px);
+}
+
+.garden-plant-image.garden-stage-2 {
+  width: min(calc(100% - 76px), 205px);
+}
+
+.garden-plant-image.garden-stage-3 {
+  width: min(calc(100% - 34px), 256px);
 }
 
 .garden-plant-image.is-watered {
@@ -2651,7 +2716,7 @@ input[type="range"] {
 }
 
 .garden-plant-image.is-stage-up {
-  animation: plantStageUp 0.78s ease-out;
+  animation: plantStageUp 1.62s ease-in-out;
 }
 
 .garden-progress {
@@ -2793,9 +2858,59 @@ input[type="range"] {
 }
 
 @keyframes plantStageUp {
-  0% { opacity: 0.42; transform: scale(0.82) translateY(10px); }
-  55% { opacity: 1; transform: scale(1.1) translateY(-6px); }
-  100% { opacity: 1; transform: scale(1); }
+  0% {
+    opacity: 0.55;
+    transform: scale(1) translateY(0);
+    filter: brightness(0.82) contrast(1.2) drop-shadow(0 14px 16px rgba(72, 48, 28, 0.13));
+  }
+  18% {
+    opacity: 0.72;
+    transform: scale(0.9) translateY(7px);
+    filter: brightness(0.56) contrast(1.35) saturate(0.8) drop-shadow(0 0 18px rgba(0, 0, 0, 0.28));
+  }
+  36% {
+    opacity: 1;
+    transform: scale(1.08) translateY(-7px);
+    filter: brightness(1.45) contrast(1.05) saturate(1.3) drop-shadow(0 0 24px rgba(220, 40, 40, 0.5));
+  }
+  58% {
+    transform: scale(1.18) translateY(-10px);
+    filter: brightness(1.72) contrast(1.12) saturate(1.2) drop-shadow(0 0 34px rgba(255, 206, 104, 0.62));
+  }
+  78% {
+    transform: scale(0.98) translateY(2px);
+    filter: brightness(0.95) contrast(1.12) drop-shadow(0 0 16px rgba(68, 34, 34, 0.22));
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: drop-shadow(0 14px 16px rgba(72, 48, 28, 0.13));
+  }
+}
+
+@keyframes evolutionRedAura {
+  0% { opacity: 0; transform: scale(0.72); }
+  22% { opacity: 0.88; transform: scale(1.02); }
+  48% { opacity: 0.28; transform: scale(1.16); }
+  68% { opacity: 0.78; transform: scale(1.24); }
+  100% { opacity: 0; transform: scale(1.36); }
+}
+
+@keyframes evolutionDarkFlash {
+  0% { opacity: 0; transform: scale(0.86) rotate(0deg); }
+  16% { opacity: 0.78; transform: scale(1) rotate(-2deg); }
+  34% { opacity: 0.12; transform: scale(1.1) rotate(2deg); }
+  54% { opacity: 0.7; transform: scale(1.16) rotate(-1deg); }
+  74% { opacity: 0.16; transform: scale(1.22) rotate(1deg); }
+  100% { opacity: 0; transform: scale(1.32) rotate(0deg); }
+}
+
+@keyframes evolutionFlashBurst {
+  0% { opacity: 0; transform: scale(0.66); }
+  32% { opacity: 0.18; transform: scale(0.9); }
+  48% { opacity: 1; transform: scale(1.06); }
+  64% { opacity: 0.46; transform: scale(1.14); }
+  100% { opacity: 0; transform: scale(1.28); }
 }
 
 @keyframes progressGlow {
@@ -2866,6 +2981,9 @@ input[type="range"] {
   .watering-can.is-watering,
   .garden-plant-image.is-watered,
   .garden-plant-image.is-stage-up,
+  .garden-plant-scene.is-evolving::before,
+  .garden-plant-scene.is-evolving::after,
+  .garden-plant-scene.is-evolving .garden-fx-layer::before,
   .garden-progress-track.is-updated,
   .water-balance.is-updated,
   .water-drop-animation,

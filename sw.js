@@ -1,9 +1,9 @@
-const CACHE_NAME = "chromatica-lab-refresh-44";
+const CACHE_NAME = "chromatica-lab-refresh-45";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=refresh-44",
-  "./app.js?v=refresh-44",
+  "./styles.css?v=refresh-45",
+  "./app.js?v=refresh-45",
   "./manifest.webmanifest",
   "./public/assets/chromatic-refresh/brand/chl_brand_badge.png",
   "./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png",
@@ -14,6 +14,7 @@ const APP_SHELL = [
   "./public/assets/chromatic-refresh/feature/streak_fire_bird.png",
   "./public/assets/chromatic-refresh/feature/tuner_badge.png",
   "./public/assets/garden/icons/spirit-garden-icon.png",
+  "./public/assets/garden/icons/garden-stage-backdrop.png",
   "./public/assets/chromatic-refresh/icon/mic_settings_icon.png",
   "./public/assets/chromatic-refresh/icon/practice_record_icon.png",
   "./public/assets/chromatic-refresh/note/encouragement_note.png",
