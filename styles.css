@@ -654,7 +654,30 @@ li,
 }
 
 .tuner-page-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   margin-top: 18px;
+  border-color: rgba(184, 139, 66, 0.72);
+  background:
+    linear-gradient(180deg, rgba(18, 36, 23, 0.18), rgba(5, 18, 12, 0.46)),
+    url("./public/assets/chromatic-refresh/feature/tuner-card-bg.png") center / cover no-repeat;
+  box-shadow: 0 18px 34px rgba(28, 36, 21, 0.22);
+}
+
+.tuner-page-card::before {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  z-index: -1;
+  border-radius: 22px;
+  background: rgba(255, 253, 249, 0.06);
+  pointer-events: none;
+}
+
+.tuner-page-card .card-row-head {
+  position: relative;
+  z-index: 1;
 }
 
 .card-row-head,
@@ -677,6 +700,12 @@ li,
   font-weight: 700;
 }
 
+.tuner-page-card #homeTunerStatus {
+  color: #f6dfae;
+  background: rgba(10, 24, 14, 0.58);
+  border: 1px solid rgba(211, 162, 77, 0.42);
+}
+
 .home-tuner-display {
   display: grid;
   place-items: center;
@@ -687,11 +716,23 @@ li,
   background: rgba(255, 253, 249, 0.62);
 }
 
+.tuner-page-card .home-tuner-display {
+  position: relative;
+  z-index: 1;
+  border-color: rgba(230, 187, 96, 0.34);
+  background: rgba(5, 20, 12, 0.42);
+  box-shadow: inset 0 1px 0 rgba(255, 240, 184, 0.12);
+}
+
 .home-tuner-display strong {
   color: var(--text-main);
   font-size: 52px;
   font-weight: 800;
   line-height: 1;
+}
+
+.tuner-page-card .home-tuner-display strong {
+  color: #fff4cf;
 }
 
 .home-tuner-display span {
@@ -700,13 +741,26 @@ li,
   font-weight: 800;
 }
 
+.tuner-page-card .home-tuner-display span {
+  color: #e9c47c;
+}
+
 .home-tuner-media {
   margin: -2px 0 8px;
+}
+
+.tuner-page-card .home-tuner-media {
+  position: relative;
+  z-index: 1;
 }
 
 .home-tuner-media img {
   width: min(100%, 128px);
   filter: drop-shadow(0 10px 14px rgba(72, 48, 28, 0.10));
+}
+
+.tuner-page-card .home-tuner-media img {
+  filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.2));
 }
 
 .home-tuner-hint {
@@ -722,6 +776,12 @@ li,
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 700;
+}
+
+.tuner-page-card .mini-tuner-scale {
+  position: relative;
+  z-index: 1;
+  color: rgba(255, 244, 207, 0.72);
 }
 
 .mini-tuner-track {
