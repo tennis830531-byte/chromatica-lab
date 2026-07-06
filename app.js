@@ -1615,9 +1615,9 @@ function showGardenToastAfterAnimation(title, text, delay = 1900) {
   window.setTimeout(() => showGardenToast(title, text), delay);
 }
 
-const FREEZE_MAX = 3;
+const FREEZE_MAX = 2;
 const FREEZE_INITIAL = 0;
-const FREEZE_REWARD_INTERVAL = 7;
+const FREEZE_REWARD_INTERVAL = 3;
 
 function addDays(date, offset) {
   const next = new Date(date);
