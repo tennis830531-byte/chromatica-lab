@@ -1,9 +1,9 @@
-const CACHE_NAME = "chromatica-lab-refresh-80";
+const CACHE_NAME = "chromatica-lab-refresh-81";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=refresh-80",
-  "./app.js?v=refresh-80",
+  "./styles.css?v=refresh-81",
+  "./app.js?v=refresh-81",
   "./manifest.webmanifest",
   "./public/assets/chromatic-refresh/brand/chl_brand_badge.png",
   "./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png",
@@ -18,6 +18,9 @@ const APP_SHELL = [
   "./public/assets/garden/icons/spirit-garden-icon.png",
   "./public/assets/garden/icons/home-plant-stage-bg.png",
   "./public/assets/garden/icons/garden-stage-backdrop.png",
+  "./public/assets/garden/plants/lucky-leaf-spirit-stage1.png",
+  "./public/assets/garden/plants/lucky-leaf-spirit-stage2.png",
+  "./public/assets/garden/plants/lucky-leaf-spirit-stage3.png",
   "./public/assets/sounds/點擊音效.mp3",
   "./public/assets/sounds/關閉音效.mp3",
   "./public/assets/sounds/練習完成音效.mp3",

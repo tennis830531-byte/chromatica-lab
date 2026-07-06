@@ -3467,6 +3467,10 @@ body.simple-motion .plant-action-layer.is-stage-up {
   transform: translateX(-3px) scale(0.9);
 }
 
+.garden-collection-cell .collection-lucky-leaf-spirit {
+  transform: scale(0.82);
+}
+
 .garden-collection-cell .slot-number {
   position: absolute;
   left: 7px;

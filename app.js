@@ -50,6 +50,16 @@ const gardenSpecies = [
       "./public/assets/garden/plants/mushroom-spirit-stage3.png",
     ],
   },
+  {
+    species: "lucky-leaf-spirit",
+    name: "幸葉靈",
+    description: "從幸運葉片中誕生的口琴精靈，會用柔和旋律陪伴練習者，讓每一次練習都多一點好心情。",
+    images: [
+      "./public/assets/garden/plants/lucky-leaf-spirit-stage1.png",
+      "./public/assets/garden/plants/lucky-leaf-spirit-stage2.png",
+      "./public/assets/garden/plants/lucky-leaf-spirit-stage3.png",
+    ],
+  },
 ];
 
 const gardenStorageKeys = {
