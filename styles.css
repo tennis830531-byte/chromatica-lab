@@ -772,7 +772,7 @@ li,
 .quick-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .quick-card {
@@ -780,59 +780,96 @@ li,
   display: grid;
   justify-items: center;
   align-content: center;
-  gap: 10px;
-  min-height: 148px;
-  padding: 18px 12px 16px;
-  overflow: visible;
-  border: 1px solid var(--line);
-  border-radius: 20px;
+  gap: 8px;
+  min-height: 124px;
+  padding: 14px 10px 13px;
+  overflow: hidden;
+  border: 1px solid rgba(231, 216, 200, 0.9);
+  border-radius: 18px;
   color: var(--text-main);
-  background: linear-gradient(180deg, var(--card), var(--paper));
+  background:
+    radial-gradient(circle at 16% 18%, rgba(255, 255, 255, 0.86), transparent 34%),
+    linear-gradient(145deg, rgba(255, 253, 249, 0.96), rgba(250, 243, 232, 0.86));
   text-align: center;
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 10px 22px rgba(72, 48, 28, 0.08);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
 }
 
 .quick-card::after {
   content: "";
   position: absolute;
-  left: 16px;
-  right: 16px;
-  bottom: 0;
-  height: 4px;
-  border-radius: 999px 999px 0 0;
-  background: rgba(212, 165, 90, 0.62);
+  left: 18px;
+  right: 18px;
+  bottom: -10px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(212, 165, 90, 0.2);
+  opacity: 0;
+  filter: blur(8px);
+  transition: opacity 160ms ease, bottom 160ms ease;
+}
+
+.quick-card:hover {
+  border-color: rgba(212, 165, 90, 0.6);
+  box-shadow: 0 14px 26px rgba(72, 48, 28, 0.12);
+  transform: translateY(-2px);
+}
+
+.quick-card:hover::after {
+  bottom: -6px;
+  opacity: 1;
 }
 
 .quick-card-icon {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 86px;
-  height: 86px;
-  border-radius: 24px;
-  background: var(--accent-soft);
+  width: 88px;
+  height: 88px;
+  border: 1px solid rgba(231, 216, 200, 0.72);
+  border-radius: 25px;
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.88), transparent 40%),
+    linear-gradient(145deg, rgba(248, 233, 203, 0.92), rgba(244, 222, 184, 0.58));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 7px 14px rgba(122, 78, 45, 0.08);
+  transition: filter 160ms ease, transform 160ms ease;
+}
+
+.quick-card:hover .quick-card-icon {
+  filter: brightness(1.03);
+  transform: translateY(-1px);
 }
 
 .quick-card img {
-  width: 76px;
-  height: 76px;
+  width: 70px;
+  height: 70px;
   object-fit: contain;
 }
 
 .quick-card strong {
-  font-size: 16px;
-  font-weight: 900;
-  line-height: 1.25;
+  font-family: var(--font-hand);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.18;
 }
 
 .quick-card em {
   justify-self: center;
-  padding: 5px 9px;
+  margin-top: -1px;
+  padding: 4px 9px;
   border-radius: 999px;
   color: var(--primary);
   background: rgba(243, 227, 199, 0.78);
+  border: 1px solid rgba(231, 216, 200, 0.82);
   font-size: 11px;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 800;
 }
 
 .quick-card small {
@@ -842,7 +879,35 @@ li,
 }
 
 .leaderboard-card .quick-card-icon {
-  background: rgba(243, 227, 199, 0.9);
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.88), transparent 40%),
+    linear-gradient(145deg, rgba(248, 233, 203, 0.94), rgba(232, 213, 178, 0.62));
+}
+
+@media (max-width: 420px) {
+  .quick-grid {
+    gap: 9px;
+  }
+
+  .quick-card {
+    min-height: 116px;
+    padding: 12px 8px;
+  }
+
+  .quick-card-icon {
+    width: 78px;
+    height: 78px;
+    border-radius: 22px;
+  }
+
+  .quick-card img {
+    width: 62px;
+    height: 62px;
+  }
+
+  .quick-card strong {
+    font-size: 16px;
+  }
 }
 
 body.hide-featured-spirit .hero-actions {
@@ -1126,6 +1191,20 @@ body.hide-featured-spirit .hero-plant-slot {
 .section-head.compact > p:not(.eyebrow) {
   grid-column: 2;
   grid-row: 3;
+}
+
+.section-head.compact.no-eyebrow > h2 {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.section-head.compact.no-eyebrow > p:not(.eyebrow) {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.section-head.compact.no-eyebrow .section-icon {
+  grid-row: 1 / span 2;
 }
 
 .section-head.no-icon {
@@ -2591,8 +2670,8 @@ input[type="range"] {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 76px;
-  padding: 16px 18px;
+  min-height: 68px;
+  padding: 14px 18px;
   cursor: pointer;
   list-style: none;
 }
@@ -2842,6 +2921,24 @@ body.simple-motion .plant-action-layer.is-stage-up {
 .bottom-nav-item span {
   font-size: 18px;
   line-height: 1;
+}
+
+.bottom-nav-item .nav-practice-mark {
+  color: #c7655a;
+  font-size: 17px;
+}
+
+.bottom-nav-item.active .nav-practice-mark {
+  color: #e07a70;
+}
+
+.nav-garden-mark {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg%20viewBox%3D%270%200%2024%2024%27%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%3E%3Cpath%20fill%3D%27black%27%20d%3D%27M12.1%2021.5c-.55%200-1-.45-1-1v-7.1C8.3%2013.2%206.1%2012.1%204.6%2010.3%203.2%208.6%202.6%206.3%202.9%203.3c2.9-.28%205.2.34%206.9%201.84%201.34%201.18%202.22%202.77%202.63%204.77.57-1.66%201.55-2.99%202.95-3.94%201.62-1.1%203.66-1.49%206.07-1.16.22%202.38-.27%204.34-1.48%205.85-1.37%201.71-3.48%202.64-6.28%202.78v7.06c0%20.55-.45%201-1%201h-.59ZM5%205.29c.06%201.62.52%202.9%201.36%203.89%201.02%201.19%202.54%201.91%204.52%202.14-.28-1.98-1.07-3.5-2.34-4.56C7.62%206%206.44%205.51%205%205.29Zm14.47%201.44c-1.28-.03-2.33.27-3.14.9-1.12.86-1.88%202.17-2.27%203.91%201.92-.14%203.36-.79%204.31-1.95.65-.79%201.02-1.74%201.1-2.86Z%27/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg%20viewBox%3D%270%200%2024%2024%27%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%3E%3Cpath%20fill%3D%27black%27%20d%3D%27M12.1%2021.5c-.55%200-1-.45-1-1v-7.1C8.3%2013.2%206.1%2012.1%204.6%2010.3%203.2%208.6%202.6%206.3%202.9%203.3c2.9-.28%205.2.34%206.9%201.84%201.34%201.18%202.22%202.77%202.63%204.77.57-1.66%201.55-2.99%202.95-3.94%201.62-1.1%203.66-1.49%206.07-1.16.22%202.38-.27%204.34-1.48%205.85-1.37%201.71-3.48%202.64-6.28%202.78v7.06c0%20.55-.45%201-1%201h-.59ZM5%205.29c.06%201.62.52%202.9%201.36%203.89%201.02%201.19%202.54%201.91%204.52%202.14-.28-1.98-1.07-3.5-2.34-4.56C7.62%206%206.44%205.51%205%205.29Zm14.47%201.44c-1.28-.03-2.33.27-3.14.9-1.12.86-1.88%202.17-2.27%203.91%201.92-.14%203.36-.79%204.31-1.95.65-.79%201.02-1.74%201.1-2.86Z%27/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .bottom-nav-item.active {
@@ -3787,6 +3884,9 @@ body.simple-motion .plant-action-layer.is-stage-up {
   .plant-action-layer.is-stage-up,
   .garden-plant-image.is-watered,
   .garden-plant-image.is-stage-up,
+  .quick-card,
+  .quick-card::after,
+  .quick-card-icon,
   .garden-plant-scene.is-evolving::before,
   .garden-plant-scene.is-evolving::after,
   .garden-plant-scene.is-evolving .garden-fx-layer::before,
@@ -3797,6 +3897,12 @@ body.simple-motion .plant-action-layer.is-stage-up {
   .rain-drop-animation,
   .rain-bonus-cloud {
     animation: none !important;
+  }
+
+  .quick-card,
+  .quick-card::after,
+  .quick-card-icon {
+    transition: none !important;
   }
 }
 

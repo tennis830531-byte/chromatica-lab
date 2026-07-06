@@ -7,14 +7,14 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="口琴練習室" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <title>Chromatic harmonica Lab</title>
+    <title>Chromatic Harmonica Lab</title>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-76" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-77" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -168,15 +168,12 @@
       <div class="leaderboard-modal paper-card">
         <div class="leaderboard-modal-head">
           <div>
-            <p class="eyebrow">全球排行榜</p>
             <h2 id="leaderboardModalTitle">全球排行榜</h2>
           </div>
           <button id="leaderboardModalClose" class="calendar-close" type="button" aria-label="關閉全球排行榜">×</button>
         </div>
         <div class="leaderboard-preview">
-          <span>練習王</span>
-          <strong>尚未公開</strong>
-          <p>未來將開放全球練習排行榜，看看誰是最穩定的練習王。</p>
+          <strong>練習王尚未公開</strong>
         </div>
       </div>
     </div>
@@ -186,7 +183,7 @@
         <div class="header-brand">
           <img class="ui-logo header-logo" src="./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png" alt="" aria-hidden="true" />
           <div>
-            <strong>Chromatic harmonica Lab</strong>
+            <strong>Chromatic Harmonica Lab</strong>
             <span>半音階口琴練習室</span>
           </div>
         </div>
@@ -229,16 +226,14 @@
         </section>
 
         <section id="tuner" class="view">
-          <div class="section-head compact">
+          <div class="section-head compact no-eyebrow">
             <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/tuner_badge.png" alt="" aria-hidden="true" />
-            <p class="eyebrow">調音</p>
             <h2>全音域調音器</h2>
             <p>吹奏時會顯示最接近的音名與 cents 誤差。</p>
           </div>
 
           <div class="home-tuner-card tuner-page-card paper-card">
             <div class="card-row-head">
-              <span class="card-label">全音域調音器</span>
               <em id="homeTunerStatus">等待收音</em>
             </div>
             <div class="home-tuner-display">
@@ -257,14 +252,12 @@
                 <span>-50</span><span>0</span><span>+50</span>
               </div>
             </div>
-            <p class="home-tuner-hint">吹奏時會顯示最接近的音名與 cents 誤差。</p>
           </div>
         </section>
 
         <section id="practicehub" class="view">
           <div class="practice-hub-heading">
             <div class="practice-hub-heading-copy">
-              <p class="eyebrow">練習室入口</p>
               <h2>開始練習</h2>
               <p>選擇今天想練的項目，從長音開始慢慢累積基本功。</p>
             </div>
@@ -316,7 +309,6 @@
           <div class="section-head">
             <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/note_map_explorer.png" alt="" aria-hidden="true" />
             <div>
-              <p class="eyebrow">音符地圖</p>
               <h2>音符地圖</h2>
               <p>切換琴型後左右滑動，逐孔查看吹音、吸音與按鍵音。</p>
             </div>
@@ -482,9 +474,8 @@
         </section>
 
         <section id="daily" class="view">
-          <div class="section-head compact">
+          <div class="section-head compact no-eyebrow">
             <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" aria-hidden="true" />
-            <p class="eyebrow">每日練習</p>
             <h2>每日目標</h2>
             <p>完整完成一個練習後會自動打勾，每天重新開始。</p>
           </div>
@@ -523,18 +514,16 @@
         </section>
 
         <section id="garden" class="view">
-          <div class="section-head compact">
+          <div class="section-head compact no-eyebrow">
             <img class="section-icon ui-quick-icon" src="./public/assets/garden/icons/watering-can.png" alt="" aria-hidden="true" />
-            <p class="eyebrow">植物精靈</p>
             <h2>精靈花園</h2>
-            <p>完成各種練習室的練習獲得水滴，澆灌屬於你的植物精靈。</p>
+            <p>完成各種練習室的練習獲得水滴，澆灌屬於你的口琴植物精靈。</p>
           </div>
 
           <div class="garden-layout">
             <section class="garden-card paper-card">
               <div class="garden-card-head">
                 <div class="garden-plant-heading">
-                  <p class="eyebrow">目前植物</p>
                   <div class="garden-plant-title-line">
                     <h3 id="gardenPlantName">旋律芽芽</h3>
                     <span id="gardenPlantStage" class="garden-stage-pill">幼苗</span>
@@ -564,8 +553,7 @@
             <section class="garden-card paper-card">
               <div class="garden-card-head compact">
                 <div>
-                  <p class="eyebrow">收藏冊</p>
-                  <h3>植物精靈圖鑑</h3>
+                  <h3>口琴植物精靈圖鑑</h3>
                 </div>
               </div>
               <div id="gardenCollection" class="garden-collection"></div>
@@ -575,15 +563,14 @@
         </section>
 
         <section id="audio" class="view">
-          <div class="section-head compact">
+          <div class="section-head compact no-eyebrow">
             <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/icon/mic_settings_icon.png" alt="" aria-hidden="true" />
-            <p class="eyebrow">設定</p>
             <h2>設定</h2>
             <p>整理收音、練習、聲音與顯示偏好。</p>
           </div>
           <div class="audio-settings-panel">
             <details class="audio-setting-card paper-card">
-              <summary class="settings-accordion-head"><span><small>收音設定</small><strong>麥克風與校正</strong></span><i aria-hidden="true"></i></summary>
+              <summary class="settings-accordion-head"><span><strong>收音設定</strong></span><i aria-hidden="true"></i></summary>
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>麥克風狀態</span>
@@ -608,7 +595,7 @@
               </div>
             </details>
             <details class="audio-setting-card paper-card">
-              <summary class="settings-accordion-head"><span><small>練習設定</small><strong>練習設定</strong></span><i aria-hidden="true"></i></summary>
+              <summary class="settings-accordion-head"><span><strong>練習設定</strong></span><i aria-hidden="true"></i></summary>
               <div class="settings-accordion-body">
                 <label class="setting-number-wrap">
                   <span>預設 BPM</span>
@@ -626,7 +613,7 @@
               </div>
             </details>
             <details class="audio-setting-card paper-card">
-              <summary class="settings-accordion-head"><span><small>聲音設定</small><strong>聲音設定</strong></span><i aria-hidden="true"></i></summary>
+              <summary class="settings-accordion-head"><span><strong>聲音設定</strong></span><i aria-hidden="true"></i></summary>
               <div class="settings-accordion-body">
                 <label class="sound-toggle-row">
                   <span>App 音效</span>
@@ -663,7 +650,7 @@
               </div>
             </details>
             <details class="audio-setting-card paper-card">
-              <summary class="settings-accordion-head"><span><small>顯示與動畫</small><strong>顯示與動畫</strong></span><i aria-hidden="true"></i></summary>
+              <summary class="settings-accordion-head"><span><strong>顯示與動畫</strong></span><i aria-hidden="true"></i></summary>
               <div class="settings-accordion-body">
                 <label class="setting-select-wrap compact-select">
                   <span>動畫效果</span>
@@ -687,7 +674,7 @@
               </div>
             </details>
             <details class="audio-setting-card paper-card">
-              <summary class="settings-accordion-head"><span><small>通知與語言</small><strong>通知與語言</strong></span><i aria-hidden="true"></i></summary>
+              <summary class="settings-accordion-head"><span><strong>通知與語言</strong></span><i aria-hidden="true"></i></summary>
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>練習提醒</span>
@@ -700,7 +687,7 @@
               </div>
             </details>
             <details class="audio-setting-card paper-card">
-              <summary class="settings-accordion-head"><span><small>會員帳號</small><strong>會員帳號</strong></span><i aria-hidden="true"></i></summary>
+              <summary class="settings-accordion-head"><span><strong>會員帳號</strong></span><i aria-hidden="true"></i></summary>
               <div class="settings-accordion-body">
                 <p class="settings-card-copy">登入後可同步練習資料與精靈花園進度。</p>
                 <button id="googleLoginBtn" class="google-login-btn" type="button"><span>G</span>使用 Google 登入</button>
@@ -708,11 +695,11 @@
               </div>
             </details>
             <details class="audio-setting-card paper-card">
-              <summary class="settings-accordion-head"><span><small>關於</small><strong>關於</strong></span><i aria-hidden="true"></i></summary>
+              <summary class="settings-accordion-head"><span><strong>關於</strong></span><i aria-hidden="true"></i></summary>
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-76</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-77</span></strong>
                 </div>
                 <div class="setting-row">
                   <span>問題回報</span>
@@ -728,12 +715,12 @@
         <button class="bottom-nav-item active" data-view="intro" type="button"><span>⌂</span>首頁</button>
         <button class="bottom-nav-item" data-view="tuner" type="button"><span>⌁</span>調音</button>
         <button class="bottom-nav-item" data-view="map" type="button"><span>♪</span>音符</button>
-        <button class="bottom-nav-item" data-view="practicehub" type="button"><span>◉</span>練習</button>
+        <button class="bottom-nav-item" data-view="practicehub" type="button"><span class="nav-practice-mark">●</span>練習</button>
         <button class="bottom-nav-item" data-view="daily" type="button"><span>✓</span>目標</button>
-        <button class="bottom-nav-item" data-view="garden" type="button"><span>♧</span>花園</button>
+        <button class="bottom-nav-item" data-view="garden" type="button"><span class="nav-garden-mark" aria-hidden="true"></span>花園</button>
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-76"></script>
+    <script src="./app.js?v=refresh-77"></script>
   </body>
 </html>
