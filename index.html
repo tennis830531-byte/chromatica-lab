@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-75" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-76" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -582,137 +582,144 @@
             <p>整理收音、練習、聲音與顯示偏好。</p>
           </div>
           <div class="audio-settings-panel">
-            <div class="audio-setting-card paper-card">
-              <p class="eyebrow">收音設定</p>
-              <h3>麥克風與校正</h3>
-              <div class="setting-row">
-                <span>麥克風狀態</span>
-                <strong id="audioMicStatus">待開啟</strong>
+            <details class="audio-setting-card paper-card">
+              <summary class="settings-accordion-head"><span><small>收音設定</small><strong>麥克風與校正</strong></span><i aria-hidden="true"></i></summary>
+              <div class="settings-accordion-body">
+                <div class="setting-row">
+                  <span>麥克風狀態</span>
+                  <strong id="audioMicStatus">待開啟</strong>
+                </div>
+                <div class="setting-row action-row">
+                  <span>靜音校正</span>
+                  <button id="audioCalibrateBtn" class="ghost-btn" type="button">重新校正</button>
+                </div>
+                <label class="setting-select-wrap">
+                  <span>標準音高</span>
+                  <select id="tuningSelect" aria-label="調音基準">
+                    <option value="440" selected>A4 = 440</option>
+                    <option value="441">A4 = 441</option>
+                    <option value="442">A4 = 442</option>
+                    <option value="443">A4 = 443</option>
+                    <option value="444">A4 = 444</option>
+                    <option value="445">A4 = 445</option>
+                  </select>
+                </label>
+                <div class="headphone-note">建議戴耳機，避免節拍器影響收音。</div>
               </div>
-              <div class="setting-row action-row">
-                <span>靜音校正</span>
-                <button id="audioCalibrateBtn" class="ghost-btn" type="button">重新校正</button>
-              </div>
-              <label class="setting-select-wrap">
-                <span>標準音高</span>
-                <select id="tuningSelect" aria-label="調音基準">
-                  <option value="440" selected>A4 = 440</option>
-                  <option value="441">A4 = 441</option>
-                  <option value="442">A4 = 442</option>
-                  <option value="443">A4 = 443</option>
-                  <option value="444">A4 = 444</option>
-                  <option value="445">A4 = 445</option>
-                </select>
-              </label>
-              <div class="headphone-note">建議戴耳機，避免節拍器影響收音。</div>
-            </div>
-            <div class="audio-setting-card paper-card">
-              <p class="eyebrow">練習設定</p>
-              <h3>練習設定</h3>
-              <label class="setting-number-wrap">
-                <span>預設 BPM</span>
-                <input id="defaultBpmInput" type="number" min="40" max="120" step="1" value="60" />
-              </label>
-              <div class="setting-segment-wrap">
-                <span>預設循環次數</span>
-                <div class="segmented-control" role="radiogroup" aria-label="預設循環次數">
-                  <button data-default-cycles="2" type="button">2</button>
-                  <button data-default-cycles="4" type="button">4</button>
-                  <button data-default-cycles="6" type="button">6</button>
-                  <button data-default-cycles="8" type="button">8</button>
+            </details>
+            <details class="audio-setting-card paper-card">
+              <summary class="settings-accordion-head"><span><small>練習設定</small><strong>練習設定</strong></span><i aria-hidden="true"></i></summary>
+              <div class="settings-accordion-body">
+                <label class="setting-number-wrap">
+                  <span>預設 BPM</span>
+                  <input id="defaultBpmInput" type="number" min="40" max="120" step="1" value="60" />
+                </label>
+                <div class="setting-segment-wrap">
+                  <span>預設循環次數</span>
+                  <div class="segmented-control" role="radiogroup" aria-label="預設循環次數">
+                    <button data-default-cycles="2" type="button">2</button>
+                    <button data-default-cycles="4" type="button">4</button>
+                    <button data-default-cycles="6" type="button">6</button>
+                    <button data-default-cycles="8" type="button">8</button>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="audio-setting-card paper-card">
-              <p class="eyebrow">聲音設定</p>
-              <h3>聲音設定</h3>
-              <label class="sound-toggle-row">
-                <span>App 音效</span>
-                <input id="appSoundToggle" type="checkbox" checked />
-              </label>
-              <label class="setting-select-wrap compact-select">
-                <span>節拍器音量</span>
-                <select id="metronomeVolumeSelect" aria-label="節拍器音量">
-                  <option value="low">低</option>
-                  <option value="medium" selected>中</option>
-                  <option value="high">高</option>
-                </select>
-              </label>
-              <label class="sound-toggle-row">
-                <span>提示音</span>
-                <input id="cueSoundToggle" type="checkbox" checked />
-              </label>
-              <label class="sound-toggle-row">
-                <span>完成音效</span>
-                <input id="completionSoundToggle" type="checkbox" checked />
-              </label>
-              <label class="sound-toggle-row">
-                <span>澆水音效</span>
-                <input id="wateringSoundToggle" type="checkbox" checked />
-              </label>
-              <label class="sound-toggle-row">
-                <span>進化音效</span>
-                <input id="evolutionSoundToggle" type="checkbox" checked />
-              </label>
-              <label class="sound-toggle-row">
-                <span>花園頁面音樂</span>
-                <input id="gardenMusicToggle" type="checkbox" />
-              </label>
-            </div>
-            <div class="audio-setting-card paper-card">
-              <p class="eyebrow">顯示與動畫</p>
-              <h3>顯示與動畫</h3>
-              <label class="setting-select-wrap compact-select">
-                <span>動畫效果</span>
-                <select id="animationModeSelect" aria-label="動畫效果">
-                  <option value="full">完整</option>
-                  <option value="simple">簡化</option>
-                </select>
-              </label>
-              <label class="sound-toggle-row">
-                <span>植物待機動作</span>
-                <input id="plantIdleMotionToggle" type="checkbox" checked />
-              </label>
-              <label class="sound-toggle-row">
-                <span>進化特效</span>
-                <input id="evolutionEffectsToggle" type="checkbox" checked />
-              </label>
-              <label class="sound-toggle-row">
-                <span>首頁展示精靈</span>
-                <input id="showFeaturedSpiritToggle" type="checkbox" checked />
-              </label>
-            </div>
-            <div class="audio-setting-card paper-card">
-              <p class="eyebrow">通知與語言</p>
-              <h3>通知與語言</h3>
-              <div class="setting-row">
-                <span>練習提醒</span>
-                <strong>準備中</strong>
+            </details>
+            <details class="audio-setting-card paper-card">
+              <summary class="settings-accordion-head"><span><small>聲音設定</small><strong>聲音設定</strong></span><i aria-hidden="true"></i></summary>
+              <div class="settings-accordion-body">
+                <label class="sound-toggle-row">
+                  <span>App 音效</span>
+                  <input id="appSoundToggle" type="checkbox" checked />
+                </label>
+                <label class="setting-select-wrap compact-select">
+                  <span>節拍器音量</span>
+                  <select id="metronomeVolumeSelect" aria-label="節拍器音量">
+                    <option value="low">低</option>
+                    <option value="medium" selected>中</option>
+                    <option value="high">高</option>
+                  </select>
+                </label>
+                <label class="sound-toggle-row">
+                  <span>提示音</span>
+                  <input id="cueSoundToggle" type="checkbox" checked />
+                </label>
+                <label class="sound-toggle-row">
+                  <span>完成音效</span>
+                  <input id="completionSoundToggle" type="checkbox" checked />
+                </label>
+                <label class="sound-toggle-row">
+                  <span>澆水音效</span>
+                  <input id="wateringSoundToggle" type="checkbox" checked />
+                </label>
+                <label class="sound-toggle-row">
+                  <span>進化音效</span>
+                  <input id="evolutionSoundToggle" type="checkbox" checked />
+                </label>
+                <label class="sound-toggle-row">
+                  <span>花園頁面音樂</span>
+                  <input id="gardenMusicToggle" type="checkbox" />
+                </label>
               </div>
-              <div class="setting-row">
-                <span>語言</span>
-                <strong>繁體中文</strong>
+            </details>
+            <details class="audio-setting-card paper-card">
+              <summary class="settings-accordion-head"><span><small>顯示與動畫</small><strong>顯示與動畫</strong></span><i aria-hidden="true"></i></summary>
+              <div class="settings-accordion-body">
+                <label class="setting-select-wrap compact-select">
+                  <span>動畫效果</span>
+                  <select id="animationModeSelect" aria-label="動畫效果">
+                    <option value="full">完整</option>
+                    <option value="simple">簡化</option>
+                  </select>
+                </label>
+                <label class="sound-toggle-row">
+                  <span>植物待機動作</span>
+                  <input id="plantIdleMotionToggle" type="checkbox" checked />
+                </label>
+                <label class="sound-toggle-row">
+                  <span>進化特效</span>
+                  <input id="evolutionEffectsToggle" type="checkbox" checked />
+                </label>
+                <label class="sound-toggle-row">
+                  <span>首頁展示精靈</span>
+                  <input id="showFeaturedSpiritToggle" type="checkbox" checked />
+                </label>
               </div>
-            </div>
-            <div class="audio-setting-card paper-card">
-              <p class="eyebrow">會員帳號</p>
-              <h3>會員帳號</h3>
-              <p class="settings-card-copy">登入後可同步練習資料與精靈花園進度。</p>
-              <button id="googleLoginBtn" class="google-login-btn" type="button"><span>G</span>使用 Google 登入</button>
-              <p id="googleLoginStatus" class="settings-status-text" aria-live="polite"></p>
-            </div>
-            <div class="audio-setting-card paper-card">
-              <p class="eyebrow">關於</p>
-              <h3>關於</h3>
-              <div class="setting-row">
-                <span>Chromatic Harmonica Lab</span>
-                <strong>目前版本：<span class="version-number">refresh-46</span></strong>
+            </details>
+            <details class="audio-setting-card paper-card">
+              <summary class="settings-accordion-head"><span><small>通知與語言</small><strong>通知與語言</strong></span><i aria-hidden="true"></i></summary>
+              <div class="settings-accordion-body">
+                <div class="setting-row">
+                  <span>練習提醒</span>
+                  <strong>準備中</strong>
+                </div>
+                <div class="setting-row">
+                  <span>語言</span>
+                  <strong>繁體中文</strong>
+                </div>
               </div>
-              <div class="setting-row">
-                <span>問題回報</span>
-                <strong>準備中</strong>
+            </details>
+            <details class="audio-setting-card paper-card">
+              <summary class="settings-accordion-head"><span><small>會員帳號</small><strong>會員帳號</strong></span><i aria-hidden="true"></i></summary>
+              <div class="settings-accordion-body">
+                <p class="settings-card-copy">登入後可同步練習資料與精靈花園進度。</p>
+                <button id="googleLoginBtn" class="google-login-btn" type="button"><span>G</span>使用 Google 登入</button>
+                <p id="googleLoginStatus" class="settings-status-text" aria-live="polite"></p>
               </div>
-            </div>
+            </details>
+            <details class="audio-setting-card paper-card">
+              <summary class="settings-accordion-head"><span><small>關於</small><strong>關於</strong></span><i aria-hidden="true"></i></summary>
+              <div class="settings-accordion-body">
+                <div class="setting-row">
+                  <span>Chromatic Harmonica Lab</span>
+                  <strong>目前版本：<span class="version-number">refresh-46</span></strong>
+                </div>
+                <div class="setting-row">
+                  <span>問題回報</span>
+                  <strong>準備中</strong>
+                </div>
+              </div>
+            </details>
           </div>
         </section>
 
@@ -727,6 +734,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-75"></script>
+    <script src="./app.js?v=refresh-76"></script>
   </body>
 </html>

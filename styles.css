@@ -2566,9 +2566,9 @@ input[type="range"] {
 }
 
 .audio-setting-card {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
+  display: block;
+  padding: 0;
+  overflow: hidden;
 }
 
 .audio-setting-card .headphone-note {
@@ -2584,6 +2584,79 @@ input[type="range"] {
 
 .audio-setting-card > .eyebrow {
   margin-bottom: -6px;
+}
+
+.settings-accordion-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 76px;
+  padding: 16px 18px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.settings-accordion-head::-webkit-details-marker {
+  display: none;
+}
+
+.settings-accordion-head span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.settings-accordion-head small {
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.settings-accordion-head strong {
+  color: var(--text-main);
+  font-family: var(--font-hand);
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.18;
+}
+
+.settings-accordion-head i {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border: 1px solid rgba(231, 216, 200, 0.82);
+  border-radius: 999px;
+  background: rgba(255, 253, 249, 0.72);
+  box-shadow: var(--shadow-soft);
+}
+
+.settings-accordion-head i::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--primary);
+  border-bottom: 2px solid var(--primary);
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 180ms ease;
+}
+
+.audio-setting-card[open] .settings-accordion-head {
+  padding-bottom: 12px;
+}
+
+.audio-setting-card[open] .settings-accordion-head i::before {
+  transform: translateY(2px) rotate(225deg);
+}
+
+.settings-accordion-body {
+  display: grid;
+  gap: 12px;
+  padding: 0 16px 16px;
 }
 
 .settings-card-copy,
