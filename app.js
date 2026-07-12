@@ -28,7 +28,7 @@ const PLANT_STAGE_WATER_REQUIREMENTS = [100, 180, 250];
 const PLANT_WATER_REQUIRED = PLANT_STAGE_WATER_REQUIREMENTS.reduce((total, amount) => total + amount, 0);
 const GARDEN_EVOLUTION_NOTICE_DELAY_MS = 2300;
 const RAIN_BONUS_AMOUNT = 5;
-const RAIN_BONUS_CHANCE = 0.25;
+const RAIN_BONUS_CHANCE = 0.5;
 const RAIN_BONUS_ANIMATION_MS = 1500;
 const GARDEN_WATERING_CAN_SRC = "./public/assets/garden/icons/watering-can.png";
 const GARDEN_SHOVEL_SRC = "./public/assets/garden/icons/garden-shovel.png";
