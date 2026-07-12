@@ -1,0 +1,5 @@
+*.io-backup-*
+.DS_Store
+*.before-*
+public/assets/garden/plants/_preview-*/
+public/assets/garden/plants/_plant-stage-size-table.png

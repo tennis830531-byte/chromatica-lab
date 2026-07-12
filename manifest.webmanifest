@@ -1,0 +1,21 @@
+{
+  "id": "./",
+  "name": "Chromatic Harmonica Lab",
+  "short_name": "Harmonica Lab",
+  "description": "半音階口琴長音、音量控制與每日目標練習工具。",
+  "lang": "zh-Hant",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F8F3EC",
+  "theme_color": "#7A4E2D",
+  "icons": [
+    {
+      "src": "./public/assets/chromatic-refresh/brand/chl_brand_badge.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

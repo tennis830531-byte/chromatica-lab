@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#F8F3EC" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="口琴練習室" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <title>Chromatic Harmonica Lab</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
+    <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-103" />
+  </head>
+  <body>
+    <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
+      <div class="mic-gate-card">
+        <div class="mic-gate-illustration media-box" aria-hidden="true">
+          <img class="ui-mascot" src="./public/assets/chromatic-refresh/cleaned/04_bird_holding_harmonica.png" alt="" />
+        </div>
+        <h2 id="micGateTitle">進入練習前</h2>
+        <p>開啟麥克風後，App 會判斷你的音量穩定度，幫助你練習更平穩的長音。</p>
+        <ul class="gate-list">
+          <li>只偵測音量變化</li>
+          <li>不會儲存錄音</li>
+          <li>開始前會進行 1 秒環境音校正</li>
+        </ul>
+        <div id="micGateError" class="gate-error" aria-live="polite"></div>
+        <div class="gate-actions">
+          <button id="micGateBtn" class="primary-btn" type="button">開啟麥克風</button>
+          <button id="micGateSkip" class="ghost-btn" type="button">先瀏覽 App</button>
+        </div>
+        <p class="gate-headphone">建議戴耳機，避免節拍器被麥克風收進去。</p>
+      </div>
+    </div>
+
+    <div id="goalToast" class="goal-toast hidden" role="dialog" aria-modal="true" aria-labelledby="goalToastTitle">
+      <div class="goal-toast-card">
+        <p class="eyebrow">每日目標</p>
+        <h2 id="goalToastTitle">恭喜完成</h2>
+        <p id="goalToastText">你已完成今日目標。</p>
+        <button id="goalToastClose" class="primary-btn" type="button">知道了</button>
+      </div>
+    </div>
+
+    <div id="calendarModal" class="calendar-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="calendarModalTitle">
+      <div class="calendar-modal">
+        <div class="calendar-modal-head">
+          <div>
+            <p class="eyebrow">連續學習</p>
+            <h2 id="calendarModalTitle">連續練習日曆</h2>
+          </div>
+          <button id="calendarCloseBtn" class="calendar-close" type="button" aria-label="關閉日曆">×</button>
+        </div>
+        <div class="calendar-summary">
+          <span>目前連續 <b id="modalCurrentStreak">0</b> 天</span>
+          <span>最長紀錄 <b id="longestStreak">0</b> 天</span>
+          <span>本月完成 <b id="monthCompletedDays">0</b> 天</span>
+          <span>學習凍結 <b id="modalFreezeCount">0</b> 張</span>
+        </div>
+        <div class="calendar-month-title" id="calendarMonthTitle">本月日曆</div>
+        <div class="calendar-weekdays" aria-hidden="true">
+          <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+        </div>
+        <div id="streakCalendarGrid" class="calendar-grid"></div>
+        <div class="calendar-legend" aria-label="日曆圖例">
+          <span><b class="legend-done">♪</b> 已完成</span>
+          <span><b class="legend-frozen">❄</b> 凍結</span>
+          <span><b class="legend-missed">○</b> 未完成</span>
+          <span><b class="legend-today"></b> 今天</span>
+        </div>
+        <div class="freeze-rule">
+          <strong>學習凍結規則</strong>
+          <p>初始不發放凍結卡。每連續練習 3 天，可獲得 1 張學習凍結，最多持有 2 張。若中間漏練，之後回來完成練習時，系統會自動使用足夠的凍結卡補上空缺，讓連續紀錄延續。凍結日不算真正完成練習。</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="longToneIntroModal" class="longtone-intro-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="longToneIntroTitle">
+      <div class="longtone-intro-sheet">
+        <div class="longtone-intro-head">
+          <h2 id="longToneIntroTitle" class="sr-only">開始長音練習前</h2>
+          <button id="longToneIntroClose" class="calendar-close" type="button" aria-label="關閉說明">×</button>
+        </div>
+        <div class="longtone-intro-hero media-box" aria-hidden="true">
+          <img src="./public/assets/chromatic-refresh/feature/teacher_bird_notice.png" alt="" />
+        </div>
+        <div class="longtone-intro-body">
+          <section class="longtone-intro-block">
+            <h3>長音練習要注意什麼？</h3>
+            <div class="intro-tip-grid">
+              <article><span>呼吸</span><p>保持身體放鬆，用穩定氣流吹奏，不要用蠻力把音推出去。</p></article>
+              <article><span>嘴型</span><p>嘴唇輕輕包住口琴，不要咬緊，口腔保持自然打開。</p></article>
+              <article><span>音量變化</span><p>先以 mp 音量練習，注意音量不要忽大忽小。</p></article>
+              <article><span>弱起</span><p>起音不要爆開，讓聲音自然進來。</p></article>
+              <article><span>收尾</span><p>尾音不要硬切，讓氣流自然收住。</p></article>
+              <article><span>音準</span><p>練習時可以搭配內建調音器觀察 cents，留意音準是否往上飄或往下掉。</p></article>
+            </div>
+          </section>
+          <p class="longtone-intro-reminder">先不用追求大聲，先讓每一個音穩定、乾淨、自然。</p>
+        </div>
+        <div class="longtone-intro-actions">
+          <button id="longToneIntroConfirm" class="primary-btn" type="button">我知道了，開始練習</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="gardenSpiritModal" class="garden-spirit-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="gardenSpiritModalTitle">
+      <div class="garden-spirit-modal">
+        <div class="garden-spirit-modal-head">
+          <div>
+            <p class="eyebrow">植物精靈圖鑑</p>
+            <div class="garden-spirit-title-row">
+              <h2 id="gardenSpiritModalTitle">植物詳情</h2>
+              <button id="gardenSpiritEditName" class="garden-spirit-edit-name" type="button" aria-label="編輯植物名字">編輯</button>
+            </div>
+            <p id="gardenSpiritModalSubtitle">左右滑動查看三種形態。</p>
+          </div>
+          <button id="gardenSpiritModalClose" class="calendar-close" type="button" aria-label="關閉植物詳情">×</button>
+        </div>
+        <div id="gardenSpiritStageList" class="garden-spirit-stage-list" aria-label="植物三種形態"></div>
+        <p id="gardenSpiritDescription" class="garden-spirit-description"></p>
+        <div class="garden-spirit-modal-actions">
+          <button id="gardenSpiritSetFeatured" class="primary-btn" type="button">設為首頁展示</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="gardenRenameModal" class="garden-rename-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="gardenRenameTitle">
+      <div class="garden-rename-modal">
+        <div class="garden-rename-head">
+          <div>
+            <p class="eyebrow">植物名字</p>
+            <h2 id="gardenRenameTitle">編輯植物名字</h2>
+          </div>
+          <button id="gardenRenameClose" class="calendar-close" type="button" aria-label="關閉編輯名字">×</button>
+        </div>
+        <label class="garden-rename-field">
+          <span>名字</span>
+          <input id="gardenRenameInput" type="text" maxlength="14" autocomplete="off" />
+        </label>
+        <p class="garden-rename-hint">中文最多 7 個字，英文最多 14 個字母。</p>
+        <div class="garden-rename-actions">
+          <button id="gardenRenameCancel" class="secondary-btn" type="button">取消</button>
+          <button id="gardenRenameSave" class="primary-btn" type="button">儲存名字</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="starterPlantModal" class="starter-plant-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="starterPlantTitle">
+      <div class="starter-plant-modal">
+        <div class="starter-plant-head">
+          <p class="eyebrow">精靈花園</p>
+          <h2 id="starterPlantTitle">選擇你的第一隻植物精靈</h2>
+          <p>第一次來到精靈花園，先挑選一位陪你一起成長的夥伴吧。</p>
+        </div>
+        <div id="starterPlantChoices" class="starter-plant-choices" aria-label="初始植物精靈選擇"></div>
+        <p id="starterPlantHint" class="starter-plant-hint">點選一張植物精靈卡片後，就可以開始培養。</p>
+        <div class="starter-plant-actions">
+          <button id="starterPlantMore" class="ghost-btn" type="button">再看看</button>
+          <button id="starterPlantConfirm" class="primary-btn" type="button" disabled>就決定是你了！</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="leaderboardModal" class="leaderboard-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="leaderboardModalTitle">
+      <div class="leaderboard-modal paper-card">
+        <div class="leaderboard-modal-head">
+          <div>
+            <h2 id="leaderboardModalTitle">全球排行榜</h2>
+          </div>
+          <button id="leaderboardModalClose" class="calendar-close" type="button" aria-label="關閉全球排行榜">×</button>
+        </div>
+        <div class="leaderboard-preview">
+          <strong>練習王尚未公開</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-shell">
+      <header class="app-header">
+        <div class="header-brand">
+          <img class="ui-logo header-logo" src="./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png" alt="" aria-hidden="true" />
+          <div>
+            <strong>Chromatic Harmonica Lab</strong>
+            <span>半音階口琴練習室</span>
+          </div>
+        </div>
+        <button class="icon-btn" data-view="audio" type="button" aria-label="設定">⚙</button>
+      </header>
+      <main class="main">
+        <section id="intro" class="view active">
+          <div class="home-hero paper-card">
+            <div class="hero-top">
+              <div class="hero-copy">
+                <h2>半音階口琴練習室</h2>
+                <p>透過音符地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p>
+              </div>
+              <div class="hero-media media-box">
+                <img class="ui-hero-illustration hero-harmonica hero-brand-badge" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="" aria-hidden="true" />
+              </div>
+            </div>
+            <div class="hero-actions">
+              <button class="hero-plant-slot" id="heroPlantSlot" type="button">
+                <span class="hero-plant-stage">
+                  <span id="heroGardenIdleLayer" class="hero-plant-idle is-idle">
+                    <span id="heroGardenActionLayer" class="hero-plant-action">
+                      <img id="heroGardenPlant" class="hero-garden-plant-image hero-stage-1" src="./public/assets/garden/collection/starter-pot.png" alt="" />
+                    </span>
+                  </span>
+                </span>
+                <span class="hero-plant-name-card"><b id="heroGardenName">花園</b><small id="heroGardenHint" hidden></small></span>
+              </button>
+              <button class="primary-btn" data-jump="practicehub" type="button">開始練習~</button>
+            </div>
+          </div>
+
+          <div class="quick-section">
+            <div class="quick-grid">
+              <button class="quick-card" data-jump="map" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/note_map_explorer.png" alt="" /></span><strong>音符地圖</strong></button>
+              <button class="quick-card" data-jump="tuner" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/tuner_badge.png" alt="" /></span><strong>全音域調音器</strong></button>
+              <button class="quick-card" data-jump="practicehub" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/practice_record_icon.png" alt="" /></span><strong>開始練習</strong></button>
+              <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" /></span><strong>每日目標</strong></button>
+              <button class="quick-card" data-jump="garden" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/garden/icons/spirit-garden-icon.png" alt="" /></span><strong>精靈花園</strong></button>
+              <button class="quick-card leaderboard-card" data-leaderboard-open type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/global_leaderboard_icon.png?v=transparent-1" alt="" /></span><strong>全球排行榜</strong><em>尚未公開</em></button>
+              <button class="quick-card" data-jump="audio" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/mic_settings_icon.png" alt="" /></span><strong>設定</strong></button>
+            </div>
+          </div>
+
+        </section>
+
+        <section id="tuner" class="view">
+          <div class="section-head compact no-eyebrow">
+            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/tuner_badge.png" alt="" aria-hidden="true" />
+            <h2>全音域調音器</h2>
+            <p>吹奏時會顯示最接近的音名與 cents 誤差。</p>
+          </div>
+
+          <div class="home-tuner-card tuner-page-card paper-card">
+            <div class="card-row-head">
+              <em id="homeTunerStatus">等待收音</em>
+            </div>
+            <div class="home-tuner-display">
+              <strong id="homePitchNote">--</strong>
+              <span id="homePitchCents">等待收音</span>
+            </div>
+            <div class="home-tuner-media media-box">
+              <img class="ui-section-illustration" src="./public/assets/chromatic-refresh/feature/tuner_badge.png" alt="" aria-hidden="true" />
+            </div>
+            <div class="mini-tuner-scale" aria-hidden="true">
+              <div class="mini-tuner-track">
+                <i></i>
+                <b id="homePitchNeedle"></b>
+              </div>
+              <div class="mini-tuner-labels">
+                <span>-50</span><span>0</span><span>+50</span>
+              </div>
+            </div>
+          </div>
+          <div class="tuner-reference-note paper-card">
+            <h3>A4 調音基準提醒</h3>
+            <p><strong>A = 440 Hz</strong> 指的是國際標準術語裡的 <strong>A4</strong>。</p>
+            <p>建議調音器的基準設在 <strong>442 Hz</strong>，原因之一是拆蓋板調音，裝回蓋板後蓋板會讓音高稍微下降。</p>
+            <p>簧片在「吹 / 吸更用力」時，有傾向發出較低音高，所以測音時要用 <strong>最小氣壓</strong>，不要用力吹到把讀數弄假。</p>
+            <ul>
+              <li><strong>修單片簧片：</strong>先用 442 Hz。</li>
+              <li><strong>最後判斷：</strong>用 440 Hz 檢查實際吹出來的音。不要只看裸簧片，要看裝回琴後、用正常力度吹的結果。</li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="practicehub" class="view">
+          <div class="practice-hub-heading">
+            <div class="practice-hub-heading-copy">
+              <h2>開始練習</h2>
+              <p>選擇今天想練的項目，從長音開始慢慢累積基本功。</p>
+            </div>
+            <div class="practice-hub-heading-illustration">
+              <img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/long_tone_bird.png" alt="吹著口琴的小雞角色插圖" />
+            </div>
+          </div>
+
+          <section id="practice-hub-section" class="practice-hub-section paper-card">
+            <div class="practice-room-grid">
+              <article class="practice-room-card available">
+                <div>
+                  <span class="room-badge open">已開放</span>
+                  <h4>長音練習室</h4>
+                  <p>練習穩定氣息、音準觀察與音量控制。</p>
+                </div>
+                <button class="room-action" data-longtone-intro type="button">開始長音練習</button>
+              </article>
+              <article class="practice-room-card">
+                <span class="room-badge">準備中</span>
+                <h4>按鍵練習室</h4>
+                <p>熟悉按鍵音與半音切換。</p>
+              </article>
+              <article class="practice-room-card">
+                <span class="room-badge">準備中</span>
+                <h4>音階練習室</h4>
+                <p>練習音階流暢度與指法方向感。</p>
+              </article>
+              <article class="practice-room-card">
+                <span class="room-badge">準備中</span>
+                <h4>節奏練習室</h4>
+                <p>搭配節拍器練習節奏穩定與跳位。</p>
+              </article>
+              <article class="practice-room-card">
+                <span class="room-badge">準備中</span>
+                <h4>旋律練習室</h4>
+                <p>用短句旋律練習音準、換氣與表情。</p>
+              </article>
+              <article class="practice-room-card">
+                <span class="room-badge">準備中</span>
+                <h4>合奏練習室</h4>
+                <p>練習聲部進入、聽感與合奏默契。</p>
+              </article>
+            </div>
+          </section>
+        </section>
+
+        <section id="map" class="view">
+          <div class="section-head">
+            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/note_map_explorer.png" alt="" aria-hidden="true" />
+            <div>
+              <h2>音符地圖</h2>
+              <p>切換琴型後左右滑動，逐孔查看吹音、吸音與按鍵音。</p>
+            </div>
+          </div>
+
+          <div class="intro-note paper-card">
+            <div>
+              <h3>認識半音階口琴</h3>
+              <p>半音階口琴有吹音、吸音，也有側邊按鍵讓音升高半音。先建立音位方向感，再進入長音練習。</p>
+              <div class="feature-chips">
+                <span class="chip">吹音 / 吸音</span>
+                <span class="chip">側邊按鍵</span>
+                <span class="chip">音位方向感</span>
+              </div>
+            </div>
+            <div class="intro-media media-box">
+              <img id="mapHarmonicaImage" class="ui-section-illustration" src="./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png" alt="" aria-hidden="true" data-holes="16" />
+            </div>
+          </div>
+
+          <div class="map-toolbar panel">
+            <div class="map-legend" aria-label="琴型範圍圖例">
+              <button class="map-model active" data-model-holes="16" type="button"><i class="legend-16"></i>16 孔</button>
+              <button class="map-model" data-model-holes="14" type="button"><i class="legend-14"></i>14 孔</button>
+              <button class="map-model" data-model-holes="12" type="button"><i class="legend-12"></i>12 孔</button>
+            </div>
+          </div>
+
+          <div class="note-map-wrap panel">
+            <div id="noteMap" class="note-map" aria-live="polite"></div>
+          </div>
+
+          <div class="map-footnote">常見配置，實際音位仍以你的琴款標示為準。</div>
+        </section>
+
+        <section id="longtone" class="view">
+          <div class="section-head compact">
+            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/long_tone_bird.png" alt="" aria-hidden="true" />
+            <p class="eyebrow">第一課</p>
+            <h2>長音練習室</h2>
+            <p id="exerciseInstruction">8 拍平穩長音</p>
+          </div>
+
+          <div class="practice-layout">
+            <aside class="exercise-list panel" aria-label="長音練習列表">
+              <div class="list-title">
+                <h3>練習項目</h3>
+                <span id="exerciseCount"></span>
+              </div>
+              <div id="exerciseList" class="exercise-buttons"></div>
+            </aside>
+
+            <section id="long-tone-practice-main" class="player" aria-live="polite">
+              <div class="player-top">
+                <div>
+                  <p class="eyebrow" id="exerciseLevel">初階</p>
+                  <h3 id="exerciseTitle">8 拍平穩長音</h3>
+                </div>
+              </div>
+
+              <div class="status-card practice-status-card">
+                <div class="practice-status-copy">
+                  <span class="status-phase">狀態：<b id="phasePill">待開始</b></span>
+                  <div class="status-metrics">
+                    <strong class="status-metric beat-metric"><span id="currentBeat">0</span> <small id="beatTotal">/ 8 拍</small></strong>
+                    <strong class="status-metric cycle-metric"><span id="currentCycle">1</span> <small id="cycleTotal">/ 4 次</small></strong>
+                    <strong class="status-metric bpm-metric"><span id="statusBpm">60</span> <small>BPM</small></strong>
+                  </div>
+                </div>
+                <div class="practice-status-actions" aria-label="練習控制">
+                  <button id="practiceSettingsBtn" class="status-action-btn settings" type="button">設定</button>
+                  <button id="startPauseBtn" class="status-action-btn primary" type="button">開始</button>
+                  <button id="resetBtn" class="status-action-btn secondary" type="button">重來</button>
+                </div>
+              </div>
+
+              <div class="hidden" id="stabilityStat" aria-hidden="true">
+                <span>穩定度</span>
+                <strong id="stabilityScore">--</strong>
+              </div>
+
+              <div class="tone-card paper-card">
+                <h3 class="card-title" id="toneCardTitle">練習目標</h3>
+                <div id="waveGuide" class="long-tone-illustration" data-type="stable" aria-label="長音練習示意圖">
+                  <div>
+                    <span id="waveGuideTitle">平穩長音</span>
+                    <p id="waveGuideText">自然起音，平穩延伸，輕柔收尾。</p>
+                  </div>
+                  <svg viewBox="0 0 320 96" role="img" aria-hidden="true" focusable="false">
+                    <path class="wave-guide" d="M18 48 H302" />
+                    <path id="waveLine" class="wave-line" d="M24 68 C42 68 44 38 66 38 H250 C276 38 278 68 296 68" />
+                  </svg>
+                  <div id="waveLabels" class="wave-labels hidden" aria-hidden="true"></div>
+                </div>
+              </div>
+
+              <div class="mic-card paper-card">
+                <div class="mic-panel">
+                  <h3 class="card-title">音準觀察</h3>
+                  <div id="pitchTuner" class="pitch-tuner" data-status="waiting">
+                    <span class="tuner-edge flat">低</span>
+                    <div class="tuner-track">
+                      <div class="tuner-center"></div>
+                      <div id="pitchNeedle" class="tuner-needle"></div>
+                    </div>
+                    <span class="tuner-edge sharp">高</span>
+                    <strong id="pitchReadout" class="tuner-note">等待</strong>
+                    <small id="pitchCents" class="tuner-cents">等待穩定收音</small>
+                  </div>
+                  <button id="calibrateMicBtn" class="ghost-btn mic-calibrate" type="button">校正靜音</button>
+                </div>
+              </div>
+
+              <div id="practiceSettingsPanel" class="practice-settings-modal hidden" aria-hidden="true">
+                <div class="setting-card paper-card practice-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="practiceSettingsTitle">
+                  <div class="setting-card-head">
+                    <h3 id="practiceSettingsTitle">練習設定</h3>
+                    <button id="practiceSettingsClose" class="settings-close-btn" type="button" aria-label="關閉練習設定">×</button>
+                  </div>
+                  <div class="settings-grid">
+                    <label class="setting">
+                      <span>BPM</span>
+                      <div class="stepper">
+                        <button id="bpmMinus" type="button">−</button>
+                        <strong id="bpmValue">60</strong>
+                        <button id="bpmPlus" type="button">＋</button>
+                      </div>
+                      <input id="bpmInput" type="range" min="40" max="120" value="60" />
+                    </label>
+                    <label id="targetVolumeSetting" class="stat">
+                      <span>目標音量</span>
+                      <select id="targetVolumeSelect" class="cycle-select" aria-label="目標音量">
+                        <option value="p">p</option>
+                        <option value="mp" selected>mp</option>
+                        <option value="mf">mf</option>
+                        <option value="f">f</option>
+                      </select>
+                    </label>
+                    <label id="variantSetting" class="stat hidden">
+                      <span>練習組合</span>
+                      <select id="variantSelect" class="cycle-select" aria-label="練習組合"></select>
+                    </label>
+                    <div class="stat">
+                      <span>循環</span>
+                      <strong id="cycleCount">4</strong>
+                      <select id="cycleSelect" class="cycle-select" aria-label="循環次數">
+                        <option value="2">2</option>
+                        <option value="4" selected>4</option>
+                        <option value="6">6</option>
+                        <option value="8">8</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="flow-grid compact-flow">
+                    <span>準備 <b id="prepareBeats">4 拍</b></span>
+                    <span>吹奏 <b id="playBeats">8 拍</b></span>
+                    <span>休息 <b id="restBeats">4 拍</b></span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="daily" class="view">
+          <div class="section-head compact no-eyebrow">
+            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" aria-hidden="true" />
+            <h2>每日目標</h2>
+            <p>完整完成一個練習後會自動打勾，每天重新開始。</p>
+          </div>
+          <div class="panel daily-page">
+            <div class="daily-streak-hero" aria-label="連續練習摘要">
+              <div class="streak-main">
+                <span class="streak-icon" aria-hidden="true"><img src="./public/assets/chromatic-refresh/feature/streak_fire_bird.png" alt="" /></span>
+                <div>
+                  <p class="streak-label">連續學習</p>
+                  <p class="streak-value"><b id="streakDays">0</b> 天</p>
+                </div>
+              </div>
+              <p id="streakNote" class="streak-note">今天完成第一次有效練習，就能延續你的紀錄。</p>
+              <div class="streak-meta">
+                <span class="today-pill" id="todayPracticeStatus">今日尚未完成</span>
+                <span class="freeze-pill">凍結 <b id="freezeCount">0</b> 張</span>
+              </div>
+            </div>
+            <button id="calendarToggle" class="daily-calendar-button" type="button">查看連續練習日曆 〉</button>
+            <div class="daily-goal-top">
+              <div class="daily-goal-copy">
+                <div class="daily-goal-summary-row">
+                  <span id="dailyGoalSummary">今日完成 0 / 18 個練習</span>
+                  <div class="daily-goal-sticky">
+                    <img class="ui-section-illustration" src="./public/assets/chromatic-refresh/note/encouragement_note.png" alt="" aria-hidden="true" />
+                  </div>
+                </div>
+                <p class="daily-goal-bonus-note">完成今日所有任務可獲得20水滴！</p>
+              </div>
+            </div>
+            <div id="dailyGoalList" class="daily-goal-list"></div>
+          </div>
+        </section>
+
+        <section id="garden" class="view">
+          <div class="section-head compact no-eyebrow">
+            <img class="section-icon ui-quick-icon" src="./public/assets/garden/icons/watering-can.png" alt="" aria-hidden="true" />
+            <h2>精靈花園</h2>
+            <p>完成各種練習室的練習獲得水滴，澆灌屬於你的口琴植物精靈。</p>
+          </div>
+
+          <div class="garden-layout">
+            <section class="garden-card paper-card">
+              <div class="garden-card-head">
+                <div class="garden-plant-heading">
+                  <div class="garden-plant-title-line">
+                    <h3 id="gardenPlantName">旋律芽芽</h3>
+                    <span id="gardenPlantStage" class="garden-stage-pill">幼苗</span>
+                  </div>
+                </div>
+                <div class="water-balance"><img src="./public/assets/garden/icons/water-drop.png" alt="" /><span><b id="waterDropCount">0</b> 滴</span></div>
+              </div>
+              <div class="garden-plant-scene">
+                <button id="gardenPrimaryAction" class="watering-can-button" type="button" aria-label="澆水">
+                  <img id="gardenWateringCan" class="watering-can" src="./public/assets/garden/icons/watering-can.png" alt="" aria-hidden="true" />
+                </button>
+                <div id="gardenFxLayer" class="garden-fx-layer" aria-hidden="true"></div>
+                <img class="garden-scene-backdrop" src="./public/assets/garden/icons/garden-stage-backdrop-refresh.png" alt="" aria-hidden="true" />
+                <div id="gardenPlantIdleLayer" class="plant-idle-layer is-idle">
+                  <div id="gardenPlantActionLayer" class="plant-action-layer">
+                    <img id="gardenPlantImage" class="garden-plant-image garden-stage-1" src="./public/assets/garden/plants/melody-sprout-stage1.png" alt="" />
+                  </div>
+                </div>
+              </div>
+              <div class="garden-progress">
+                <div class="garden-progress-row"><span>階段進度</span><b id="gardenProgressText">0 / 100</b></div>
+                <div class="garden-progress-track"><i id="gardenProgressBar"></i></div>
+                <div class="daily-practice-water"><span>今日練習水滴</span><b id="dailyPracticeWaterText">0 / 80</b></div>
+              </div>
+            </section>
+
+            <section class="garden-card paper-card garden-collection-card">
+              <div class="garden-card-head compact">
+                <div>
+                  <h3>植物精靈圖鑑</h3>
+                </div>
+              </div>
+              <div id="gardenCollection" class="garden-collection"></div>
+              <p class="garden-hint">採收成熟植物精靈後，可在圖鑑中選一株放到首頁展示。</p>
+            </section>
+          </div>
+        </section>
+
+        <section id="audio" class="view">
+          <div class="section-head compact no-eyebrow">
+            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/icon/mic_settings_icon.png" alt="" aria-hidden="true" />
+            <h2>設定</h2>
+            <p>整理收音、練習、聲音與顯示偏好。</p>
+          </div>
+          <div class="audio-settings-panel">
+            <details class="audio-setting-card paper-card">
+              <summary class="settings-accordion-head"><span><strong>收音設定</strong></span><i aria-hidden="true"></i></summary>
+              <div class="settings-accordion-body">
+                <div class="setting-row">
+                  <span>麥克風狀態</span>
+                  <strong id="audioMicStatus">待開啟</strong>
+                </div>
+                <div class="setting-row action-row">
+                  <span>靜音校正</span>
+                  <button id="audioCalibrateBtn" class="ghost-btn" type="button">重新校正</button>
+                </div>
+                <label class="setting-select-wrap">
+                  <span>標準音高</span>
+                  <select id="tuningSelect" aria-label="調音基準">
+                    <option value="440" selected>A4 = 440</option>
+                    <option value="441">A4 = 441</option>
+                    <option value="442">A4 = 442</option>
+                    <option value="443">A4 = 443</option>
+                    <option value="444">A4 = 444</option>
+                    <option value="445">A4 = 445</option>
+                  </select>
+                </label>
+                <div class="headphone-note">建議戴耳機，避免節拍器影響收音。</div>
+              </div>
+            </details>
+            <details class="audio-setting-card paper-card">
+              <summary class="settings-accordion-head"><span><strong>練習設定</strong></span><i aria-hidden="true"></i></summary>
+              <div class="settings-accordion-body">
+                <label class="setting-number-wrap">
+                  <span>預設 BPM</span>
+                  <input id="defaultBpmInput" type="number" min="40" max="120" step="1" value="60" />
+                </label>
+                <div class="setting-segment-wrap">
+                  <span>預設循環次數</span>
+                  <div class="segmented-control" role="radiogroup" aria-label="預設循環次數">
+                    <button data-default-cycles="2" type="button">2</button>
+                    <button data-default-cycles="4" type="button">4</button>
+                    <button data-default-cycles="6" type="button">6</button>
+                    <button data-default-cycles="8" type="button">8</button>
+                  </div>
+                </div>
+              </div>
+            </details>
+            <details class="audio-setting-card paper-card">
+              <summary class="settings-accordion-head"><span><strong>聲音設定</strong></span><i aria-hidden="true"></i></summary>
+              <div class="settings-accordion-body">
+                <label class="sound-toggle-row">
+                  <span>App 音效</span>
+                  <input id="appSoundToggle" type="checkbox" checked />
+                </label>
+                <label class="setting-select-wrap compact-select">
+                  <span>節拍器音量</span>
+                  <select id="metronomeVolumeSelect" aria-label="節拍器音量">
+                    <option value="low">低</option>
+                    <option value="medium" selected>中</option>
+                    <option value="high">高</option>
+                  </select>
+                </label>
+                <label class="sound-toggle-row">
+                  <span>提示音</span>
+                  <input id="cueSoundToggle" type="checkbox" checked />
+                </label>
+                <label class="sound-toggle-row">
+                  <span>完成音效</span>
+                  <input id="completionSoundToggle" type="checkbox" checked />
+                </label>
+                <label class="sound-toggle-row">
+                  <span>澆水音效</span>
+                  <input id="wateringSoundToggle" type="checkbox" checked />
+                </label>
+                <label class="sound-toggle-row">
+                  <span>進化音效</span>
+                  <input id="evolutionSoundToggle" type="checkbox" checked />
+                </label>
+                <label class="sound-toggle-row">
+                  <span>花園頁面音樂</span>
+                  <input id="gardenMusicToggle" type="checkbox" />
+                </label>
+              </div>
+            </details>
+            <details class="audio-setting-card paper-card">
+              <summary class="settings-accordion-head"><span><strong>顯示與動畫</strong></span><i aria-hidden="true"></i></summary>
+              <div class="settings-accordion-body">
+                <label class="setting-select-wrap compact-select">
+                  <span>動畫效果</span>
+                  <select id="animationModeSelect" aria-label="動畫效果">
+                    <option value="full">完整</option>
+                    <option value="simple">簡化</option>
+                  </select>
+                </label>
+                <label class="sound-toggle-row">
+                  <span>植物待機動作</span>
+                  <input id="plantIdleMotionToggle" type="checkbox" checked />
+                </label>
+                <label class="sound-toggle-row">
+                  <span>進化特效</span>
+                  <input id="evolutionEffectsToggle" type="checkbox" checked />
+                </label>
+                <label class="sound-toggle-row">
+                  <span>首頁展示精靈</span>
+                  <input id="showFeaturedSpiritToggle" type="checkbox" checked />
+                </label>
+              </div>
+            </details>
+            <details class="audio-setting-card paper-card">
+              <summary class="settings-accordion-head"><span><strong>通知與語言</strong></span><i aria-hidden="true"></i></summary>
+              <div class="settings-accordion-body">
+                <div class="setting-row">
+                  <span>練習提醒</span>
+                  <strong>準備中</strong>
+                </div>
+                <div class="setting-row">
+                  <span>語言</span>
+                  <strong>繁體中文</strong>
+                </div>
+              </div>
+            </details>
+            <details class="audio-setting-card paper-card">
+              <summary class="settings-accordion-head"><span><strong>會員帳號</strong></span><i aria-hidden="true"></i></summary>
+              <div class="settings-accordion-body">
+                <p class="settings-card-copy">登入後可同步練習資料與精靈花園進度。</p>
+                <button id="googleLoginBtn" class="google-login-btn" type="button"><span>G</span>使用 Google 登入</button>
+                <p id="googleLoginStatus" class="settings-status-text" aria-live="polite"></p>
+              </div>
+            </details>
+            <details class="audio-setting-card paper-card">
+              <summary class="settings-accordion-head"><span><strong>關於</strong></span><i aria-hidden="true"></i></summary>
+              <div class="settings-accordion-body">
+                <div class="setting-row">
+                  <span>Chromatic Harmonica Lab</span>
+                  <strong>目前版本：<span class="version-number">refresh-103</span></strong>
+                </div>
+                <div class="setting-row">
+                  <span>問題回報</span>
+                  <strong>準備中</strong>
+                </div>
+              </div>
+            </details>
+          </div>
+        </section>
+
+      </main>
+      <nav class="bottom-nav" aria-label="手機底部導覽">
+        <button class="bottom-nav-item active" data-view="intro" type="button"><span>⌂</span>首頁</button>
+        <button class="bottom-nav-item" data-view="map" type="button"><span>♪</span>音符</button>
+        <button class="bottom-nav-item" data-view="tuner" type="button"><span>⌁</span>調音</button>
+        <button class="bottom-nav-item" data-view="practicehub" type="button"><span class="nav-practice-mark">●</span>練習</button>
+        <button class="bottom-nav-item" data-view="daily" type="button"><span>✓</span>目標</button>
+        <button class="bottom-nav-item" data-view="garden" type="button"><span class="nav-garden-mark" aria-hidden="true"></span>花園</button>
+      </nav>
+    </div>
+
+    <script src="./app.js?v=refresh-103"></script>
+  </body>
+</html>
