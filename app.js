@@ -141,12 +141,14 @@ const soundMap = {
   uiTap: "點擊音效.mp3",
   close: "關閉音效.mp3",
   practiceComplete: "練習完成音效.mp3",
+  starterCharm: "Sprout Charm.wav",
   watering: "澆水聲.mp3",
   evolveStart: "進化開始音效.mp3",
   evolveComplete: "進化完成音效.mp3",
   harvest: "收成採收音效.mp3",
   gardenBgm: "花園音樂BGM.wav",
 };
+const STARTER_CONFIRM_ANIMATION_MS = 9560;
 
 const exercises = [
   {
@@ -1146,6 +1148,14 @@ function getPlantDisplayName(plant, stage = null) {
   return getPlantStageName(plant, stage);
 }
 
+const gardenSpeciesClassNames = gardenSpecies.map((species) => `species-${species.species}`);
+
+function setGardenSpeciesClass(element, speciesId) {
+  if (!element) return;
+  element.classList.remove(...gardenSpeciesClassNames);
+  if (speciesId) element.classList.add(`species-${speciesId}`);
+}
+
 function isValidGardenSpiritName(name) {
   const value = name.trim();
   return /^[\u4e00-\u9fff]{1,7}$/.test(value) || /^[A-Za-z]{1,14}$/.test(value);
@@ -1610,7 +1620,7 @@ function renderStarterPlantChoices() {
   if (!container) return;
   container.innerHTML = getStarterPlantOptions().map((species) => {
     const selected = selectedStarterSpeciesId === species.species;
-    const speciesName = normalizeGardenName(species.name, species.species);
+    const speciesName = getPlantStageName({ species: species.species, stage: 1 }, 1);
     return `
       <button class="starter-plant-card ${selected ? "selected" : ""}" data-starter-species="${species.species}" type="button" aria-pressed="${selected ? "true" : "false"}">
         <span class="starter-selected-pill">已選擇</span>
@@ -1657,7 +1667,7 @@ function confirmStarterPlantSelection() {
   selectedCard?.classList.add("is-confirming");
   if (confirm) confirm.disabled = true;
   if (more) more.disabled = true;
-  playSound("practiceComplete");
+  playSound("starterCharm");
   window.setTimeout(() => {
     const plant = createGardenPlant(selectedStarterSpeciesId);
     if (!plant) return;
@@ -1666,11 +1676,11 @@ function confirmStarterPlantSelection() {
     selectedStarterSpeciesId = "";
     setStarterPlantModalOpen(false);
     renderGarden();
-    showGardenToast("初始夥伴加入", `「${normalizeGardenName(species.name, species.species)}」加入精靈花園了！`);
+    showGardenToast("精靈花園", `初始夥伴加入！「${getPlantStageName({ species: species.species, stage: 1 }, 1)}」加入精靈花園了！`);
     if (confirm) confirm.disabled = false;
     if (more) more.disabled = false;
     selectedCard?.classList.remove("is-confirming");
-  }, 5200);
+  }, STARTER_CONFIRM_ANIMATION_MS);
 }
 
 function setGardenSpiritModalOpen(open) {
@@ -1830,12 +1840,14 @@ function renderEmptyGardenState() {
     plantImage.src = "./public/assets/garden/collection/starter-pot.png";
     plantImage.classList.remove("garden-stage-1", "garden-stage-2", "garden-stage-3");
     plantImage.classList.add("garden-stage-1");
+    setGardenSpeciesClass(plantImage, "");
   }
   ["gardenPlantIdleLayer", "gardenPlantActionLayer"].forEach((id) => {
     const layer = $(`#${id}`);
     if (!layer) return;
     layer.classList.remove("garden-stage-1", "garden-stage-2", "garden-stage-3");
     layer.classList.add("garden-stage-1");
+    setGardenSpeciesClass(layer, "");
   });
   if ($("#gardenProgressText")) $("#gardenProgressText").textContent = "全收集";
   if ($("#gardenProgressBar")) $("#gardenProgressBar").style.width = "0%";
@@ -1874,12 +1886,14 @@ function renderGarden() {
     plantImage.src = getPlantImage(plant);
     plantImage.classList.remove("garden-stage-1", "garden-stage-2", "garden-stage-3");
     plantImage.classList.add(`garden-stage-${plant.stage}`);
+    setGardenSpeciesClass(plantImage, plant.species);
   }
   ["gardenPlantIdleLayer", "gardenPlantActionLayer"].forEach((id) => {
     const layer = $(`#${id}`);
     if (!layer) return;
     layer.classList.remove("garden-stage-1", "garden-stage-2", "garden-stage-3");
     layer.classList.add(`garden-stage-${plant.stage}`);
+    setGardenSpeciesClass(layer, plant.species);
   });
   if ($("#gardenProgressText")) $("#gardenProgressText").textContent = `${stageProgress} / ${stageRequired}`;
   if ($("#gardenProgressBar")) $("#gardenProgressBar").style.width = `${Math.min(100, (stageProgress / stageRequired) * 100)}%`;
@@ -4794,8 +4808,10 @@ function bindEvents() {
   });
 
   $("#starterPlantMore")?.addEventListener("click", () => {
-    const hint = $("#starterPlantHint");
-    if (hint) hint.textContent = "第一次進入精靈花園需要先選一位夥伴。";
+    selectedStarterSpeciesId = "";
+    setStarterPlantModalOpen(false);
+    renderStarterPlantChoices();
+    setView("intro");
   });
 
   $("#starterPlantConfirm")?.addEventListener("click", confirmStarterPlantSelection);

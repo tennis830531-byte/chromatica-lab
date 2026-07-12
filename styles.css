@@ -3514,6 +3514,19 @@ body.simple-motion .plant-action-layer.is-stage-up {
   width: min(108%, 348px);
 }
 
+.plant-action-layer.species-melody-sprout.garden-stage-1 {
+  width: min(40%, 132px);
+}
+
+.plant-action-layer.species-flower-spirit.garden-stage-1 {
+  width: min(36%, 118px);
+}
+
+.plant-action-layer.species-lucky-leaf-spirit.garden-stage-1,
+.plant-action-layer.species-bamboo-sound-child.garden-stage-1 {
+  width: min(50%, 160px);
+}
+
 .garden-plant-image.garden-stage-1 {
   width: 100%;
 }
@@ -3911,6 +3924,20 @@ body.simple-motion .plant-action-layer.is-stage-up {
   transform: scale(1.06);
 }
 
+.starter-plant-card.selected:not(.is-confirming) .starter-plant-image-wrap {
+  animation: starterSelectedSway 3.6s ease-in-out infinite;
+}
+
+.starter-plant-card.selected:not(.is-confirming) .starter-plant-image-wrap img {
+  animation: starterSelectedHop 2.4s ease-in-out infinite;
+}
+
+.starter-plant-card[data-starter-species="lucky-leaf-spirit"] .starter-plant-image-wrap img,
+.starter-plant-card[data-starter-species="bamboo-sound-child"] .starter-plant-image-wrap img {
+  max-width: 136px;
+  max-height: 150px;
+}
+
 .starter-plant-card strong {
   color: var(--text-strong);
   font-family: var(--font-hand);
@@ -3981,15 +4008,15 @@ body.simple-motion .plant-action-layer.is-stage-up {
 }
 
 .starter-plant-card.is-confirming {
-  animation: starterCardGlow 5.2s ease both;
+  animation: starterCardGlow 9.56s ease both;
 }
 
 .starter-plant-card.is-confirming .starter-plant-image-wrap img {
-  animation: starterPlantHop 1.2s ease-in-out 0.25s 4;
+  animation: starterPlantHop 1.55s ease-in-out 0.25s 6;
 }
 
 .starter-plant-card.is-confirming .starter-sparkle {
-  animation: starterSparkle 1.4s ease-in-out 0.45s 3;
+  animation: starterSparkle 1.6s ease-in-out 0.45s 5;
 }
 
 .starter-plant-card.is-confirming .starter-sparkle-2 {
@@ -3997,7 +4024,7 @@ body.simple-motion .plant-action-layer.is-stage-up {
 }
 
 .starter-plant-card.is-confirming .starter-hello {
-  animation: starterHello 4.2s ease 0.8s both;
+  animation: starterHello 8.4s ease 0.8s both;
 }
 
 .starter-plant-hint {
@@ -4021,6 +4048,17 @@ body.simple-motion .plant-action-layer.is-stage-up {
   0%, 100% { transform: scale(1.06) translateY(0); }
   40% { transform: scale(1.1) translateY(-12px) rotate(-2deg); }
   70% { transform: scale(1.04) translateY(2px) rotate(1deg); }
+}
+
+@keyframes starterSelectedSway {
+  0%, 100% { transform: rotate(-1.2deg); }
+  50% { transform: rotate(1.2deg); }
+}
+
+@keyframes starterSelectedHop {
+  0%, 100% { transform: scale(1.06) translateY(0); }
+  46% { transform: scale(1.08) translateY(-7px); }
+  66% { transform: scale(1.05) translateY(1px); }
 }
 
 @keyframes starterCardGlow {

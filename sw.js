@@ -1,9 +1,9 @@
-const CACHE_NAME = "chromatica-lab-refresh-104";
+const CACHE_NAME = "chromatica-lab-refresh-106";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=refresh-104",
-  "./app.js?v=refresh-104",
+  "./styles.css?v=refresh-106",
+  "./app.js?v=refresh-106",
   "./manifest.webmanifest",
   "./public/assets/chromatic-refresh/brand/chl_brand_badge.png",
   "./public/assets/chromatic-refresh/cleaned/02_harmonica_main_illustration.png",
@@ -29,6 +29,7 @@ const APP_SHELL = [
   "./public/assets/sounds/點擊音效.mp3",
   "./public/assets/sounds/關閉音效.mp3",
   "./public/assets/sounds/練習完成音效.mp3",
+  "./public/assets/sounds/Sprout Charm.wav",
   "./public/assets/sounds/澆水聲.mp3",
   "./public/assets/sounds/進化開始音效.mp3",
   "./public/assets/sounds/進化完成音效.mp3",
