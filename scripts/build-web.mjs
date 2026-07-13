@@ -1,5 +1,7 @@
-import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -7,6 +9,24 @@ const outputRoot = path.join(projectRoot, "www");
 const webSourceFiles = ["index.html", "app.js", "styles.css", "manifest.webmanifest"];
 const assetReferencePattern = /\.\/public\/assets\/[^\s"'`()<>$]+/g;
 const serviceWorkerCallPattern = /^registerServiceWorker\(\);$/gm;
+const execFileAsync = promisify(execFile);
+
+const { stdout: trackedOutput } = await execFileAsync("git", ["ls-files", "-z"], {
+  cwd: projectRoot,
+  encoding: "utf8",
+});
+const trackedSourceFiles = new Set(trackedOutput.split("\0").filter(Boolean));
+
+function normalizeRelativePath(relativePath) {
+  return relativePath.split(path.sep).join("/");
+}
+
+function assertTrackedSource(relativePath) {
+  const normalized = normalizeRelativePath(relativePath);
+  if (!trackedSourceFiles.has(normalized)) {
+    throw new Error(`Required build source is not tracked by Git: ${normalized}`);
+  }
+}
 
 function isForbiddenOutput(relativePath) {
   const normalized = relativePath.split(path.sep).join("/");
@@ -18,18 +38,6 @@ function isForbiddenOutput(relativePath) {
     fileName === "README.txt" ||
     fileName === "CODEX_MASTER_PROMPT.txt"
   );
-}
-
-async function collectDirectoryAssets(directory, output = []) {
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const absolutePath = path.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      await collectDirectoryAssets(absolutePath, output);
-    } else if (entry.isFile()) {
-      output.push(path.relative(projectRoot, absolutePath));
-    }
-  }
-  return output;
 }
 
 async function copyRelativeFile(relativePath) {
@@ -48,7 +56,16 @@ async function copyRelativeFile(relativePath) {
     }
   }
 
-  const sourceStat = await stat(sourcePath);
+  assertTrackedSource(relativePath);
+  let sourceStat;
+  try {
+    sourceStat = await stat(sourcePath);
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      throw new Error(`Required tracked source is missing: ${normalizeRelativePath(relativePath)}`);
+    }
+    throw error;
+  }
   if (!sourceStat.isFile()) throw new Error(`Required source is not a file: ${relativePath}`);
   await mkdir(path.dirname(destinationPath), { recursive: true });
   await copyFile(sourcePath, destinationPath);
@@ -59,6 +76,7 @@ await mkdir(outputRoot, { recursive: true });
 
 const sourceContents = new Map();
 for (const sourceFile of webSourceFiles) {
+  assertTrackedSource(sourceFile);
   sourceContents.set(sourceFile, await readFile(path.join(projectRoot, sourceFile), "utf8"));
 }
 
@@ -91,12 +109,10 @@ for (const contents of sourceContents.values()) {
   }
 }
 
-for (const soundPath of await collectDirectoryAssets(path.join(projectRoot, "public", "assets", "sounds"))) {
-  requiredAssets.add(soundPath);
-}
-
-for (const fontPath of await collectDirectoryAssets(path.join(projectRoot, "public", "assets", "fonts"))) {
-  requiredAssets.add(fontPath);
+for (const trackedPath of trackedSourceFiles) {
+  if (trackedPath.startsWith("public/assets/sounds/") || trackedPath.startsWith("public/assets/fonts/")) {
+    requiredAssets.add(trackedPath.split("/").join(path.sep));
+  }
 }
 
 for (const assetPath of [...requiredAssets].sort()) {
