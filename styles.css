@@ -2241,6 +2241,10 @@ body.hide-featured-spirit .hero-plant-slot {
   gap: 8px;
 }
 
+.status-metrics.steady-mode {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .status-metric {
   display: grid;
   align-content: center;
@@ -2276,6 +2280,10 @@ body.hide-featured-spirit .hero-plant-slot {
 
 .bpm-metric span {
   font-size: clamp(19px, 4.95vw, 29px);
+}
+
+#playFlowLabel {
+  font-style: normal;
 }
 
 .practice-status-actions {
