@@ -5201,7 +5201,7 @@ function stepPractice() {
       ? exercise.restBeats
       : exercise.playBeats;
   if (beat <= phaseBeatLimit) {
-    if (phase === "prepare") playPrepareClick(beat === 1);
+    if (phase === "prepare" || phase === "rest") playPrepareClick(beat === 1);
     else playClick(beat === 1);
   }
 
@@ -5217,7 +5217,7 @@ function stepPractice() {
     }
     phase = "rest";
     beat = 1;
-    playClick(true);
+    playPrepareClick(true);
   } else if (phase === "rest" && beat > exercise.restBeats) {
     if (cycle >= totalCycles) {
       if (isCurrentExerciseScored()) {
