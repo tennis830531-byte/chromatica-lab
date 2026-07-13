@@ -11,6 +11,12 @@ const CYCLE_OPTIONS = [2, 4, 6, 8];
 const MIN_REWARD_CYCLES = 2;
 const MAX_SELECTABLE_CYCLES = 8;
 const MAX_DAILY_WATER_REWARD = 25;
+const DAILY_GOAL_REQUIRED_COMBOS = 2;
+const INTERVAL_DAILY_GOAL_STATE_KEY = "intervalUniqueCombos";
+const INTERVAL_DAILY_GOAL_TASKS = [
+  { id: "interval-variety-3", title: "音程組合挑戰 3 次", required: 3 },
+  { id: "interval-variety-8", title: "音程組合挑戰 8 次", required: 8 },
+];
 const PLANT_STAGE_WATER_REQUIREMENTS = [20, 30, 40];
 const PLANT_WATER_REQUIRED = PLANT_STAGE_WATER_REQUIREMENTS.reduce((total, amount) => total + amount, 0);
 const GARDEN_EVOLUTION_NOTICE_DELAY_MS = 2300;
@@ -75,6 +81,28 @@ const gardenStorageKeys = {
 const PRACTICE_SETTINGS_KEY = "chromatica.settings.practice";
 const SOUND_SETTINGS_KEY = "chromatica.settings.sound";
 const DISPLAY_SETTINGS_KEY = "chromatica.settings.display";
+const INTERVAL_PRACTICE_HISTORY_KEY = "chromatica.intervalPracticeHistory";
+const INTERVAL_GROUPS_PER_PAGE = 4;
+const INTERVAL_KEYS = {
+  C: { label: "C 大調", notes: ["C", "D", "E", "F", "G", "A", "B"], signature: [] },
+  G: { label: "G 大調", notes: ["G", "A", "B", "C", "D", "E", "F#"], signature: ["F#"] },
+  D: { label: "D 大調", notes: ["D", "E", "F#", "G", "A", "B", "C#"], signature: ["F#", "C#"] },
+  A: { label: "A 大調", notes: ["A", "B", "C#", "D", "E", "F#", "G#"], signature: ["F#", "C#", "G#"] },
+  E: { label: "E 大調", notes: ["E", "F#", "G#", "A", "B", "C#", "D#"], signature: ["F#", "C#", "G#", "D#"] },
+  B: { label: "B 大調", notes: ["B", "C#", "D#", "E", "F#", "G#", "A#"], signature: ["F#", "C#", "G#", "D#", "A#"] },
+  F: { label: "F 大調", notes: ["F", "G", "A", "Bb", "C", "D", "E"], signature: ["Bb"] },
+  Bb: { label: "Bb 大調", notes: ["Bb", "C", "D", "Eb", "F", "G", "A"], signature: ["Bb", "Eb"] },
+  Eb: { label: "Eb 大調", notes: ["Eb", "F", "G", "Ab", "Bb", "C", "D"], signature: ["Bb", "Eb", "Ab"] },
+  Ab: { label: "Ab 大調", notes: ["Ab", "Bb", "C", "Db", "Eb", "F", "G"], signature: ["Bb", "Eb", "Ab", "Db"] },
+  Db: { label: "Db 大調", notes: ["Db", "Eb", "F", "Gb", "Ab", "Bb", "C"], signature: ["Bb", "Eb", "Ab", "Db", "Gb"] },
+  Gb: { label: "Gb 大調", notes: ["Gb", "Ab", "Bb", "Cb", "Db", "Eb", "F"], signature: ["Bb", "Eb", "Ab", "Db", "Gb", "Cb"] },
+};
+const INTERVAL_LABELS = { 2: "二度", 3: "三度", 4: "四度", 5: "五度", 6: "六度", 7: "七度", 8: "八度" };
+const INTERVAL_DIRECTION_LABELS = {
+  ascending: "上行",
+  descending: "下行",
+  continuousBoth: "連續上下行",
+};
 const DEFAULT_PRACTICE_SETTINGS = {
   defaultBpm: 60,
   defaultCycles: 4,
@@ -384,6 +412,10 @@ let cycle = 1;
 const scoringStartDelayMs = 350;
 let playStartedAt = 0;
 let timer = null;
+let intervalMetronomeTimer = null;
+let intervalMetronomeBeat = 0;
+let intervalMetronomePlaying = false;
+let intervalPracticeState = null;
 let audioContext = null;
 let micStream = null;
 let micAnalyser = null;
@@ -524,7 +556,7 @@ function getSoundAssetPath(fileName) {
 }
 
 function clampPracticeBpm(value) {
-  return Math.max(40, Math.min(120, Math.round(Number(value) || DEFAULT_PRACTICE_SETTINGS.defaultBpm)));
+  return Math.max(60, Math.min(180, Math.round(Number(value) || DEFAULT_PRACTICE_SETTINGS.defaultBpm)));
 }
 
 function getPracticeSettings() {
@@ -1615,7 +1647,13 @@ function harvestCurrentPlant() {
   showGardenToast("採收成功！", `「${harvestedName}」已加入圖鑑。`);
 }
 
+function setGoalToastEyebrow(label = "每日目標") {
+  const eyebrow = $("#goalToastEyebrow");
+  if (eyebrow) eyebrow.textContent = label;
+}
+
 function showGardenToast(title, text) {
+  setGoalToastEyebrow("精靈花園");
   $("#goalToastTitle").textContent = title;
   $("#goalToastText").textContent = text;
   $("#goalToast").classList.remove("hidden");
@@ -1938,55 +1976,101 @@ function setDailyGoalState(state) {
   localStorage.setItem(getDailyGoalKey(), JSON.stringify(state));
 }
 
-function getDailyGoalTasks() {
-  return exercises.flatMap((exercise, exerciseIndex) => {
-    if (exercise.scored) {
-      return targetVolumes.map((volume) => ({
-        id: `${exercise.id}-${volume}`,
-        exerciseIndex,
-        volume,
-        title: `${exercise.title} ${volume}`,
-        level: exercise.level,
-        playBeats: exercise.playBeats,
-        pattern: [
-          { beat: 1, dynamic: volume },
-          { beat: exercise.playBeats, dynamic: volume },
-        ],
-      }));
-    }
-    if (exercise.variants?.length) {
-      return exercise.variants.map((variant, variantIndex) => ({
-        id: `${exercise.id}-variant-${variantIndex}`,
-        exerciseIndex,
-        variantIndex,
-        volume: null,
-        title: `${exercise.title} ${variant.label}`,
-        level: exercise.level,
-        playBeats: exercise.playBeats,
-        pattern: variant.pattern,
-        summary: variant.label,
-      }));
-    }
-    return [
-      {
-        id: exercise.id,
-        exerciseIndex,
-        variantIndex: null,
-        volume: null,
-        title: exercise.title,
-        level: exercise.level,
-        playBeats: exercise.playBeats,
-        pattern: exercise.pattern,
-      },
-    ];
-  });
+function getExerciseDailyGoalCombos(exercise) {
+  if (exercise.scored) {
+    return targetVolumes.map((volume) => ({
+      id: `volume-${volume}`,
+      label: volume,
+      volume,
+      variantIndex: null,
+      pattern: [
+        { beat: 1, dynamic: volume },
+        { beat: exercise.playBeats, dynamic: volume },
+      ],
+    }));
+  }
+  if (exercise.variants?.length) {
+    return exercise.variants.map((variant, variantIndex) => ({
+      id: `variant-${variantIndex}`,
+      label: variant.label,
+      volume: null,
+      variantIndex,
+      pattern: variant.pattern,
+    }));
+  }
+  return [{
+    id: "default",
+    label: getPatternSummary(exercise.pattern),
+    volume: null,
+    variantIndex: null,
+    pattern: exercise.pattern,
+  }];
 }
 
-function getCurrentDailyGoalId() {
+function getDailyGoalCompletedCombos(state, task) {
+  if (task.type === "interval") {
+    const entry = state[INTERVAL_DAILY_GOAL_STATE_KEY];
+    return [...new Set(Array.isArray(entry?.completedCombos) ? entry.completedCombos : [])];
+  }
+  const entry = state[task.id];
+  if (entry === true) return task.combos.map((combo) => combo.id);
+  const storedCombos = Array.isArray(entry?.completedCombos) ? entry.completedCombos : [];
+  const legacyCombos = task.combos
+    .filter((combo) => {
+      if (combo.volume) return state[`${task.id}-${combo.volume}`] === true;
+      if (combo.variantIndex !== null && combo.variantIndex !== undefined) {
+        return state[`${task.id}-variant-${combo.variantIndex}`] === true;
+      }
+      return false;
+    })
+    .map((combo) => combo.id);
+  return [...new Set([...storedCombos, ...legacyCombos])]
+    .filter((comboId) => task.combos.some((combo) => combo.id === comboId));
+}
+
+function getDailyGoalProgress(state, task) {
+  const completedCombos = getDailyGoalCompletedCombos(state, task);
+  const required = task.type === "interval"
+    ? task.required
+    : Math.min(DAILY_GOAL_REQUIRED_COMBOS, task.combos.length);
+  return {
+    completedCombos,
+    completedCount: Math.min(completedCombos.length, required),
+    required,
+    done: completedCombos.length >= required,
+  };
+}
+
+function getNextDailyGoalCombo(task, state = getDailyGoalState()) {
+  if (task.type === "interval") return null;
+  const completed = new Set(getDailyGoalCompletedCombos(state, task));
+  return task.combos.find((combo) => !completed.has(combo.id)) || task.combos[0];
+}
+
+function getDailyGoalTasks() {
+  const longToneTasks = exercises.map((exercise, exerciseIndex) => ({
+    id: exercise.id,
+    type: "longtone",
+    exerciseIndex,
+    title: exercise.title,
+    level: exercise.level,
+    playBeats: exercise.playBeats,
+    combos: getExerciseDailyGoalCombos(exercise),
+  }));
+  const intervalTasks = INTERVAL_DAILY_GOAL_TASKS.map((task) => ({
+    ...task,
+    type: "interval",
+    exerciseIndex: null,
+    combos: [],
+  }));
+  return [...longToneTasks, ...intervalTasks];
+}
+
+function getCurrentDailyGoalCompletion() {
   const exercise = exercises[selectedExercise];
-  if (exercise.scored) return `${exercise.id}-${selectedTargetVolume}`;
-  if (exercise.variants?.length) return `${exercise.id}-variant-${selectedVariants[exercise.id] || 0}`;
-  return exercise.id;
+  if (exercise.scored) return { goalId: exercise.id, comboId: `volume-${selectedTargetVolume}` };
+  if (exercise.variants?.length) return { goalId: exercise.id, comboId: `variant-${selectedVariants[exercise.id] || 0}` };
+  return { goalId: exercise.id, comboId: "default" };
 }
 
 function makeLayout(holeCount) {
@@ -2029,7 +2113,7 @@ function activateViewButton(view, target = "") {
   $$("[data-view]").forEach((item) => {
     const itemTarget = item.dataset.navTarget || "";
     const isPracticeNav = item.dataset.view === "practicehub";
-    const matches = (item.dataset.view === view && itemTarget === target) || (isPracticeNav && view === "longtone");
+    const matches = (item.dataset.view === view && itemTarget === target) || (isPracticeNav && ["longtone", "interval"].includes(view));
     if (item.classList.contains("nav-item") || item.classList.contains("bottom-nav-item") || item.classList.contains("icon-btn")) {
       item.classList.toggle("active", matches);
     }
@@ -2045,7 +2129,7 @@ function scrollToSection(sectionId) {
 }
 
 function setBpm(nextBpm) {
-  bpm = Math.max(40, Math.min(120, Number(nextBpm)));
+  bpm = Math.max(60, Math.min(180, Number(nextBpm)));
   $("#bpmInput").value = bpm;
   $("#bpmValue").textContent = bpm;
   $("#statusBpm").textContent = bpm;
@@ -2178,7 +2262,8 @@ function showAverageScore() {
 function renderDailyGoals() {
   const state = getDailyGoalState();
   const tasks = getDailyGoalTasks();
-  const doneCount = tasks.filter((task) => state[task.id]).length;
+  const progressList = tasks.map((task) => getDailyGoalProgress(state, task));
+  const doneCount = progressList.filter((progress) => progress.done).length;
   const summary = `${doneCount} / ${tasks.length}`;
   $("#dailyGoalSummary").textContent = `今日完成 ${summary} 個練習`;
   $$('[data-view="daily"]').forEach((dailyNav) => {
@@ -2186,12 +2271,28 @@ function renderDailyGoals() {
   });
   $("#dailyGoalList").innerHTML = tasks
     .map((task, index) => {
-      const done = state[task.id] === true;
+      const progress = progressList[index];
+      if (task.type === "interval") {
+        return `
+          <button class="goal-chip ${progress.done ? "done" : ""}" data-goal-type="interval" type="button">
+            <span>${progress.done ? "✓" : index + 1}</span>
+            <strong>${task.title}</strong>
+            <small>任一調性＋任一音程 · 不重複組合 ${progress.completedCount} / ${progress.required} · 相同組合每日只計一次</small>
+          </button>
+        `;
+      }
+      const nextCombo = getNextDailyGoalCombo(task, state);
+      const completedLabels = task.combos
+        .filter((combo) => progress.completedCombos.includes(combo.id))
+        .map((combo) => combo.label);
+      const comboText = completedLabels.length
+        ? `已完成 ${completedLabels.join("、")}`
+        : `下一組合：${nextCombo.label}`;
       return `
-        <button class="goal-chip ${done ? "done" : ""}" data-goal-exercise="${task.exerciseIndex}" data-goal-volume="${task.volume || ""}" data-goal-variant="${task.variantIndex ?? ""}" type="button">
-          <span>${done ? "✓" : index + 1}</span>
+        <button class="goal-chip ${progress.done ? "done" : ""}" data-goal-exercise="${task.exerciseIndex}" data-goal-combo="${nextCombo.id}" type="button">
+          <span>${progress.done ? "✓" : index + 1}</span>
           <strong>${task.title}</strong>
-          <small>${localizeLevel(task.level)} · ${task.playBeats} 拍 · ${task.summary || getPatternSummary(task.pattern)}</small>
+          <small>${localizeLevel(task.level)} · ${task.playBeats} 拍 · 不同組合 ${progress.completedCount} / ${progress.required} · ${comboText}</small>
         </button>
       `;
     })
@@ -2199,19 +2300,52 @@ function renderDailyGoals() {
   renderStreakSummary();
 }
 
-function markDailyGoalDone(goalId) {
+function markDailyGoalDone(goalId, comboId) {
   const state = getDailyGoalState();
-  const wasDone = state[goalId] === true;
-  state[goalId] = true;
+  const task = getDailyGoalTasks().find((item) => item.id === goalId);
+  if (!task) {
+    const streakResult = markPracticeCompletedToday();
+    renderDailyGoals();
+    return { isNew: false, isAllDone: false, streakResult };
+  }
+  const previousProgress = getDailyGoalProgress(state, task);
+  const completedCombos = new Set(previousProgress.completedCombos);
+  const normalizedComboId = task.combos.some((combo) => combo.id === comboId) ? comboId : task.combos[0]?.id;
+  if (normalizedComboId) completedCombos.add(normalizedComboId);
+  state[goalId] = {
+    completedCombos: [...completedCombos],
+    completedAt: completedCombos.size >= previousProgress.required ? new Date().toISOString() : null,
+  };
   setDailyGoalState(state);
   const streakResult = markPracticeCompletedToday();
   renderDailyGoals();
   const tasks = getDailyGoalTasks();
-  const isAllDone = tasks.every((task) => state[task.id] === true);
-  return { isNew: !wasDone, isAllDone, streakResult };
+  const nextState = getDailyGoalState();
+  const nextProgress = getDailyGoalProgress(nextState, task);
+  const isAllDone = tasks.every((item) => getDailyGoalProgress(nextState, item).done);
+  return { isNew: !previousProgress.done && nextProgress.done, isAllDone, streakResult };
+}
+
+function markIntervalDailyGoalsDone(keyName, intervalSize) {
+  const state = getDailyGoalState();
+  const comboId = `${keyName}-${intervalSize}`;
+  const intervalTasks = getDailyGoalTasks().filter((task) => task.type === "interval");
+  const completedCombos = new Set(getDailyGoalCompletedCombos(state, intervalTasks[0]));
+  completedCombos.add(comboId);
+  state[INTERVAL_DAILY_GOAL_STATE_KEY] = {
+    completedCombos: [...completedCombos],
+    updatedAt: new Date().toISOString(),
+  };
+  setDailyGoalState(state);
+  const streakResult = markPracticeCompletedToday();
+  renderDailyGoals();
+  const nextState = getDailyGoalState();
+  const isAllDone = getDailyGoalTasks().every((task) => getDailyGoalProgress(nextState, task).done);
+  return { isAllDone, streakResult };
 }
 
 function showGoalCompletedDialog(title) {
+  setGoalToastEyebrow("每日目標");
   $("#goalToastTitle").textContent = "恭喜完成";
   $("#goalToastText").textContent = `你已完成今日目標：「${title}」。`;
   $("#goalToast").classList.remove("hidden");
@@ -2219,6 +2353,7 @@ function showGoalCompletedDialog(title) {
 }
 
 function showAllGoalsCompletedDialog() {
+  setGoalToastEyebrow("每日目標");
   $("#goalToastTitle").textContent = "今日目標完成";
   $("#goalToastText").textContent = "恭喜你已完成今日所有目標。";
   $("#goalToast").classList.remove("hidden");
@@ -2228,6 +2363,7 @@ function showAllGoalsCompletedDialog() {
 function showFirstDailyCompletionToast(practiceName, streakResult, waterResult = null) {
   if (!streakResult?.isFirstCompletionToday) return;
   const waterText = formatWaterRewardText(waterResult);
+  setGoalToastEyebrow("每日目標");
   $("#goalToastTitle").textContent = `完成「${practiceName}」`;
   if (streakResult.freezeResult?.applied) {
     const used = streakResult.freezeResult.usedCount;
@@ -2247,6 +2383,7 @@ function showFirstDailyCompletionToast(practiceName, streakResult, waterResult =
 
 function showPracticeCompletedToast(practiceName, waterResult = null) {
   const waterText = formatWaterRewardText(waterResult);
+  setGoalToastEyebrow("每日目標");
   $("#goalToastTitle").textContent = `完成「${practiceName}」`;
   $("#goalToastText").textContent = waterText || "這項練習已加入今日完成進度。";
   $("#goalToast").classList.remove("hidden");
@@ -4118,6 +4255,423 @@ function renderExercise() {
   renderCurve(phase === "play" ? beat : 0);
 }
 
+function getIntervalNoteLetter(noteName) {
+  return noteName.charAt(0);
+}
+
+function buildIntervalScaleNotes(keyName) {
+  return Array.from({ length: 16 }, (_, index) => getIntervalScaleNote(keyName, index));
+}
+
+function getIntervalScaleNote(keyName, index) {
+  const key = INTERVAL_KEYS[keyName] || INTERVAL_KEYS.C;
+  const letters = ["C", "D", "E", "F", "G", "A", "B"];
+  const tonicLetterIndex = letters.indexOf(getIntervalNoteLetter(key.notes[0]));
+  const pitchIndex = ((index % key.notes.length) + key.notes.length) % key.notes.length;
+  const pitch = key.notes[pitchIndex];
+  const octave = 4 + Math.floor((tonicLetterIndex + index) / 7);
+  return `${pitch}${octave}`;
+}
+
+function generateIntervalGroups(keyName, intervalSize, direction) {
+  const scale = buildIntervalScaleNotes(keyName);
+  const distance = Math.max(1, Number(intervalSize) - 1);
+  if (direction === "continuousBoth") {
+    const ascendingSequence = [];
+    for (let index = 0; index < 7; index += 1) {
+      ascendingSequence.push(getIntervalScaleNote(keyName, index), getIntervalScaleNote(keyName, index + distance));
+    }
+    ascendingSequence.push(getIntervalScaleNote(keyName, 7));
+    const descendingSequence = [];
+    for (let index = 7; index > 0; index -= 1) {
+      descendingSequence.push(getIntervalScaleNote(keyName, index), getIntervalScaleNote(keyName, index - distance));
+    }
+    descendingSequence.push(getIntervalScaleNote(keyName, 0));
+    const sequence = [...ascendingSequence, ...descendingSequence];
+    return Array.from({ length: 8 }, (_, measureIndex) => {
+      const sectionOffset = measureIndex < 4 ? 0 : 15;
+      const localMeasureIndex = measureIndex % 4;
+      const start = sectionOffset + localMeasureIndex * 4;
+      const end = sectionOffset + (localMeasureIndex === 3 ? 15 : (localMeasureIndex + 1) * 4);
+      const notes = sequence.slice(start, end);
+      const durations = localMeasureIndex === 3 ? [1, 1, 2] : [1, 1, 1, 1];
+      return { notes, durations, label: notes.join(" → ") };
+    });
+  }
+  return Array.from({ length: 8 }, (_, index) => {
+    const low = scale[index];
+    const high = scale[index + distance];
+    const movementNotes = direction === "descending"
+      ? [high, low]
+      : [low, high];
+    const notes = Array.from({ length: 3 }, (_, noteIndex) => movementNotes[noteIndex % movementNotes.length]);
+    return { notes, durations: [1, 1, 2], label: movementNotes.join(" → ") };
+  });
+}
+
+function getIntervalStaffY(noteName) {
+  const letters = ["C", "D", "E", "F", "G", "A", "B"];
+  const match = noteName.match(/^([A-G])(?:#|b)?(\d)$/);
+  if (!match) return 94;
+  const diatonicIndex = Number(match[2]) * 7 + letters.indexOf(match[1]);
+  const e4Index = 4 * 7 + letters.indexOf("E");
+  return 118 - (diatonicIndex - e4Index) * 6;
+}
+
+function renderIntervalLedgerLines(x, y) {
+  const lines = [];
+  if (y >= 124) {
+    for (let lineY = 130; lineY <= y + 1; lineY += 12) {
+      lines.push(`<line x1="${x - 12}" y1="${lineY}" x2="${x + 12}" y2="${lineY}" class="ledger-line" />`);
+    }
+  }
+  if (y <= 64) {
+    for (let lineY = 58; lineY >= y - 1; lineY -= 12) {
+      lines.push(`<line x1="${x - 12}" y1="${lineY}" x2="${x + 12}" y2="${lineY}" class="ledger-line" />`);
+    }
+  }
+  return lines.join("");
+}
+
+function renderIntervalNote(noteName, x, isActive = false, duration = 1) {
+  const y = getIntervalStaffY(noteName);
+  const stemDown = y < 92;
+  const stemX = stemDown ? x - 7 : x + 7;
+  const stemEndY = stemDown ? y + 34 : y - 34;
+  const activeClass = isActive ? " active-note" : "";
+  const durationClass = duration === 2 ? " half-note" : "";
+  return `
+    ${renderIntervalLedgerLines(x, y)}
+    <ellipse cx="${x}" cy="${y}" rx="8" ry="5.5" transform="rotate(-16 ${x} ${y})" class="staff-note${durationClass}${activeClass}" />
+    <line x1="${stemX}" y1="${y}" x2="${stemX}" y2="${stemEndY}" class="note-stem${activeClass}" />
+  `;
+}
+
+function renderIntervalKeySignature(keyName) {
+  const key = INTERVAL_KEYS[keyName] || INTERVAL_KEYS.C;
+  const sharpY = [70, 88, 64, 82, 100, 76, 94];
+  const flatY = [94, 76, 100, 82, 106, 88, 112];
+  return key.signature.map((accidental, index) => {
+    const isSharp = accidental.includes("#");
+    const x = 62 + index * 10;
+    const y = (isSharp ? sharpY : flatY)[index];
+    return `<text x="${x}" y="${y + 6}" class="key-signature">${isSharp ? "♯" : "♭"}</text>`;
+  }).join("");
+}
+
+function createIntervalStaffSvg(groups, keyName, activeGroupIndex = -1, activeNoteIndex = -1) {
+  const staffLines = [70, 82, 94, 106, 118]
+    .map((y) => `<line x1="18" y1="${y}" x2="622" y2="${y}" class="staff-line" />`)
+    .join("");
+  const groupStartX = 130;
+  const groupWidth = 123;
+  const notesAndBars = groups.map((group, groupIndex) => {
+    const centerX = groupStartX + groupIndex * groupWidth + groupWidth / 2;
+    const offsets = group.notes.length === 4
+      ? [-39, -13, 13, 39]
+      : group.notes.length === 3
+        ? [-39, -13, 13]
+        : [-17, 17];
+    const notes = group.notes
+      .map((noteName, noteIndex) => renderIntervalNote(
+        noteName,
+        centerX + offsets[noteIndex],
+        groupIndex === activeGroupIndex && noteIndex === activeNoteIndex,
+        group.durations?.[noteIndex] || 1,
+      ))
+      .join("");
+    const barX = groupStartX + (groupIndex + 1) * groupWidth;
+    return `${notes}<line x1="${barX}" y1="70" x2="${barX}" y2="118" class="bar-line" />`;
+  }).join("");
+  return `
+    <svg viewBox="0 0 640 140" role="img" aria-labelledby="intervalStaffSvgTitle" xmlns="http://www.w3.org/2000/svg">
+      <title id="intervalStaffSvgTitle">${INTERVAL_KEYS[keyName].label}音程練習五線譜</title>
+      <style>
+        .staff-line,.bar-line,.ledger-line,.note-stem{stroke:#6f4b32;stroke-width:1.5}.bar-line{stroke-width:1.8}.ledger-line{stroke-width:1.4}.staff-note{fill:#543822;stroke:#543822;stroke-width:1.5;transition:fill .16s ease,stroke .16s ease,filter .16s ease}.staff-note.half-note{fill:#fffdf7;stroke-width:2}.staff-note.active-note{fill:#d34f45;stroke:#d34f45;filter:drop-shadow(0 0 5px rgba(211,79,69,.88))}.staff-note.half-note.active-note{fill:#fffdf7;stroke:#d34f45;stroke-width:2.6}.note-stem.active-note{stroke:#d34f45;stroke-width:2.4;filter:drop-shadow(0 0 3px rgba(211,79,69,.68))}.key-signature{fill:#543822;font:700 25px Georgia,serif}.treble-clef{fill:#543822;font:62px Georgia,serif}
+      </style>
+      ${staffLines}
+      <text x="18" y="119" class="treble-clef">𝄞</text>
+      ${renderIntervalKeySignature(keyName)}
+      ${notesAndBars}
+    </svg>
+  `;
+}
+
+function getIntervalPracticeSelection() {
+  return {
+    key: $("#intervalKeySelect").value,
+    interval: Number($("#intervalSizeSelect").value),
+    direction: $("#intervalDirectionSelect").value,
+    bpm: Number($("#intervalBpmInput").value),
+    totalCycles: Number($("#intervalCyclesSelect").value),
+  };
+}
+
+function getIntervalNumberNotation(noteName) {
+  const match = noteName.match(/^([A-G])([#b]?)(\d)$/);
+  if (!match) return { degree: "?", accidental: "", octave: 0 };
+  const fixedDoDegrees = { C: "1", D: "2", E: "3", F: "4", G: "5", A: "6", B: "7" };
+  return {
+    degree: fixedDoDegrees[match[1]],
+    accidental: match[2] === "#" ? "♯" : match[2] === "b" ? "♭" : "",
+    octave: Math.max(0, Number(match[3]) - 4),
+  };
+}
+
+function renderIntervalNumberNote(noteName, isActive = false) {
+  const notation = getIntervalNumberNotation(noteName);
+  const dots = notation.octave > 0
+    ? `<i class="jianpu-octave-dot" aria-hidden="true">${"•".repeat(notation.octave)}</i>`
+    : "";
+  return `<b class="jianpu-note${isActive ? " active" : ""}" aria-label="${noteName}">${dots}<i class="jianpu-accidental" aria-hidden="true">${notation.accidental}</i>${notation.degree}</b>`;
+}
+
+function renderIntervalPractice() {
+  if (!intervalPracticeState) return;
+  const state = intervalPracticeState;
+  state.page = Math.min(
+    Math.ceil(state.groups.length / INTERVAL_GROUPS_PER_PAGE) - 1,
+    Math.floor(state.groupIndex / INTERVAL_GROUPS_PER_PAGE),
+  );
+  const key = INTERVAL_KEYS[state.key];
+  const intervalLabel = INTERVAL_LABELS[state.interval];
+  const directionLabel = INTERVAL_DIRECTION_LABELS[state.direction];
+  const totalPages = Math.ceil(state.groups.length / INTERVAL_GROUPS_PER_PAGE);
+  const pageStart = state.page * INTERVAL_GROUPS_PER_PAGE;
+  const pageGroups = state.groups.slice(pageStart, pageStart + INTERVAL_GROUPS_PER_PAGE);
+  const activeNoteIndex = state.phase === "play" ? state.activeNoteIndex : -1;
+  const activeGroupOnPage = state.groupIndex - pageStart;
+  $("#intervalPracticeTitle").textContent = `${key.label}｜${directionLabel}${intervalLabel}`;
+  $("#intervalScoreLabel").textContent = `${key.label} · ${directionLabel}${intervalLabel}`;
+  $("#intervalPageStatus").textContent = `第 ${state.groupIndex + 1} / ${state.groups.length} 組 · 第 ${state.page + 1} / ${totalPages} 頁`;
+  $("#intervalCycleProgress").textContent = `${state.completedCycles} / ${state.totalCycles}`;
+  $("#intervalBpmStatus").textContent = state.bpm;
+  $("#intervalMetronomeHelp").textContent = state.direction === "continuousBoth"
+    ? "4 拍預備 · 連續上下行 · 每段末音二分音符"
+    : "4 拍預備 · 4/4 拍 · 兩個四分音符＋一個二分音符";
+  $("#intervalStaff").innerHTML = createIntervalStaffSvg(
+    pageGroups,
+    state.key,
+    activeGroupOnPage,
+    activeNoteIndex,
+  );
+  $("#intervalStaff").setAttribute("aria-label", `${key.label}${directionLabel}${intervalLabel}，${pageGroups.map((group) => group.label).join("；")}`);
+  $("#intervalNoteHelp").innerHTML = pageGroups
+    .map((group, index) => {
+      const groupIndex = pageStart + index;
+      const isActiveGroup = groupIndex === state.groupIndex;
+      const notes = group.notes
+        .map((noteName, noteIndex) => {
+          const isActiveNote = isActiveGroup && activeNoteIndex === noteIndex;
+          const hold = (group.durations?.[noteIndex] || 1) > 1
+            ? `<b class="jianpu-hold${isActiveNote ? " active" : ""}" aria-label="延長一拍">—</b>`
+            : "";
+          return `${renderIntervalNumberNote(noteName, isActiveNote)}${hold}`;
+        })
+        .join("");
+      return `<span class="${isActiveGroup ? "active" : ""}"><small>第 ${groupIndex + 1} 小節</small><em>${notes}</em></span>`;
+    })
+    .join("");
+}
+
+function updateIntervalMetronomeUi() {
+  const button = $("#intervalStartPauseBtn");
+  const dot = $("#intervalMetronomeDot");
+  const status = $("#intervalMetronomeStatus");
+  if (button) {
+    button.textContent = intervalMetronomePlaying
+      ? "暫停練習"
+      : intervalPracticeState?.hasStarted
+        ? "繼續練習"
+        : "開始練習";
+  }
+  if (dot) dot.classList.toggle("is-playing", intervalMetronomePlaying);
+  if (status) {
+    status.textContent = intervalMetronomePlaying && intervalPracticeState?.phase === "prepare"
+      ? `預備 ${intervalPracticeState.prepareBeat} / 4`
+      : intervalMetronomePlaying
+        ? "吹奏中"
+      : intervalPracticeState?.hasStarted
+        ? "已暫停"
+        : "等待開始";
+    status.classList.toggle("is-playing", intervalMetronomePlaying);
+  }
+}
+
+function stopIntervalMetronome() {
+  if (intervalMetronomeTimer) clearInterval(intervalMetronomeTimer);
+  intervalMetronomeTimer = null;
+  intervalMetronomePlaying = false;
+  updateIntervalMetronomeUi();
+}
+
+function getIntervalNoteIndexAtBeat(group, beat) {
+  let elapsedBeats = 0;
+  for (let noteIndex = 0; noteIndex < group.notes.length; noteIndex += 1) {
+    elapsedBeats += group.durations?.[noteIndex] || 1;
+    if (beat < elapsedBeats) return noteIndex;
+  }
+  return group.notes.length - 1;
+}
+
+function stepIntervalPractice() {
+  const state = intervalPracticeState;
+  if (!state || !intervalMetronomePlaying) return;
+  if (state.phase === "prepare") {
+    playPrepareClick(state.prepareBeat === 0);
+    state.prepareBeat += 1;
+    updateIntervalMetronomeUi();
+    if (state.prepareBeat >= 4) {
+      state.phase = "play";
+      state.activeNoteIndex = -1;
+      intervalMetronomeBeat = 0;
+      renderIntervalPractice();
+      updateIntervalMetronomeUi();
+    }
+    return;
+  }
+
+  let currentGroup = state.groups[state.groupIndex];
+  const measureBeats = currentGroup.durations?.reduce((sum, duration) => sum + duration, 0) || currentGroup.notes.length;
+  if (intervalMetronomeBeat >= measureBeats) {
+    intervalMetronomeBeat = 0;
+    state.activeNoteIndex = -1;
+    state.groupIndex += 1;
+    if (state.groupIndex >= state.groups.length) {
+      state.completedCycles += 1;
+      if (state.completedCycles >= state.totalCycles) {
+        finishIntervalPractice();
+        return;
+      }
+      state.groupIndex = 0;
+      state.phase = "prepare";
+      state.prepareBeat = 0;
+      renderIntervalPractice();
+      updateIntervalMetronomeUi();
+      stepIntervalPractice();
+      return;
+    }
+    currentGroup = state.groups[state.groupIndex];
+  }
+
+  state.activeNoteIndex = getIntervalNoteIndexAtBeat(currentGroup, intervalMetronomeBeat);
+  playClick(intervalMetronomeBeat === 0);
+  intervalMetronomeBeat += 1;
+  renderIntervalPractice();
+  updateIntervalMetronomeUi();
+}
+
+function startIntervalMetronome() {
+  if (!intervalPracticeState || intervalMetronomePlaying) return;
+  intervalPracticeState.hasStarted = true;
+  if (intervalPracticeState.phase === "ready") {
+    intervalPracticeState.phase = "prepare";
+    intervalPracticeState.prepareBeat = 0;
+  }
+  intervalMetronomePlaying = true;
+  updateIntervalMetronomeUi();
+  stepIntervalPractice();
+  if (!intervalMetronomePlaying) return;
+  intervalMetronomeTimer = setInterval(stepIntervalPractice, 60000 / intervalPracticeState.bpm);
+}
+
+function toggleIntervalPractice() {
+  if (intervalMetronomePlaying) stopIntervalMetronome();
+  else startIntervalMetronome();
+}
+
+function beginIntervalPractice() {
+  const selection = getIntervalPracticeSelection();
+  intervalPracticeState = {
+    ...selection,
+    groups: generateIntervalGroups(selection.key, selection.interval, selection.direction),
+    page: 0,
+    groupIndex: 0,
+    completedCycles: 0,
+    hasStarted: false,
+    phase: "ready",
+    prepareBeat: 0,
+    activeNoteIndex: -1,
+  };
+  intervalMetronomeBeat = 0;
+  $("#intervalSetup").classList.add("hidden");
+  $("#intervalComplete").classList.add("hidden");
+  $("#intervalPlayer").classList.remove("hidden");
+  renderIntervalPractice();
+  updateIntervalMetronomeUi();
+  scrollToSection("intervalPlayer");
+}
+
+function resetIntervalPractice() {
+  if (!intervalPracticeState) return;
+  stopIntervalMetronome();
+  intervalPracticeState.page = 0;
+  intervalPracticeState.groupIndex = 0;
+  intervalPracticeState.completedCycles = 0;
+  intervalPracticeState.hasStarted = false;
+  intervalPracticeState.phase = "ready";
+  intervalPracticeState.prepareBeat = 0;
+  intervalPracticeState.activeNoteIndex = -1;
+  intervalMetronomeBeat = 0;
+  renderIntervalPractice();
+  updateIntervalMetronomeUi();
+}
+
+function saveIntervalPracticeRecord(record) {
+  const history = readJsonStorage(INTERVAL_PRACTICE_HISTORY_KEY, []);
+  const nextHistory = Array.isArray(history) ? history : [];
+  nextHistory.push(record);
+  localStorage.setItem(INTERVAL_PRACTICE_HISTORY_KEY, JSON.stringify(nextHistory.slice(-100)));
+}
+
+function finishIntervalPractice() {
+  const state = intervalPracticeState;
+  if (!state) return;
+  stopIntervalMetronome();
+  const goalResult = markIntervalDailyGoalsDone(state.key, state.interval);
+  const streakResult = goalResult.streakResult;
+  const waterResult = awardGardenWaterForPractice(state.completedCycles);
+  saveIntervalPracticeRecord({
+    date: getTodayKey(),
+    completedAt: new Date().toISOString(),
+    type: "interval",
+    key: state.key,
+    mode: "major",
+    interval: state.interval,
+    direction: state.direction,
+    bpm: state.bpm,
+    cyclesCompleted: state.completedCycles,
+    waterEarned: waterResult.water,
+  });
+  renderStreakSummary();
+  $("#intervalPlayer").classList.add("hidden");
+  $("#intervalComplete").classList.remove("hidden");
+  $("#intervalCompleteKey").textContent = INTERVAL_KEYS[state.key].label;
+  $("#intervalCompleteSize").textContent = INTERVAL_LABELS[state.interval];
+  $("#intervalCompleteDirection").textContent = INTERVAL_DIRECTION_LABELS[state.direction];
+  $("#intervalCompleteCycles").textContent = `${state.completedCycles} / ${state.totalCycles}`;
+  $("#intervalCompleteWater").textContent = `${waterResult.water} 滴`;
+  const notes = [];
+  if (waterResult.capped) notes.push("今日練習水滴已達上限，完成紀錄仍已保存。");
+  if (streakResult.isFirstCompletionToday) notes.push(`今日連續學習已完成，目前連續 ${streakResult.currentStreak} 天。`);
+  $("#intervalCompleteNote").textContent = notes.join("\n");
+  playSound("practiceComplete");
+  scrollToSection("intervalComplete");
+}
+
+function showIntervalSetup() {
+  stopIntervalMetronome();
+  intervalPracticeState = null;
+  $("#intervalPlayer").classList.add("hidden");
+  $("#intervalComplete").classList.add("hidden");
+  $("#intervalSetup").classList.remove("hidden");
+}
+
+function editIntervalPracticeSettings() {
+  showIntervalSetup();
+  scrollToSection("intervalSetup");
+}
+
 function setView(view, options = {}) {
   const target = options.activeTarget || options.scrollTarget || "";
   const changedView = currentView !== view || currentViewTarget !== target;
@@ -4126,6 +4680,7 @@ function setView(view, options = {}) {
   $$(".view").forEach((element) => element.classList.toggle("active", element.id === view));
   activateViewButton(view, currentViewTarget);
   if (view !== "longtone") stopPractice(false);
+  if (view !== "interval") stopIntervalMetronome();
   if (view === "garden") renderGarden();
   syncGardenBgmWithView();
   if (options.scrollTarget) {
@@ -4152,6 +4707,23 @@ function playClick(strong = false) {
   oscillator.connect(gain).connect(audioContext.destination);
   oscillator.start();
   oscillator.stop(audioContext.currentTime + 0.1);
+}
+
+function playPrepareClick(strong = false) {
+  if (!isMetronomeAllowed()) return;
+  if (!audioContext) {
+    audioContext = new AudioContext();
+  }
+  const oscillator = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  oscillator.type = "triangle";
+  oscillator.frequency.value = strong ? 560 : 440;
+  gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+  gain.gain.exponentialRampToValueAtTime(getMetronomeGain(false) * 0.72, audioContext.currentTime + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.14);
+  oscillator.connect(gain).connect(audioContext.destination);
+  oscillator.start();
+  oscillator.stop(audioContext.currentTime + 0.15);
 }
 
 function updatePhaseLabel() {
@@ -4185,7 +4757,15 @@ function updateBeatDisplay() {
 function stepPractice() {
   const exercise = exercises[selectedExercise];
   beat += 1;
-  playClick(beat === 1);
+  const phaseBeatLimit = phase === "prepare"
+    ? exercise.prepareBeats
+    : phase === "rest"
+      ? exercise.restBeats
+      : exercise.playBeats;
+  if (beat <= phaseBeatLimit) {
+    if (phase === "prepare") playPrepareClick(beat === 1);
+    else playClick(beat === 1);
+  }
 
   if (phase === "prepare" && beat > exercise.prepareBeats) {
     phase = "play";
@@ -4205,13 +4785,13 @@ function stepPractice() {
       if (isCurrentExerciseScored()) {
         showAverageScore();
       }
-      const currentGoalId = getCurrentDailyGoalId();
+      const currentGoal = getCurrentDailyGoalCompletion();
       const currentGoalTitle = exercise.scored
         ? `${exercise.title} ${selectedTargetVolume}`
         : exercise.variants?.length
           ? `${exercise.title} ${getExerciseVariantLabel(exercise)}`
           : exercise.title;
-      const goalResult = markDailyGoalDone(currentGoalId);
+      const goalResult = markDailyGoalDone(currentGoal.goalId, currentGoal.comboId);
       const waterResult = awardGardenWaterForPractice(totalCycles);
       if (goalResult.streakResult?.isFirstCompletionToday) {
         showFirstDailyCompletionToast(currentGoalTitle, goalResult.streakResult, waterResult);
@@ -4273,6 +4853,29 @@ function stopPractice(done = false) {
   updateBeatDisplay();
 }
 
+let startPracticeLaunchLocked = false;
+
+function launchStartPracticeButton(button, navigate) {
+  if (startPracticeLaunchLocked) return;
+  startPracticeLaunchLocked = true;
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const pressDelay = reduceMotion ? 20 : 130;
+  const launchDelay = reduceMotion ? 40 : 380;
+  button.classList.add("is-pressing", "is-launching");
+  button.setAttribute("aria-busy", "true");
+  window.setTimeout(() => {
+    button.classList.remove("is-pressing");
+  }, pressDelay);
+  window.setTimeout(() => {
+    button.classList.remove("is-launching");
+    button.removeAttribute("aria-busy");
+    navigate();
+    window.setTimeout(() => {
+      startPracticeLaunchLocked = false;
+    }, 140);
+  }, launchDelay);
+}
+
 function bindEvents() {
   $$("[data-view]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -4286,15 +4889,30 @@ function bindEvents() {
   $$("[data-jump]").forEach((button) => {
     button.addEventListener("click", () => {
       const view = button.dataset.jump;
-      setView(view, {
+      const navigate = () => setView(view, {
         activeTarget: button.dataset.scrollTarget || "",
         scrollTarget: button.dataset.scrollTarget || "",
       });
+      if (button.dataset.startPracticeLaunch === "true") {
+        launchStartPracticeButton(button, navigate);
+        return;
+      }
+      navigate();
     });
   });
 
   $$("[data-longtone-intro]").forEach((button) => {
     button.addEventListener("click", () => setLongToneIntroOpen(true));
+  });
+
+  $("#intervalStartBtn")?.addEventListener("click", beginIntervalPractice);
+  $("#intervalStartPauseBtn")?.addEventListener("click", toggleIntervalPractice);
+  $("#intervalRestartBtn")?.addEventListener("click", resetIntervalPractice);
+  $("#intervalSettingsBtn")?.addEventListener("click", editIntervalPracticeSettings);
+  $("#intervalAgainBtn")?.addEventListener("click", beginIntervalPractice);
+  $("#intervalBackBtn")?.addEventListener("click", () => {
+    showIntervalSetup();
+    setView("practicehub");
   });
 
   $$("[data-leaderboard-open]").forEach((button) => {
@@ -4327,6 +4945,10 @@ function bindEvents() {
     setBpm(event.target.value);
   });
 
+  $("#intervalBpmInput")?.addEventListener("input", (event) => {
+    $("#intervalBpmValue").textContent = event.target.value;
+  });
+
   $("#bpmMinus").addEventListener("click", () => setBpm(bpm - 2));
   $("#bpmPlus").addEventListener("click", () => setBpm(bpm + 2));
 
@@ -4353,16 +4975,23 @@ function bindEvents() {
   });
 
   $("#dailyGoalList").addEventListener("click", (event) => {
-    const button = event.target.closest("[data-goal-exercise]");
+    const button = event.target.closest(".goal-chip");
     if (!button) return;
+    if (button.dataset.goalType === "interval") {
+      setView("interval");
+      showIntervalSetup();
+      scrollToSection("intervalSetup");
+      return;
+    }
     setPracticeSettingsOpen(false);
     selectedExercise = Number(button.dataset.goalExercise);
-    if (button.dataset.goalVolume) {
-      selectedTargetVolume = button.dataset.goalVolume;
-    }
-    if (button.dataset.goalVariant) {
-      const exercise = exercises[selectedExercise];
-      selectedVariants[exercise.id] = Number(button.dataset.goalVariant);
+    const exercise = exercises[selectedExercise];
+    const comboId = button.dataset.goalCombo || "";
+    const task = getDailyGoalTasks().find((item) => item.exerciseIndex === selectedExercise);
+    const combo = task?.combos.find((item) => item.id === comboId) || task?.combos[0];
+    if (exercise.scored && combo?.volume) selectedTargetVolume = combo.volume;
+    if (exercise.variants?.length && combo?.variantIndex !== null && combo?.variantIndex !== undefined) {
+      selectedVariants[exercise.id] = Number(combo.variantIndex);
     }
     const practiceSettings = getPracticeSettings();
     $("#bpmInput").value = practiceSettings.defaultBpm;

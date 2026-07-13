@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-81" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-119" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -40,7 +40,7 @@
 
     <div id="goalToast" class="goal-toast hidden" role="dialog" aria-modal="true" aria-labelledby="goalToastTitle">
       <div class="goal-toast-card">
-        <p class="eyebrow">每日目標</p>
+        <p id="goalToastEyebrow" class="eyebrow">每日目標</p>
         <h2 id="goalToastTitle">恭喜完成</h2>
         <p id="goalToastText">你已完成今日目標。</p>
         <button id="goalToastClose" class="primary-btn" type="button">知道了</button>
@@ -206,7 +206,13 @@
                 <span class="hero-plant-stage"><img id="heroGardenPlant" src="./public/assets/garden/collection/starter-pot.png" alt="" /></span>
                 <span><b id="heroGardenName">花園</b><small id="heroGardenHint" hidden></small></span>
               </button>
-              <button class="primary-btn" data-jump="practicehub" type="button">開始今天的練習！</button>
+              <button class="primary-btn start-practice-button" data-jump="practicehub" data-start-practice-launch="true" type="button">
+                <span class="start-practice-glow" aria-hidden="true"></span>
+                <span class="start-practice-ripple" aria-hidden="true"></span>
+                <span class="start-practice-content">
+                  <span class="start-practice-label">開始練習~</span>
+                </span>
+              </button>
             </div>
           </div>
 
@@ -253,6 +259,16 @@
               </div>
             </div>
           </div>
+          <div class="tuner-reference-note paper-card">
+            <h3>A4 調音基準提醒</h3>
+            <p><strong>A = 440 Hz</strong> 指的是國際標準術語裡的 <strong>A4</strong>。</p>
+            <p>建議調音器的基準設在 <strong>442 Hz</strong>，原因之一是拆蓋板調音，裝回蓋板後蓋板會讓音高稍微下降。</p>
+            <p>簧片在「吹 / 吸更用力」時，有傾向發出較低音高，所以測音時要用 <strong>最小氣壓</strong>，不要用力吹到把讀數弄假。</p>
+            <ul>
+              <li><strong>簧片調音：</strong>先用 442 Hz。</li>
+              <li><strong>最後判斷：</strong>用 440 Hz 檢查實際吹出來的音。不要只看裸簧片，要看裝回琴後、用正常力度吹的結果。</li>
+            </ul>
+          </div>
         </section>
 
         <section id="practicehub" class="view">
@@ -276,15 +292,18 @@
                 </div>
                 <button class="room-action" data-longtone-intro type="button">開始長音練習</button>
               </article>
+              <article class="practice-room-card available">
+                <div>
+                  <span class="room-badge open">已開放</span>
+                  <h4>音程練習室</h4>
+                  <p>從二度到八度，跟著五線譜練習不同調性的音程移動。</p>
+                </div>
+                <button class="room-action" data-view="interval" type="button">開始音程練習</button>
+              </article>
               <article class="practice-room-card">
                 <span class="room-badge">準備中</span>
                 <h4>按鍵練習室</h4>
                 <p>熟悉按鍵音與半音切換。</p>
-              </article>
-              <article class="practice-room-card">
-                <span class="room-badge">準備中</span>
-                <h4>音階練習室</h4>
-                <p>練習音階流暢度與指法方向感。</p>
               </article>
               <article class="practice-room-card">
                 <span class="room-badge">準備中</span>
@@ -301,6 +320,132 @@
                 <h4>合奏練習室</h4>
                 <p>練習聲部進入、聽感與合奏默契。</p>
               </article>
+            </div>
+          </section>
+        </section>
+
+        <section id="interval" class="view interval-practice-view">
+          <div class="section-head compact">
+            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/long_tone_bird.png" alt="" aria-hidden="true" />
+            <p class="eyebrow">看譜練習</p>
+            <h2>音程練習室</h2>
+            <p>看譜、聽節拍，依照自己的步調完成每一輪練習。</p>
+          </div>
+
+          <section id="intervalSetup" class="interval-setup paper-card" aria-labelledby="intervalSetupTitle">
+            <div class="interval-card-heading">
+              <p class="eyebrow">練習設定</p>
+              <h3 id="intervalSetupTitle">今天想練哪一種音程？</h3>
+              <p>第一版由你自行判斷完成，不會開啟麥克風或進行音準評分。</p>
+            </div>
+            <div class="interval-settings-grid">
+              <label class="interval-setting">
+                <span>調性</span>
+                <select id="intervalKeySelect" aria-label="音程練習調性">
+                  <option value="C">C 大調</option>
+                  <option value="G">G 大調</option>
+                  <option value="D">D 大調</option>
+                  <option value="A">A 大調</option>
+                  <option value="E">E 大調</option>
+                  <option value="B">B 大調</option>
+                  <option value="F">F 大調</option>
+                  <option value="Bb">Bb 大調</option>
+                  <option value="Eb">Eb 大調</option>
+                  <option value="Ab">Ab 大調</option>
+                  <option value="Db">Db 大調</option>
+                  <option value="Gb">Gb 大調</option>
+                </select>
+              </label>
+              <label class="interval-setting">
+                <span>音程</span>
+                <select id="intervalSizeSelect" aria-label="音程距離">
+                  <option value="2">二度</option>
+                  <option value="3" selected>三度</option>
+                  <option value="4">四度</option>
+                  <option value="5">五度</option>
+                  <option value="6">六度</option>
+                  <option value="7">七度</option>
+                  <option value="8">八度</option>
+                </select>
+              </label>
+              <label class="interval-setting">
+                <span>方向</span>
+                <select id="intervalDirectionSelect" aria-label="音程方向">
+                  <option value="ascending">上行</option>
+                  <option value="descending">下行</option>
+                  <option value="continuousBoth">連續上下行</option>
+                </select>
+              </label>
+              <label class="interval-setting">
+                <span class="interval-range-heading">BPM <b id="intervalBpmValue">60</b></span>
+                <input id="intervalBpmInput" type="range" min="60" max="180" step="1" value="60" aria-label="音程練習速度" />
+              </label>
+              <label class="interval-setting interval-setting-wide">
+                <span>循環</span>
+                <select id="intervalCyclesSelect" aria-label="音程練習循環次數">
+                  <option value="4" selected>4 次</option>
+                  <option value="6">6 次</option>
+                  <option value="8">8 次</option>
+                </select>
+              </label>
+            </div>
+            <button id="intervalStartBtn" class="primary-btn interval-start-btn" type="button">開始看譜練習</button>
+          </section>
+
+          <section id="intervalPlayer" class="interval-player hidden" aria-live="polite">
+            <div class="interval-player-top paper-card">
+              <div>
+                <p class="eyebrow">目前練習</p>
+                <h3 id="intervalPracticeTitle">C 大調｜上行三度</h3>
+              </div>
+              <div class="interval-progress-pills">
+                <span>循環 <b id="intervalCycleProgress">0 / 4</b></span>
+                <span><b id="intervalBpmStatus">60</b> BPM</span>
+              </div>
+            </div>
+
+            <div class="interval-score-card paper-card">
+              <div class="interval-score-heading">
+                <div>
+                  <span id="intervalScoreLabel">C 大調 · 三度</span>
+                  <small id="intervalPageStatus">第 1 / 2 頁</small>
+                </div>
+                <span class="interval-self-check">自己聽、自己判斷</span>
+              </div>
+              <div id="intervalStaff" class="interval-staff" role="img" aria-label="音程練習五線譜"></div>
+              <div id="intervalNoteHelp" class="interval-note-help"></div>
+            </div>
+
+            <div class="interval-metronome paper-card">
+              <div>
+                <span class="metronome-dot" id="intervalMetronomeDot" aria-hidden="true"></span>
+                <strong>節拍引導</strong>
+                <small id="intervalMetronomeHelp">第一音 2 拍，第二音 2 拍</small>
+              </div>
+              <span id="intervalMetronomeStatus" class="interval-metronome-status">等待開始</span>
+            </div>
+            <div class="interval-practice-actions">
+              <button id="intervalStartPauseBtn" class="primary-btn" type="button">開始練習</button>
+              <button id="intervalRestartBtn" class="ghost-btn" type="button">重新開始</button>
+              <button id="intervalSettingsBtn" class="ghost-btn" type="button">練習設定</button>
+            </div>
+          </section>
+
+          <section id="intervalComplete" class="interval-complete paper-card hidden" aria-live="polite">
+            <div class="interval-complete-mark" aria-hidden="true">♪</div>
+            <p class="eyebrow">練習紀錄已保存</p>
+            <h2>音程練習完成！</h2>
+            <dl class="interval-complete-summary">
+              <div><dt>調性</dt><dd id="intervalCompleteKey">C 大調</dd></div>
+              <div><dt>音程</dt><dd id="intervalCompleteSize">三度</dd></div>
+              <div><dt>方向</dt><dd id="intervalCompleteDirection">上行</dd></div>
+              <div><dt>完成循環</dt><dd id="intervalCompleteCycles">4 / 4</dd></div>
+              <div><dt>獲得水滴</dt><dd id="intervalCompleteWater">4 滴</dd></div>
+            </dl>
+            <p id="intervalCompleteNote" class="interval-complete-note"></p>
+            <div class="interval-complete-actions">
+              <button id="intervalAgainBtn" class="primary-btn" type="button">再練一次</button>
+              <button id="intervalBackBtn" class="ghost-btn" type="button">回到練習列表</button>
             </div>
           </section>
         </section>
@@ -436,7 +581,7 @@
                         <strong id="bpmValue">60</strong>
                         <button id="bpmPlus" type="button">＋</button>
                       </div>
-                      <input id="bpmInput" type="range" min="40" max="120" value="60" />
+                      <input id="bpmInput" type="range" min="60" max="180" step="1" value="60" />
                     </label>
                     <label id="targetVolumeSetting" class="stat">
                       <span>目標音量</span>
@@ -498,7 +643,7 @@
             <div class="daily-goal-top">
               <div class="daily-goal-copy">
                 <div class="daily-goal-summary-row">
-                  <span id="dailyGoalSummary">今日完成 0 / 18 個練習</span>
+                  <span id="dailyGoalSummary">今日完成 0 / 7 個練習</span>
                   <div class="daily-goal-sticky">
                     <img class="ui-section-illustration" src="./public/assets/chromatic-refresh/note/encouragement_note.png" alt="" aria-hidden="true" />
                   </div>
@@ -599,7 +744,7 @@
               <div class="settings-accordion-body">
                 <label class="setting-number-wrap">
                   <span>預設 BPM</span>
-                  <input id="defaultBpmInput" type="number" min="40" max="120" step="1" value="60" />
+                  <input id="defaultBpmInput" type="number" min="60" max="180" step="1" value="60" />
                 </label>
                 <div class="setting-segment-wrap">
                   <span>預設循環次數</span>
@@ -699,7 +844,7 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-81</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-119</span></strong>
                 </div>
                 <div class="setting-row">
                   <span>問題回報</span>
@@ -721,6 +866,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-81"></script>
+    <script src="./app.js?v=refresh-119"></script>
   </body>
 </html>
