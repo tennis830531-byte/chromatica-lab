@@ -482,32 +482,31 @@ li,
 .hero-plant-slot {
   position: relative;
   isolation: isolate;
-  overflow: hidden;
+  overflow: visible;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   justify-items: center;
   align-items: center;
-  gap: 4px;
-  min-height: 116px;
-  padding: 10px 12px 11px;
-  border: 1px solid rgba(231, 216, 200, 0.86);
+  gap: 6px;
+  min-height: 150px;
+  padding: 10px 8px 7px;
+  border: 0;
   border-radius: 18px;
   color: var(--text-main);
-  background: rgba(255, 253, 249, 0.58);
+  background: transparent;
   text-align: center;
-  box-shadow: var(--shadow-soft);
+  box-shadow: none;
 }
 
 .hero-plant-slot::before {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -10px -2px 18px;
   z-index: -1;
-  background:
-    linear-gradient(180deg, rgba(255, 253, 249, 0.02), rgba(255, 253, 249, 0.2)),
-    url("./public/assets/garden/icons/home-plant-stage-bg.png") center 58% / cover no-repeat;
-  opacity: 0.9;
-  filter: saturate(1.06) contrast(1.02);
+  background: url("./public/assets/garden/icons/home-plant-stage-bg-v2.png") center bottom / contain no-repeat;
+  opacity: 1;
+  filter: saturate(1.07) contrast(1.02);
+  pointer-events: none;
 }
 
 .hero-plant-stage {
@@ -515,31 +514,88 @@ li,
   z-index: 1;
   display: grid;
   place-items: center;
-  width: min(100%, 132px);
-  height: 82px;
+  width: min(100%, 154px);
+  height: 108px;
+}
+
+.hero-plant-idle,
+.hero-plant-action {
+  display: grid;
+  place-items: end center;
+  width: 100%;
+  height: 100%;
+  transform-origin: center bottom;
+}
+
+.hero-plant-idle.is-idle {
+  animation: plantIdleSway 4.8s ease-in-out infinite;
+}
+
+.hero-plant-action {
+  animation: heroPlantOccasionalHop 9.2s ease-in-out infinite;
+}
+
+.hero-plant-action.is-hopping {
+  animation: heroPlantClickHop 0.62s ease-out;
+}
+
+body.no-plant-idle .hero-plant-idle.is-idle,
+body.simple-motion .hero-plant-idle.is-idle,
+body.no-plant-idle .hero-plant-action,
+body.simple-motion .hero-plant-action {
+  animation: none;
 }
 
 .hero-plant-stage img {
   display: block;
   max-width: 100%;
-  max-height: 86px;
+  max-height: 104px;
   object-fit: contain;
+  object-position: center bottom;
   filter: drop-shadow(0 8px 10px rgba(72, 48, 28, 0.12));
+}
+
+.hero-garden-plant-image.hero-stage-1 {
+  max-width: 66%;
+  max-height: 84px;
+}
+
+.hero-garden-plant-image.hero-stage-2 {
+  max-width: 82%;
+  max-height: 94px;
+}
+
+.hero-garden-plant-image.hero-stage-3 {
+  max-width: 104%;
+  max-height: 106px;
 }
 
 .hero-plant-slot b,
 .hero-plant-slot small {
   position: relative;
-  z-index: 1;
   display: block;
   min-width: 0;
+}
+
+.hero-plant-name-card {
+  position: relative;
+  z-index: 2;
+  display: block;
+  max-width: min(94%, 126px);
+  min-width: 74px;
+  padding: 3px 11px 4px;
+  border: 1px solid rgba(226, 206, 181, 0.72);
+  border-radius: 999px;
+  background: rgba(255, 253, 248, 0.9);
+  box-shadow: 0 6px 14px rgba(89, 60, 36, 0.08);
 }
 
 .hero-plant-slot b {
   overflow: hidden;
   color: var(--primary);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 900;
+  line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -553,6 +609,7 @@ li,
 }
 
 .hero-actions .primary-btn {
+  position: relative;
   width: 100%;
   min-height: 64px;
   overflow: visible;
@@ -968,7 +1025,7 @@ li,
 .quick-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 6px 14px;
 }
 
 .quick-card {
@@ -976,47 +1033,41 @@ li,
   display: grid;
   justify-items: center;
   align-content: center;
-  gap: 8px;
-  min-height: 124px;
-  padding: 14px 10px 13px;
+  gap: 4px;
+  min-height: 142px;
+  padding: 8px 4px 10px;
   overflow: hidden;
-  border: 1px solid rgba(231, 216, 200, 0.9);
-  border-radius: 18px;
+  border: 0;
+  border-radius: 20px;
   color: var(--text-main);
-  background:
-    radial-gradient(circle at 16% 18%, rgba(255, 255, 255, 0.86), transparent 34%),
-    linear-gradient(145deg, rgba(255, 253, 249, 0.96), rgba(250, 243, 232, 0.86));
+  background: transparent;
   text-align: center;
-  box-shadow: 0 10px 22px rgba(72, 48, 28, 0.08);
+  box-shadow: none;
   transition:
     transform 160ms ease,
-    border-color 160ms ease,
-    box-shadow 160ms ease,
     background-color 160ms ease;
 }
 
 .quick-card::after {
   content: "";
   position: absolute;
-  left: 18px;
-  right: 18px;
-  bottom: -10px;
-  height: 20px;
+  left: 28px;
+  right: 28px;
+  bottom: 12px;
+  height: 18px;
   border-radius: 999px;
-  background: rgba(212, 165, 90, 0.2);
+  background: rgba(212, 165, 90, 0.12);
   opacity: 0;
-  filter: blur(8px);
-  transition: opacity 160ms ease, bottom 160ms ease;
+  filter: blur(10px);
+  transition: opacity 160ms ease;
 }
 
 .quick-card:hover {
-  border-color: rgba(212, 165, 90, 0.6);
-  box-shadow: 0 14px 26px rgba(72, 48, 28, 0.12);
+  background: rgba(255, 250, 241, 0.32);
   transform: translateY(-2px);
 }
 
 .quick-card:hover::after {
-  bottom: -6px;
   opacity: 1;
 }
 
@@ -1024,16 +1075,12 @@ li,
   position: relative;
   display: grid;
   place-items: center;
-  width: 88px;
-  height: 88px;
-  border: 1px solid rgba(231, 216, 200, 0.72);
-  border-radius: 25px;
-  background:
-    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.88), transparent 40%),
-    linear-gradient(145deg, rgba(248, 233, 203, 0.92), rgba(244, 222, 184, 0.58));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    0 7px 14px rgba(122, 78, 45, 0.08);
+  width: 116px;
+  height: 106px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   transition: filter 160ms ease, transform 160ms ease;
 }
 
@@ -1043,21 +1090,24 @@ li,
 }
 
 .quick-card img {
-  width: 70px;
-  height: 70px;
+  width: 104px;
+  height: 104px;
   object-fit: contain;
+  filter: drop-shadow(0 8px 10px rgba(112, 73, 39, 0.12));
 }
 
 .quick-card strong {
   font-family: var(--font-hand);
-  font-size: 18px;
+  font-size: 21px;
   font-weight: 700;
-  line-height: 1.18;
+  line-height: 1.12;
+  color: var(--text-main);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.82);
 }
 
 .quick-card em {
   justify-self: center;
-  margin-top: -1px;
+  margin-top: 2px;
   padding: 4px 9px;
   border-radius: 999px;
   color: var(--primary);
@@ -1075,34 +1125,31 @@ li,
 }
 
 .leaderboard-card .quick-card-icon {
-  background:
-    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.88), transparent 40%),
-    linear-gradient(145deg, rgba(248, 233, 203, 0.94), rgba(232, 213, 178, 0.62));
+  background: transparent;
 }
 
 @media (max-width: 420px) {
   .quick-grid {
-    gap: 9px;
+    gap: 4px 10px;
   }
 
   .quick-card {
-    min-height: 116px;
-    padding: 12px 8px;
+    min-height: 130px;
+    padding: 7px 2px 9px;
   }
 
   .quick-card-icon {
-    width: 78px;
-    height: 78px;
-    border-radius: 22px;
+    width: 104px;
+    height: 96px;
   }
 
   .quick-card img {
-    width: 62px;
-    height: 62px;
+    width: 94px;
+    height: 94px;
   }
 
   .quick-card strong {
-    font-size: 16px;
+    font-size: 19px;
   }
 }
 
@@ -1228,7 +1275,7 @@ body.hide-featured-spirit .hero-plant-slot {
 
 .room-badge.open {
   color: #fffdf9;
-  background: var(--primary);
+  background: #c7655a;
 }
 
 .room-action {
@@ -1704,6 +1751,54 @@ body.hide-featured-spirit .hero-plant-slot {
   width: min(94%, 330px);
 }
 
+.tuner-reference-note {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid rgba(220, 188, 143, 0.62);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 246, 0.94), rgba(255, 247, 232, 0.86)),
+    radial-gradient(circle at 10% 0%, rgba(229, 181, 92, 0.14), transparent 34%);
+  box-shadow: 0 14px 30px rgba(122, 78, 45, 0.10);
+}
+
+.tuner-reference-note h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-family: var(--font-hand);
+  font-size: 23px;
+  font-weight: 700;
+}
+
+.tuner-reference-note p,
+.tuner-reference-note ul {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.tuner-reference-note ul {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(222, 194, 158, 0.62);
+  background: rgba(255, 252, 246, 0.72);
+  list-style: none;
+}
+
+.tuner-reference-note li::before {
+  content: "・";
+  color: var(--primary);
+  font-weight: 900;
+}
+
+.tuner-reference-note strong {
+  color: var(--primary);
+}
+
 .intro-media {
   justify-self: center;
   width: 100%;
@@ -2003,6 +2098,7 @@ body.hide-featured-spirit .hero-plant-slot {
 }
 
 .exercise-btn {
+  position: relative;
   min-height: 86px;
   padding: 14px;
   border: 1px solid var(--line);
@@ -2027,6 +2123,33 @@ body.hide-featured-spirit .hero-plant-slot {
 .exercise-btn.active {
   border-color: rgba(122, 78, 45, 0.34);
   background: var(--accent-soft);
+}
+
+.exercise-btn.daily-done {
+  border-color: rgba(142, 166, 101, 0.72);
+  background: linear-gradient(180deg, rgba(246, 250, 235, 0.94), rgba(235, 244, 220, 0.82));
+  box-shadow: inset 0 0 0 1px rgba(142, 166, 101, 0.16);
+}
+
+.exercise-btn.daily-done::after {
+  content: "✓";
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--success);
+  color: #fffaf1;
+  font-size: 15px;
+  font-weight: 900;
+  box-shadow: 0 5px 10px rgba(91, 117, 60, 0.2);
+}
+
+.exercise-btn.active.daily-done {
+  border-color: rgba(142, 166, 101, 0.82);
 }
 
 .player {
@@ -2716,7 +2839,7 @@ input[type="range"] {
 .daily-goal-copy {
   min-width: 0;
   display: grid;
-  gap: 5px;
+  gap: 2px;
 }
 
 .daily-goal-title-row {
@@ -2727,10 +2850,10 @@ input[type="range"] {
 }
 
 .daily-goal-summary-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  position: relative;
+  display: block;
   align-items: center;
-  gap: 14px;
+  padding-right: clamp(82px, 20vw, 116px);
 }
 
 .section-kicker {
@@ -2760,11 +2883,15 @@ input[type="range"] {
 }
 
 .daily-goal-sticky {
+  position: absolute;
+  top: 50%;
+  right: 0;
   width: clamp(72px, 18vw, 104px);
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  transform: translateY(-50%);
   opacity: 0.88;
   pointer-events: none;
 }
@@ -3599,6 +3726,20 @@ body.simple-motion .plant-action-layer.is-stage-up {
   overflow: visible;
 }
 
+.garden-collection-card {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(218, 178, 116, 0.58);
+  background:
+    linear-gradient(rgba(255, 248, 235, 0.2), rgba(255, 248, 235, 0.2)),
+    url("./public/assets/garden/collection/garden-collection-board.png") center / cover no-repeat;
+}
+
+.garden-collection-card > * {
+  position: relative;
+  z-index: 1;
+}
+
 .garden-card-head {
   display: flex;
   align-items: flex-start;
@@ -3917,6 +4058,19 @@ body.simple-motion .plant-action-layer.is-stage-up {
   width: min(108%, 348px);
 }
 
+.plant-action-layer.species-melody-sprout.garden-stage-1 {
+  width: min(40%, 132px);
+}
+
+.plant-action-layer.species-flower-spirit.garden-stage-1 {
+  width: min(36%, 118px);
+}
+
+.plant-action-layer.species-lucky-leaf-spirit.garden-stage-1,
+.plant-action-layer.species-bamboo-sound-child.garden-stage-1 {
+  width: min(50%, 160px);
+}
+
 .garden-plant-image.garden-stage-1 {
   width: 100%;
 }
@@ -3942,12 +4096,23 @@ body.simple-motion .plant-action-layer.is-stage-up {
   gap: 8px;
 }
 
-.garden-progress > div:first-child {
+.garden-progress-row,
+.daily-practice-water {
   display: flex;
   justify-content: space-between;
   gap: 10px;
+}
+
+.garden-progress-row {
   color: var(--text-body);
   font-size: 14px;
+  font-weight: 800;
+}
+
+.total-growth-row,
+.daily-practice-water {
+  color: var(--muted);
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -4038,6 +4203,10 @@ body.simple-motion .plant-action-layer.is-stage-up {
 }
 
 .garden-collection-cell .collection-lucky-leaf-spirit {
+  transform: scale(0.82);
+}
+
+.garden-collection-cell .collection-bamboo-sound-child {
   transform: scale(0.82);
 }
 
@@ -4181,6 +4350,310 @@ body.simple-motion .plant-action-layer.is-stage-up {
   box-sizing: border-box;
 }
 
+.starter-plant-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1230;
+  display: grid;
+  align-items: end;
+  justify-items: center;
+  padding: 14px 12px;
+  background: rgba(58, 44, 35, 0.34);
+  backdrop-filter: blur(12px);
+}
+
+.starter-plant-backdrop.hidden {
+  display: none;
+}
+
+.starter-plant-modal {
+  width: min(calc(100vw - 24px), 560px);
+  max-height: 88vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 18% 2%, rgba(214, 169, 92, 0.13), transparent 34%),
+    linear-gradient(180deg, #fffdf9 0%, #fcf7ef 100%);
+  box-shadow: 0 26px 70px rgba(44, 32, 22, 0.28);
+}
+
+.starter-plant-modal *,
+.starter-plant-modal *::before,
+.starter-plant-modal *::after {
+  box-sizing: border-box;
+}
+
+.starter-plant-head h2 {
+  margin: 2px 0 6px;
+  color: var(--text-strong);
+  font-family: var(--font-hand);
+  font-size: 28px;
+  line-height: 1.15;
+}
+
+.starter-plant-head p:last-child {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.starter-plant-choices {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(184px, 42%);
+  gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 4px 2px 10px;
+  scroll-snap-type: x proximity;
+}
+
+.starter-plant-card {
+  position: relative;
+  min-height: 310px;
+  display: grid;
+  grid-template-rows: 154px auto 1fr;
+  justify-items: center;
+  align-content: start;
+  gap: 8px;
+  padding: 14px 12px 16px;
+  border: 1px solid rgba(218, 196, 174, 0.95);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(244, 218, 158, 0.18), transparent 44%),
+    linear-gradient(180deg, rgba(255, 253, 249, 0.96), rgba(250, 244, 235, 0.94));
+  color: var(--text-strong);
+  text-align: center;
+  box-shadow: 0 10px 24px rgba(76, 50, 28, 0.08);
+  scroll-snap-align: center;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.starter-plant-card:active {
+  transform: scale(0.985);
+}
+
+.starter-plant-card.selected {
+  border-color: rgba(197, 139, 45, 0.95);
+  background:
+    radial-gradient(circle at 50% 20%, rgba(246, 214, 139, 0.34), transparent 48%),
+    linear-gradient(180deg, #fffaf0, #f8ecd6);
+  box-shadow: 0 16px 34px rgba(124, 83, 34, 0.18);
+}
+
+.starter-plant-image-wrap {
+  position: relative;
+  width: 132px;
+  height: 148px;
+  display: grid;
+  place-items: end center;
+}
+
+.starter-plant-image-wrap img {
+  max-width: 128px;
+  max-height: 144px;
+  object-fit: contain;
+  object-position: center bottom;
+  transform-origin: center bottom;
+  transition: transform 180ms ease;
+}
+
+.starter-plant-card.selected .starter-plant-image-wrap img {
+  transform: scale(1.06);
+}
+
+.starter-plant-card.selected:not(.is-confirming) .starter-plant-image-wrap {
+  animation: starterSelectedSway 3.6s ease-in-out infinite;
+}
+
+.starter-plant-card.selected:not(.is-confirming) .starter-plant-image-wrap img {
+  animation: starterSelectedHop 2.4s ease-in-out infinite;
+}
+
+.starter-plant-card[data-starter-species="lucky-leaf-spirit"] .starter-plant-image-wrap img,
+.starter-plant-card[data-starter-species="bamboo-sound-child"] .starter-plant-image-wrap img {
+  max-width: 150px;
+  max-height: 164px;
+}
+
+.starter-plant-card strong {
+  color: var(--text-strong);
+  font-family: var(--font-hand);
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.starter-plant-card small {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.starter-selected-pill {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  opacity: 0;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(244, 222, 184, 0.94);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 900;
+  transform: translateY(-3px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.starter-plant-card.selected .starter-selected-pill {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.starter-sparkle {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #ddb35e;
+  opacity: 0;
+  box-shadow: 0 0 14px rgba(221, 179, 94, 0.6);
+}
+
+.starter-sparkle-1 {
+  top: 24px;
+  left: 20px;
+}
+
+.starter-sparkle-2 {
+  right: 14px;
+  bottom: 44px;
+}
+
+.starter-hello {
+  position: absolute;
+  left: 50%;
+  bottom: 96px;
+  padding: 6px 11px;
+  border: 1px solid rgba(218, 196, 174, 0.95);
+  border-radius: 999px;
+  background: rgba(255, 253, 249, 0.96);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 900;
+  opacity: 0;
+  transform: translate(-50%, 6px);
+}
+
+.starter-plant-card.is-confirming {
+  animation: starterCardGlow 9.56s ease both;
+}
+
+.starter-plant-card.is-confirming .starter-plant-image-wrap img {
+  animation: starterPlantHop 1.55s ease-in-out 0.25s 6;
+}
+
+.starter-plant-card.is-confirming .starter-sparkle {
+  animation: starterSparkle 1.6s ease-in-out 0.45s 5;
+}
+
+.starter-plant-card.is-confirming .starter-sparkle-2 {
+  animation-delay: 0.75s;
+}
+
+.starter-plant-card.is-confirming .starter-hello {
+  animation: starterHello 8.4s ease 0.8s both;
+}
+
+.starter-plant-hint {
+  margin: -4px 2px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.starter-plant-actions {
+  display: grid;
+  grid-template-columns: 0.75fr 1.25fr;
+  gap: 10px;
+}
+
+.starter-plant-actions .primary-btn,
+.starter-plant-actions .ghost-btn {
+  min-height: 48px;
+}
+
+@keyframes starterPlantHop {
+  0%, 100% { transform: scale(1.06) translateY(0); }
+  40% { transform: scale(1.1) translateY(-12px) rotate(-2deg); }
+  70% { transform: scale(1.04) translateY(2px) rotate(1deg); }
+}
+
+@keyframes starterSelectedSway {
+  0%, 100% { transform: rotate(-1.2deg); }
+  50% { transform: rotate(1.2deg); }
+}
+
+@keyframes starterSelectedHop {
+  0%, 100% { transform: scale(1.06) translateY(0); }
+  46% { transform: scale(1.08) translateY(-7px); }
+  66% { transform: scale(1.05) translateY(1px); }
+}
+
+@keyframes starterCardGlow {
+  0%, 100% { box-shadow: 0 16px 34px rgba(124, 83, 34, 0.18); }
+  35%, 76% { box-shadow: 0 18px 42px rgba(212, 160, 62, 0.34), 0 0 0 5px rgba(246, 214, 139, 0.22); }
+}
+
+@keyframes starterSparkle {
+  0%, 100% { opacity: 0; transform: scale(0.4) rotate(0deg); }
+  45% { opacity: 1; transform: scale(1.2) rotate(35deg); }
+}
+
+@keyframes starterHello {
+  0% { opacity: 0; transform: translate(-50%, 8px) scale(0.92); }
+  18%, 82% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -5px) scale(0.98); }
+}
+
+@media (max-height: 620px) {
+  .starter-plant-modal {
+    gap: 10px;
+    padding: 16px;
+  }
+
+  .starter-plant-choices {
+    grid-auto-columns: minmax(164px, 44%);
+  }
+
+  .starter-plant-card {
+    min-height: 258px;
+    grid-template-rows: 112px auto 1fr;
+    padding: 12px 10px 14px;
+  }
+
+  .starter-plant-image-wrap {
+    width: 108px;
+    height: 112px;
+  }
+
+  .starter-plant-image-wrap img {
+    max-width: 104px;
+    max-height: 110px;
+  }
+
+  .starter-plant-card[data-starter-species="lucky-leaf-spirit"] .starter-plant-image-wrap img,
+  .starter-plant-card[data-starter-species="bamboo-sound-child"] .starter-plant-image-wrap img {
+    max-width: 118px;
+    max-height: 124px;
+  }
+}
+
 .garden-rename-head {
   display: flex;
   align-items: flex-start;
@@ -4308,6 +4781,16 @@ body.simple-motion .plant-action-layer.is-stage-up {
   max-height: 168px;
 }
 
+.garden-spirit-stage-card.spirit-flower-spirit.stage-1 img {
+  width: 48%;
+  max-height: 92px;
+}
+
+.garden-spirit-stage-card.spirit-flower-spirit.stage-2 img {
+  width: 82%;
+  max-height: 140px;
+}
+
 .garden-spirit-description {
   padding: 12px;
   border: 1px solid rgba(231, 216, 200, 0.76);
@@ -4380,6 +4863,13 @@ body.simple-motion .plant-action-layer.is-stage-up {
   35% { transform: scale(1.07) translateY(-5px) rotate(-1deg); }
   70% { transform: scale(0.99) translateY(1px) rotate(1deg); }
   100% { transform: scale(1); }
+}
+
+@keyframes heroPlantClickHop {
+  0% { transform: translateY(0) scale(1); }
+  34% { transform: translateY(-16px) scale(1.06, 0.96); }
+  64% { transform: translateY(2px) scale(0.98, 1.04); }
+  100% { transform: translateY(0) scale(1); }
 }
 
 @keyframes plantStageUp {
@@ -4515,11 +5005,21 @@ body.simple-motion .plant-action-layer.is-stage-up {
   100% { transform: translateY(0) scale(1); }
 }
 
+@keyframes heroPlantOccasionalHop {
+  0%, 72%, 100% { transform: translateY(0) scale(1); }
+  76% { transform: translateY(-7px) scale(1.025); }
+  80% { transform: translateY(0) scale(0.99); }
+  84% { transform: translateY(-3px) scale(1.012); }
+  88% { transform: translateY(0) scale(1); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .watering-can-button.is-pressing,
   .watering-can-button.is-empty-tap,
   .watering-can.is-watering,
   .plant-idle-layer.is-idle,
+  .hero-plant-idle.is-idle,
+  .hero-plant-action,
   .plant-action-layer.is-hopping,
   .plant-action-layer.is-watered,
   .plant-action-layer.is-stage-up,
@@ -4565,6 +5065,11 @@ body.simple-motion .plant-action-layer.is-stage-up {
   border-radius: var(--radius-lg);
   background: var(--card);
   box-shadow: var(--shadow-card);
+}
+
+#goalToastText {
+  white-space: pre-line;
+  line-height: 1.7;
 }
 
 .mic-gate {

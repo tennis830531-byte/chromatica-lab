@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-119" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-120" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -83,11 +83,7 @@
     <div id="longToneIntroModal" class="longtone-intro-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="longToneIntroTitle">
       <div class="longtone-intro-sheet">
         <div class="longtone-intro-head">
-          <div>
-            <p class="eyebrow">長音練習室</p>
-            <h2 id="longToneIntroTitle">開始長音練習前</h2>
-            <p>長音不是把音吹久而已，而是練習氣息、嘴型、音量與音準的穩定。</p>
-          </div>
+          <h2 id="longToneIntroTitle" class="sr-only">開始長音練習前</h2>
           <button id="longToneIntroClose" class="calendar-close" type="button" aria-label="關閉說明">×</button>
         </div>
         <div class="longtone-intro-hero media-box" aria-hidden="true">
@@ -104,15 +100,6 @@
               <article><span>收尾</span><p>尾音不要硬切，讓氣流自然收住。</p></article>
               <article><span>音準</span><p>練習時可以搭配內建調音器觀察 cents，留意音準是否往上飄或往下掉。</p></article>
             </div>
-          </section>
-          <section class="longtone-intro-block">
-            <h3>開始前可以調整</h3>
-            <ul class="intro-setting-list">
-              <li><b>BPM</b><span>設定練習速度</span></li>
-              <li><b>目標組合</b><span>選擇平穩長音、音量分層、漸強、漸弱、山形等練習項目</span></li>
-              <li><b>循環次數</b><span>設定要練幾組</span></li>
-              <li><b>目標音量</b><span>選擇 p / mp / mf / f</span></li>
-            </ul>
           </section>
           <p class="longtone-intro-reminder">先不用追求大聲，先讓每一個音穩定、乾淨、自然。</p>
         </div>
@@ -164,6 +151,22 @@
       </div>
     </div>
 
+    <div id="starterPlantModal" class="starter-plant-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="starterPlantTitle">
+      <div class="starter-plant-modal">
+        <div class="starter-plant-head">
+          <p class="eyebrow">精靈花園</p>
+          <h2 id="starterPlantTitle">選擇你的第一隻植物精靈</h2>
+          <p>第一次來到精靈花園，先挑選一位陪你一起成長的夥伴吧。</p>
+        </div>
+        <div id="starterPlantChoices" class="starter-plant-choices" aria-label="初始植物精靈選擇"></div>
+        <p id="starterPlantHint" class="starter-plant-hint">點選一張植物精靈卡片後，就可以開始培養。</p>
+        <div class="starter-plant-actions">
+          <button id="starterPlantMore" class="ghost-btn" type="button">再看看</button>
+          <button id="starterPlantConfirm" class="primary-btn" type="button" disabled>就決定是你了！</button>
+        </div>
+      </div>
+    </div>
+
     <div id="leaderboardModal" class="leaderboard-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="leaderboardModalTitle">
       <div class="leaderboard-modal paper-card">
         <div class="leaderboard-modal-head">
@@ -202,9 +205,15 @@
               </div>
             </div>
             <div class="hero-actions">
-              <button class="hero-plant-slot" data-jump="garden" type="button">
-                <span class="hero-plant-stage"><img id="heroGardenPlant" src="./public/assets/garden/collection/starter-pot.png" alt="" /></span>
-                <span><b id="heroGardenName">花園</b><small id="heroGardenHint" hidden></small></span>
+              <button class="hero-plant-slot" id="heroPlantSlot" type="button">
+                <span class="hero-plant-stage">
+                  <span id="heroGardenIdleLayer" class="hero-plant-idle is-idle">
+                    <span id="heroGardenActionLayer" class="hero-plant-action">
+                      <img id="heroGardenPlant" class="hero-garden-plant-image hero-stage-1" src="./public/assets/garden/collection/starter-pot.png" alt="" />
+                    </span>
+                  </span>
+                </span>
+                <span class="hero-plant-name-card"><b id="heroGardenName">花園</b><small id="heroGardenHint" hidden></small></span>
               </button>
               <button class="primary-btn start-practice-button" data-jump="practicehub" data-start-practice-launch="true" type="button">
                 <span class="start-practice-glow" aria-hidden="true"></span>
@@ -217,7 +226,6 @@
           </div>
 
           <div class="quick-section">
-            <div class="section-header"><h3>快速入口</h3></div>
             <div class="quick-grid">
               <button class="quick-card" data-jump="map" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/note_map_explorer.png" alt="" /></span><strong>音符地圖</strong></button>
               <button class="quick-card" data-jump="tuner" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/tuner_badge.png" alt="" /></span><strong>全音域調音器</strong></button>
@@ -648,11 +656,8 @@
                     <img class="ui-section-illustration" src="./public/assets/chromatic-refresh/note/encouragement_note.png" alt="" aria-hidden="true" />
                   </div>
                 </div>
-                <p>今天也比昨天更進一步</p>
+                <p class="daily-goal-bonus-note">完成今日所有任務可獲得20水滴！</p>
               </div>
-            </div>
-            <div class="week-progress" aria-label="一週進度">
-              <span data-weekday="1">一<i></i></span><span data-weekday="2">二<i></i></span><span data-weekday="3">三<i></i></span><span data-weekday="4">四<i></i></span><span data-weekday="5">五<i></i></span><span data-weekday="6">六<i></i></span><span data-weekday="7">日<i></i></span>
             </div>
             <div id="dailyGoalList" class="daily-goal-list"></div>
           </div>
@@ -689,16 +694,16 @@
                 </div>
               </div>
               <div class="garden-progress">
-                <div><span>階段進度</span><b id="gardenProgressText">0 / 20</b></div>
+                <div class="garden-progress-row"><span>階段進度</span><b id="gardenProgressText">0 / 100</b></div>
                 <div class="garden-progress-track"><i id="gardenProgressBar"></i></div>
-                <p id="gardenNeedText">還需要 20 滴水進入下一階段。</p>
+                <div class="daily-practice-water"><span>今日練習水滴</span><b id="dailyPracticeWaterText">0 / 80</b></div>
               </div>
             </section>
 
-            <section class="garden-card paper-card">
+            <section class="garden-card paper-card garden-collection-card">
               <div class="garden-card-head compact">
                 <div>
-                  <h3>口琴植物精靈圖鑑</h3>
+                  <h3>植物精靈圖鑑</h3>
                 </div>
               </div>
               <div id="gardenCollection" class="garden-collection"></div>
@@ -844,7 +849,7 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-119</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-120</span></strong>
                 </div>
                 <div class="setting-row">
                   <span>問題回報</span>
@@ -866,6 +871,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-119"></script>
+    <script src="./app.js?v=refresh-120"></script>
   </body>
 </html>

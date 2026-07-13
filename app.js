@@ -10,18 +10,31 @@ const targetVolumes = ["p", "mp", "mf", "f"];
 const CYCLE_OPTIONS = [2, 4, 6, 8];
 const MIN_REWARD_CYCLES = 2;
 const MAX_SELECTABLE_CYCLES = 8;
-const MAX_DAILY_WATER_REWARD = 25;
+const MAX_SINGLE_PRACTICE_WATER_REWARD = 8;
+const MAX_DAILY_PRACTICE_WATER_REWARD = 80;
+const DAILY_LOGIN_WATER_BONUS = 5;
+const DAILY_TASK_WATER_BONUS = 20;
 const DAILY_GOAL_REQUIRED_COMBOS = 2;
 const INTERVAL_DAILY_GOAL_STATE_KEY = "intervalUniqueCombos";
 const INTERVAL_DAILY_GOAL_TASKS = [
   { id: "interval-variety-3", title: "音程組合挑戰 3 次", required: 3 },
   { id: "interval-variety-8", title: "音程組合挑戰 8 次", required: 8 },
 ];
-const PLANT_STAGE_WATER_REQUIREMENTS = [20, 30, 40];
+const STREAK_WATER_MILESTONES = [
+  { days: 7, amount: 50 },
+  { days: 30, amount: 100 },
+  { days: 60, amount: 120 },
+  { days: 90, amount: 150 },
+];
+const REPEATING_STREAK_MILESTONE_START = 120;
+const REPEATING_STREAK_MILESTONE_INTERVAL = 30;
+const REPEATING_STREAK_MILESTONE_AMOUNT = 150;
+const PLANT_STAGE_WATER_REQUIREMENTS = [100, 180, 250];
 const PLANT_WATER_REQUIRED = PLANT_STAGE_WATER_REQUIREMENTS.reduce((total, amount) => total + amount, 0);
 const GARDEN_EVOLUTION_NOTICE_DELAY_MS = 2300;
 const RAIN_BONUS_AMOUNT = 5;
 const RAIN_BONUS_CHANCE = 0.5;
+const RAIN_BONUS_ANIMATION_MS = 1500;
 const GARDEN_WATERING_CAN_SRC = "./public/assets/garden/icons/watering-can.png";
 const GARDEN_SHOVEL_SRC = "./public/assets/garden/icons/garden-shovel.png";
 
@@ -29,6 +42,7 @@ const gardenSpecies = [
   {
     species: "melody-sprout",
     name: "旋律芽芽",
+    stageNames: ["旋律芽芽", "旋律葉靈", "旋律森使"],
     description: "一株剛從音符泥土裡冒出的口琴小芽，葉片會隨著練習聲音輕輕搖晃。個性溫和，喜歡穩定的長音，是陪伴初學者累積基本功的小精靈。",
     images: [
       "./public/assets/garden/plants/melody-sprout-stage1.png",
@@ -37,18 +51,9 @@ const gardenSpecies = [
     ],
   },
   {
-    species: "flower-spirit",
-    name: "花樂精靈",
-    description: "由旋律盛開而成的花系口琴精靈，花瓣裡藏著明亮的音色與節奏感。個性開朗，澆水後會灑出小音符，象徵練習慢慢開花。",
-    images: [
-      "./public/assets/garden/plants/flower-spirit-stage1.png",
-      "./public/assets/garden/plants/flower-spirit-stage2.png",
-      "./public/assets/garden/plants/flower-spirit-stage3.png",
-    ],
-  },
-  {
     species: "mushroom-spirit",
     name: "菇鳴靈",
+    stageNames: ["菇鳴靈", "菇鳴樂手", "菇鳴賢者"],
     description: "住在濕潤音樂土壤裡的菇系口琴精靈，菇帽像小小的口琴共鳴箱，能聽見細微的氣息變化。個性安靜但很有靈氣，適合代表專注、耐心與穩定成長。",
     images: [
       "./public/assets/garden/plants/mushroom-spirit-stage1.png",
@@ -57,13 +62,36 @@ const gardenSpecies = [
     ],
   },
   {
+    species: "flower-spirit",
+    name: "花樂精靈",
+    stageNames: ["花樂精靈", "花樂舞靈", "花樂仙子"],
+    description: "由旋律盛開而成的花系口琴精靈，花瓣裡藏著明亮的音色與節奏感。個性開朗，澆水後會灑出小音符，象徵練習慢慢開花。",
+    images: [
+      "./public/assets/garden/plants/flower-spirit-stage1.png",
+      "./public/assets/garden/plants/flower-spirit-stage2.png",
+      "./public/assets/garden/plants/flower-spirit-stage3.png",
+    ],
+  },
+  {
     species: "lucky-leaf-spirit",
     name: "幸葉靈",
+    stageNames: ["幸葉芽", "幸葉靈", "幸葉祭司"],
     description: "從幸運葉片中誕生的口琴精靈，會用柔和旋律陪伴練習者，讓每一次練習都多一點好心情。",
     images: [
       "./public/assets/garden/plants/lucky-leaf-spirit-stage1.png",
       "./public/assets/garden/plants/lucky-leaf-spirit-stage2.png",
       "./public/assets/garden/plants/lucky-leaf-spirit-stage3.png",
+    ],
+  },
+  {
+    species: "bamboo-sound-child",
+    name: "竹音童",
+    stageNames: ["竹芽童", "竹音童", "竹音翁"],
+    description: "住在竹林深處的植物精靈，竹葉與竹節會隨著旋律輕輕共鳴，音色清新又安定。",
+    images: [
+      "./public/assets/garden/plants/bamboo-sound-child-stage1.png",
+      "./public/assets/garden/plants/bamboo-sound-child-stage2.png",
+      "./public/assets/garden/plants/bamboo-sound-child-stage3.png",
     ],
   },
 ];
@@ -74,8 +102,21 @@ const gardenStorageKeys = {
   collection: "chromatica.spiritCollection",
   featured: "chromatica.featuredSpiritId",
   featuredStage: "chromatica.featuredSpiritStage",
-  rainBonus: "chromatica.rainBonusState",
+  starterPlantSelected: "chromatica.starterPlantSelected",
+  rainBonus: "chromatica.rainEventState",
   dailyReward: "chromatica.dailyWaterReward",
+  dailyWaterState: "chromatica.dailyWaterState",
+  dailyLoginBonus: "chromatica.dailyLoginBonus",
+  dailyTaskBonus: "chromatica.dailyTaskBonus",
+  streakMilestoneRewards: "chromatica.streakMilestoneRewards",
+};
+
+const starterPlantDescriptions = {
+  "melody-sprout": "喜歡在葉間跳動的小精靈，會陪你用穩定的長音慢慢長大。",
+  "mushroom-spirit": "森林裡的快樂歌手，適合陪你用溫暖的聲音開始練習。",
+  "flower-spirit": "從花苞中誕生的演奏精靈，音色明亮，喜歡把練習變成花瓣旋律。",
+  "lucky-leaf-spirit": "帶來幸運與好運的小福星，會陪你一步一步累積練習成果。",
+  "bamboo-sound-child": "竹林裡安靜可靠的小夥伴，旋律清新，適合穩穩打好基本功。",
 };
 
 const PRACTICE_SETTINGS_KEY = "chromatica.settings.practice";
@@ -127,12 +168,14 @@ const soundMap = {
   uiTap: "點擊音效.mp3",
   close: "關閉音效.mp3",
   practiceComplete: "練習完成音效.mp3",
+  starterCharm: "Sprout Charm.wav",
   watering: "澆水聲.mp3",
   evolveStart: "進化開始音效.mp3",
   evolveComplete: "進化完成音效.mp3",
   harvest: "收成採收音效.mp3",
   gardenBgm: "花園音樂BGM.wav",
 };
+const STARTER_CONFIRM_ANIMATION_MS = 9560;
 
 const exercises = [
   {
@@ -403,6 +446,7 @@ let selectedTargetVolume = "mp";
 let selectedVariants = {};
 let selectedGardenSpiritId = "";
 let selectedGardenSpiritStage = 3;
+let selectedStarterSpeciesId = "";
 let gardenHopTimer = null;
 let gardenIdleResumeTimer = null;
 let phase = "idle";
@@ -1025,32 +1069,42 @@ function normalizeSelectedCycleCount(cycles) {
 
 function calculateWaterReward(completedCycles) {
   const actual = Math.floor(Number(completedCycles));
-  if (!Number.isFinite(actual) || actual < MIN_REWARD_CYCLES) return 0;
-  return Math.min(actual, getRemainingDailyWaterReward());
+  if (!Number.isFinite(actual) || actual <= 0) return 0;
+  const singlePracticeWater = Math.min(actual, MAX_SINGLE_PRACTICE_WATER_REWARD);
+  return Math.min(singlePracticeWater, getRemainingDailyWaterReward());
 }
 
 function getDailyWaterRewardState() {
   const todayKey = getTodayKey();
-  const stored = readJsonStorage(gardenStorageKeys.dailyReward, null);
+  const stored = readJsonStorage(gardenStorageKeys.dailyWaterState, null);
+  const legacyStored = readJsonStorage(gardenStorageKeys.dailyReward, null);
+  const fallbackEarned = legacyStored?.date === todayKey ? legacyStored.earned : 0;
   if (!stored || stored.date !== todayKey) {
-    return { date: todayKey, earned: 0 };
+    return { date: todayKey, practiceWaterEarned: Math.max(0, Math.floor(Number(fallbackEarned) || 0)) };
   }
   return {
     date: todayKey,
-    earned: Math.max(0, Math.floor(Number(stored.earned) || 0)),
+    practiceWaterEarned: Math.min(
+      MAX_DAILY_PRACTICE_WATER_REWARD,
+      Math.max(0, Math.floor(Number(stored.practiceWaterEarned ?? stored.earned) || 0)),
+    ),
   };
 }
 
 function setDailyWaterRewardState(state) {
-  localStorage.setItem(gardenStorageKeys.dailyReward, JSON.stringify({
+  const nextState = {
     date: state.date || getTodayKey(),
-    earned: Math.max(0, Math.floor(Number(state.earned) || 0)),
-  }));
+    practiceWaterEarned: Math.min(
+      MAX_DAILY_PRACTICE_WATER_REWARD,
+      Math.max(0, Math.floor(Number(state.practiceWaterEarned ?? state.earned) || 0)),
+    ),
+  };
+  localStorage.setItem(gardenStorageKeys.dailyWaterState, JSON.stringify(nextState));
 }
 
 function getRemainingDailyWaterReward() {
   const state = getDailyWaterRewardState();
-  return Math.max(0, MAX_DAILY_WATER_REWARD - state.earned);
+  return Math.max(0, MAX_DAILY_PRACTICE_WATER_REWARD - state.practiceWaterEarned);
 }
 
 function getWaterDrops() {
@@ -1062,15 +1116,32 @@ function setWaterDrops(value) {
   localStorage.setItem(gardenStorageKeys.waterDrops, String(Math.max(0, Math.floor(Number(value) || 0))));
 }
 
+function renderDailyPracticeWater() {
+  const text = $("#dailyPracticeWaterText");
+  if (!text) return;
+  const state = getDailyWaterRewardState();
+  text.textContent = `${state.practiceWaterEarned} / ${MAX_DAILY_PRACTICE_WATER_REWARD}`;
+}
+
 function getGardenCollection() {
   return readJsonStorage(gardenStorageKeys.collection, []).map((item) => ({
     ...item,
     name: normalizeGardenName(item.name, item.species),
+    customName: Boolean(item.customName),
   }));
 }
 
 function setGardenCollection(collection) {
   localStorage.setItem(gardenStorageKeys.collection, JSON.stringify(collection));
+}
+
+function getCollectedSpeciesSet(collection = getGardenCollection()) {
+  return new Set(collection.map((item) => item.species).filter(Boolean));
+}
+
+function getUncollectedGardenSpecies(collection = getGardenCollection()) {
+  const collectedSpecies = getCollectedSpeciesSet(collection);
+  return gardenSpecies.filter((species) => !collectedSpecies.has(species.species));
 }
 
 function getGardenSpecies(speciesId) {
@@ -1082,9 +1153,38 @@ function normalizeGardenName(name, speciesId = "") {
   return name;
 }
 
-function getPlantDisplayName(plant) {
+function getPlantStageName(plant, stage = null) {
   const species = getGardenSpecies(plant?.species);
-  return normalizeGardenName(plant?.name || species.name, plant?.species || species.species);
+  const resolvedStage = Math.max(
+    1,
+    Math.min(3, Number(stage ?? plant?.stage ?? getPlantStage(plant?.waterProgress || 0)) || 1),
+  );
+  return normalizeGardenName(species.stageNames?.[resolvedStage - 1] || species.name, species.species);
+}
+
+function isCustomGardenName(plant) {
+  if (!plant?.name) return false;
+  if (plant.customName === true) return true;
+  const species = getGardenSpecies(plant.species);
+  const defaultNames = new Set([
+    species.name,
+    ...(species.stageNames || []),
+    "菌菇口琴靈",
+  ].filter(Boolean).map((name) => normalizeGardenName(name, species.species)));
+  return !defaultNames.has(normalizeGardenName(plant.name, species.species));
+}
+
+function getPlantDisplayName(plant, stage = null) {
+  if (isCustomGardenName(plant)) return normalizeGardenName(plant.name, plant.species);
+  return getPlantStageName(plant, stage);
+}
+
+const gardenSpeciesClassNames = gardenSpecies.map((species) => `species-${species.species}`);
+
+function setGardenSpeciesClass(element, speciesId) {
+  if (!element) return;
+  element.classList.remove(...gardenSpeciesClassNames);
+  if (speciesId) element.classList.add(`species-${speciesId}`);
 }
 
 function isValidGardenSpiritName(name) {
@@ -1118,13 +1218,48 @@ function getStageLabel(stage) {
   return stage === 3 ? "成熟前" : stage === 2 ? "成長中" : "幼苗";
 }
 
+function getStarterPlantState() {
+  return readJsonStorage(gardenStorageKeys.starterPlantSelected, {
+    selected: false,
+    speciesId: "",
+    selectedAt: "",
+  });
+}
+
+function setStarterPlantState(speciesId) {
+  localStorage.setItem(gardenStorageKeys.starterPlantSelected, JSON.stringify({
+    selected: true,
+    speciesId,
+    selectedAt: getDateKey(),
+  }));
+}
+
+function hasStoredCurrentPlant() {
+  return Boolean(readJsonStorage(gardenStorageKeys.currentPlant, null)?.id);
+}
+
+function syncStarterPlantStateForExistingUser() {
+  const state = getStarterPlantState();
+  if (state.selected === true) return true;
+  const storedPlant = readJsonStorage(gardenStorageKeys.currentPlant, null);
+  const collection = getGardenCollection();
+  if (storedPlant?.id || collection.length > 0) {
+    setStarterPlantState(storedPlant?.species || collection[0]?.species || "");
+    return true;
+  }
+  return false;
+}
+
 function createGardenPlant(speciesId = "") {
-  const species = speciesId ? getGardenSpecies(speciesId) : gardenSpecies[Math.floor(Math.random() * gardenSpecies.length)];
+  const availableSpecies = speciesId ? [getGardenSpecies(speciesId)] : getUncollectedGardenSpecies();
+  if (!availableSpecies.length) return null;
+  const species = availableSpecies[Math.floor(Math.random() * availableSpecies.length)];
   const now = new Date().toISOString();
   return {
     id: `plant-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     species: species.species,
     name: species.name,
+    customName: false,
     stage: 1,
     waterProgress: 0,
     waterRequired: PLANT_WATER_REQUIRED,
@@ -1133,24 +1268,31 @@ function createGardenPlant(speciesId = "") {
   };
 }
 
-function getCurrentPlant() {
+function getCurrentPlant(autoCreate = true) {
   const stored = readJsonStorage(gardenStorageKeys.currentPlant, null);
   if (stored?.id) {
     const progress = Math.max(0, Math.min(PLANT_WATER_REQUIRED, Number(stored.waterProgress) || 0));
     return {
       ...stored,
       name: normalizeGardenName(stored.name, stored.species),
+      customName: Boolean(stored.customName),
       waterProgress: progress,
       waterRequired: PLANT_WATER_REQUIRED,
       stage: getPlantStage(progress),
     };
   }
-  const plant = createGardenPlant("melody-sprout");
+  if (!autoCreate) return null;
+  const plant = createGardenPlant();
+  if (!plant) return null;
   setCurrentPlant(plant);
   return plant;
 }
 
 function setCurrentPlant(plant) {
+  if (!plant) {
+    localStorage.removeItem(gardenStorageKeys.currentPlant);
+    return;
+  }
   localStorage.setItem(gardenStorageKeys.currentPlant, JSON.stringify(plant));
 }
 
@@ -1203,43 +1345,146 @@ function addEarnedWaterDrops(amount) {
   const added = Math.min(Math.max(0, Math.floor(Number(amount) || 0)), getRemainingDailyWaterReward());
   if (!added) return 0;
   setWaterDrops(getWaterDrops() + added);
-  setDailyWaterRewardState({ ...state, earned: state.earned + added });
+  setDailyWaterRewardState({ ...state, practiceWaterEarned: state.practiceWaterEarned + added });
   return added;
 }
 
-function maybeTriggerRainBonus() {
+function getDailyBonusState(key) {
+  return readJsonStorage(key, { lastClaimedDate: "" });
+}
+
+function setDailyBonusState(key, date = getTodayKey()) {
+  localStorage.setItem(key, JSON.stringify({ lastClaimedDate: date }));
+}
+
+function claimDailyBonus(key, amount) {
   const todayKey = getTodayKey();
-  const state = readJsonStorage(gardenStorageKeys.rainBonus, {});
-  if (state.lastTriggeredDate === todayKey && state.todayTriggered) {
-    return { triggered: false, amount: 0 };
-  }
-  const remainingDailyReward = getRemainingDailyWaterReward();
-  if (remainingDailyReward <= 0) return { triggered: false, amount: 0 };
-  if (Math.random() >= RAIN_BONUS_CHANCE) return { triggered: false, amount: 0 };
-  const amount = addEarnedWaterDrops(Math.min(RAIN_BONUS_AMOUNT, remainingDailyReward));
-  if (!amount) return { triggered: false, amount: 0 };
-  localStorage.setItem(gardenStorageKeys.rainBonus, JSON.stringify({
-    lastTriggeredDate: todayKey,
-    todayTriggered: true,
+  const state = getDailyBonusState(key);
+  if (state.lastClaimedDate === todayKey) return 0;
+  const added = addWaterDrops(amount);
+  if (added) setDailyBonusState(key, todayKey);
+  return added;
+}
+
+function awardDailyLoginBonusIfNeeded() {
+  const added = claimDailyBonus(gardenStorageKeys.dailyLoginBonus, DAILY_LOGIN_WATER_BONUS);
+  if (!added) return null;
+  renderGarden();
+  return `今日首次進入練習室！精靈花園獲得 ${added} 滴水滴 💧`;
+}
+
+function awardDailyTaskBonusIfNeeded(isAllDone) {
+  if (!isAllDone) return null;
+  const added = claimDailyBonus(gardenStorageKeys.dailyTaskBonus, DAILY_TASK_WATER_BONUS);
+  if (!added) return null;
+  return `今日任務全部完成！精靈花園額外獲得 ${added} 滴水滴 💧`;
+}
+
+function getStreakMilestoneRewardState() {
+  const stored = readJsonStorage(gardenStorageKeys.streakMilestoneRewards, null);
+  if (!stored) return { claimed: [], lastClaimedAt: null };
+  const claimed = Array.isArray(stored.claimed)
+    ? [...new Set(stored.claimed.map((day) => Number(day)).filter((day) => Number.isFinite(day) && day > 0))].sort((a, b) => a - b)
+    : [];
+  return {
+    claimed,
+    lastClaimedAt: stored.lastClaimedAt || null,
+  };
+}
+
+function setStreakMilestoneRewardState(state) {
+  localStorage.setItem(gardenStorageKeys.streakMilestoneRewards, JSON.stringify({
+    claimed: [...new Set(state.claimed || [])].sort((a, b) => a - b),
+    lastClaimedAt: state.lastClaimedAt || null,
   }));
+}
+
+function getAvailableStreakWaterMilestones(currentStreak) {
+  const streakDays = Math.max(0, Math.floor(Number(currentStreak) || 0));
+  const milestones = STREAK_WATER_MILESTONES.filter((milestone) => streakDays >= milestone.days);
+  if (streakDays >= REPEATING_STREAK_MILESTONE_START) {
+    for (
+      let day = REPEATING_STREAK_MILESTONE_START;
+      day <= streakDays;
+      day += REPEATING_STREAK_MILESTONE_INTERVAL
+    ) {
+      milestones.push({ days: day, amount: REPEATING_STREAK_MILESTONE_AMOUNT });
+    }
+  }
+  return milestones;
+}
+
+function awardStreakMilestoneBonusesIfNeeded(streakResult) {
+  if (!streakResult?.isFirstCompletionToday) return [];
+  const rewardState = getStreakMilestoneRewardState();
+  const claimed = new Set(rewardState.claimed);
+  const pending = getAvailableStreakWaterMilestones(streakResult.currentStreak)
+    .filter((milestone) => !claimed.has(milestone.days));
+  if (!pending.length) return [];
+
+  const messages = [];
+  pending.forEach((milestone) => {
+    const added = addWaterDrops(milestone.amount);
+    if (!added) return;
+    claimed.add(milestone.days);
+    messages.push(`連續練習 ${milestone.days} 天達成！精靈花園獲得 ${added} 滴水滴 💧`);
+  });
+  if (messages.length) {
+    setStreakMilestoneRewardState({
+      claimed: [...claimed],
+      lastClaimedAt: new Date().toISOString(),
+    });
+  }
+  return messages;
+}
+
+function getRainEventState() {
+  const todayKey = getTodayKey();
+  const state = readJsonStorage(gardenStorageKeys.rainBonus, null);
+  if (!state || state.date !== todayKey) {
+    return { date: todayKey, checked: false, triggered: false };
+  }
+  return {
+    date: todayKey,
+    checked: state.checked === true,
+    triggered: state.triggered === true,
+  };
+}
+
+function setRainEventState(state) {
+  localStorage.setItem(gardenStorageKeys.rainBonus, JSON.stringify({
+    date: state.date || getTodayKey(),
+    checked: state.checked === true,
+    triggered: state.triggered === true,
+  }));
+}
+
+function maybeTriggerRainEventOnGardenEntry() {
+  const state = getRainEventState();
+  if (state.checked) return { triggered: false, amount: 0 };
+  const triggered = Math.random() < RAIN_BONUS_CHANCE;
+  setRainEventState({ ...state, checked: true, triggered });
+  if (!triggered) return { triggered: false, amount: 0 };
+  const amount = addWaterDrops(RAIN_BONUS_AMOUNT);
+  if (!amount) return { triggered: false, amount: 0 };
   return { triggered: true, amount };
 }
 
 function awardGardenWaterForPractice(completedCycles) {
   const water = calculateWaterReward(completedCycles);
   const addedWater = addEarnedWaterDrops(water);
-  const rain = addedWater > 0 ? maybeTriggerRainBonus() : { triggered: false, amount: 0 };
   renderGarden();
-  if (rain.triggered) playRainBonusAnimation();
-  return { cycles: Math.floor(Number(completedCycles)) || 0, water: addedWater, rain };
+  return {
+    cycles: Math.floor(Number(completedCycles)) || 0,
+    water: addedWater,
+    capped: addedWater < Math.min(Math.max(0, Math.floor(Number(completedCycles) || 0)), MAX_SINGLE_PRACTICE_WATER_REWARD),
+  };
 }
 
 function formatWaterRewardText(waterResult) {
-  if (!waterResult?.water) return "";
-  const rainText = waterResult.rain?.triggered
-    ? ` 下雨了，額外獲得 ${waterResult.rain.amount} 滴水滴。`
-    : "";
-  return `獲得 ${waterResult.water} 滴花園水滴。${rainText}`;
+  if (waterResult?.water) return `獲得 ${waterResult.water} 滴水滴💧`;
+  if (waterResult?.capped) return "今日練習水滴已達 80 滴上限，練習仍已完成。";
+  return "";
 }
 
 function restartElementAnimation(element, className, duration = 900) {
@@ -1320,6 +1565,17 @@ function playRainBonusAnimation() {
   window.setTimeout(clearGardenFx, 1300);
 }
 
+function checkGardenRainEvent() {
+  const rain = maybeTriggerRainEventOnGardenEntry();
+  if (!rain.triggered) return;
+  renderGarden();
+  playRainBonusAnimation();
+  restartElementAnimation($(".water-balance"), "is-updated", 520);
+  window.setTimeout(() => {
+    showGardenToast("下雨了！", `☔ 精靈花園獲得 ${rain.amount} 滴免費水滴 💧`);
+  }, RAIN_BONUS_ANIMATION_MS);
+}
+
 function suspendGardenIdle(duration = 900) {
   const idleLayer = $("#gardenPlantIdleLayer");
   const actionLayer = $("#gardenPlantActionLayer");
@@ -1360,18 +1616,102 @@ function renderHeroGarden() {
   const collection = getGardenCollection();
   const featuredId = getFeaturedSpiritId();
   const featured = collection.find((item) => item.id === featuredId);
-  const plant = featured || getCurrentPlant();
+  const plant = featured || getCurrentPlant(false);
   const heroImage = $("#heroGardenPlant");
   if (!heroImage) return;
   const heroSlot = $(".hero-plant-slot");
   if (heroSlot) heroSlot.setAttribute("aria-hidden", displaySettings.showFeaturedSpirit === false ? "true" : "false");
-  heroImage.src = featured ? getPlantImage({ ...featured, stage: getFeaturedSpiritStage() }) : getPlantImage(plant);
-  $("#heroGardenName").textContent = getPlantDisplayName(plant);
+  const heroStage = plant ? (featured ? getFeaturedSpiritStage() : plant.stage || getPlantStage(plant.waterProgress || 0)) : 1;
+  heroImage.src = plant
+    ? (featured ? getPlantImage({ ...featured, stage: getFeaturedSpiritStage() }) : getPlantImage(plant))
+    : "./public/assets/garden/collection/starter-pot.png";
+  heroImage.classList.remove("hero-stage-1", "hero-stage-2", "hero-stage-3");
+  heroImage.classList.add(`hero-stage-${heroStage}`);
+  $("#heroGardenName").textContent = plant ? getPlantDisplayName(plant, heroStage) : "等待新植物";
   const heroGardenHint = $("#heroGardenHint");
   if (heroGardenHint) {
     heroGardenHint.textContent = "";
     heroGardenHint.hidden = true;
   }
+}
+
+function setStarterPlantModalOpen(open) {
+  const modal = $("#starterPlantModal");
+  if (!modal) return;
+  modal.classList.toggle("hidden", !open);
+  document.body.classList.toggle("modal-open", open);
+}
+
+function getStarterPlantOptions() {
+  return gardenSpecies.slice(0, 5);
+}
+
+function renderStarterPlantChoices() {
+  const container = $("#starterPlantChoices");
+  if (!container) return;
+  container.innerHTML = getStarterPlantOptions().map((species) => {
+    const selected = selectedStarterSpeciesId === species.species;
+    const speciesName = getPlantStageName({ species: species.species, stage: 1 }, 1);
+    return `
+      <button class="starter-plant-card ${selected ? "selected" : ""}" data-starter-species="${species.species}" type="button" aria-pressed="${selected ? "true" : "false"}">
+        <span class="starter-selected-pill">已選擇</span>
+        <span class="starter-plant-image-wrap">
+          <img src="${species.images[0]}" alt="" />
+          <i class="starter-sparkle starter-sparkle-1" aria-hidden="true"></i>
+          <i class="starter-sparkle starter-sparkle-2" aria-hidden="true"></i>
+        </span>
+        <strong>${speciesName}</strong>
+        <small>${starterPlantDescriptions[species.species] || species.description}</small>
+        <span class="starter-hello">請多指教！</span>
+      </button>
+    `;
+  }).join("");
+  const confirm = $("#starterPlantConfirm");
+  if (confirm) confirm.disabled = !selectedStarterSpeciesId;
+}
+
+function showStarterPlantSelectionIfNeeded() {
+  if (syncStarterPlantStateForExistingUser()) return false;
+  selectedStarterSpeciesId = "";
+  renderStarterPlantChoices();
+  setStarterPlantModalOpen(true);
+  return true;
+}
+
+function selectStarterPlant(speciesId) {
+  if (!gardenSpecies.some((species) => species.species === speciesId)) return;
+  selectedStarterSpeciesId = speciesId;
+  playSound("uiTap");
+  renderStarterPlantChoices();
+}
+
+function confirmStarterPlantSelection() {
+  if (!selectedStarterSpeciesId) {
+    const hint = $("#starterPlantHint");
+    if (hint) hint.textContent = "請先選擇一隻植物精靈。";
+    return;
+  }
+  const selectedCard = $(`[data-starter-species="${selectedStarterSpeciesId}"]`);
+  const species = getGardenSpecies(selectedStarterSpeciesId);
+  const confirm = $("#starterPlantConfirm");
+  const more = $("#starterPlantMore");
+  selectedCard?.classList.add("is-confirming");
+  if (confirm) confirm.disabled = true;
+  if (more) more.disabled = true;
+  playSound("starterCharm");
+  window.setTimeout(() => {
+    const plant = createGardenPlant(selectedStarterSpeciesId);
+    if (!plant) return;
+    setCurrentPlant(plant);
+    setStarterPlantState(selectedStarterSpeciesId);
+    selectedStarterSpeciesId = "";
+    setStarterPlantModalOpen(false);
+    renderGarden();
+    showGardenToast("初始夥伴加入！", `「${getPlantStageName({ species: species.species, stage: 1 }, 1)}」加入精靈花園了！`);
+    if (confirm) confirm.disabled = false;
+    if (more) more.disabled = false;
+    selectedCard?.classList.remove("is-confirming");
+  }, STARTER_CONFIRM_ANIMATION_MS);
 }
 
 function setGardenSpiritModalOpen(open) {
@@ -1388,15 +1728,15 @@ function renderGardenSpiritModal() {
   const description = $("#gardenSpiritDescription");
   const list = $("#gardenSpiritStageList");
   const species = getGardenSpecies(spirit.species);
-  const displayName = getPlantDisplayName(spirit);
+  const displayName = getPlantDisplayName(spirit, selectedGardenSpiritStage);
   if (title) title.textContent = displayName;
   if (subtitle) subtitle.textContent = "左右滑動查看三種形態，選一個放到首頁展示。";
   if (description) description.textContent = species.description || "";
   if (list) {
     list.innerHTML = [1, 2, 3].map((stage) => `
-      <button class="garden-spirit-stage-card stage-${stage} ${stage === selectedGardenSpiritStage ? "active" : ""}" data-spirit-stage="${stage}" type="button" aria-label="查看第 ${stage} 階段">
+      <button class="garden-spirit-stage-card spirit-${species.species} stage-${stage} ${stage === selectedGardenSpiritStage ? "active" : ""}" data-spirit-stage="${stage}" type="button" aria-label="查看${getPlantStageName(spirit, stage)}">
         <img src="${getPlantImage({ ...spirit, stage })}" alt="" />
-        <span>第 ${stage} 階段</span>
+        <span>${getPlantStageName(spirit, stage)}</span>
       </button>
     `).join("");
     requestAnimationFrame(() => {
@@ -1432,7 +1772,7 @@ function openGardenRenameModal() {
   const spirit = getCollectedSpiritById(selectedGardenSpiritId);
   const input = $("#gardenRenameInput");
   if (!spirit || !input) return;
-  input.value = getPlantDisplayName(spirit);
+  input.value = getPlantDisplayName(spirit, selectedGardenSpiritStage);
   setGardenRenameModalOpen(true);
   requestAnimationFrame(() => {
     input.focus();
@@ -1457,7 +1797,7 @@ function saveGardenSpiritName() {
     showGardenToast("名字太長", "請使用 7 個中文字以內，或 14 個英文字母以內。");
     return;
   }
-  const updated = updateCollectedSpirit(spirit.id, () => ({ name }));
+  const updated = updateCollectedSpirit(spirit.id, () => ({ name, customName: true }));
   if (!updated) return;
   renderGardenCollection();
   renderHeroGarden();
@@ -1477,39 +1817,33 @@ function setSelectedGardenSpiritFeatured() {
   setFeaturedSpiritStage(selectedGardenSpiritStage);
   renderGarden();
   closeGardenSpiritModal();
-  showGardenToast("已更新首頁展示", `「${getPlantDisplayName(spirit)}」第 ${selectedGardenSpiritStage} 階段會出現在首頁。`);
+  showGardenToast("已更新首頁展示", `「${getPlantDisplayName(spirit, selectedGardenSpiritStage)}」會出現在首頁。`);
 }
 
 function renderGardenCollection() {
   const container = $("#gardenCollection");
   if (!container) return;
   const collection = getGardenCollection();
+  const collectionBySpecies = new Map(collection.map((item) => [item.species, item]));
   const featuredId = getFeaturedSpiritId();
   const featuredStage = getFeaturedSpiritStage();
   const cells = Array.from({ length: 50 }, (_, index) => {
     const slot = index + 1;
-    const collected = collection[index];
+    const speciesForSlot = gardenSpecies[index];
+    const collected = speciesForSlot ? collectionBySpecies.get(speciesForSlot.species) : null;
     if (collected) {
       const featured = collected.id === featuredId;
       const previewStage = featured ? featuredStage : 3;
       return `
         <div class="garden-collection-cell ${featured ? "featured" : ""}">
           <span class="slot-number">${slot}</span>
-          <button data-open-spirit="${collected.id}" type="button" aria-label="查看 ${getPlantDisplayName(collected)}">
+          <button data-open-spirit="${collected.id}" type="button" aria-label="查看 ${getPlantDisplayName(collected, previewStage)}">
             <img class="garden-collection-spirit-thumb collection-${collected.species} collection-stage-${previewStage}" src="${getPlantImage({ ...collected, stage: previewStage })}" alt="" />
           </button>
         </div>
       `;
     }
-    if (slot === 1) {
-      return `
-        <div class="garden-collection-cell empty">
-          <span class="slot-number">1</span>
-          <img src="./public/assets/garden/collection/starter-pot.png" alt="" />
-        </div>
-      `;
-    }
-    if (slot === 2 || slot === 3) {
+    if (speciesForSlot) {
       return `
         <div class="garden-collection-cell locked">
           <span class="slot-number">${slot}</span>
@@ -1527,36 +1861,73 @@ function renderGardenCollection() {
   container.innerHTML = cells.join("");
 }
 
+function renderEmptyGardenState() {
+  if ($("#waterDropCount")) $("#waterDropCount").textContent = getWaterDrops();
+  renderDailyPracticeWater();
+  if ($("#gardenPlantName")) $("#gardenPlantName").textContent = "等待新植物";
+  if ($("#gardenPlantStage")) $("#gardenPlantStage").textContent = "已全收集";
+  const plantImage = $("#gardenPlantImage");
+  if (plantImage) {
+    plantImage.src = "./public/assets/garden/collection/starter-pot.png";
+    plantImage.classList.remove("garden-stage-1", "garden-stage-2", "garden-stage-3");
+    plantImage.classList.add("garden-stage-1");
+    setGardenSpeciesClass(plantImage, "");
+  }
+  ["gardenPlantIdleLayer", "gardenPlantActionLayer"].forEach((id) => {
+    const layer = $(`#${id}`);
+    if (!layer) return;
+    layer.classList.remove("garden-stage-1", "garden-stage-2", "garden-stage-3");
+    layer.classList.add("garden-stage-1");
+    setGardenSpeciesClass(layer, "");
+  });
+  if ($("#gardenProgressText")) $("#gardenProgressText").textContent = "全收集";
+  if ($("#gardenProgressBar")) $("#gardenProgressBar").style.width = "0%";
+  const primaryAction = $("#gardenPrimaryAction");
+  const actionIcon = $("#gardenWateringCan");
+  if (primaryAction) {
+    primaryAction.setAttribute("aria-label", "等待新植物");
+    primaryAction.title = "等待新植物";
+    primaryAction.disabled = true;
+    primaryAction.classList.remove("is-empty", "is-harvest-ready");
+  }
+  if (actionIcon) actionIcon.src = GARDEN_WATERING_CAN_SRC;
+  renderGardenCollection();
+  renderHeroGarden();
+}
+
 function renderGarden() {
-  const plant = getCurrentPlant();
+  syncStarterPlantStateForExistingUser();
+  const plant = getCurrentPlant(false);
+  if (!plant) {
+    renderEmptyGardenState();
+    return;
+  }
   const progress = Math.max(0, Math.min(PLANT_WATER_REQUIRED, plant.waterProgress || 0));
   plant.stage = getPlantStage(progress);
   setCurrentPlant(plant);
   const ready = progress >= PLANT_WATER_REQUIRED;
   const stageRequired = getStageWaterRequired(plant.stage);
   const stageProgress = getStageProgress(progress, plant.stage);
-  const stageNeed = Math.max(0, stageRequired - stageProgress);
-  const stageNeedText = plant.stage >= 3
-    ? `還需要 ${stageNeed} 滴水可採收。`
-    : `還需要 ${stageNeed} 滴水進入下一階段。`;
   if ($("#waterDropCount")) $("#waterDropCount").textContent = getWaterDrops();
-  if ($("#gardenPlantName")) $("#gardenPlantName").textContent = getPlantDisplayName(plant);
+  renderDailyPracticeWater();
+  if ($("#gardenPlantName")) $("#gardenPlantName").textContent = getPlantDisplayName(plant, plant.stage);
   if ($("#gardenPlantStage")) $("#gardenPlantStage").textContent = ready ? "可採收" : getStageLabel(plant.stage);
   const plantImage = $("#gardenPlantImage");
   if (plantImage) {
     plantImage.src = getPlantImage(plant);
     plantImage.classList.remove("garden-stage-1", "garden-stage-2", "garden-stage-3");
     plantImage.classList.add(`garden-stage-${plant.stage}`);
+    setGardenSpeciesClass(plantImage, plant.species);
   }
   ["gardenPlantIdleLayer", "gardenPlantActionLayer"].forEach((id) => {
     const layer = $(`#${id}`);
     if (!layer) return;
     layer.classList.remove("garden-stage-1", "garden-stage-2", "garden-stage-3");
     layer.classList.add(`garden-stage-${plant.stage}`);
+    setGardenSpeciesClass(layer, plant.species);
   });
   if ($("#gardenProgressText")) $("#gardenProgressText").textContent = `${stageProgress} / ${stageRequired}`;
   if ($("#gardenProgressBar")) $("#gardenProgressBar").style.width = `${Math.min(100, (stageProgress / stageRequired) * 100)}%`;
-  if ($("#gardenNeedText")) $("#gardenNeedText").textContent = ready ? "植物已成熟，可以採收。" : stageNeedText;
   const primaryAction = $("#gardenPrimaryAction");
   const actionIcon = $("#gardenWateringCan");
   if (primaryAction) {
@@ -1588,14 +1959,24 @@ function renderGarden() {
 }
 
 function waterCurrentPlant() {
-  const plant = getCurrentPlant();
-  const remaining = Math.max(0, PLANT_WATER_REQUIRED - (plant.waterProgress || 0));
-  if (remaining <= 0) {
+  const plant = getCurrentPlant(false);
+  if (!plant) {
+    showGardenToast("植物都已採收", "水滴會先累積，等下次更新新植物後再繼續澆灌。");
+    renderGarden();
+    return;
+  }
+  const remainingTotal = Math.max(0, PLANT_WATER_REQUIRED - (plant.waterProgress || 0));
+  if (remainingTotal <= 0) {
     showGardenToast("植物已成熟", "可以先採收這株植物。");
     return;
   }
   const available = getWaterDrops();
-  const used = Math.min(available, remaining);
+  const currentStage = getPlantStage(plant.waterProgress || 0);
+  const stageRemaining = Math.max(
+    0,
+    getStageWaterRequired(currentStage) - getStageProgress(plant.waterProgress || 0, currentStage),
+  );
+  const used = Math.min(available, remainingTotal, stageRemaining || remainingTotal);
   if (used <= 0) {
     restartElementAnimation($("#gardenPrimaryAction"), "is-empty-tap", 520);
     restartElementAnimation($(".water-balance"), "is-updated", 520);
@@ -1618,33 +1999,51 @@ function waterCurrentPlant() {
   }
   playWateringAnimation(stageChanged);
   if (plant.waterProgress >= PLANT_WATER_REQUIRED) {
-    showGardenToastAfterAnimation(`${getPlantDisplayName(plant)}成熟了！`, "可以採收這株植物了。", GARDEN_EVOLUTION_NOTICE_DELAY_MS);
+    showGardenToastAfterAnimation(`${getPlantDisplayName(plant, 3)}成熟了！`, "可以採收這株植物了。", GARDEN_EVOLUTION_NOTICE_DELAY_MS);
   } else if (plant.stage > previousStage) {
-    showGardenToastAfterAnimation(`${getPlantDisplayName(plant)}長大了！`, `進入第 ${plant.stage} 階段。`, GARDEN_EVOLUTION_NOTICE_DELAY_MS);
+    showGardenToastAfterAnimation(`${getPlantDisplayName(plant, plant.stage)}長大了！`, `進入${getPlantStageName(plant, plant.stage)}。`, GARDEN_EVOLUTION_NOTICE_DELAY_MS);
   }
 }
 
 function harvestCurrentPlant() {
-  const plant = getCurrentPlant();
+  const plant = getCurrentPlant(false);
+  if (!plant) return;
   if ((plant.waterProgress || 0) < PLANT_WATER_REQUIRED) return;
   const collection = getGardenCollection();
-  const harvestedName = getPlantDisplayName(plant);
-  const harvested = {
-    ...plant,
-    id: `spirit-${Date.now()}-${collection.length + 1}`,
-    name: harvestedName,
-    stage: 3,
-    waterProgress: PLANT_WATER_REQUIRED,
-    harvested: true,
-    harvestedAt: new Date().toISOString(),
-  };
-  collection.push(harvested);
-  setGardenCollection(collection.slice(0, 50));
-  if (!getFeaturedSpiritId()) setFeaturedSpiritId(harvested.id);
+  const harvestedName = getPlantDisplayName(plant, 3);
+  const alreadyCollected = getCollectedSpeciesSet(collection).has(plant.species);
+  let harvested = null;
+  if (!alreadyCollected) {
+    harvested = {
+      ...plant,
+      id: `spirit-${Date.now()}-${collection.length + 1}`,
+      name: harvestedName,
+      customName: isCustomGardenName(plant),
+      stage: 3,
+      waterProgress: PLANT_WATER_REQUIRED,
+      harvested: true,
+      harvestedAt: new Date().toISOString(),
+    };
+    collection.push(harvested);
+    setGardenCollection(collection.slice(0, 50));
+    if (!getFeaturedSpiritId()) setFeaturedSpiritId(harvested.id);
+  }
   setCurrentPlant(createGardenPlant());
   renderGarden();
   playSound("harvest");
-  showGardenToast("採收成功！", `「${harvestedName}」已加入圖鑑。`);
+  if (!getCurrentPlant(false)) {
+    showGardenToast(
+      alreadyCollected ? "採收完成" : "圖鑑全收集！",
+      alreadyCollected
+        ? `「${harvestedName}」已採收過，不會重複加入圖鑑。水滴會先累積。`
+        : `「${harvestedName}」已加入圖鑑。目前植物都採收完了，水滴會先累積。`,
+    );
+    return;
+  }
+  showGardenToast(
+    alreadyCollected ? "採收完成" : "採收成功！",
+    alreadyCollected ? `「${harvestedName}」已採收過，不會重複加入圖鑑。` : `「${harvestedName}」已加入圖鑑。`,
+  );
 }
 
 function setGoalToastEyebrow(label = "每日目標") {
@@ -2360,32 +2759,58 @@ function showAllGoalsCompletedDialog() {
   playSound("practiceComplete");
 }
 
-function showFirstDailyCompletionToast(practiceName, streakResult, waterResult = null) {
+function formatBonusMessages(messages = []) {
+  return messages.filter(Boolean).map((message) => `特殊事件：${message}`).join("\n");
+}
+
+function setGoalToastTextLines(lines = []) {
+  $("#goalToastText").textContent = lines.filter(Boolean).join("\n");
+}
+
+function showFirstDailyCompletionToast(practiceName, streakResult, waterResult = null, bonusMessages = []) {
   if (!streakResult?.isFirstCompletionToday) return;
   const waterText = formatWaterRewardText(waterResult);
+  const bonusText = formatBonusMessages(bonusMessages);
   setGoalToastEyebrow("每日目標");
   $("#goalToastTitle").textContent = `完成「${practiceName}」`;
   if (streakResult.freezeResult?.applied) {
     const used = streakResult.freezeResult.usedCount;
     const gapText = used === 1 ? "補上昨天的空缺" : `補上前 ${used} 天的空缺`;
     const rewardText = streakResult.reward.rewarded ? "並獲得 1 張學習凍結。" : "";
-    $("#goalToastText").textContent = `已自動使用 ${used} 張學習凍結，${gapText}。今日連續學習目標已達成，已連續練習 ${streakResult.currentStreak} 天。${rewardText}${waterText ? ` ${waterText}` : ""}`;
+    setGoalToastTextLines([
+      `已自動使用 ${used} 張學習凍結，${gapText}。今日連續學習目標已達成，已連續練習 ${streakResult.currentStreak} 天。${rewardText}`,
+      waterText,
+      bonusText,
+    ]);
   } else if (streakResult.freezeResult?.insufficient) {
-    $("#goalToastText").textContent = `今日連續學習目標已達成。因為漏練天數超過持有的學習凍結，連續紀錄已重新開始，今天是新的第 1 天。${waterText ? ` ${waterText}` : ""}`;
+    setGoalToastTextLines([
+      "今日連續學習目標已達成。因為漏練天數超過持有的學習凍結，連續紀錄已重新開始，今天是新的第 1 天。",
+      waterText,
+      bonusText,
+    ]);
   } else if (streakResult.reward.rewarded) {
-    $("#goalToastText").textContent = `今日連續學習目標已達成，已連續練習 ${streakResult.currentStreak} 天。獲得 1 張學習凍結。${waterText ? ` ${waterText}` : ""}`;
+    setGoalToastTextLines([
+      `今日連續學習目標已達成，已連續練習 ${streakResult.currentStreak} 天。獲得 1 張學習凍結。`,
+      waterText,
+      bonusText,
+    ]);
   } else {
-    $("#goalToastText").textContent = `今日連續學習目標已達成，已連續練習 ${streakResult.currentStreak} 天。${waterText ? ` ${waterText}` : ""}`;
+    setGoalToastTextLines([
+      `今日連續學習目標已達成，已連續練習 ${streakResult.currentStreak} 天。`,
+      waterText,
+      bonusText,
+    ]);
   }
   $("#goalToast").classList.remove("hidden");
   playSound("practiceComplete");
 }
 
-function showPracticeCompletedToast(practiceName, waterResult = null) {
+function showPracticeCompletedToast(practiceName, waterResult = null, bonusMessages = []) {
   const waterText = formatWaterRewardText(waterResult);
+  const bonusText = formatBonusMessages(bonusMessages);
   setGoalToastEyebrow("每日目標");
   $("#goalToastTitle").textContent = `完成「${practiceName}」`;
-  $("#goalToastText").textContent = waterText || "這項練習已加入今日完成進度。";
+  setGoalToastTextLines([waterText || "這項練習已加入今日完成進度。", bonusText]);
   $("#goalToast").classList.remove("hidden");
   playSound("practiceComplete");
 }
@@ -4198,16 +4623,20 @@ async function startMic() {
 }
 
 function renderExercises() {
+  const dailyGoalState = getDailyGoalState();
+  const dailyGoalTasks = getDailyGoalTasks();
   $("#exerciseCount").textContent = `${exercises.length} 組`;
   $("#exerciseList").innerHTML = exercises
     .map((exercise, index) => {
+      const dailyTask = dailyGoalTasks.find((task) => task.id === exercise.id);
+      const dailyDone = dailyTask ? getDailyGoalProgress(dailyGoalState, dailyTask).done : false;
       const pattern = getExercisePattern(exercise);
       const variantLabel = getExerciseVariantLabel(exercise);
       const summary = ["crescendo-8", "decrescendo-8", "swell-12"].includes(exercise.id)
         ? getExerciseDynamicSummary(exercise)
         : variantLabel || getPatternSummary(pattern);
       return `
-        <button class="exercise-btn ${index === selectedExercise ? "active" : ""}" data-exercise="${index}">
+        <button class="exercise-btn ${index === selectedExercise ? "active" : ""} ${dailyDone ? "daily-done" : ""}" data-exercise="${index}">
           <strong>${exercise.title}</strong>
           <small>${localizeLevel(exercise.level)} · ${exercise.playBeats} 拍 · ${summary}</small>
         </button>
@@ -4631,6 +5060,11 @@ function finishIntervalPractice() {
   const goalResult = markIntervalDailyGoalsDone(state.key, state.interval);
   const streakResult = goalResult.streakResult;
   const waterResult = awardGardenWaterForPractice(state.completedCycles);
+  const bonusMessages = [
+    awardDailyTaskBonusIfNeeded(goalResult.isAllDone),
+    ...awardStreakMilestoneBonusesIfNeeded(streakResult),
+  ].filter(Boolean);
+  if (bonusMessages.length) renderGarden();
   saveIntervalPracticeRecord({
     date: getTodayKey(),
     completedAt: new Date().toISOString(),
@@ -4654,6 +5088,7 @@ function finishIntervalPractice() {
   const notes = [];
   if (waterResult.capped) notes.push("今日練習水滴已達上限，完成紀錄仍已保存。");
   if (streakResult.isFirstCompletionToday) notes.push(`今日連續學習已完成，目前連續 ${streakResult.currentStreak} 天。`);
+  notes.push(...bonusMessages);
   $("#intervalCompleteNote").textContent = notes.join("\n");
   playSound("practiceComplete");
   scrollToSection("intervalComplete");
@@ -4681,7 +5116,10 @@ function setView(view, options = {}) {
   activateViewButton(view, currentViewTarget);
   if (view !== "longtone") stopPractice(false);
   if (view !== "interval") stopIntervalMetronome();
-  if (view === "garden") renderGarden();
+  if (view === "garden") {
+    renderGarden();
+    if (!showStarterPlantSelectionIfNeeded()) checkGardenRainEvent();
+  }
   syncGardenBgmWithView();
   if (options.scrollTarget) {
     scrollToSection(options.scrollTarget);
@@ -4793,10 +5231,15 @@ function stepPractice() {
           : exercise.title;
       const goalResult = markDailyGoalDone(currentGoal.goalId, currentGoal.comboId);
       const waterResult = awardGardenWaterForPractice(totalCycles);
+      const bonusMessages = [
+        awardDailyTaskBonusIfNeeded(goalResult.isAllDone),
+        ...awardStreakMilestoneBonusesIfNeeded(goalResult.streakResult),
+      ].filter(Boolean);
+      if (bonusMessages.length) renderGarden();
       if (goalResult.streakResult?.isFirstCompletionToday) {
-        showFirstDailyCompletionToast(currentGoalTitle, goalResult.streakResult, waterResult);
+        showFirstDailyCompletionToast(currentGoalTitle, goalResult.streakResult, waterResult, bonusMessages);
       } else {
-        showPracticeCompletedToast(currentGoalTitle, waterResult);
+        showPracticeCompletedToast(currentGoalTitle, waterResult, bonusMessages);
       }
       stopPractice(true);
       return;
@@ -4901,6 +5344,15 @@ function bindEvents() {
     });
   });
 
+  $("#heroPlantSlot")?.addEventListener("click", () => {
+    const actionLayer = $("#heroGardenActionLayer");
+    if (!actionLayer) return;
+    actionLayer.classList.remove("is-hopping");
+    void actionLayer.offsetWidth;
+    actionLayer.classList.add("is-hopping");
+    window.setTimeout(() => actionLayer.classList.remove("is-hopping"), 680);
+  });
+
   $$("[data-longtone-intro]").forEach((button) => {
     button.addEventListener("click", () => setLongToneIntroOpen(true));
   });
@@ -4918,6 +5370,21 @@ function bindEvents() {
   $$("[data-leaderboard-open]").forEach((button) => {
     button.addEventListener("click", () => setLeaderboardModalOpen(true));
   });
+
+  $("#starterPlantChoices")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-starter-species]");
+    if (!button) return;
+    selectStarterPlant(button.dataset.starterSpecies);
+  });
+
+  $("#starterPlantMore")?.addEventListener("click", () => {
+    selectedStarterSpeciesId = "";
+    setStarterPlantModalOpen(false);
+    renderStarterPlantChoices();
+    setView("intro");
+  });
+
+  $("#starterPlantConfirm")?.addEventListener("click", confirmStarterPlantSelection);
 
   $$(".map-model").forEach((button) => {
     button.addEventListener("click", () => {
@@ -5016,7 +5483,13 @@ function bindEvents() {
   });
 
   $("#gardenPrimaryAction").addEventListener("click", () => {
-    const plant = getCurrentPlant();
+    const plant = getCurrentPlant(false);
+    if (!plant) {
+      if (showStarterPlantSelectionIfNeeded()) return;
+      showGardenToast("植物都已採收", "水滴會先累積，等下次更新新植物後再繼續澆灌。");
+      renderGarden();
+      return;
+    }
     if ((plant.waterProgress || 0) >= PLANT_WATER_REQUIRED) {
       harvestCurrentPlant();
       return;
@@ -5274,4 +5747,6 @@ renderNoteMap();
 updateBeatDisplay();
 renderMicCurve();
 renderGarden();
+const dailyLoginBonusMessage = awardDailyLoginBonusIfNeeded();
+if (dailyLoginBonusMessage) showGardenToast("每日水滴", dailyLoginBonusMessage);
 scheduleGardenPlantHop();
