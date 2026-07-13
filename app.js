@@ -7,8 +7,8 @@ const dynamics = {
 };
 
 const targetVolumes = ["p", "mp", "mf", "f"];
-const CYCLE_OPTIONS = [2, 4, 6, 8];
-const MIN_REWARD_CYCLES = 2;
+const CYCLE_OPTIONS = [4, 6, 8];
+const MIN_REWARD_CYCLES = 4;
 const MAX_SELECTABLE_CYCLES = 8;
 const MAX_SINGLE_PRACTICE_WATER_REWARD = 8;
 const MAX_DAILY_PRACTICE_WATER_REWARD = 80;

@@ -1178,16 +1178,17 @@ body.hide-featured-spirit .hero-plant-slot {
 }
 
 .practice-hub-heading {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: 16px;
   padding: 0 2px;
   margin-bottom: 14px;
 }
 
 .practice-hub-heading-copy {
   min-width: 0;
+  padding-right: clamp(86px, 24vw, 128px);
 }
 
 .practice-hub-heading-copy h2 {
@@ -1205,11 +1206,16 @@ body.hide-featured-spirit .hero-plant-slot {
 }
 
 .practice-hub-heading-illustration {
-  width: clamp(92px, 18vw, 150px);
+  position: absolute;
+  top: 50%;
+  right: clamp(10px, 3vw, 22px);
+  width: clamp(64px, 18vw, 96px);
   display: flex;
   align-items: center;
   justify-content: center;
+  margin: 0;
   overflow: visible;
+  transform: translateY(-50%);
 }
 
 .practice-hub-heading-illustration img {
@@ -1217,19 +1223,6 @@ body.hide-featured-spirit .hero-plant-slot {
   height: auto;
   background: transparent;
   object-fit: contain;
-}
-
-@media (max-width: 480px) {
-  .practice-hub-heading {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  .practice-hub-heading-illustration {
-    width: 96px;
-    justify-self: end;
-    margin-top: -4px;
-  }
 }
 
 .practice-room-grid {
@@ -4484,7 +4477,21 @@ body.simple-motion .plant-action-layer.is-stage-up {
   animation: starterSelectedHop 2.4s ease-in-out infinite;
 }
 
-.starter-plant-card[data-starter-species="lucky-leaf-spirit"] .starter-plant-image-wrap img,
+.starter-plant-card[data-starter-species="mushroom-spirit"] .starter-plant-image-wrap img {
+  max-width: 84px;
+  max-height: 95px;
+  position: relative;
+  top: -14px;
+}
+
+.starter-plant-card[data-starter-species="lucky-leaf-spirit"] .starter-plant-image-wrap img {
+  max-width: 170px;
+  max-height: 178px;
+  position: relative;
+  left: -42px;
+  top: -7px;
+}
+
 .starter-plant-card[data-starter-species="bamboo-sound-child"] .starter-plant-image-wrap img {
   max-width: 150px;
   max-height: 164px;
@@ -4655,7 +4662,19 @@ body.simple-motion .plant-action-layer.is-stage-up {
     max-height: 110px;
   }
 
-  .starter-plant-card[data-starter-species="lucky-leaf-spirit"] .starter-plant-image-wrap img,
+  .starter-plant-card[data-starter-species="mushroom-spirit"] .starter-plant-image-wrap img {
+    max-width: 70px;
+    max-height: 79px;
+    top: -11px;
+  }
+
+  .starter-plant-card[data-starter-species="lucky-leaf-spirit"] .starter-plant-image-wrap img {
+    max-width: 132px;
+    max-height: 138px;
+    left: -32px;
+    top: -5px;
+  }
+
   .starter-plant-card[data-starter-species="bamboo-sound-child"] .starter-plant-image-wrap img {
     max-width: 118px;
     max-height: 124px;
