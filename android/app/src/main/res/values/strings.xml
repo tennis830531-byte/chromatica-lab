@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Chromatic Harmonica Lab</string>
+    <string name="title_activity_main">Chromatic Harmonica Lab</string>
+    <string name="package_name">com.yrpeng.chromaticalab</string>
+    <string name="custom_url_scheme">com.yrpeng.chromaticalab</string>
+</resources>
