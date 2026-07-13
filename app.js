@@ -7,8 +7,8 @@ const dynamics = {
 };
 
 const targetVolumes = ["p", "mp", "mf", "f"];
-const CYCLE_OPTIONS = [2, 4, 6, 8];
-const MIN_REWARD_CYCLES = 2;
+const CYCLE_OPTIONS = [4, 6, 8];
+const MIN_REWARD_CYCLES = 4;
 const MAX_SELECTABLE_CYCLES = 8;
 const MAX_SINGLE_PRACTICE_WATER_REWARD = 8;
 const MAX_DAILY_PRACTICE_WATER_REWARD = 80;
@@ -147,6 +147,7 @@ const INTERVAL_DIRECTION_LABELS = {
 const DEFAULT_PRACTICE_SETTINGS = {
   defaultBpm: 60,
   defaultCycles: 4,
+  steadyDurationSeconds: 4,
 };
 const DEFAULT_SOUND_SETTINGS = {
   appSound: true,
@@ -180,17 +181,17 @@ const STARTER_CONFIRM_ANIMATION_MS = 9560;
 const exercises = [
   {
     id: "steady-8",
-    title: "8 拍平穩長音",
+    title: "平穩長音",
     level: "初階",
     bpm: 60,
     prepareBeats: 4,
-    playBeats: 8,
+    playBeats: 4,
     restBeats: 4,
     pattern: [
       { beat: 1, dynamic: "mp" },
-      { beat: 8, dynamic: "mp" },
+      { beat: 4, dynamic: "mp" },
     ],
-    instruction: "用 mp 音量穩定吹 8 拍，注意聲音不要前大後小。",
+    instruction: "以穩定氣息維持指定秒數，觀察音準是否平穩。",
     scored: true,
     showStability: false,
   },
@@ -442,6 +443,7 @@ let selectedHoles = 16;
 let selectedMapHole = null;
 let selectedExercise = 0;
 let bpm = exercises[0].bpm;
+let steadyDurationSeconds = DEFAULT_PRACTICE_SETTINGS.steadyDurationSeconds;
 let selectedTargetVolume = "mp";
 let selectedVariants = {};
 let selectedGardenSpiritId = "";
@@ -456,6 +458,10 @@ let cycle = 1;
 const scoringStartDelayMs = 350;
 let playStartedAt = 0;
 let timer = null;
+let steadyProgressTimer = null;
+let steadyPlayEndsAt = 0;
+let steadyPlayRemainingMs = 0;
+let steadyLastClickSecond = 0;
 let intervalMetronomeTimer = null;
 let intervalMetronomeBeat = 0;
 let intervalMetronomePlaying = false;
@@ -603,6 +609,21 @@ function clampPracticeBpm(value) {
   return Math.max(60, Math.min(180, Math.round(Number(value) || DEFAULT_PRACTICE_SETTINGS.defaultBpm)));
 }
 
+function clampSteadyDurationSeconds(value) {
+  const seconds = Number(value);
+  return Number.isInteger(seconds) && seconds >= 4 && seconds <= 12
+    ? seconds
+    : DEFAULT_PRACTICE_SETTINGS.steadyDurationSeconds;
+}
+
+function isSteadyLongTone(exercise = exercises[selectedExercise]) {
+  return exercise?.id === "steady-8";
+}
+
+function getSteadyDurationMs(seconds = steadyDurationSeconds) {
+  return clampSteadyDurationSeconds(seconds) * 1000;
+}
+
 function getPracticeSettings() {
   try {
     const stored = JSON.parse(localStorage.getItem(PRACTICE_SETTINGS_KEY) || "{}");
@@ -610,6 +631,7 @@ function getPracticeSettings() {
     return {
       defaultBpm: clampPracticeBpm(settings.defaultBpm),
       defaultCycles: normalizeSelectedCycleCount(settings.defaultCycles),
+      steadyDurationSeconds: clampSteadyDurationSeconds(settings.steadyDurationSeconds),
     };
   } catch (error) {
     console.warn("Unable to read practice settings.", error);
@@ -630,6 +652,7 @@ function setPracticeSettings(patch) {
   const nextSettings = {
     defaultBpm: clampPracticeBpm(patch.defaultBpm ?? current.defaultBpm),
     defaultCycles: normalizeSelectedCycleCount(patch.defaultCycles ?? current.defaultCycles),
+    steadyDurationSeconds: clampSteadyDurationSeconds(patch.steadyDurationSeconds ?? current.steadyDurationSeconds),
   };
   savePracticeSettings(nextSettings);
   applyPracticeSettings(nextSettings);
@@ -638,6 +661,7 @@ function setPracticeSettings(patch) {
 
 function applyPracticeSettings(settings = getPracticeSettings()) {
   totalCycles = normalizeSelectedCycleCount(settings.defaultCycles);
+  steadyDurationSeconds = clampSteadyDurationSeconds(settings.steadyDurationSeconds);
   setBpm(settings.defaultBpm);
   stopPractice(false);
   renderExercise();
@@ -647,6 +671,8 @@ function renderPracticeSettings() {
   const settings = getPracticeSettings();
   const bpmInput = $("#defaultBpmInput");
   if (bpmInput) bpmInput.value = settings.defaultBpm;
+  const steadyDurationInput = $("#steadyDurationInput");
+  if (steadyDurationInput) steadyDurationInput.value = settings.steadyDurationSeconds;
   $$("[data-default-cycles]").forEach((button) => {
     button.classList.toggle("active", Number(button.dataset.defaultCycles) === settings.defaultCycles);
     button.setAttribute("aria-checked", Number(button.dataset.defaultCycles) === settings.defaultCycles ? "true" : "false");
@@ -931,7 +957,7 @@ function getExercisePattern(exercise) {
   if (!exercise.scored) return exercise.pattern;
   return [
     { beat: 1, dynamic: selectedTargetVolume },
-    { beat: exercise.playBeats, dynamic: selectedTargetVolume },
+    { beat: isSteadyLongTone(exercise) ? steadyDurationSeconds : exercise.playBeats, dynamic: selectedTargetVolume },
   ];
 }
 
@@ -941,6 +967,9 @@ function getExerciseInstruction(exercise) {
   }
   if (exercise.variants?.length) return exercise.instruction;
   if (!exercise.scored) return exercise.instruction;
+  if (isSteadyLongTone(exercise)) {
+    return `以 ${selectedTargetVolume} 音量穩定吹奏 ${steadyDurationSeconds} 秒，觀察音準是否平穩。`;
+  }
   return `用 ${selectedTargetVolume} 音量穩定吹 ${exercise.playBeats} 拍，注意聲音不要忽大忽小。`;
 }
 
@@ -2384,7 +2413,7 @@ function getExerciseDailyGoalCombos(exercise) {
       variantIndex: null,
       pattern: [
         { beat: 1, dynamic: volume },
-        { beat: exercise.playBeats, dynamic: volume },
+        { beat: isSteadyLongTone(exercise) ? steadyDurationSeconds : exercise.playBeats, dynamic: volume },
       ],
     }));
   }
@@ -2454,6 +2483,7 @@ function getDailyGoalTasks() {
     title: exercise.title,
     level: exercise.level,
     playBeats: exercise.playBeats,
+    durationSeconds: isSteadyLongTone(exercise) ? steadyDurationSeconds : null,
     combos: getExerciseDailyGoalCombos(exercise),
   }));
   const intervalTasks = INTERVAL_DAILY_GOAL_TASKS.map((task) => ({
@@ -2528,14 +2558,18 @@ function scrollToSection(sectionId) {
 }
 
 function setBpm(nextBpm) {
-  bpm = Math.max(60, Math.min(180, Number(nextBpm)));
+  bpm = isSteadyLongTone() ? 60 : Math.max(60, Math.min(180, Number(nextBpm)));
   $("#bpmInput").value = bpm;
   $("#bpmValue").textContent = bpm;
   $("#statusBpm").textContent = bpm;
-  if (timer) {
+  if (timer && !isSteadyLongTone()) {
     clearInterval(timer);
     timer = setInterval(stepPractice, 60000 / bpm);
   }
+}
+
+function setSteadyDurationSeconds(nextSeconds) {
+  setPracticeSettings({ steadyDurationSeconds: clampSteadyDurationSeconds(Number(nextSeconds)) });
 }
 
 function setPracticeSettingsOpen(isOpen) {
@@ -2687,11 +2721,14 @@ function renderDailyGoals() {
       const comboText = completedLabels.length
         ? `已完成 ${completedLabels.join("、")}`
         : `下一組合：${nextCombo.label}`;
+      const durationText = task.durationSeconds
+        ? `${task.durationSeconds} 秒`
+        : `${task.playBeats} 拍`;
       return `
         <button class="goal-chip ${progress.done ? "done" : ""}" data-goal-exercise="${task.exerciseIndex}" data-goal-combo="${nextCombo.id}" type="button">
           <span>${progress.done ? "✓" : index + 1}</span>
           <strong>${task.title}</strong>
-          <small>${localizeLevel(task.level)} · ${task.playBeats} 拍 · 不同組合 ${progress.completedCount} / ${progress.required} · ${comboText}</small>
+          <small>${localizeLevel(task.level)} · ${durationText} · 不同組合 ${progress.completedCount} / ${progress.required} · ${comboText}</small>
         </button>
       `;
     })
@@ -4635,10 +4672,13 @@ function renderExercises() {
       const summary = ["crescendo-8", "decrescendo-8", "swell-12"].includes(exercise.id)
         ? getExerciseDynamicSummary(exercise)
         : variantLabel || getPatternSummary(pattern);
+      const durationText = isSteadyLongTone(exercise)
+        ? `${steadyDurationSeconds} 秒`
+        : `${exercise.playBeats} 拍`;
       return `
         <button class="exercise-btn ${index === selectedExercise ? "active" : ""} ${dailyDone ? "daily-done" : ""}" data-exercise="${index}">
           <strong>${exercise.title}</strong>
-          <small>${localizeLevel(exercise.level)} · ${exercise.playBeats} 拍 · ${summary}</small>
+          <small>${localizeLevel(exercise.level)} · ${durationText} · ${summary}</small>
         </button>
       `;
     })
@@ -4648,21 +4688,33 @@ function renderExercises() {
 function renderExercise() {
   const exercise = exercises[selectedExercise];
   const pattern = getExercisePattern(exercise);
+  const steadyMode = isSteadyLongTone(exercise);
   totalCycles = normalizeSelectedCycleCount(totalCycles);
-  bpm = Number($("#bpmInput").value) || exercise.bpm;
+  steadyDurationSeconds = getPracticeSettings().steadyDurationSeconds;
+  bpm = steadyMode ? 60 : Number($("#bpmInput").value) || exercise.bpm;
   $("#exerciseLevel").textContent = localizeLevel(exercise.level);
   $("#exerciseTitle").textContent = exercise.title;
   $("#exerciseInstruction").textContent = exercise.title;
-  $("#beatTotal").textContent = `/ ${exercise.playBeats} 拍`;
-  $("#prepareBeats").textContent = `${exercise.prepareBeats} 拍`;
-  $("#playBeats").textContent = `${exercise.playBeats} 拍`;
-  $("#restBeats").textContent = `${exercise.restBeats} 拍`;
+  $("#currentBeat").textContent = steadyMode ? steadyDurationSeconds : 0;
+  $("#beatTotal").textContent = steadyMode ? "秒" : `/ ${exercise.playBeats} 拍`;
+  $("#prepareBeats").textContent = steadyMode ? `${exercise.prepareBeats} 秒` : `${exercise.prepareBeats} 拍`;
+  $("#playBeats").textContent = steadyMode ? `${steadyDurationSeconds} 秒` : `${exercise.playBeats} 拍`;
+  $("#playFlowLabel").textContent = steadyMode ? "長音" : "吹奏";
+  $("#restBeats").textContent = steadyMode ? `${exercise.restBeats} 秒` : `${exercise.restBeats} 拍`;
   $("#cycleCount").textContent = totalCycles;
   $("#currentCycle").textContent = cycle;
   $("#cycleTotal").textContent = `/ ${totalCycles} 次`;
   $("#bpmInput").value = bpm;
   $("#bpmValue").textContent = bpm;
   $("#statusBpm").textContent = bpm;
+  $("#bpmSetting").classList.toggle("hidden", steadyMode);
+  $("#steadyDurationSetting").classList.toggle("hidden", !steadyMode);
+  $("#statusBpmMetric").classList.toggle("hidden", steadyMode);
+  $("#statusMetrics").classList.toggle("steady-mode", steadyMode);
+  $("#steadyDurationInput").value = String(steadyDurationSeconds);
+  $("#steadyDurationValue").textContent = `${steadyDurationSeconds} 秒`;
+  $("#steadyDurationMinus").disabled = steadyDurationSeconds <= 4;
+  $("#steadyDurationPlus").disabled = steadyDurationSeconds >= 12;
   $("#cycleSelect").innerHTML = CYCLE_OPTIONS
     .map((option) => `<option value="${option}">${option}</option>`)
     .join("");
@@ -5177,7 +5229,29 @@ function updatePhaseLabel() {
 
 function updateBeatDisplay() {
   const exercise = exercises[selectedExercise];
-  const pattern = getExercisePattern(exercise);
+  if (isSteadyLongTone(exercise)) {
+    const durationMs = getSteadyDurationMs();
+    const activeRemainingMs = phase === "play" && steadyPlayEndsAt
+      ? Math.max(0, steadyPlayEndsAt - performance.now())
+      : steadyPlayRemainingMs;
+    const remainingSeconds = Math.ceil((activeRemainingMs || durationMs) / 1000);
+    $("#currentBeat").textContent = phase === "play"
+      ? remainingSeconds
+      : phase === "prepare" || phase === "rest"
+        ? beat
+        : steadyDurationSeconds;
+    $("#beatTotal").textContent = phase === "prepare"
+      ? `/ ${exercise.prepareBeats} 秒`
+      : phase === "rest"
+        ? `/ ${exercise.restBeats} 秒`
+        : "秒";
+    $("#cycleCount").textContent = totalCycles;
+    $("#currentCycle").textContent = cycle;
+    $("#cycleTotal").textContent = `/ ${totalCycles} 次`;
+    updatePhaseLabel();
+    renderCurve(phase === "play" ? beat : 0);
+    return;
+  }
   const displayBeat = phase === "play" ? beat : phase === "idle" || phase === "done" ? 0 : beat;
   $("#currentBeat").textContent = displayBeat;
   $("#cycleCount").textContent = totalCycles;
@@ -5192,6 +5266,52 @@ function updateBeatDisplay() {
   renderCurve(phase === "play" ? beat : 0);
 }
 
+function clearSteadyProgressTimer() {
+  if (!steadyProgressTimer) return;
+  clearInterval(steadyProgressTimer);
+  steadyProgressTimer = null;
+}
+
+function updateSteadyPlayProgress() {
+  if (!isSteadyLongTone() || phase !== "play" || !steadyPlayEndsAt) return;
+  const durationMs = getSteadyDurationMs();
+  steadyPlayRemainingMs = Math.max(0, steadyPlayEndsAt - performance.now());
+  const elapsedMs = Math.max(0, durationMs - steadyPlayRemainingMs);
+  const elapsedSecond = Math.floor(elapsedMs / 1000);
+  if (elapsedSecond > steadyLastClickSecond && elapsedSecond < steadyDurationSeconds) {
+    steadyLastClickSecond = elapsedSecond;
+    playClick(false);
+  }
+  beat = Math.min(steadyDurationSeconds, Math.floor(elapsedMs / 1000) + 1);
+  updateBeatDisplay();
+}
+
+function finishSteadyLongTone() {
+  timer = null;
+  clearSteadyProgressTimer();
+  steadyPlayEndsAt = 0;
+  steadyPlayRemainingMs = 0;
+  steadyLastClickSecond = 0;
+  if (isCurrentExerciseScored()) saveCurrentCycleScore();
+  phase = "rest";
+  beat = 1;
+  playPrepareClick(true);
+  updateBeatDisplay();
+  timer = setInterval(stepPractice, 1000);
+}
+
+function scheduleSteadyLongTone(durationMs = getSteadyDurationMs()) {
+  if (timer) clearInterval(timer);
+  clearSteadyProgressTimer();
+  const safeDurationMs = Math.max(1, Number(durationMs) || getSteadyDurationMs());
+  steadyPlayRemainingMs = safeDurationMs;
+  steadyLastClickSecond = Math.floor((getSteadyDurationMs() - safeDurationMs) / 1000);
+  steadyPlayEndsAt = performance.now() + safeDurationMs;
+  updateSteadyPlayProgress();
+  steadyProgressTimer = setInterval(updateSteadyPlayProgress, 100);
+  timer = setTimeout(finishSteadyLongTone, safeDurationMs);
+}
+
 function stepPractice() {
   const exercise = exercises[selectedExercise];
   beat += 1;
@@ -5199,9 +5319,11 @@ function stepPractice() {
     ? exercise.prepareBeats
     : phase === "rest"
       ? exercise.restBeats
-      : exercise.playBeats;
+      : isSteadyLongTone(exercise)
+        ? steadyDurationSeconds
+        : exercise.playBeats;
   if (beat <= phaseBeatLimit) {
-    if (phase === "prepare") playPrepareClick(beat === 1);
+    if (phase === "prepare" || phase === "rest") playPrepareClick(beat === 1);
     else playClick(beat === 1);
   }
 
@@ -5211,13 +5333,17 @@ function stepPractice() {
     playStartedAt = performance.now();
     resetMicCycle();
     playClick(true);
-  } else if (phase === "play" && beat > exercise.playBeats) {
+    if (isSteadyLongTone(exercise)) {
+      scheduleSteadyLongTone();
+      return;
+    }
+  } else if (phase === "play" && beat > (isSteadyLongTone(exercise) ? steadyDurationSeconds : exercise.playBeats)) {
     if (isCurrentExerciseScored()) {
       saveCurrentCycleScore();
     }
     phase = "rest";
     beat = 1;
-    playClick(true);
+    playPrepareClick(true);
   } else if (phase === "rest" && beat > exercise.restBeats) {
     if (cycle >= totalCycles) {
       if (isCurrentExerciseScored()) {
@@ -5250,6 +5376,10 @@ function stepPractice() {
     playStartedAt = performance.now();
     resetMicCycle();
     playClick(true);
+    if (isSteadyLongTone(exercise)) {
+      scheduleSteadyLongTone();
+      return;
+    }
   }
 
   updateBeatDisplay();
@@ -5260,6 +5390,11 @@ function startPractice() {
   let shouldScrollAfterStart = false;
   setPracticeSettingsOpen(false);
   if (timer) {
+    if (isSteadyLongTone(exercise) && phase === "play" && steadyPlayEndsAt) {
+      steadyPlayRemainingMs = Math.max(1, steadyPlayEndsAt - performance.now());
+      steadyPlayEndsAt = 0;
+      clearSteadyProgressTimer();
+    }
     clearInterval(timer);
     timer = null;
     $("#startPauseBtn").textContent = "繼續";
@@ -5275,8 +5410,13 @@ function startPractice() {
   }
 
   $("#startPauseBtn").textContent = "暫停";
+  if (isSteadyLongTone(exercise) && phase === "play" && steadyPlayRemainingMs > 0) {
+    scheduleSteadyLongTone(steadyPlayRemainingMs);
+    updateBeatDisplay();
+    return;
+  }
   stepPractice();
-  timer = setInterval(stepPractice, 60000 / bpm);
+  if (!timer) timer = setInterval(stepPractice, isSteadyLongTone(exercise) ? 1000 : 60000 / bpm);
   updateBeatDisplay();
   if (shouldScrollAfterStart) scrollToLongTonePracticeMain();
 }
@@ -5286,6 +5426,10 @@ function stopPractice(done = false) {
     clearInterval(timer);
     timer = null;
   }
+  clearSteadyProgressTimer();
+  steadyPlayEndsAt = 0;
+  steadyPlayRemainingMs = 0;
+  steadyLastClickSecond = 0;
   phase = done ? "done" : "idle";
   beat = 0;
   cycle = 1;
@@ -5418,6 +5562,15 @@ function bindEvents() {
 
   $("#bpmMinus").addEventListener("click", () => setBpm(bpm - 2));
   $("#bpmPlus").addEventListener("click", () => setBpm(bpm + 2));
+  $("#steadyDurationInput").addEventListener("input", (event) => {
+    setSteadyDurationSeconds(event.target.value);
+  });
+  $("#steadyDurationMinus").addEventListener("click", () => {
+    setSteadyDurationSeconds(steadyDurationSeconds - 1);
+  });
+  $("#steadyDurationPlus").addEventListener("click", () => {
+    setSteadyDurationSeconds(steadyDurationSeconds + 1);
+  });
 
   $("#cycleSelect").addEventListener("change", (event) => {
     totalCycles = normalizeSelectedCycleCount(event.target.value);
