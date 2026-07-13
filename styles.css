@@ -4484,17 +4484,24 @@ body.simple-motion .plant-action-layer.is-stage-up {
   top: -14px;
 }
 
+.starter-plant-card[data-starter-species="flower-spirit"] .starter-plant-image-wrap img {
+  max-height: 130px;
+}
+
 .starter-plant-card[data-starter-species="lucky-leaf-spirit"] .starter-plant-image-wrap img {
-  max-width: 170px;
-  max-height: 178px;
+  max-width: 150px;
+  max-height: 158px;
   position: relative;
-  left: -30px;
-  top: -7px;
+  left: -14px;
+  top: 4px;
 }
 
 .starter-plant-card[data-starter-species="bamboo-sound-child"] .starter-plant-image-wrap img {
-  max-width: 150px;
-  max-height: 164px;
+  max-width: 120px;
+  max-height: 132px;
+  position: relative;
+  left: -1px;
+  top: -2px;
 }
 
 .starter-plant-card strong {
@@ -4668,16 +4675,22 @@ body.simple-motion .plant-action-layer.is-stage-up {
     top: -11px;
   }
 
+  .starter-plant-card[data-starter-species="flower-spirit"] .starter-plant-image-wrap img {
+    max-height: 102px;
+  }
+
   .starter-plant-card[data-starter-species="lucky-leaf-spirit"] .starter-plant-image-wrap img {
-    max-width: 132px;
-    max-height: 138px;
-    left: -23px;
-    top: -5px;
+    max-width: 118px;
+    max-height: 124px;
+    left: -11px;
+    top: 3px;
   }
 
   .starter-plant-card[data-starter-species="bamboo-sound-child"] .starter-plant-image-wrap img {
-    max-width: 118px;
-    max-height: 124px;
+    max-width: 96px;
+    max-height: 102px;
+    left: -1px;
+    top: -1px;
   }
 }
 
