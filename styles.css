@@ -1800,6 +1800,33 @@ body.hide-featured-spirit .hero-plant-slot {
   color: var(--primary);
 }
 
+.tuner-advanced-note {
+  margin-top: 2px;
+  border: 1px solid rgba(222, 194, 158, 0.62);
+  border-radius: 18px;
+  background: rgba(255, 252, 246, 0.72);
+  overflow: hidden;
+}
+
+.tuner-advanced-note summary {
+  padding: 13px 15px;
+  color: var(--primary);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tuner-advanced-note > div {
+  display: grid;
+  gap: 10px;
+  padding: 0 14px 14px;
+}
+
+.tuner-advanced-note h4 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 16px;
+}
+
 .intro-media {
   justify-self: center;
   width: 100%;

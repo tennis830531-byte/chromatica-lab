@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
     <link rel="stylesheet" href="./public/assets/fonts/noto-sans-tc/noto-sans-tc-variable.css" />
     <link rel="stylesheet" href="./public/assets/fonts/lxgw-wenkai-tc/lxgw-wenkai-tc-bold.css" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-128" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-129" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -22,10 +22,10 @@
           <img class="ui-mascot" src="./public/assets/chromatic-refresh/cleaned/04_bird_holding_harmonica.png" alt="" />
         </div>
         <h2 id="micGateTitle">進入練習前</h2>
-        <p>開啟麥克風後，App 會判斷你的音量穩定度，幫助你練習更平穩的長音。</p>
+        <p>開啟麥克風後，App 會即時偵測你的音準，幫助你觀察長音的音準是否穩定，以及是否偏高或偏低。</p>
         <ul class="gate-list">
-          <li>只偵測音量變化</li>
-          <li>不會儲存錄音</li>
+          <li>只偵測音準變化</li>
+          <li>不會儲存錄音，僅進行即時分析</li>
           <li>開始前會進行 1 秒環境音校正</li>
         </ul>
         <div id="micGateError" class="gate-error" aria-live="polite"></div>
@@ -33,7 +33,7 @@
           <button id="micGateBtn" class="primary-btn" type="button">開啟麥克風</button>
           <button id="micGateSkip" class="ghost-btn" type="button">先瀏覽 App</button>
         </div>
-        <p class="gate-headphone">建議戴耳機，避免節拍器被麥克風收進去。</p>
+        <p class="gate-headphone">建議在安靜環境下練習，必要時請配戴耳機。</p>
       </div>
     </div>
 
@@ -95,8 +95,8 @@
               <article><span>呼吸</span><p>保持身體放鬆，用穩定氣流吹奏，不要用蠻力把音推出去。</p></article>
               <article><span>嘴型</span><p>嘴唇輕輕包住口琴，不要咬緊，口腔保持自然打開。</p></article>
               <article><span>音量變化</span><p>先以 mp 音量練習，注意音量不要忽大忽小。</p></article>
-              <article><span>弱起</span><p>起音不要爆開，讓聲音自然進來。</p></article>
-              <article><span>收尾</span><p>尾音不要硬切，讓氣流自然收住。</p></article>
+              <article><span>起音</span><p>讓氣流與聲音平順開始，避免突然爆開或過度用舌。</p></article>
+              <article><span>收尾</span><p>保持音色與音準直到最後，再平順停止氣流；不要先洩氣，也不要用嘴巴突然夾斷。</p></article>
               <article><span>音準</span><p>練習時可以搭配內建調音器觀察 cents，留意音準是否往上飄或往下掉。</p></article>
             </div>
           </section>
@@ -267,14 +267,20 @@
             </div>
           </div>
           <div class="tuner-reference-note paper-card">
-            <h3>A4 調音基準提醒</h3>
-            <p><strong>A = 440 Hz</strong> 指的是國際標準術語裡的 <strong>A4</strong>。</p>
-            <p>建議調音器的基準設在 <strong>442 Hz</strong>，原因之一是拆蓋板調音，裝回蓋板後蓋板會讓音高稍微下降。</p>
-            <p>簧片在「吹 / 吸更用力」時，有傾向發出較低音高，所以測音時要用 <strong>最小氣壓</strong>，不要用力吹到把讀數弄假。</p>
-            <ul>
-              <li><strong>簧片調音：</strong>先用 442 Hz。</li>
-              <li><strong>最後判斷：</strong>用 440 Hz 檢查實際吹出來的音。不要只看裸簧片，要看裝回琴後、用正常力度吹的結果。</li>
-            </ul>
+            <h3>一般演奏者</h3>
+            <p>一般個人練習可使用 <strong>A4 = 440 Hz</strong>。若與樂團或鋼琴合奏，請依團體使用的基準音高調整。</p>
+            <details class="tuner-advanced-note">
+              <summary>進階說明</summary>
+              <div>
+                <h4>維修與簧片調音者</h4>
+                <p>建議調音器的基準設在 <strong>442 Hz</strong>，原因之一是拆蓋板調音，裝回蓋板後蓋板會讓音高稍微下降。</p>
+                <p>簧片在「吹 / 吸更用力」時，有傾向發出較低音高，所以測音時要用 <strong>最小氣壓</strong>，不要用力吹到把讀數弄假。</p>
+                <ul>
+                  <li><strong>簧片調音：</strong>先用 442 Hz。</li>
+                  <li><strong>最後判斷：</strong>用 440 Hz 檢查實際吹出來的音。不要只看裸簧片，要看裝回琴後、用正常力度吹的結果。</li>
+                </ul>
+              </div>
+            </details>
           </div>
         </section>
 
@@ -501,7 +507,7 @@
             <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/long_tone_bird.png" alt="" aria-hidden="true" />
             <p class="eyebrow">第一課</p>
             <h2>長音練習室</h2>
-            <p id="exerciseInstruction">8 拍平穩長音</p>
+            <p id="exerciseInstruction">4 拍平穩長音</p>
           </div>
 
           <div class="practice-layout">
@@ -517,7 +523,7 @@
               <div class="player-top">
                 <div>
                   <p class="eyebrow" id="exerciseLevel">初階</p>
-                  <h3 id="exerciseTitle">8 拍平穩長音</h3>
+                  <h3 id="exerciseTitle">4 拍平穩長音</h3>
                 </div>
               </div>
 
@@ -525,7 +531,7 @@
                 <div class="practice-status-copy">
                   <span class="status-phase">狀態：<b id="phasePill">待開始</b></span>
                   <div class="status-metrics">
-                    <strong class="status-metric beat-metric"><span id="currentBeat">0</span> <small id="beatTotal">/ 8 拍</small></strong>
+                    <strong class="status-metric beat-metric"><span id="currentBeat">0</span> <small id="beatTotal">/ 4 拍</small></strong>
                     <strong class="status-metric cycle-metric"><span id="currentCycle">1</span> <small id="cycleTotal">/ 4 次</small></strong>
                     <strong class="status-metric bpm-metric"><span id="statusBpm">60</span> <small>BPM</small></strong>
                   </div>
@@ -615,7 +621,7 @@
                   </div>
                   <div class="flow-grid compact-flow">
                     <span>準備 <b id="prepareBeats">4 拍</b></span>
-                    <span>吹奏 <b id="playBeats">8 拍</b></span>
+                    <span>吹奏 <b id="playBeats">4 拍</b></span>
                     <span>休息 <b id="restBeats">4 拍</b></span>
                   </div>
                 </div>
@@ -846,7 +852,7 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-128</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-129</span></strong>
                 </div>
                 <div class="setting-row">
                   <span>問題回報</span>
@@ -868,6 +874,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-128"></script>
+    <script src="./app.js?v=refresh-129"></script>
   </body>
 </html>

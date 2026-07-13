@@ -180,17 +180,17 @@ const STARTER_CONFIRM_ANIMATION_MS = 9560;
 const exercises = [
   {
     id: "steady-8",
-    title: "8 拍平穩長音",
+    title: "4 拍平穩長音",
     level: "初階",
     bpm: 60,
     prepareBeats: 4,
-    playBeats: 8,
+    playBeats: 4,
     restBeats: 4,
     pattern: [
       { beat: 1, dynamic: "mp" },
-      { beat: 8, dynamic: "mp" },
+      { beat: 4, dynamic: "mp" },
     ],
-    instruction: "用 mp 音量穩定吹 8 拍，注意聲音不要前大後小。",
+    instruction: "用 mp 音量穩定吹 4 拍，注意聲音不要前大後小。",
     scored: true,
     showStability: false,
   },
