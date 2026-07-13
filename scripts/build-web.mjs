@@ -20,11 +20,11 @@ function isForbiddenOutput(relativePath) {
   );
 }
 
-async function collectSoundAssets(directory, output = []) {
+async function collectDirectoryAssets(directory, output = []) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const absolutePath = path.join(directory, entry.name);
     if (entry.isDirectory()) {
-      await collectSoundAssets(absolutePath, output);
+      await collectDirectoryAssets(absolutePath, output);
     } else if (entry.isFile()) {
       output.push(path.relative(projectRoot, absolutePath));
     }
@@ -91,8 +91,12 @@ for (const contents of sourceContents.values()) {
   }
 }
 
-for (const soundPath of await collectSoundAssets(path.join(projectRoot, "public", "assets", "sounds"))) {
+for (const soundPath of await collectDirectoryAssets(path.join(projectRoot, "public", "assets", "sounds"))) {
   requiredAssets.add(soundPath);
+}
+
+for (const fontPath of await collectDirectoryAssets(path.join(projectRoot, "public", "assets", "fonts"))) {
+  requiredAssets.add(fontPath);
 }
 
 for (const assetPath of [...requiredAssets].sort()) {
