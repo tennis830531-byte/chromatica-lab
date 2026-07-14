@@ -439,6 +439,9 @@ const mapHarmonicaImages = {
 
 let currentView = "intro";
 let currentViewTarget = "";
+let settingsReturnView = "intro";
+let settingsReturnTarget = "";
+let settingsReturnScrollY = 0;
 let selectedHoles = 16;
 let selectedMapHole = null;
 let selectedExercise = 0;
@@ -5164,6 +5167,11 @@ function editIntervalPracticeSettings() {
 function setView(view, options = {}) {
   const target = options.activeTarget || options.scrollTarget || "";
   const changedView = currentView !== view || currentViewTarget !== target;
+  if (view === "audio" && currentView !== "audio") {
+    settingsReturnView = currentView;
+    settingsReturnTarget = currentViewTarget;
+    settingsReturnScrollY = window.scrollY;
+  }
   currentView = view;
   currentViewTarget = target;
   $$(".view").forEach((element) => element.classList.toggle("active", element.id === view));
@@ -5175,7 +5183,17 @@ function setView(view, options = {}) {
     if (!showStarterPlantSelectionIfNeeded()) checkGardenRainEvent();
   }
   syncGardenBgmWithView();
-  if (options.scrollTarget) {
+  const headerSettingsButton = $("#headerSettingsBtn");
+  if (headerSettingsButton) {
+    const isSettingsView = view === "audio";
+    headerSettingsButton.textContent = isSettingsView ? "←" : "⚙";
+    headerSettingsButton.setAttribute("aria-label", isSettingsView ? "返回上一頁" : "設定");
+  }
+  if (Number.isFinite(options.restoreScrollTop)) {
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: options.restoreScrollTop, behavior: "auto" });
+    });
+  } else if (options.scrollTarget) {
     scrollToSection(options.scrollTarget);
   } else if (changedView) {
     requestAnimationFrame(() => {
@@ -5467,12 +5485,24 @@ function launchStartPracticeButton(button, navigate) {
 
 function bindEvents() {
   $$("[data-view]").forEach((button) => {
+    if (button.id === "headerSettingsBtn") return;
     button.addEventListener("click", () => {
       setView(button.dataset.view, {
         activeTarget: button.dataset.navTarget || "",
         scrollTarget: button.dataset.scrollTarget || "",
       });
     });
+  });
+
+  $("#headerSettingsBtn")?.addEventListener("click", () => {
+    if (currentView === "audio") {
+      setView(settingsReturnView, {
+        activeTarget: settingsReturnTarget,
+        restoreScrollTop: settingsReturnScrollY,
+      });
+      return;
+    }
+    setView("audio");
   });
 
   $$("[data-jump]").forEach((button) => {

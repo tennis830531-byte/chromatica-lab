@@ -234,7 +234,7 @@ li,
   min-height: 100vh;
   margin: 0 auto;
   padding-bottom: clamp(76px, 21vw, 92px);
-  overflow-x: hidden;
+  overflow-x: clip;
   background:
     radial-gradient(circle at 20% 6%, rgba(212, 165, 90, 0.12), transparent 28%),
     radial-gradient(circle at 90% 0%, rgba(122, 78, 45, 0.08), transparent 30%),
