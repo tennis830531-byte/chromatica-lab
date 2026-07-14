@@ -3926,10 +3926,10 @@ body.simple-motion .plant-action-layer.is-stage-up {
   width: 76px;
   height: 76px;
   padding: 7px;
-  border: 1px solid rgba(231, 216, 200, 0.9);
+  border: 0;
   border-radius: 22px;
-  background: rgba(255, 253, 249, 0.72);
-  box-shadow: 0 8px 18px rgba(72, 48, 28, 0.08);
+  background: transparent;
+  box-shadow: none;
   cursor: pointer;
   touch-action: manipulation;
   transition: transform 140ms ease, opacity 140ms ease, box-shadow 140ms ease;
@@ -4935,9 +4935,9 @@ body.simple-motion .plant-action-layer.is-stage-up {
 }
 
 @keyframes wateringButtonPulse {
-  0% { box-shadow: 0 8px 18px rgba(72, 48, 28, 0.08); }
-  45% { box-shadow: 0 10px 24px rgba(90, 168, 216, 0.24); }
-  100% { box-shadow: 0 8px 18px rgba(72, 48, 28, 0.08); }
+  0% { transform: scale(1); box-shadow: none; }
+  45% { transform: scale(1.04); box-shadow: none; }
+  100% { transform: scale(1); box-shadow: none; }
 }
 
 @keyframes dropFall {

@@ -603,6 +603,9 @@ function registerServiceWorker() {
 let gardenBgmAudio = null;
 let hasSoundInteraction = false;
 let soundFeedbackBound = false;
+let nativeAppIsActive = true;
+let nativeAppLifecycleRegistered = false;
+let gardenBgmPausedForBackground = false;
 
 function getSoundAssetPath(fileName) {
   return `./public/assets/sounds/${fileName}`;
@@ -770,6 +773,7 @@ function setGardenBgmVolume(volume) {
 }
 
 function playGardenBgm() {
+  if (!nativeAppIsActive) return;
   if (!isSoundAllowed("gardenBgm")) {
     stopGardenBgm();
     return;
@@ -778,6 +782,7 @@ function playGardenBgm() {
     const audio = getGardenBgmAudio();
     audio.loop = true;
     setGardenBgmVolume(0.28);
+    gardenBgmPausedForBackground = false;
     const playPromise = audio.play();
     if (playPromise?.catch) {
       playPromise.catch((error) => console.warn("Unable to play garden BGM.", error));
@@ -792,7 +797,7 @@ function stopGardenBgm() {
 }
 
 function syncGardenBgmWithView() {
-  if (currentView === "garden" && isSoundAllowed("gardenBgm")) {
+  if (nativeAppIsActive && currentView === "garden" && isSoundAllowed("gardenBgm")) {
     playGardenBgm();
   } else {
     stopGardenBgm();
@@ -5460,6 +5465,53 @@ function stopPractice(done = false) {
   updateBeatDisplay();
 }
 
+function pauseLongToneForAppBackground() {
+  const wasRunning = Boolean(timer || steadyProgressTimer);
+  if (!wasRunning) return;
+  if (isSteadyLongTone() && phase === "play" && steadyPlayEndsAt) {
+    steadyPlayRemainingMs = Math.max(1, steadyPlayEndsAt - performance.now());
+    steadyPlayEndsAt = 0;
+  }
+  if (timer) {
+    clearTimeout(timer);
+    clearInterval(timer);
+    timer = null;
+  }
+  clearSteadyProgressTimer();
+  $("#startPauseBtn").textContent = "繼續";
+  updateBeatDisplay();
+}
+
+function pauseAudioForAppBackground() {
+  nativeAppIsActive = false;
+  gardenBgmPausedForBackground = Boolean(gardenBgmAudio && !gardenBgmAudio.paused);
+  stopGardenBgm();
+  stopIntervalMetronome();
+  pauseLongToneForAppBackground();
+}
+
+function registerAndroidAppLifecycle() {
+  if (nativeAppLifecycleRegistered) return;
+  const capacitor = window.Capacitor;
+  const isNativeAndroid = capacitor?.isNativePlatform?.() && capacitor.getPlatform?.() === "android";
+  const App = capacitor?.Plugins?.App;
+  if (!isNativeAndroid || typeof App?.addListener !== "function") return;
+
+  nativeAppLifecycleRegistered = true;
+  const listenerPromise = App.addListener("appStateChange", ({ isActive }) => {
+    if (!isActive) {
+      pauseAudioForAppBackground();
+      return;
+    }
+    nativeAppIsActive = true;
+    // Background-paused audio stays paused until the user explicitly starts it again.
+  });
+  listenerPromise?.catch?.((error) => {
+    nativeAppLifecycleRegistered = false;
+    console.warn("Unable to register Android app lifecycle listener.", error);
+  });
+}
+
 let startPracticeLaunchLocked = false;
 
 function launchStartPracticeButton(button, navigate) {
@@ -5930,6 +5982,7 @@ bindEvents();
 bindSoundSettings();
 bindSoundFeedback();
 bindDisplaySettings();
+registerAndroidAppLifecycle();
 renderSoundSettings();
 renderPracticeSettings();
 renderDisplaySettings();
