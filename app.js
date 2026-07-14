@@ -671,6 +671,8 @@ function renderPracticeSettings() {
   const settings = getPracticeSettings();
   const bpmInput = $("#defaultBpmInput");
   if (bpmInput) bpmInput.value = settings.defaultBpm;
+  const defaultSteadyDurationInput = $("#defaultSteadyDurationInput");
+  if (defaultSteadyDurationInput) defaultSteadyDurationInput.value = settings.steadyDurationSeconds;
   const steadyDurationInput = $("#steadyDurationInput");
   if (steadyDurationInput) steadyDurationInput.value = settings.steadyDurationSeconds;
   $$("[data-default-cycles]").forEach((button) => {
@@ -5722,6 +5724,16 @@ function bindEvents() {
   $("#audioCalibrateBtn").addEventListener("click", calibrateMic);
   $("#defaultBpmInput")?.addEventListener("change", (event) => {
     setPracticeSettings({ defaultBpm: event.target.value });
+  });
+  const defaultSteadyDurationInput = $("#defaultSteadyDurationInput");
+  defaultSteadyDurationInput?.addEventListener("input", (event) => {
+    const seconds = Number(event.target.value);
+    if (Number.isInteger(seconds) && seconds >= 4 && seconds <= 12) {
+      setSteadyDurationSeconds(seconds);
+    }
+  });
+  defaultSteadyDurationInput?.addEventListener("change", (event) => {
+    setSteadyDurationSeconds(event.target.value);
   });
   $$("[data-default-cycles]").forEach((button) => {
     button.addEventListener("click", () => {
