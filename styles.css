@@ -1,3 +1,12 @@
+@font-face {
+  font-family: "Chromatica Noto Glyph Fix";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("./public/assets/fonts/noto-sans-tc/files/noto-sans-tc-112-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+7A69;
+}
+
 :root {
   color-scheme: light;
   --bg: #f8f3ec;
@@ -19,8 +28,8 @@
   --radius-lg: 28px;
   --radius-md: 22px;
   --radius-sm: 16px;
-  --font-sans: "Noto Sans TC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
-  --font-hand: "LXGW WenKai TC", "Noto Sans TC", system-ui, sans-serif;
+  --font-sans: "Chromatica Noto Glyph Fix", "Noto Sans TC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --font-hand: "Chromatica Noto Glyph Fix", "LXGW WenKai TC", "Noto Sans TC", system-ui, sans-serif;
   --font-number: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
