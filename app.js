@@ -191,7 +191,7 @@ const exercises = [
       { beat: 1, dynamic: "mp" },
       { beat: 4, dynamic: "mp" },
     ],
-    instruction: "以穩定氣息維持指定秒數，觀察音準是否平穩。",
+    instruction: "以穩定氣息維持指定拍數，觀察音準是否平穩。",
     scored: true,
     showStability: false,
   },
@@ -978,7 +978,7 @@ function getExerciseInstruction(exercise) {
   if (exercise.variants?.length) return exercise.instruction;
   if (!exercise.scored) return exercise.instruction;
   if (isSteadyLongTone(exercise)) {
-    return `以 ${selectedTargetVolume} 音量穩定吹奏 ${steadyDurationSeconds} 秒，觀察音準是否平穩。`;
+    return `以 ${selectedTargetVolume} 音量穩定吹奏 ${steadyDurationSeconds} 拍，觀察音準是否平穩。`;
   }
   return `用 ${selectedTargetVolume} 音量穩定吹 ${exercise.playBeats} 拍，注意聲音不要忽大忽小。`;
 }
@@ -2732,7 +2732,7 @@ function renderDailyGoals() {
         ? `已完成 ${completedLabels.join("、")}`
         : `下一組合：${nextCombo.label}`;
       const durationText = task.durationSeconds
-        ? `${task.durationSeconds} 秒`
+        ? `${task.durationSeconds} 拍`
         : `${task.playBeats} 拍`;
       return `
         <button class="goal-chip ${progress.done ? "done" : ""}" data-goal-exercise="${task.exerciseIndex}" data-goal-combo="${nextCombo.id}" type="button">
@@ -4683,7 +4683,7 @@ function renderExercises() {
         ? getExerciseDynamicSummary(exercise)
         : variantLabel || getPatternSummary(pattern);
       const durationText = isSteadyLongTone(exercise)
-        ? `${steadyDurationSeconds} 秒`
+        ? `${steadyDurationSeconds} 拍`
         : `${exercise.playBeats} 拍`;
       return `
         <button class="exercise-btn ${index === selectedExercise ? "active" : ""} ${dailyDone ? "daily-done" : ""}" data-exercise="${index}">
@@ -4703,14 +4703,14 @@ function renderExercise() {
   steadyDurationSeconds = getPracticeSettings().steadyDurationSeconds;
   bpm = steadyMode ? 60 : Number($("#bpmInput").value) || exercise.bpm;
   $("#exerciseLevel").textContent = localizeLevel(exercise.level);
-  $("#exerciseTitle").textContent = exercise.title;
+  $("#exerciseTitle").textContent = steadyMode ? `${exercise.title}（固定 60 BPM）` : exercise.title;
   $("#exerciseInstruction").textContent = exercise.title;
   $("#currentBeat").textContent = steadyMode ? steadyDurationSeconds : 0;
-  $("#beatTotal").textContent = steadyMode ? "秒" : `/ ${exercise.playBeats} 拍`;
-  $("#prepareBeats").textContent = steadyMode ? `${exercise.prepareBeats} 秒` : `${exercise.prepareBeats} 拍`;
-  $("#playBeats").textContent = steadyMode ? `${steadyDurationSeconds} 秒` : `${exercise.playBeats} 拍`;
+  $("#beatTotal").textContent = steadyMode ? `/ ${steadyDurationSeconds} 拍` : `/ ${exercise.playBeats} 拍`;
+  $("#prepareBeats").textContent = `${exercise.prepareBeats} 拍`;
+  $("#playBeats").textContent = steadyMode ? `${steadyDurationSeconds} 拍` : `${exercise.playBeats} 拍`;
   $("#playFlowLabel").textContent = steadyMode ? "長音" : "吹奏";
-  $("#restBeats").textContent = steadyMode ? `${exercise.restBeats} 秒` : `${exercise.restBeats} 拍`;
+  $("#restBeats").textContent = `${exercise.restBeats} 拍`;
   $("#cycleCount").textContent = totalCycles;
   $("#currentCycle").textContent = cycle;
   $("#cycleTotal").textContent = `/ ${totalCycles} 次`;
@@ -4722,7 +4722,7 @@ function renderExercise() {
   $("#statusBpmMetric").classList.toggle("hidden", steadyMode);
   $("#statusMetrics").classList.toggle("steady-mode", steadyMode);
   $("#steadyDurationInput").value = String(steadyDurationSeconds);
-  $("#steadyDurationValue").textContent = `${steadyDurationSeconds} 秒`;
+  $("#steadyDurationValue").textContent = `${steadyDurationSeconds} 拍`;
   $("#steadyDurationMinus").disabled = steadyDurationSeconds <= 4;
   $("#steadyDurationPlus").disabled = steadyDurationSeconds >= 12;
   $("#cycleSelect").innerHTML = CYCLE_OPTIONS
@@ -5266,10 +5266,10 @@ function updateBeatDisplay() {
         ? beat
         : steadyDurationSeconds;
     $("#beatTotal").textContent = phase === "prepare"
-      ? `/ ${exercise.prepareBeats} 秒`
+      ? `/ ${exercise.prepareBeats} 拍`
       : phase === "rest"
-        ? `/ ${exercise.restBeats} 秒`
-        : "秒";
+        ? `/ ${exercise.restBeats} 拍`
+        : `/ ${steadyDurationSeconds} 拍`;
     $("#cycleCount").textContent = totalCycles;
     $("#currentCycle").textContent = cycle;
     $("#cycleTotal").textContent = `/ ${totalCycles} 次`;

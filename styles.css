@@ -668,6 +668,28 @@ body.simple-motion .hero-plant-action {
   cursor: pointer;
 }
 
+.hero-start-wrap {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.hero-start-wrap .hero-media {
+  position: absolute;
+  left: clamp(-26px, -6vw, -18px);
+  bottom: clamp(-5px, -1vw, -2px);
+  z-index: 3;
+  width: clamp(54px, 16vw, 70px);
+  margin: 0;
+  pointer-events: none;
+  transform: none;
+}
+
+.hero-start-wrap .hero-harmonica {
+  width: 100%;
+  filter: drop-shadow(0 7px 10px rgba(72, 48, 28, 0.14));
+}
+
 .start-practice-glow {
   position: absolute;
   inset: -9px;
@@ -1056,14 +1078,46 @@ body.simple-motion .hero-plant-action {
   gap: 6px 14px;
 }
 
+.quick-section {
+  padding: clamp(17px, 4.8vw, 22px) clamp(12px, 3.8vw, 18px) clamp(20px, 5.5vw, 26px);
+  border: 1px dashed rgba(181, 139, 91, 0.42);
+  border-radius: clamp(22px, 6vw, 28px);
+  background:
+    repeating-linear-gradient(0deg, rgba(139, 94, 52, 0.026) 0 1px, transparent 1px 26px),
+    radial-gradient(circle at 16% 0%, rgba(212, 165, 90, 0.1), transparent 34%),
+    rgba(255, 252, 246, 0.76);
+  box-shadow: 0 10px 26px rgba(72, 48, 28, 0.055);
+}
+
+.quick-section-heading {
+  margin: 0 4px clamp(8px, 2.4vw, 12px);
+  text-align: center;
+}
+
+.quick-section-heading h3 {
+  margin: 0;
+  color: var(--text-main);
+  font-family: var(--font-hand);
+  font-size: clamp(21px, 6vw, 25px);
+  line-height: 1.15;
+}
+
+.quick-section-heading p {
+  margin: 3px 0 0;
+  color: var(--text-muted);
+  font-size: clamp(12px, 3.5vw, 14px);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 .quick-card {
   position: relative;
   display: grid;
   justify-items: center;
   align-content: center;
   gap: 4px;
-  min-height: 142px;
-  padding: 8px 4px 10px;
+  min-height: 134px;
+  padding: 6px 4px 8px;
   overflow: hidden;
   border: 0;
   border-radius: 20px;
