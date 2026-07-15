@@ -2408,6 +2408,22 @@ body.hide-featured-spirit .hero-plant-slot {
   white-space: nowrap;
 }
 
+.status-metric.beat-metric.is-play-phase {
+  border-color: rgba(255, 122, 112, 0.72);
+  background: rgba(154, 42, 36, 0.28);
+  box-shadow:
+    0 0 12px rgba(255, 99, 90, 0.32),
+    inset 0 0 10px rgba(255, 122, 112, 0.16);
+}
+
+.status-metric.beat-metric.is-play-phase span,
+.status-metric.beat-metric.is-play-phase small {
+  color: #ff8a80;
+  text-shadow:
+    0 0 6px rgba(255, 110, 100, 0.9),
+    0 0 14px rgba(255, 86, 76, 0.58);
+}
+
 .bpm-metric span {
   font-size: clamp(19px, 4.95vw, 29px);
 }
