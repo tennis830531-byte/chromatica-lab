@@ -5328,12 +5328,6 @@ body.simple-motion .plant-action-layer.is-stage-up {
   font-size: 17px;
 }
 
-.home-spirit-reward-toast span {
-  margin-top: 2px;
-  color: var(--text-body);
-  font-size: 13px;
-}
-
 .home-spirit-reward-toast.is-visible {
   opacity: 1;
   transform: translate(-50%, 0);

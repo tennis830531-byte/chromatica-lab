@@ -1523,13 +1523,10 @@ function getHomeSpiritTapRewardState() {
   return stored;
 }
 
-function showHomeSpiritRewardToast(rewardsClaimed, dropsAdded = 1) {
+function showHomeSpiritRewardToast() {
   const toast = $("#homeSpiritRewardToast");
   if (!toast) return;
-  $("#homeSpiritRewardToastTitle").textContent = dropsAdded === 1
-    ? "精靈送你 1 滴水滴！"
-    : `精靈補送你 ${dropsAdded} 滴水滴！`;
-  $("#homeSpiritRewardToastText").textContent = `今日互動獎勵 ${rewardsClaimed} / ${HOME_SPIRIT_MAX_DAILY_REWARDS}`;
+  $("#homeSpiritRewardToastTitle").textContent = "精靈送你 1 滴水滴！💧";
   window.clearTimeout(homeSpiritRewardToastTimer);
   window.clearTimeout(homeSpiritRewardToastHideTimer);
   toast.classList.remove("hidden", "is-visible");
@@ -1562,7 +1559,7 @@ function recordHomeSpiritTap() {
   setHomeSpiritTapRewardState(nextState);
   if (added > 0) {
     renderGarden();
-    showHomeSpiritRewardToast(nextState.rewardsClaimed, added);
+    showHomeSpiritRewardToast();
   }
   return nextState;
 }
@@ -2229,7 +2226,11 @@ function waterCurrentPlant() {
   if (plant.waterProgress >= PLANT_WATER_REQUIRED) {
     showGardenToastAfterAnimation(`${getPlantDisplayName(plant, 3)}成熟了！`, "可以採收這株植物了。", GARDEN_EVOLUTION_NOTICE_DELAY_MS);
   } else if (plant.stage > previousStage) {
-    showGardenToastAfterAnimation(`${getPlantDisplayName(plant, plant.stage)}長大了！`, `進入${getPlantStageName(plant, plant.stage)}。`, GARDEN_EVOLUTION_NOTICE_DELAY_MS);
+    showGardenToastAfterAnimation(
+      `${getPlantDisplayName(plant, previousStage)}長大了！`,
+      `變成了【${getPlantStageName(plant, plant.stage)}】`,
+      GARDEN_EVOLUTION_NOTICE_DELAY_MS,
+    );
   }
 }
 
@@ -5457,13 +5458,8 @@ function updatePhaseLabel() {
 function updateBeatDisplay() {
   const exercise = exercises[selectedExercise];
   if (isSteadyLongTone(exercise)) {
-    const durationMs = getSteadyDurationMs();
-    const activeRemainingMs = phase === "play" && steadyPlayEndsAt
-      ? Math.max(0, steadyPlayEndsAt - performance.now())
-      : steadyPlayRemainingMs;
-    const remainingSeconds = Math.ceil((activeRemainingMs || durationMs) / 1000);
     $("#currentBeat").textContent = phase === "play"
-      ? remainingSeconds
+      ? beat
       : phase === "prepare" || phase === "rest"
         ? beat
         : steadyDurationSeconds;
