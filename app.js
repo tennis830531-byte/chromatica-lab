@@ -41,6 +41,10 @@ const GARDEN_EVOLUTION_NOTICE_DELAY_MS = 2300;
 const RAIN_BONUS_AMOUNT = 5;
 const RAIN_BONUS_CHANCE = 0.5;
 const RAIN_BONUS_ANIMATION_MS = 1500;
+const HOME_SPIRIT_TAP_REWARD_KEY = "chromatica.homeSpiritTapReward";
+const HOME_SPIRIT_TAPS_PER_REWARD = 10;
+const HOME_SPIRIT_MAX_DAILY_TAPS = 50;
+const HOME_SPIRIT_MAX_DAILY_REWARDS = 5;
 const GARDEN_WATERING_CAN_SRC = "./public/assets/garden/icons/watering-can.png";
 const GARDEN_SHOVEL_SRC = "./public/assets/garden/icons/garden-shovel.png";
 
@@ -101,6 +105,12 @@ const gardenSpecies = [
     ],
   },
 ];
+
+const availableGardenSpeciesIds = new Set([
+  "melody-sprout",
+  "mushroom-spirit",
+  "flower-spirit",
+]);
 
 const gardenStorageKeys = {
   waterDrops: "chromatica.waterDrops",
@@ -489,6 +499,8 @@ let selectedGardenSpiritStage = 3;
 let selectedStarterSpeciesId = "";
 let gardenHopTimer = null;
 let gardenIdleResumeTimer = null;
+let homeSpiritRewardToastTimer = null;
+let homeSpiritRewardToastHideTimer = null;
 let phase = "idle";
 let beat = 0;
 let totalCycles = 4;
@@ -1267,7 +1279,10 @@ function getCollectedSpeciesSet(collection = getGardenCollection()) {
 
 function getUncollectedGardenSpecies(collection = getGardenCollection()) {
   const collectedSpecies = getCollectedSpeciesSet(collection);
-  return gardenSpecies.filter((species) => !collectedSpecies.has(species.species));
+  return gardenSpecies.filter((species) => (
+    availableGardenSpeciesIds.has(species.species)
+    && !collectedSpecies.has(species.species)
+  ));
 }
 
 function getGardenSpecies(speciesId) {
@@ -1377,7 +1392,11 @@ function syncStarterPlantStateForExistingUser() {
 }
 
 function createGardenPlant(speciesId = "") {
-  const availableSpecies = speciesId ? [getGardenSpecies(speciesId)] : getUncollectedGardenSpecies();
+  if (speciesId && !availableGardenSpeciesIds.has(speciesId)) return null;
+  const requestedSpecies = speciesId && availableGardenSpeciesIds.has(speciesId)
+    ? getGardenSpecies(speciesId)
+    : null;
+  const availableSpecies = requestedSpecies ? [requestedSpecies] : getUncollectedGardenSpecies();
   if (!availableSpecies.length) return null;
   const species = availableSpecies[Math.floor(Math.random() * availableSpecies.length)];
   const now = new Date().toISOString();
@@ -1464,6 +1483,88 @@ function addWaterDrops(amount) {
   if (!added) return 0;
   setWaterDrops(getWaterDrops() + added);
   return added;
+}
+
+function getDefaultHomeSpiritTapRewardState() {
+  return {
+    date: getTodayKey(),
+    tapCount: 0,
+    rewardsClaimed: 0,
+  };
+}
+
+function isValidHomeSpiritTapRewardState(state) {
+  return Boolean(
+    state
+    && typeof state === "object"
+    && /^\d{4}-\d{2}-\d{2}$/.test(state.date)
+    && Number.isInteger(state.tapCount)
+    && state.tapCount >= 0
+    && state.tapCount <= HOME_SPIRIT_MAX_DAILY_TAPS
+    && Number.isInteger(state.rewardsClaimed)
+    && state.rewardsClaimed >= 0
+    && state.rewardsClaimed <= HOME_SPIRIT_MAX_DAILY_REWARDS
+    && state.rewardsClaimed <= Math.floor(state.tapCount / HOME_SPIRIT_TAPS_PER_REWARD)
+  );
+}
+
+function setHomeSpiritTapRewardState(state) {
+  localStorage.setItem(HOME_SPIRIT_TAP_REWARD_KEY, JSON.stringify(state));
+}
+
+function getHomeSpiritTapRewardState() {
+  const today = getTodayKey();
+  const stored = readJsonStorage(HOME_SPIRIT_TAP_REWARD_KEY, null);
+  if (!isValidHomeSpiritTapRewardState(stored) || stored.date !== today) {
+    const resetState = getDefaultHomeSpiritTapRewardState();
+    setHomeSpiritTapRewardState(resetState);
+    return resetState;
+  }
+  return stored;
+}
+
+function showHomeSpiritRewardToast(rewardsClaimed, dropsAdded = 1) {
+  const toast = $("#homeSpiritRewardToast");
+  if (!toast) return;
+  $("#homeSpiritRewardToastTitle").textContent = dropsAdded === 1
+    ? "精靈送你 1 滴水滴！"
+    : `精靈補送你 ${dropsAdded} 滴水滴！`;
+  $("#homeSpiritRewardToastText").textContent = `今日互動獎勵 ${rewardsClaimed} / ${HOME_SPIRIT_MAX_DAILY_REWARDS}`;
+  window.clearTimeout(homeSpiritRewardToastTimer);
+  window.clearTimeout(homeSpiritRewardToastHideTimer);
+  toast.classList.remove("hidden", "is-visible");
+  void toast.offsetWidth;
+  toast.classList.add("is-visible");
+  homeSpiritRewardToastTimer = window.setTimeout(() => {
+    toast.classList.remove("is-visible");
+    homeSpiritRewardToastHideTimer = window.setTimeout(() => toast.classList.add("hidden"), 180);
+  }, 2200);
+}
+
+function recordHomeSpiritTap() {
+  const state = getHomeSpiritTapRewardState();
+  const nextState = {
+    ...state,
+    tapCount: state.tapCount < HOME_SPIRIT_MAX_DAILY_TAPS
+      ? state.tapCount + 1
+      : state.tapCount,
+  };
+  const expectedRewards = Math.min(
+    HOME_SPIRIT_MAX_DAILY_REWARDS,
+    Math.floor(nextState.tapCount / HOME_SPIRIT_TAPS_PER_REWARD),
+  );
+  const pendingRewards = Math.max(0, expectedRewards - nextState.rewardsClaimed);
+  let added = 0;
+  if (pendingRewards > 0) {
+    added = addWaterDrops(pendingRewards);
+    nextState.rewardsClaimed += added;
+  }
+  setHomeSpiritTapRewardState(nextState);
+  if (added > 0) {
+    renderGarden();
+    showHomeSpiritRewardToast(nextState.rewardsClaimed, added);
+  }
+  return nextState;
 }
 
 function addEarnedWaterDrops(amount) {
@@ -1770,7 +1871,7 @@ function setStarterPlantModalOpen(open) {
 }
 
 function getStarterPlantOptions() {
-  return gardenSpecies.slice(0, 5);
+  return gardenSpecies.filter((species) => availableGardenSpeciesIds.has(species.species));
 }
 
 function renderStarterPlantChoices() {
@@ -1806,7 +1907,7 @@ function showStarterPlantSelectionIfNeeded() {
 }
 
 function selectStarterPlant(speciesId) {
-  if (!gardenSpecies.some((species) => species.species === speciesId)) return;
+  if (!getStarterPlantOptions().some((species) => species.species === speciesId)) return;
   selectedStarterSpeciesId = speciesId;
   playSound("uiTap");
   renderStarterPlantChoices();
@@ -5680,6 +5781,7 @@ function bindEvents() {
     void actionLayer.offsetWidth;
     actionLayer.classList.add("is-hopping");
     window.setTimeout(() => actionLayer.classList.remove("is-hopping"), 680);
+    recordHomeSpiritTap();
   });
 
   $$("[data-longtone-intro]").forEach((button) => {
