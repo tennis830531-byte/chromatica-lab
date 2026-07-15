@@ -476,10 +476,10 @@ li,
 
 .hero-top {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(76px, 25vw, 120px);
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: clamp(8px, 3vw, 14px);
-  margin-bottom: clamp(14px, 4vw, 20px);
+  gap: 0;
+  margin-bottom: clamp(10px, 3vw, 15px);
 }
 
 .home-hero h2 {
@@ -495,10 +495,10 @@ li,
 }
 
 .hero-actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: clamp(8px, 3vw, 14px);
+  gap: clamp(12px, 3.8vw, 18px);
   width: 100%;
   margin-top: 0;
 }
@@ -512,6 +512,7 @@ li,
   justify-items: center;
   align-items: center;
   gap: 6px;
+  width: min(100%, 230px);
   min-height: clamp(122px, 35vw, 150px);
   padding: 10px 8px 7px;
   border: 0;
@@ -669,20 +670,28 @@ body.simple-motion .hero-plant-action {
 }
 
 .hero-start-wrap {
-  position: relative;
-  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 2.8vw, 14px);
+  width: min(100%, 330px);
   min-width: 0;
 }
 
 .hero-start-wrap .hero-media {
-  position: absolute;
-  left: clamp(-26px, -6vw, -18px);
-  bottom: clamp(-5px, -1vw, -2px);
-  z-index: 3;
+  position: static;
+  flex: 0 0 auto;
   width: clamp(54px, 16vw, 70px);
   margin: 0;
   pointer-events: none;
   transform: none;
+}
+
+.hero-start-wrap .start-practice-button {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  max-width: 280px;
 }
 
 .hero-start-wrap .hero-harmonica {
@@ -5284,18 +5293,8 @@ body.simple-motion .plant-action-layer.is-stage-up {
 }
 
 @media (min-width: 410px) {
-  .hero-top {
-    gap: 16px;
-  }
-
-  .hero-media {
-    justify-self: end;
-    width: 100%;
-    transform: none;
-  }
-
-  .hero-harmonica {
-    width: 100%;
+  .hero-start-wrap .hero-media {
+    width: 70px;
   }
 }
 
@@ -5317,17 +5316,15 @@ body.simple-motion .plant-action-layer.is-stage-up {
 
 @media (max-width: 360px) {
   .hero-top {
-    grid-template-columns: minmax(0, 1fr) clamp(76px, 24vw, 86px);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .hero-copy {
     width: 100%;
   }
 
-  .hero-media {
-    justify-self: end;
-    width: 100%;
-    transform: none;
+  .hero-start-wrap .hero-media {
+    width: clamp(52px, 16vw, 58px);
   }
 
   .practice-status-card {
