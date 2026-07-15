@@ -60,6 +60,26 @@ body.modal-open {
   overflow: hidden;
 }
 
+.app-shell,
+[role="dialog"] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+img {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
 button,
 input,
 select {
