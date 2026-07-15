@@ -680,9 +680,11 @@ body.simple-motion .hero-plant-action {
 .hero-start-wrap {
   display: grid;
   place-items: center;
+  position: relative;
+  left: clamp(-10px, -2vw, -6px);
   width: 100%;
   min-width: 0;
-  margin-top: clamp(6px, 1.8vw, 10px);
+  margin-top: clamp(14px, 3.4vw, 18px);
 }
 
 .hero-start-wrap .start-practice-button {
