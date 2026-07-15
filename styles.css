@@ -471,7 +471,7 @@ li,
   position: relative;
   z-index: 1;
   min-width: 0;
-  width: min(100%, 220px);
+  width: 100%;
 }
 
 .hero-top {
