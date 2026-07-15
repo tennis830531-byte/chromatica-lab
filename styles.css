@@ -511,7 +511,7 @@ li,
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 0;
-  margin-bottom: clamp(10px, 3vw, 15px);
+  margin-bottom: 0;
 }
 
 .home-hero h2 {
@@ -545,8 +545,8 @@ li,
   align-items: center;
   gap: 4px;
   width: min(100%, 310px);
-  min-height: clamp(208px, 61vw, 256px);
-  padding: 7px 5px 5px;
+  min-height: clamp(188px, 55vw, 232px);
+  padding: 0 5px 2px;
   border: 0;
   border-radius: 18px;
   color: var(--text-main);
