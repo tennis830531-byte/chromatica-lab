@@ -603,7 +603,7 @@ body.simple-motion .hero-plant-action {
   object-fit: contain;
   object-position: center bottom;
   filter: drop-shadow(0 8px 10px rgba(72, 48, 28, 0.12));
-  transform: translateY(clamp(24px, 7vw, 30px));
+  transform: translateY(clamp(36px, 10vw, 42px));
 }
 
 .hero-garden-plant-image.hero-stage-1 {
@@ -632,6 +632,7 @@ body.simple-motion .hero-plant-action {
   position: relative;
   z-index: 2;
   display: block;
+  transform: translateY(12px);
   max-width: min(94%, 158px);
   min-width: 86px;
   padding: 4px 13px 5px;
@@ -702,6 +703,7 @@ body.simple-motion .hero-plant-action {
   place-items: center;
   position: relative;
   left: clamp(-10px, -2vw, -6px);
+  top: clamp(8px, 2vw, 10px);
   width: 100%;
   min-width: 0;
   margin-top: clamp(14px, 3.4vw, 18px);
@@ -1148,7 +1150,7 @@ body.simple-motion .hero-plant-action {
   margin: 0;
   color: var(--text-main);
   font-family: var(--font-hand);
-  font-size: clamp(21px, 6vw, 25px);
+  font-size: 18px;
   line-height: 1.15;
 }
 
