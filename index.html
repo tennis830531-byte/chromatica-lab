@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
     <link rel="stylesheet" href="./public/assets/fonts/noto-sans-tc/noto-sans-tc-variable.css" />
     <link rel="stylesheet" href="./public/assets/fonts/lxgw-wenkai-tc/lxgw-wenkai-tc-bold.css" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-131" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-150" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -189,18 +189,15 @@
             <span>半音階口琴練習室</span>
           </div>
         </div>
-        <button class="icon-btn" data-view="audio" type="button" aria-label="設定">⚙</button>
+        <button id="headerSettingsBtn" class="icon-btn" data-view="audio" type="button" aria-label="設定">⚙</button>
       </header>
       <main class="main">
         <section id="intro" class="view active">
           <div class="home-hero paper-card">
             <div class="hero-top">
               <div class="hero-copy">
-                <h2>半音階口琴<br />練習室</h2>
+                <h2>半音階口琴練習室</h2>
                 <p>透過音符地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p>
-              </div>
-              <div class="hero-media media-box">
-                <img class="ui-hero-illustration hero-harmonica hero-brand-badge" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="" aria-hidden="true" />
               </div>
             </div>
             <div class="hero-actions">
@@ -214,17 +211,24 @@
                 </span>
                 <span class="hero-plant-name-card"><b id="heroGardenName">花園</b><small id="heroGardenHint" hidden></small></span>
               </button>
-              <button class="primary-btn start-practice-button" data-jump="practicehub" data-start-practice-launch="true" type="button">
-                <span class="start-practice-glow" aria-hidden="true"></span>
-                <span class="start-practice-ripple" aria-hidden="true"></span>
-                <span class="start-practice-content">
-                  <span class="start-practice-label">開始練習~</span>
-                </span>
-              </button>
+              <div class="hero-start-wrap">
+                <button class="primary-btn start-practice-button" data-jump="practicehub" data-start-practice-launch="true" type="button">
+                  <img class="start-practice-button-art" src="./public/assets/chromatic-refresh/feature/start_practice_button_with_bird.png" alt="" aria-hidden="true" />
+                  <span class="start-practice-glow" aria-hidden="true"></span>
+                  <span class="start-practice-ripple" aria-hidden="true"></span>
+                  <span class="start-practice-content">
+                    <span class="start-practice-label">開始練習</span>
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
 
-          <div class="quick-section">
+          <section class="quick-section" aria-labelledby="quickStartTitle">
+            <div class="quick-section-heading">
+              <h3 id="quickStartTitle">準備吹吸吹吸吹吸吸吹了!</h3>
+              <p>今天想練什麼？</p>
+            </div>
             <div class="quick-grid">
               <button class="quick-card" data-jump="map" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/note_map_explorer.png" alt="" /></span><strong>音符地圖</strong></button>
               <button class="quick-card" data-jump="tuner" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/tuner_badge.png" alt="" /></span><strong>全音域調音器</strong></button>
@@ -234,7 +238,7 @@
               <button class="quick-card leaderboard-card" data-leaderboard-open type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/global_leaderboard_icon.png?v=transparent-1" alt="" /></span><strong>全球排行榜</strong><em>尚未公開</em></button>
               <button class="quick-card" data-jump="audio" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/mic_settings_icon.png" alt="" /></span><strong>設定</strong></button>
             </div>
-          </div>
+          </section>
 
         </section>
 
@@ -523,7 +527,7 @@
               <div class="player-top">
                 <div>
                   <p class="eyebrow" id="exerciseLevel">初階</p>
-                  <h3 id="exerciseTitle">平穩長音</h3>
+                  <h3 id="exerciseTitle">平穩長音（固定 60 BPM）</h3>
                 </div>
               </div>
 
@@ -531,7 +535,7 @@
                 <div class="practice-status-copy">
                   <span class="status-phase">狀態：<b id="phasePill">待開始</b></span>
                   <div id="statusMetrics" class="status-metrics steady-mode">
-                    <strong class="status-metric beat-metric"><span id="currentBeat">4</span> <small id="beatTotal">秒</small></strong>
+                    <strong class="status-metric beat-metric"><span id="currentBeat">4</span> <small id="beatTotal">/ 4 拍</small></strong>
                     <strong class="status-metric cycle-metric"><span id="currentCycle">1</span> <small id="cycleTotal">/ 4 次</small></strong>
                     <strong id="statusBpmMetric" class="status-metric bpm-metric hidden"><span id="statusBpm">60</span> <small>BPM</small></strong>
                   </div>
@@ -597,13 +601,13 @@
                       <input id="bpmInput" type="range" min="60" max="180" step="1" value="60" />
                     </label>
                     <label id="steadyDurationSetting" class="setting">
-                      <span>長音時間</span>
+                      <span>持續拍數</span>
                       <div class="stepper">
-                        <button id="steadyDurationMinus" type="button" aria-label="減少長音時間">−</button>
-                        <strong id="steadyDurationValue">4 秒</strong>
-                        <button id="steadyDurationPlus" type="button" aria-label="增加長音時間">＋</button>
+                        <button id="steadyDurationMinus" type="button" aria-label="減少持續拍數">−</button>
+                        <strong id="steadyDurationValue">4 拍</strong>
+                        <button id="steadyDurationPlus" type="button" aria-label="增加持續拍數">＋</button>
                       </div>
-                      <input id="steadyDurationInput" type="range" min="4" max="12" step="1" value="4" aria-label="長音時間" />
+                      <input id="steadyDurationInput" type="range" min="4" max="12" step="1" value="4" aria-label="持續拍數" />
                     </label>
                     <label id="targetVolumeSetting" class="stat">
                       <span>目標音量</span>
@@ -629,9 +633,9 @@
                     </div>
                   </div>
                   <div class="flow-grid compact-flow">
-                    <span>準備 <b id="prepareBeats">4 秒</b></span>
-                    <span><i id="playFlowLabel">長音</i> <b id="playBeats">4 秒</b></span>
-                    <span>休息 <b id="restBeats">4 秒</b></span>
+                    <span>準備 <b id="prepareBeats">4 拍</b></span>
+                    <span><i id="playFlowLabel">長音</i> <b id="playBeats">4 拍</b></span>
+                    <span>休息 <b id="restBeats">4 拍</b></span>
                   </div>
                 </div>
               </div>
@@ -764,6 +768,10 @@
                   <span>預設 BPM</span>
                   <input id="defaultBpmInput" type="number" min="60" max="180" step="1" value="60" />
                 </label>
+                <label class="setting-number-wrap">
+                  <span>預設長音拍數</span>
+                  <input id="defaultSteadyDurationInput" type="number" min="4" max="12" step="1" value="4" inputmode="numeric" aria-label="平穩長音預設拍數" />
+                </label>
                 <div class="setting-segment-wrap">
                   <span>預設循環次數</span>
                   <div class="segmented-control" role="radiogroup" aria-label="預設循環次數">
@@ -861,7 +869,7 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-131</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-150</span></strong>
                 </div>
                 <div class="setting-row">
                   <span>問題回報</span>
@@ -883,6 +891,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-131"></script>
+    <script src="./app.js?v=refresh-150"></script>
   </body>
 </html>
