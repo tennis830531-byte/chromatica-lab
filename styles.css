@@ -635,7 +635,7 @@ body.simple-motion .hero-plant-action {
 
 .hero-actions .primary-btn {
   position: relative;
-  width: min(94%, 360px);
+  width: min(100%, 390px);
   min-height: 0;
   padding: 0;
   overflow: visible;
@@ -668,6 +668,7 @@ body.simple-motion .hero-plant-action {
 
 .hero-actions .start-practice-button {
   cursor: pointer;
+  animation: startPracticeBreath 3.1s ease-in-out infinite;
 }
 
 .hero-start-wrap {
@@ -678,9 +679,9 @@ body.simple-motion .hero-plant-action {
 }
 
 .hero-start-wrap .start-practice-button {
-  width: min(94%, 360px);
+  width: min(100%, 390px);
   min-width: 0;
-  max-width: 360px;
+  max-width: 390px;
 }
 
 .start-practice-button-art {
@@ -713,7 +714,6 @@ body.simple-motion .hero-plant-action {
   z-index: 2;
   display: block;
   transform-origin: center;
-  animation: startPracticeBreath 3.1s ease-in-out infinite;
 }
 
 .start-practice-label {
@@ -760,11 +760,13 @@ body.simple-motion .hero-plant-action {
 @keyframes startPracticeBreath {
   0%,
   100% {
-    transform: translateY(0) scale(1);
+    translate: 0 0;
+    scale: 1;
   }
 
   50% {
-    transform: translateY(-2px) scale(1.018);
+    translate: 0 -2px;
+    scale: 1.018;
   }
 }
 
@@ -3850,6 +3852,14 @@ body.simple-motion .plant-action-layer.is-stage-up {
   position: relative;
   overflow: hidden;
   border-color: rgba(218, 178, 116, 0.58);
+  background: #fff8eb;
+}
+
+.garden-collection-card::before {
+  position: absolute;
+  inset: -18px;
+  content: "";
+  pointer-events: none;
   background:
     linear-gradient(rgba(255, 248, 235, 0.2), rgba(255, 248, 235, 0.2)),
     url("./public/assets/garden/collection/garden-collection-board.png") center / cover no-repeat;
