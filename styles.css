@@ -611,6 +611,10 @@ body.simple-motion .hero-plant-action {
   max-height: 146px;
 }
 
+.hero-garden-plant-image.species-lucky-leaf-spirit.hero-stage-1 {
+  transform: translateY(calc(clamp(36px, 10vw, 42px) + 8px));
+}
+
 .hero-garden-plant-image.hero-stage-2 {
   max-width: 84%;
   max-height: 162px;
@@ -632,7 +636,7 @@ body.simple-motion .hero-plant-action {
   position: relative;
   z-index: 2;
   display: block;
-  transform: translateY(12px);
+  transform: translateY(20px);
   max-width: min(94%, 158px);
   min-width: 86px;
   padding: 4px 13px 5px;
@@ -702,8 +706,8 @@ body.simple-motion .hero-plant-action {
   display: grid;
   place-items: center;
   position: relative;
-  left: clamp(-10px, -2vw, -6px);
-  top: clamp(8px, 2vw, 10px);
+  left: clamp(-16px, -3.2vw, -12px);
+  top: clamp(14px, 3vw, 16px);
   width: 100%;
   min-width: 0;
   margin-top: clamp(14px, 3.4vw, 18px);

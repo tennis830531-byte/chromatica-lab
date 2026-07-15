@@ -1666,6 +1666,7 @@ function renderHeroGarden() {
     : "./public/assets/garden/collection/starter-pot.png";
   heroImage.classList.remove("hero-stage-1", "hero-stage-2", "hero-stage-3");
   heroImage.classList.add(`hero-stage-${heroStage}`);
+  setGardenSpeciesClass(heroImage, plant?.species || "");
   $("#heroGardenName").textContent = plant ? getPlantDisplayName(plant, heroStage) : "等待新植物";
   const heroGardenHint = $("#heroGardenHint");
   if (heroGardenHint) {
