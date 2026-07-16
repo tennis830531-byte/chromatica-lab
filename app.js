@@ -6021,10 +6021,6 @@ function bindEvents() {
       setPracticeSettings({ defaultCycles: Number(button.dataset.defaultCycles) });
     });
   });
-  $("#googleLoginBtn")?.addEventListener("click", () => {
-    const status = $("#googleLoginStatus");
-    if (status) status.textContent = "Google 登入準備中";
-  });
   $("#goalToastClose").addEventListener("click", () => {
     $("#goalToast").classList.add("hidden");
   });

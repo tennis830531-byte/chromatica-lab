@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
     <link rel="stylesheet" href="./public/assets/fonts/noto-sans-tc/noto-sans-tc-variable.css" />
     <link rel="stylesheet" href="./public/assets/fonts/lxgw-wenkai-tc/lxgw-wenkai-tc-bold.css" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-153" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-154" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -49,6 +49,8 @@
     <div id="homeSpiritRewardToast" class="home-spirit-reward-toast hidden" role="status" aria-live="polite" aria-atomic="true">
       <strong id="homeSpiritRewardToastTitle">精靈送你 1 滴水滴！💧</strong>
     </div>
+
+    <div id="authToast" class="auth-toast hidden" role="status" aria-live="polite" aria-atomic="true"></div>
 
     <div id="calendarModal" class="calendar-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="calendarModalTitle">
       <div class="calendar-modal">
@@ -863,8 +865,21 @@
             <details class="audio-setting-card paper-card">
               <summary class="settings-accordion-head"><span><strong>會員帳號</strong></span><i aria-hidden="true"></i></summary>
               <div class="settings-accordion-body">
-                <p class="settings-card-copy">登入後可同步練習資料與精靈花園進度。</p>
-                <button id="googleLoginBtn" class="google-login-btn" type="button"><span>G</span>使用 Google 登入</button>
+                <div id="googleAuthSignedOut" class="google-auth-state">
+                  <p class="settings-card-copy">登入後可使用雲端功能與排行榜。</p>
+                  <button id="googleLoginBtn" class="google-login-btn" type="button"><span aria-hidden="true">G</span>使用 Google 登入</button>
+                </div>
+                <div id="googleAuthSignedIn" class="google-auth-state google-account-card hidden">
+                  <div class="google-account-avatar-wrap" aria-hidden="true">
+                    <img id="googleAccountAvatar" class="google-account-avatar hidden" alt="" referrerpolicy="no-referrer" />
+                    <span id="googleAccountAvatarFallback" class="google-account-avatar-fallback">G</span>
+                  </div>
+                  <div class="google-account-copy">
+                    <strong id="googleAccountName">Google 使用者</strong>
+                    <span id="googleAccountEmail"></span>
+                  </div>
+                  <button id="googleLogoutBtn" class="google-logout-btn" type="button">登出</button>
+                </div>
                 <p id="googleLoginStatus" class="settings-status-text" aria-live="polite"></p>
               </div>
             </details>
@@ -873,7 +888,7 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-153</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-154</span></strong>
                 </div>
                 <div class="setting-row">
                   <span>問題回報</span>
@@ -895,6 +910,8 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-153"></script>
+    <script src="./supabase-config.js?v=refresh-154"></script>
+    <script src="./app.js?v=refresh-154"></script>
+    <script src="./auth-runtime.js?v=refresh-154"></script>
   </body>
 </html>
