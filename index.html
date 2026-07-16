@@ -13,9 +13,38 @@
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
     <link rel="stylesheet" href="./public/assets/fonts/noto-sans-tc/noto-sans-tc-variable.css" />
     <link rel="stylesheet" href="./public/assets/fonts/lxgw-wenkai-tc/lxgw-wenkai-tc-bold.css" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-154" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-155" />
   </head>
-  <body>
+  <body class="auth-checking">
+    <div id="authGate" class="auth-gate" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
+      <div class="auth-gate-card paper-card">
+        <img class="auth-gate-logo" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="" aria-hidden="true" />
+        <div id="authGateChecking" class="auth-gate-state">
+          <h1 id="authGateTitle">Chromatic Harmonica Lab</h1>
+          <p>正在確認登入狀態…</p>
+        </div>
+        <div id="authGateSignedOut" class="auth-gate-state hidden">
+          <h1>歡迎來到半音階口琴練習室</h1>
+          <p>請先使用 Google 帳號登入，開始你的練習旅程。</p>
+          <button id="authGateGoogleLoginBtn" class="google-login-btn" type="button"><span aria-hidden="true">G</span>使用 Google 登入</button>
+          <button id="authGateRetryBtn" class="ghost-btn hidden" type="button">重新檢查登入</button>
+          <p id="authGateStatus" class="settings-status-text" aria-live="polite"></p>
+          <small>目前帳號資料僅在此裝置分開保存，跨裝置同步將於後續版本提供。</small>
+        </div>
+      </div>
+    </div>
+
+    <div id="logoutConfirmModal" class="logout-confirm-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="logoutConfirmTitle">
+      <div class="logout-confirm-card paper-card">
+        <h2 id="logoutConfirmTitle">確定要登出嗎？</h2>
+        <p>登出後需要重新使用 Google 帳號登入，才能繼續使用 App。此帳號的本機進度會保留在這台裝置。</p>
+        <div class="logout-confirm-actions">
+          <button id="logoutCancelBtn" class="ghost-btn" type="button">取消</button>
+          <button id="logoutConfirmBtn" class="primary-btn" type="button">確定登出</button>
+        </div>
+      </div>
+    </div>
+
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
       <div class="mic-gate-card">
         <div class="mic-gate-illustration media-box" aria-hidden="true">
@@ -866,7 +895,7 @@
               <summary class="settings-accordion-head"><span><strong>會員帳號</strong></span><i aria-hidden="true"></i></summary>
               <div class="settings-accordion-body">
                 <div id="googleAuthSignedOut" class="google-auth-state">
-                  <p class="settings-card-copy">登入後可使用雲端功能與排行榜。</p>
+                  <p class="settings-card-copy">登入後即可使用 App；同一台裝置上的不同帳號會保留各自的本機遊戲資料。</p>
                   <button id="googleLoginBtn" class="google-login-btn" type="button"><span aria-hidden="true">G</span>使用 Google 登入</button>
                 </div>
                 <div id="googleAuthSignedIn" class="google-auth-state google-account-card hidden">
@@ -880,6 +909,7 @@
                   </div>
                   <button id="googleLogoutBtn" class="google-logout-btn" type="button">登出</button>
                 </div>
+                <p class="settings-card-copy">目前帳號資料僅在此裝置分開保存，跨裝置同步將於後續版本提供。</p>
                 <p id="googleLoginStatus" class="settings-status-text" aria-live="polite"></p>
               </div>
             </details>
@@ -888,7 +918,7 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-154</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-155</span></strong>
                 </div>
                 <div class="setting-row">
                   <span>問題回報</span>
@@ -910,8 +940,8 @@
       </nav>
     </div>
 
-    <script src="./supabase-config.js?v=refresh-154"></script>
-    <script src="./app.js?v=refresh-154"></script>
-    <script src="./auth-runtime.js?v=refresh-154"></script>
+    <script src="./supabase-config.js?v=refresh-155"></script>
+    <script src="./app.js?v=refresh-155"></script>
+    <script src="./auth-runtime.js?v=refresh-155"></script>
   </body>
 </html>

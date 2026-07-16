@@ -138,6 +138,10 @@ const starterPlantDescriptions = {
 const PRACTICE_SETTINGS_KEY = "chromatica.settings.practice";
 const SOUND_SETTINGS_KEY = "chromatica.settings.sound";
 const DISPLAY_SETTINGS_KEY = "chromatica.settings.display";
+
+function scheduleAccountSnapshotSave() {
+  window.chromaticaAccountWorkspace?.scheduleSave?.();
+}
 const INTERVAL_PRACTICE_HISTORY_KEY = "chromatica.intervalPracticeHistory";
 const INTERVAL_GROUPS_PER_PAGE = 4;
 const INTERVAL_KEYS = {
@@ -695,6 +699,7 @@ function getPracticeSettings() {
 function savePracticeSettings(nextSettings) {
   try {
     localStorage.setItem(PRACTICE_SETTINGS_KEY, JSON.stringify(nextSettings));
+    scheduleAccountSnapshotSave();
   } catch (error) {
     console.warn("Unable to save practice settings.", error);
   }
@@ -1238,6 +1243,7 @@ function setDailyWaterRewardState(state) {
     ),
   };
   localStorage.setItem(gardenStorageKeys.dailyWaterState, JSON.stringify(nextState));
+  scheduleAccountSnapshotSave();
 }
 
 function getRemainingDailyWaterReward() {
@@ -1252,6 +1258,7 @@ function getWaterDrops() {
 
 function setWaterDrops(value) {
   localStorage.setItem(gardenStorageKeys.waterDrops, String(Math.max(0, Math.floor(Number(value) || 0))));
+  scheduleAccountSnapshotSave();
 }
 
 function renderDailyPracticeWater() {
@@ -1271,6 +1278,7 @@ function getGardenCollection() {
 
 function setGardenCollection(collection) {
   localStorage.setItem(gardenStorageKeys.collection, JSON.stringify(collection));
+  scheduleAccountSnapshotSave();
 }
 
 function getCollectedSpeciesSet(collection = getGardenCollection()) {
@@ -1373,6 +1381,7 @@ function setStarterPlantState(speciesId) {
     speciesId,
     selectedAt: getDateKey(),
   }));
+  scheduleAccountSnapshotSave();
 }
 
 function hasStoredCurrentPlant() {
@@ -1436,9 +1445,11 @@ function getCurrentPlant(autoCreate = true) {
 function setCurrentPlant(plant) {
   if (!plant) {
     localStorage.removeItem(gardenStorageKeys.currentPlant);
+    scheduleAccountSnapshotSave();
     return;
   }
   localStorage.setItem(gardenStorageKeys.currentPlant, JSON.stringify(plant));
+  scheduleAccountSnapshotSave();
 }
 
 function getPlantImage(plant) {
@@ -1452,7 +1463,10 @@ function getFeaturedSpiritId() {
 }
 
 function setFeaturedSpiritId(id) {
-  if (id) localStorage.setItem(gardenStorageKeys.featured, id);
+  if (id) {
+    localStorage.setItem(gardenStorageKeys.featured, id);
+    scheduleAccountSnapshotSave();
+  }
 }
 
 function getFeaturedSpiritStage() {
@@ -1463,6 +1477,7 @@ function getFeaturedSpiritStage() {
 function setFeaturedSpiritStage(stage) {
   const nextStage = Math.max(1, Math.min(3, Number(stage) || 3));
   localStorage.setItem(gardenStorageKeys.featuredStage, String(nextStage));
+  scheduleAccountSnapshotSave();
 }
 
 function getCollectedSpiritById(id) {
@@ -1510,6 +1525,7 @@ function isValidHomeSpiritTapRewardState(state) {
 
 function setHomeSpiritTapRewardState(state) {
   localStorage.setItem(HOME_SPIRIT_TAP_REWARD_KEY, JSON.stringify(state));
+  scheduleAccountSnapshotSave();
 }
 
 function getHomeSpiritTapRewardState() {
@@ -1579,6 +1595,7 @@ function getDailyBonusState(key) {
 
 function setDailyBonusState(key, date = getTodayKey()) {
   localStorage.setItem(key, JSON.stringify({ lastClaimedDate: date }));
+  scheduleAccountSnapshotSave();
 }
 
 function claimDailyBonus(key, amount) {
@@ -1621,6 +1638,7 @@ function setStreakMilestoneRewardState(state) {
     claimed: [...new Set(state.claimed || [])].sort((a, b) => a - b),
     lastClaimedAt: state.lastClaimedAt || null,
   }));
+  scheduleAccountSnapshotSave();
 }
 
 function getAvailableStreakWaterMilestones(currentStreak) {
@@ -1681,6 +1699,7 @@ function setRainEventState(state) {
     checked: state.checked === true,
     triggered: state.triggered === true,
   }));
+  scheduleAccountSnapshotSave();
 }
 
 function maybeTriggerRainEventOnGardenEntry() {
@@ -2315,6 +2334,7 @@ function getPracticeHistory() {
 
 function setPracticeHistory(history) {
   localStorage.setItem("practiceHistory", JSON.stringify(history));
+  scheduleAccountSnapshotSave();
 }
 
 function getFreezeCount() {
@@ -2331,6 +2351,7 @@ function setFreezeCount(value) {
   const nextValue = Math.max(0, Math.min(FREEZE_MAX, value));
   localStorage.setItem("chromatica.freezeCount", String(nextValue));
   localStorage.setItem("freezeCount", String(nextValue));
+  scheduleAccountSnapshotSave();
 }
 
 function getLongestStreak() {
@@ -2340,6 +2361,7 @@ function getLongestStreak() {
 
 function setLongestStreak(value) {
   localStorage.setItem("longestStreak", String(Math.max(0, value)));
+  scheduleAccountSnapshotSave();
 }
 
 function getLastRewardedStreak() {
@@ -2349,6 +2371,7 @@ function getLastRewardedStreak() {
 
 function setLastRewardedStreak(value) {
   localStorage.setItem("chromatica.lastRewardedStreak", String(Math.max(0, value)));
+  scheduleAccountSnapshotSave();
 }
 
 function getHistoryStatus(entry) {
@@ -2602,6 +2625,7 @@ function getDailyGoalState() {
 
 function setDailyGoalState(state) {
   localStorage.setItem(getDailyGoalKey(), JSON.stringify(state));
+  scheduleAccountSnapshotSave();
 }
 
 function getExerciseDailyGoalCombos(exercise) {
@@ -5315,6 +5339,7 @@ function saveIntervalPracticeRecord(record) {
   const nextHistory = Array.isArray(history) ? history : [];
   nextHistory.push(record);
   localStorage.setItem(INTERVAL_PRACTICE_HISTORY_KEY, JSON.stringify(nextHistory.slice(-100)));
+  scheduleAccountSnapshotSave();
 }
 
 function finishIntervalPractice() {
@@ -6173,23 +6198,63 @@ window.chromaticDebug = {
   },
 };
 
-bindEvents();
-bindSoundSettings();
-bindSoundFeedback();
-bindDisplaySettings();
-registerAndroidAppLifecycle();
-renderSoundSettings();
-renderPracticeSettings();
-renderDisplaySettings();
-applyDisplaySettings();
-applyPracticeSettings();
-registerServiceWorker();
-refreshAllowedNotes();
-resetPitchTracker();
-renderNoteMap();
-updateBeatDisplay();
-renderMicCurve();
-renderGarden();
-const dailyLoginBonusMessage = awardDailyLoginBonusIfNeeded();
-if (dailyLoginBonusMessage) showGardenToast("每日水滴", dailyLoginBonusMessage);
-scheduleGardenPlantHop();
+let chromaticaAppInitialized = false;
+
+function renderAuthenticatedAccountWorkspace() {
+  renderPracticeSettings();
+  applyPracticeSettings();
+  renderDailyGoals();
+  renderStreakSummary();
+  renderGarden();
+  renderHeroGarden();
+  setView("intro");
+  const dailyLoginBonusMessage = awardDailyLoginBonusIfNeeded();
+  if (dailyLoginBonusMessage) showGardenToast("每日水滴", dailyLoginBonusMessage);
+  scheduleGardenPlantHop();
+  scheduleAccountSnapshotSave();
+}
+
+function initializeAuthenticatedApp() {
+  if (!chromaticaAppInitialized) {
+    chromaticaAppInitialized = true;
+    bindEvents();
+    bindSoundSettings();
+    bindSoundFeedback();
+    bindDisplaySettings();
+    registerAndroidAppLifecycle();
+    renderSoundSettings();
+    renderDisplaySettings();
+    applyDisplaySettings();
+    registerServiceWorker();
+    refreshAllowedNotes();
+    resetPitchTracker();
+    renderNoteMap();
+    updateBeatDisplay();
+    renderMicCurve();
+  } else {
+    stopGardenBgm();
+    stopIntervalMetronome();
+    stopPractice(false);
+  }
+  renderAuthenticatedAccountWorkspace();
+}
+
+window.chromaticaApp = {
+  initializeForAuthenticatedAccount: initializeAuthenticatedApp,
+  prepareForSignedOutAccount() {
+    if (!chromaticaAppInitialized) return;
+    stopGardenBgm();
+    stopIntervalMetronome();
+    stopPractice(false);
+    document.body.classList.remove("modal-open");
+    [
+      "goalToast",
+      "calendarModal",
+      "longToneIntroModal",
+      "gardenSpiritModal",
+      "gardenRenameModal",
+      "starterPlantModal",
+      "leaderboardModal",
+    ].forEach((id) => document.getElementById(id)?.classList.add("hidden"));
+  },
+};

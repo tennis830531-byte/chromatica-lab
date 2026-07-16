@@ -60,6 +60,98 @@ body.modal-open {
   overflow: hidden;
 }
 
+body.auth-checking,
+body.auth-unauthenticated {
+  overflow: hidden;
+}
+
+body.auth-checking > :not(#authGate):not(script),
+body.auth-unauthenticated > :not(#authGate):not(script) {
+  display: none !important;
+}
+
+body.auth-authenticated #authGate {
+  display: none;
+}
+
+.auth-gate,
+.logout-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: grid;
+  place-items: center;
+  padding: max(22px, env(safe-area-inset-top, 0px)) 20px max(22px, env(safe-area-inset-bottom, 0px));
+  background: var(--bg);
+}
+
+.auth-gate-card,
+.logout-confirm-card {
+  width: min(100%, 430px);
+  padding: clamp(24px, 7vw, 36px);
+  text-align: center;
+}
+
+.auth-gate-logo {
+  display: block;
+  width: clamp(92px, 28vw, 132px);
+  height: auto;
+  margin: 0 auto 18px;
+}
+
+.auth-gate-state {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-gate-state.hidden,
+.logout-confirm-backdrop.hidden {
+  display: none;
+}
+
+.auth-gate-state h1,
+.logout-confirm-card h2 {
+  margin: 0;
+  font-family: var(--font-hand);
+  font-size: clamp(26px, 8vw, 36px);
+}
+
+.auth-gate-state p,
+.logout-confirm-card p,
+.auth-gate-state small {
+  margin: 0;
+  color: var(--text-body);
+  line-height: 1.75;
+}
+
+.auth-gate-state small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.auth-gate .google-login-btn {
+  width: 100%;
+  min-height: 54px;
+  justify-content: center;
+}
+
+.auth-gate .ghost-btn.hidden {
+  display: none;
+}
+
+.logout-confirm-backdrop {
+  z-index: 230;
+  background: rgba(58, 44, 35, 0.42);
+  backdrop-filter: blur(8px);
+}
+
+.logout-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 22px;
+}
+
 .app-shell,
 [role="dialog"] {
   -webkit-user-select: none;

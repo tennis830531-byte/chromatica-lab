@@ -2,6 +2,12 @@ import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { createClient } from "@supabase/supabase-js";
+import {
+  ACTIVE_ACCOUNT_KEY,
+  clearSignedOutWorkspace,
+  saveActiveAccountSnapshot,
+  switchAccountWorkspace,
+} from "./account-workspace.js";
 
 const WEB_REDIRECT_URL = "https://tennis830531-byte.github.io/chromatica-lab/";
 const ANDROID_REDIRECT_URL = "chromaticalab://login-callback";
@@ -11,16 +17,24 @@ const GOOGLE_BASIC_SCOPES = [
   "https://www.googleapis.com/auth/userinfo.profile",
 ].join(" ");
 const CALLBACK_PARAM_NAMES = ["code", "error", "error_code", "error_description"];
+const SNAPSHOT_DEBOUNCE_MS = 700;
 
 let supabaseClient = null;
 let authListenerRegistered = false;
-let nativeLinkListenerRegistered = false;
-let browserListenerRegistered = false;
+let nativeListenersRegistered = false;
+let authUiBound = false;
 let authBusy = false;
 let authToastTimer = null;
+let snapshotTimer = null;
+let workspaceTransition = Promise.resolve();
+let signOutSnapshotFlushed = false;
 const exchangedAuthCodes = new Set();
 
 const byId = (id) => document.getElementById(id);
+
+function isOffline() {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
 
 function isNativeAndroid() {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
@@ -38,7 +52,28 @@ function getAuthElements() {
     name: byId("googleAccountName"),
     email: byId("googleAccountEmail"),
     toast: byId("authToast"),
+    gateChecking: byId("authGateChecking"),
+    gateSignedOut: byId("authGateSignedOut"),
+    gateSignInButton: byId("authGateGoogleLoginBtn"),
+    gateRetryButton: byId("authGateRetryBtn"),
+    gateStatus: byId("authGateStatus"),
+    logoutModal: byId("logoutConfirmModal"),
+    logoutCancel: byId("logoutCancelBtn"),
+    logoutConfirm: byId("logoutConfirmBtn"),
   };
+}
+
+function setGateState(state, message = "", showRetry = false) {
+  document.body.classList.remove("auth-checking", "auth-unauthenticated", "auth-authenticated");
+  document.body.classList.add(`auth-${state}`);
+  const elements = getAuthElements();
+  elements.gateChecking?.classList.toggle("hidden", state !== "checking");
+  elements.gateSignedOut?.classList.toggle("hidden", state !== "unauthenticated");
+  if (elements.gateStatus) {
+    elements.gateStatus.textContent = message;
+    elements.gateStatus.dataset.kind = message && showRetry ? "error" : "";
+  }
+  elements.gateRetryButton?.classList.toggle("hidden", !showRetry);
 }
 
 function setAuthStatus(message = "", kind = "") {
@@ -64,26 +99,25 @@ function showAuthToast(message) {
 
 function setAuthBusy(isBusy, message = "") {
   authBusy = isBusy;
-  const { signInButton, signOutButton } = getAuthElements();
-  if (signInButton) {
-    signInButton.disabled = isBusy;
-    signInButton.setAttribute("aria-busy", String(isBusy));
+  const elements = getAuthElements();
+  [elements.signInButton, elements.signOutButton, elements.gateSignInButton, elements.logoutConfirm]
+    .filter(Boolean)
+    .forEach((button) => {
+      button.disabled = isBusy;
+      button.setAttribute("aria-busy", String(isBusy));
+    });
+  if (message) {
+    setAuthStatus(message);
+    if (document.body.classList.contains("auth-unauthenticated")) {
+      elements.gateStatus.textContent = message;
+      elements.gateStatus.dataset.kind = "";
+    }
   }
-  if (signOutButton) {
-    signOutButton.disabled = isBusy;
-    signOutButton.setAttribute("aria-busy", String(isBusy));
-  }
-  if (message) setAuthStatus(message);
 }
 
 function getDisplayName(user) {
   const metadata = user?.user_metadata || {};
-  return (
-    metadata.full_name ||
-    metadata.name ||
-    user?.email?.split("@")[0] ||
-    "Google 使用者"
-  );
+  return metadata.full_name || metadata.name || user?.email?.split("@")[0] || "Google 使用者";
 }
 
 function getAvatarUrl(user) {
@@ -106,7 +140,6 @@ function renderAuthSession(session) {
     if (elements.email) elements.email.textContent = "";
     return;
   }
-
   if (elements.name) elements.name.textContent = getDisplayName(user);
   if (elements.email) elements.email.textContent = user.email || "未提供 Email";
   const avatarUrl = getAvatarUrl(user);
@@ -123,9 +156,37 @@ function renderAuthSession(session) {
   }
 }
 
+function flushAccountSnapshot() {
+  if (snapshotTimer) {
+    window.clearTimeout(snapshotTimer);
+    snapshotTimer = null;
+  }
+  if (!localStorage.getItem(ACTIVE_ACCOUNT_KEY)) return true;
+  saveActiveAccountSnapshot(localStorage);
+  return true;
+}
+
+function scheduleAccountSnapshot() {
+  if (!localStorage.getItem(ACTIVE_ACCOUNT_KEY)) return;
+  if (snapshotTimer) window.clearTimeout(snapshotTimer);
+  snapshotTimer = window.setTimeout(() => {
+    snapshotTimer = null;
+    try {
+      saveActiveAccountSnapshot(localStorage);
+    } catch {
+      setAuthStatus("無法保存此帳號的本機資料，請確認裝置儲存空間。", "error");
+    }
+  }, SNAPSHOT_DEBOUNCE_MS);
+}
+
+window.chromaticaAccountWorkspace = {
+  scheduleSave: scheduleAccountSnapshot,
+  flushSave: flushAccountSnapshot,
+};
+
 function cleanWebCallbackUrl(url) {
   if (!window.history?.replaceState) return;
-  for (const param of CALLBACK_PARAM_NAMES) url.searchParams.delete(param);
+  CALLBACK_PARAM_NAMES.forEach((param) => url.searchParams.delete(param));
   const cleanUrl = `${url.pathname}${url.search}${url.hash}`;
   window.history.replaceState({}, document.title, cleanUrl || "/chromatica-lab/");
 }
@@ -133,48 +194,96 @@ function cleanWebCallbackUrl(url) {
 function getCallbackErrorMessage(url) {
   const errorCode = url.searchParams.get("error") || url.searchParams.get("error_code") || "";
   if (!errorCode) return "";
-  return errorCode === "access_denied"
-    ? "登入已取消。"
-    : "Google 登入失敗，請確認網路後重試。";
+  return errorCode === "access_denied" ? "登入已取消。" : "Google 登入失敗，請確認網路後重試。";
 }
 
 async function closeNativeBrowser() {
   if (!isNativeAndroid()) return;
-  try {
-    await Browser.close();
-  } catch {
-    // The Custom Tab may already be closed after the deep link returns to the app.
+  try { await Browser.close(); } catch { /* Custom Tab may already be closed. */ }
+}
+
+function queueWorkspaceTransition(callback) {
+  const nextTransition = workspaceTransition.catch(() => {}).then(callback);
+  workspaceTransition = nextTransition.catch(() => {});
+  return nextTransition;
+}
+
+function getWorkspaceErrorMessage(error) {
+  const message = String(error?.message || "");
+  if (/snapshot|migration/i.test(message)) {
+    return "無法載入此帳號的本機資料，請稍後再試。";
   }
+  return "無法保存目前帳號資料，請稍後再試。";
+}
+
+function activateSession(session) {
+  return queueWorkspaceTransition(async () => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    const alreadyActive = localStorage.getItem(ACTIVE_ACCOUNT_KEY) === userId
+      && document.body.classList.contains("auth-authenticated");
+    if (!alreadyActive) {
+      switchAccountWorkspace(userId, localStorage);
+      window.chromaticaApp?.initializeForAuthenticatedAccount?.();
+    }
+    renderAuthSession(session);
+    setAuthStatus("");
+    setGateState("authenticated");
+    scheduleAccountSnapshot();
+  });
+}
+
+function deactivateSession({ preserveLegacy = true, snapshotAlreadySaved = false } = {}) {
+  return queueWorkspaceTransition(async () => {
+    const activeUserId = localStorage.getItem(ACTIVE_ACCOUNT_KEY);
+    if (activeUserId) {
+      if (!snapshotAlreadySaved && !signOutSnapshotFlushed) flushAccountSnapshot();
+      window.chromaticaApp?.prepareForSignedOutAccount?.();
+      clearSignedOutWorkspace(localStorage);
+    } else if (!preserveLegacy) {
+      clearSignedOutWorkspace(localStorage);
+    }
+    renderAuthSession(null);
+    setGateState("unauthenticated");
+  });
 }
 
 async function exchangeCallbackCode(code) {
   if (!code || exchangedAuthCodes.has(code)) return false;
   exchangedAuthCodes.add(code);
+  setGateState("checking");
   setAuthBusy(true, "正在完成 Google 登入…");
   const { data, error } = await supabaseClient.auth.exchangeCodeForSession(code);
   if (error) throw error;
-  renderAuthSession(data.session);
-  setAuthStatus("");
+  await activateSession(data.session);
   showAuthToast("Google 登入成功");
   return true;
 }
 
 async function handleWebOAuthCallback() {
-  if (isNativeAndroid()) return;
+  if (isNativeAndroid()) return false;
   const url = new URL(window.location.href);
   const callbackError = getCallbackErrorMessage(url);
   const code = url.searchParams.get("code");
-  if (!callbackError && !code) return;
-
+  if (!callbackError && !code) return false;
   try {
     if (callbackError) {
-      setAuthStatus(callbackError, "error");
-      showAuthToast(callbackError);
-      return;
+      await deactivateSession();
+      setGateState("unauthenticated", callbackError);
+      return true;
     }
     await exchangeCallbackCode(code);
-  } catch {
-    setAuthStatus("Google 登入失敗，請確認網路後重試。", "error");
+    return true;
+  } catch (error) {
+    await deactivateSession();
+    setGateState(
+      "unauthenticated",
+      /snapshot|migration/i.test(String(error?.message || ""))
+        ? getWorkspaceErrorMessage(error)
+        : "Google 登入失敗，請確認網路後重試。",
+      true,
+    );
+    return true;
   } finally {
     setAuthBusy(false);
     cleanWebCallbackUrl(url);
@@ -185,29 +294,31 @@ function isAndroidLoginCallback(url) {
   try {
     const parsed = new URL(url);
     return parsed.protocol === "chromaticalab:" && parsed.hostname === "login-callback";
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
 
 async function handleAndroidOAuthCallback(callbackUrl) {
-  if (!isAndroidLoginCallback(callbackUrl)) return;
+  if (!isAndroidLoginCallback(callbackUrl)) return false;
   const url = new URL(callbackUrl);
   const callbackError = getCallbackErrorMessage(url);
   try {
     if (callbackError) {
-      setAuthStatus(callbackError, "error");
-      showAuthToast(callbackError);
-      return;
+      setGateState("unauthenticated", callbackError);
+      return true;
     }
     const code = url.searchParams.get("code");
-    if (!code) {
-      setAuthStatus("Google 登入失敗，請確認網路後重試。", "error");
-      return;
-    }
+    if (!code) throw new Error("Missing callback code");
     await exchangeCallbackCode(code);
-  } catch {
-    setAuthStatus("Google 登入失敗，請確認網路後重試。", "error");
+    return true;
+  } catch (error) {
+    setGateState(
+      "unauthenticated",
+      /snapshot|migration/i.test(String(error?.message || ""))
+        ? getWorkspaceErrorMessage(error)
+        : "Google 登入失敗，請確認網路後重試。",
+      true,
+    );
+    return true;
   } finally {
     setAuthBusy(false);
     await closeNativeBrowser();
@@ -215,27 +326,29 @@ async function handleAndroidOAuthCallback(callbackUrl) {
 }
 
 async function registerNativeAuthListeners() {
-  if (!isNativeAndroid()) return;
-  if (!nativeLinkListenerRegistered) {
-    nativeLinkListenerRegistered = true;
-    await App.addListener("appUrlOpen", ({ url }) => {
-      void handleAndroidOAuthCallback(url);
-    });
-  }
-  if (!browserListenerRegistered) {
-    browserListenerRegistered = true;
-    await Browser.addListener("browserFinished", () => {
-      if (!authBusy) return;
-      setAuthBusy(false);
-      setAuthStatus("登入已取消。", "error");
-    });
-  }
+  if (!isNativeAndroid() || nativeListenersRegistered) return;
+  nativeListenersRegistered = true;
+  await App.addListener("appUrlOpen", ({ url }) => { void handleAndroidOAuthCallback(url); });
+  await App.addListener("appStateChange", ({ isActive }) => {
+    if (!isActive) {
+      try { flushAccountSnapshot(); } catch { /* Keep the active UI; retry on the next write. */ }
+    }
+  });
+  await Browser.addListener("browserFinished", () => {
+    if (!authBusy) return;
+    setAuthBusy(false);
+    setGateState("unauthenticated", "登入已取消。");
+  });
   const launch = await App.getLaunchUrl();
   if (launch?.url) await handleAndroidOAuthCallback(launch.url);
 }
 
 async function startGoogleSignIn() {
   if (!supabaseClient || authBusy) return;
+  if (isOffline()) {
+    setGateState("unauthenticated", "目前無法連線至 Google 登入，請確認網路後再試。", true);
+    return;
+  }
   setAuthBusy(true, "正在開啟 Google 登入…");
   try {
     const nativeAndroid = isNativeAndroid();
@@ -251,45 +364,119 @@ async function startGoogleSignIn() {
     if (nativeAndroid) {
       if (!data?.url) throw new Error("Missing OAuth URL");
       await Browser.open({ url: data.url });
-      return;
     }
   } catch {
     setAuthBusy(false);
-    setAuthStatus("無法開啟 Google 登入，請稍後再試。", "error");
+    setGateState("unauthenticated", "無法開啟 Google 登入，請稍後再試。", true);
   }
 }
 
-async function signOut() {
+function openLogoutConfirmation() {
+  if (authBusy) return;
+  getAuthElements().logoutModal?.classList.remove("hidden");
+}
+
+function closeLogoutConfirmation() {
+  getAuthElements().logoutModal?.classList.add("hidden");
+}
+
+async function confirmSignOut() {
   if (!supabaseClient || authBusy) return;
-  setAuthBusy(true, "正在登出…");
+  setAuthBusy(true, "正在保存並登出…");
+  try {
+    flushAccountSnapshot();
+    signOutSnapshotFlushed = true;
+  } catch {
+    setAuthBusy(false);
+    closeLogoutConfirmation();
+    setAuthStatus("本機資料保存失敗，已取消登出。", "error");
+    return;
+  }
   const { error } = await supabaseClient.auth.signOut();
-  setAuthBusy(false);
   if (error) {
+    signOutSnapshotFlushed = false;
+    setAuthBusy(false);
+    closeLogoutConfirmation();
     setAuthStatus("登出失敗，請稍後再試。", "error");
     return;
   }
-  renderAuthSession(null);
-  setAuthStatus("");
-  showAuthToast("已登出");
+  await deactivateSession({ preserveLegacy: false, snapshotAlreadySaved: true });
+  signOutSnapshotFlushed = false;
+  setAuthBusy(false);
+  closeLogoutConfirmation();
+  setGateState("unauthenticated", "已登出");
+}
+
+async function retryAuthCheck() {
+  if (!supabaseClient || authBusy) return;
+  setGateState("checking");
+  try {
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (error) throw error;
+    if (data.session) await activateSession(data.session);
+    else {
+      await deactivateSession();
+      if (isOffline()) {
+        setGateState("unauthenticated", "目前無法連線至 Google 登入，請確認網路後再試。", true);
+      }
+    }
+  } catch (error) {
+    setGateState(
+      "unauthenticated",
+      /snapshot|migration/i.test(String(error?.message || ""))
+        ? getWorkspaceErrorMessage(error)
+        : "目前無法連線至 Google 登入，請確認網路後再試。",
+      true,
+    );
+  }
 }
 
 function bindAuthUi() {
+  if (authUiBound) return;
+  authUiBound = true;
   const elements = getAuthElements();
   elements.signInButton?.addEventListener("click", startGoogleSignIn);
-  elements.signOutButton?.addEventListener("click", signOut);
+  elements.gateSignInButton?.addEventListener("click", startGoogleSignIn);
+  elements.signOutButton?.addEventListener("click", openLogoutConfirmation);
+  elements.logoutCancel?.addEventListener("click", closeLogoutConfirmation);
+  elements.logoutConfirm?.addEventListener("click", confirmSignOut);
+  elements.gateRetryButton?.addEventListener("click", retryAuthCheck);
   elements.avatar?.addEventListener("error", () => {
     elements.avatar.classList.add("hidden");
     elements.avatarFallback?.classList.remove("hidden");
   });
+  window.addEventListener("beforeunload", () => {
+    try { flushAccountSnapshot(); } catch { /* Browser is closing; preserve existing snapshot. */ }
+  });
+}
+
+function registerAuthStateListener() {
+  if (authListenerRegistered) return;
+  authListenerRegistered = true;
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    window.setTimeout(() => {
+      if (["INITIAL_SESSION", "SIGNED_IN"].includes(event) && session?.user) {
+        void activateSession(session).catch((error) => {
+          setGateState("unauthenticated", getWorkspaceErrorMessage(error), true);
+        });
+      } else if (event === "SIGNED_OUT") {
+        void deactivateSession({ preserveLegacy: false, snapshotAlreadySaved: signOutSnapshotFlushed }).catch(() => {
+          setGateState("unauthenticated", "無法保存目前帳號資料，請稍後再試。", true);
+        });
+      } else if (event === "TOKEN_REFRESHED") {
+        renderAuthSession(session);
+      }
+    }, 0);
+  });
 }
 
 async function initializeGoogleAuth() {
+  setGateState("checking");
   const config = window.CHROMATICA_SUPABASE_CONFIG;
   if (!config?.url || !config?.publishableKey) {
-    setAuthStatus("Google 登入目前無法使用。", "error");
+    setGateState("unauthenticated", "Google 登入目前無法使用。", true);
     return;
   }
-
   try {
     supabaseClient = createClient(config.url, config.publishableKey, {
       auth: {
@@ -300,22 +487,30 @@ async function initializeGoogleAuth() {
       },
     });
     bindAuthUi();
-    if (!authListenerRegistered) {
-      authListenerRegistered = true;
-      supabaseClient.auth.onAuthStateChange((event, session) => {
-        if (["INITIAL_SESSION", "SIGNED_IN", "SIGNED_OUT", "TOKEN_REFRESHED"].includes(event)) {
-          renderAuthSession(session);
-        }
-      });
+    await registerNativeAuthListeners();
+    if (await handleWebOAuthCallback()) {
+      registerAuthStateListener();
+      return;
     }
     const { data, error } = await supabaseClient.auth.getSession();
     if (error) throw error;
-    renderAuthSession(data.session);
-    await registerNativeAuthListeners();
-    await handleWebOAuthCallback();
-  } catch {
+    if (data.session?.user) await activateSession(data.session);
+    else {
+      await deactivateSession();
+      if (isOffline()) {
+        setGateState("unauthenticated", "目前無法連線至 Google 登入，請確認網路後再試。", true);
+      }
+    }
+    registerAuthStateListener();
+  } catch (error) {
     setAuthBusy(false);
-    setAuthStatus("Google 登入目前無法使用，請稍後再試。", "error");
+    setGateState(
+      "unauthenticated",
+      /snapshot|migration/i.test(String(error?.message || ""))
+        ? getWorkspaceErrorMessage(error)
+        : "目前無法連線至 Google 登入，請確認網路後再試。",
+      true,
+    );
   }
 }
 

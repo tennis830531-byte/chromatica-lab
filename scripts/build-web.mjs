@@ -15,7 +15,7 @@ const webSourceFiles = [
   "auth-runtime.js",
 ];
 const assetReferencePattern = /\.\/public\/assets\/[^\s"'`()<>$]+/g;
-const serviceWorkerCallPattern = /^registerServiceWorker\(\);$/gm;
+const serviceWorkerCallPattern = /^\s*registerServiceWorker\(\);$/gm;
 const execFileAsync = promisify(execFile);
 
 const { stdout: trackedOutput } = await execFileAsync("git", ["ls-files", "-z"], {
