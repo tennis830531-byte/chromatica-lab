@@ -810,7 +810,9 @@ function playSound(soundId) {
 
 function getGardenBgmAudio() {
   if (!gardenBgmAudio) {
-    gardenBgmAudio = new Audio(getSoundAssetPath(soundMap.gardenBgm));
+    gardenBgmAudio = new Audio();
+    gardenBgmAudio.preload = "metadata";
+    gardenBgmAudio.src = getSoundAssetPath(soundMap.gardenBgm);
     gardenBgmAudio.loop = true;
     gardenBgmAudio.volume = getSoundVolume("gardenBgm");
   } else {
@@ -6199,6 +6201,7 @@ window.chromaticDebug = {
 };
 
 let chromaticaAppInitialized = false;
+let gardenBgmMetadataPrepared = false;
 
 function renderAuthenticatedAccountWorkspace() {
   renderPracticeSettings();
@@ -6241,6 +6244,35 @@ function initializeAuthenticatedApp() {
 
 window.chromaticaApp = {
   initializeForAuthenticatedAccount: initializeAuthenticatedApp,
+  getAuthenticatedStartupImageUrls() {
+    const heroImage = document.getElementById("heroGardenPlant");
+    return heroImage?.getAttribute("src") ? [heroImage.getAttribute("src")] : [];
+  },
+  getGardenWarmupResources(includeAccountPlant = false) {
+    const commonImages = [
+      "./public/assets/garden/icons/garden-stage-backdrop-refresh.png",
+      GARDEN_WATERING_CAN_SRC,
+      GARDEN_SHOVEL_SRC,
+      "./public/assets/garden/icons/water-drop.png",
+      "./public/assets/garden/icons/spirit-garden-icon.png",
+      "./public/assets/garden/collection/garden_collection_board_dark.png",
+      "./public/assets/garden/collection/locked-shadow.png",
+      "./public/assets/garden/collection/spirit-slot-empty.png",
+    ];
+    const accountImages = [];
+    if (includeAccountPlant) {
+      const currentPlantImage = document.getElementById("gardenPlantImage")?.getAttribute("src");
+      if (currentPlantImage) accountImages.push(currentPlantImage);
+    }
+    return { commonImages, accountImages };
+  },
+  prepareGardenBgmMetadata() {
+    if (gardenBgmMetadataPrepared) return;
+    gardenBgmMetadataPrepared = true;
+    const audio = getGardenBgmAudio();
+    audio.preload = "metadata";
+    if (audio.readyState === HTMLMediaElement.HAVE_NOTHING) audio.load();
+  },
   prepareForSignedOutAccount() {
     if (!chromaticaAppInitialized) return;
     stopGardenBgm();
