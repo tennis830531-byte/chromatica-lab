@@ -7,6 +7,12 @@ const dynamics = {
 };
 
 const targetVolumes = ["p", "mp", "mf", "f"];
+const THREE_LEVEL_DYNAMIC_EXERCISE_IDS = new Set([
+  "dynamic-layers",
+  "crescendo-8",
+  "decrescendo-8",
+  "swell-12",
+]);
 const CYCLE_OPTIONS = [4, 6, 8];
 const MIN_REWARD_CYCLES = 4;
 const MAX_SELECTABLE_CYCLES = 8;
@@ -35,6 +41,10 @@ const GARDEN_EVOLUTION_NOTICE_DELAY_MS = 2300;
 const RAIN_BONUS_AMOUNT = 5;
 const RAIN_BONUS_CHANCE = 0.5;
 const RAIN_BONUS_ANIMATION_MS = 1500;
+const HOME_SPIRIT_TAP_REWARD_KEY = "chromatica.homeSpiritTapReward";
+const HOME_SPIRIT_TAPS_PER_REWARD = 10;
+const HOME_SPIRIT_MAX_DAILY_TAPS = 50;
+const HOME_SPIRIT_MAX_DAILY_REWARDS = 5;
 const GARDEN_WATERING_CAN_SRC = "./public/assets/garden/icons/watering-can.png";
 const GARDEN_SHOVEL_SRC = "./public/assets/garden/icons/garden-shovel.png";
 
@@ -95,6 +105,12 @@ const gardenSpecies = [
     ],
   },
 ];
+
+const availableGardenSpeciesIds = new Set([
+  "melody-sprout",
+  "mushroom-spirit",
+  "flower-spirit",
+]);
 
 const gardenStorageKeys = {
   waterDrops: "chromatica.waterDrops",
@@ -205,55 +221,100 @@ const exercises = [
     restBeats: 4,
     pattern: [
       { beat: 1, dynamic: "p" },
-      { beat: 3, dynamic: "mp" },
-      { beat: 5, dynamic: "mf" },
-      { beat: 7, dynamic: "f" },
+      { beat: 3, dynamic: "mf" },
+      { beat: 5, dynamic: "f" },
+      { beat: 7, dynamic: "mf" },
     ],
-    instruction: "分辨四段音量層次，音量改變時不要讓音色變粗。",
+    instruction: "感受三種力度的四段層次變化，音量改變時不要讓音色變粗。",
     variants: [
       {
-        label: "p / mp / mf / f",
+        label: "p / mf / f / mf",
         pattern: [
           { beat: 1, dynamic: "p" },
-          { beat: 3, dynamic: "mp" },
-          { beat: 5, dynamic: "mf" },
-          { beat: 7, dynamic: "f" },
+          { beat: 3, dynamic: "mf" },
+          { beat: 5, dynamic: "f" },
+          { beat: 7, dynamic: "mf" },
         ],
       },
       {
-        label: "f / mf / mp / p",
+        label: "f / mf / p / mf",
         pattern: [
           { beat: 1, dynamic: "f" },
           { beat: 3, dynamic: "mf" },
-          { beat: 5, dynamic: "mp" },
-          { beat: 7, dynamic: "p" },
+          { beat: 5, dynamic: "p" },
+          { beat: 7, dynamic: "mf" },
         ],
       },
       {
-        label: "p / mp / mf / p",
+        label: "p / mf / p / mf",
         pattern: [
           { beat: 1, dynamic: "p" },
-          { beat: 3, dynamic: "mp" },
+          { beat: 3, dynamic: "mf" },
+          { beat: 5, dynamic: "p" },
+          { beat: 7, dynamic: "mf" },
+        ],
+      },
+      {
+        label: "mf / f / mf / f",
+        pattern: [
+          { beat: 1, dynamic: "mf" },
+          { beat: 3, dynamic: "f" },
+          { beat: 5, dynamic: "mf" },
+          { beat: 7, dynamic: "f" },
+        ],
+      },
+      {
+        label: "mf / p / mf / f",
+        pattern: [
+          { beat: 1, dynamic: "mf" },
+          { beat: 3, dynamic: "p" },
+          { beat: 5, dynamic: "mf" },
+          { beat: 7, dynamic: "f" },
+        ],
+      },
+      {
+        label: "mf / f / mf / p",
+        pattern: [
+          { beat: 1, dynamic: "mf" },
+          { beat: 3, dynamic: "f" },
           { beat: 5, dynamic: "mf" },
           { beat: 7, dynamic: "p" },
         ],
       },
       {
-        label: "mp / mf / f / mp",
+        label: "p / f / mf / p",
         pattern: [
-          { beat: 1, dynamic: "mp" },
-          { beat: 3, dynamic: "mf" },
-          { beat: 5, dynamic: "f" },
-          { beat: 7, dynamic: "mp" },
+          { beat: 1, dynamic: "p" },
+          { beat: 3, dynamic: "f" },
+          { beat: 5, dynamic: "mf" },
+          { beat: 7, dynamic: "p" },
         ],
       },
       {
-        label: "p / mf / mp / f",
+        label: "f / p / mf / f",
+        pattern: [
+          { beat: 1, dynamic: "f" },
+          { beat: 3, dynamic: "p" },
+          { beat: 5, dynamic: "mf" },
+          { beat: 7, dynamic: "f" },
+        ],
+      },
+      {
+        label: "p / f / p / f",
         pattern: [
           { beat: 1, dynamic: "p" },
-          { beat: 3, dynamic: "mf" },
-          { beat: 5, dynamic: "mp" },
+          { beat: 3, dynamic: "f" },
+          { beat: 5, dynamic: "p" },
           { beat: 7, dynamic: "f" },
+        ],
+      },
+      {
+        label: "f / p / f / p",
+        pattern: [
+          { beat: 1, dynamic: "f" },
+          { beat: 3, dynamic: "p" },
+          { beat: 5, dynamic: "f" },
+          { beat: 7, dynamic: "p" },
         ],
       },
     ],
@@ -268,7 +329,6 @@ const exercises = [
     restBeats: 4,
     pattern: [
       { beat: 1, dynamic: "p" },
-      { beat: 4, dynamic: "mp" },
       { beat: 8, dynamic: "mf" },
     ],
     instruction: "從小聲慢慢推大，保持氣流平順，不要突然變大。",
@@ -277,22 +337,13 @@ const exercises = [
         label: "p → mf",
         pattern: [
           { beat: 1, dynamic: "p" },
-          { beat: 4, dynamic: "mp" },
           { beat: 8, dynamic: "mf" },
         ],
       },
       {
-        label: "p → mp",
+        label: "mf → f",
         pattern: [
-          { beat: 1, dynamic: "p" },
-          { beat: 8, dynamic: "mp" },
-        ],
-      },
-      {
-        label: "mp → f",
-        pattern: [
-          { beat: 1, dynamic: "mp" },
-          { beat: 4, dynamic: "mf" },
+          { beat: 1, dynamic: "mf" },
           { beat: 8, dynamic: "f" },
         ],
       },
@@ -300,8 +351,6 @@ const exercises = [
         label: "p → f",
         pattern: [
           { beat: 1, dynamic: "p" },
-          { beat: 3, dynamic: "mp" },
-          { beat: 6, dynamic: "mf" },
           { beat: 8, dynamic: "f" },
         ],
       },
@@ -316,32 +365,22 @@ const exercises = [
     playBeats: 8,
     restBeats: 4,
     pattern: [
-      { beat: 1, dynamic: "mf" },
-      { beat: 4, dynamic: "mf" },
-      { beat: 8, dynamic: "p" },
+      { beat: 1, dynamic: "f" },
+      { beat: 8, dynamic: "mf" },
     ],
     instruction: "聲音慢慢退後，但音色要留住，不要在音尾突然消失。",
     variants: [
       {
+        label: "f → mf",
+        pattern: [
+          { beat: 1, dynamic: "f" },
+          { beat: 8, dynamic: "mf" },
+        ],
+      },
+      {
         label: "mf → p",
         pattern: [
           { beat: 1, dynamic: "mf" },
-          { beat: 5, dynamic: "mp" },
-          { beat: 8, dynamic: "p" },
-        ],
-      },
-      {
-        label: "f → mp",
-        pattern: [
-          { beat: 1, dynamic: "f" },
-          { beat: 4, dynamic: "mf" },
-          { beat: 8, dynamic: "mp" },
-        ],
-      },
-      {
-        label: "mp → p",
-        pattern: [
-          { beat: 1, dynamic: "mp" },
           { beat: 8, dynamic: "p" },
         ],
       },
@@ -349,8 +388,6 @@ const exercises = [
         label: "f → p",
         pattern: [
           { beat: 1, dynamic: "f" },
-          { beat: 3, dynamic: "mf" },
-          { beat: 6, dynamic: "mp" },
           { beat: 8, dynamic: "p" },
         ],
       },
@@ -365,26 +402,26 @@ const exercises = [
     playBeats: 12,
     restBeats: 4,
     pattern: [
-      { beat: 1, dynamic: "mp" },
-      { beat: 6, dynamic: "f" },
-      { beat: 12, dynamic: "mp" },
+      { beat: 1, dynamic: "p" },
+      { beat: 6, dynamic: "mf" },
+      { beat: 12, dynamic: "p" },
     ],
-    instruction: "12 拍｜mp → f → mp",
+    instruction: "12 拍｜p → mf → p",
     variants: [
-      {
-        label: "mp → f → mp",
-        pattern: [
-          { beat: 1, dynamic: "mp" },
-          { beat: 6, dynamic: "f" },
-          { beat: 12, dynamic: "mp" },
-        ],
-      },
       {
         label: "p → mf → p",
         pattern: [
           { beat: 1, dynamic: "p" },
           { beat: 6, dynamic: "mf" },
           { beat: 12, dynamic: "p" },
+        ],
+      },
+      {
+        label: "mf → f → mf",
+        pattern: [
+          { beat: 1, dynamic: "mf" },
+          { beat: 6, dynamic: "f" },
+          { beat: 12, dynamic: "mf" },
         ],
       },
       {
@@ -396,11 +433,19 @@ const exercises = [
         ],
       },
       {
-        label: "mp → mf → mp",
+        label: "p → f → mf",
         pattern: [
-          { beat: 1, dynamic: "mp" },
-          { beat: 6, dynamic: "mf" },
-          { beat: 12, dynamic: "mp" },
+          { beat: 1, dynamic: "p" },
+          { beat: 6, dynamic: "f" },
+          { beat: 12, dynamic: "mf" },
+        ],
+      },
+      {
+        label: "mf → f → p",
+        pattern: [
+          { beat: 1, dynamic: "mf" },
+          { beat: 6, dynamic: "f" },
+          { beat: 12, dynamic: "p" },
         ],
       },
     ],
@@ -454,6 +499,8 @@ let selectedGardenSpiritStage = 3;
 let selectedStarterSpeciesId = "";
 let gardenHopTimer = null;
 let gardenIdleResumeTimer = null;
+let homeSpiritRewardToastTimer = null;
+let homeSpiritRewardToastHideTimer = null;
 let phase = "idle";
 let beat = 0;
 let totalCycles = 4;
@@ -954,6 +1001,27 @@ function isCurrentExerciseScored() {
   return exercises[selectedExercise].scored === true;
 }
 
+function isThreeLevelDynamicExercise(exercise) {
+  return THREE_LEVEL_DYNAMIC_EXERCISE_IDS.has(exercise?.id);
+}
+
+function getSelectedVariantIndex(exercise) {
+  if (!exercise?.variants?.length) return 0;
+  const variantIndex = Number(selectedVariants[exercise.id]);
+  if (!Number.isInteger(variantIndex) || variantIndex < 0 || variantIndex >= exercise.variants.length) {
+    selectedVariants[exercise.id] = 0;
+    return 0;
+  }
+  return variantIndex;
+}
+
+function getVariantComboId(exercise, variantIndex) {
+  const variant = exercise?.variants?.[variantIndex];
+  if (!variant) return "variant-default";
+  if (!isThreeLevelDynamicExercise(exercise)) return `variant-${variantIndex}`;
+  return `variant-${variant.pattern.map((item) => item.dynamic).join("-")}`;
+}
+
 function shouldShowStability() {
   const exercise = exercises[selectedExercise];
   return isCurrentExerciseScored() && exercise.showStability !== false;
@@ -961,7 +1029,7 @@ function shouldShowStability() {
 
 function getExercisePattern(exercise) {
   if (exercise.variants?.length) {
-    const variantIndex = selectedVariants[exercise.id] || 0;
+    const variantIndex = getSelectedVariantIndex(exercise);
     return exercise.variants[variantIndex].pattern;
   }
   if (!exercise.scored) return exercise.pattern;
@@ -1012,6 +1080,37 @@ function getPatternDynamicMarkers(exercise) {
   return markers.filter((marker, index) => index === 0 || marker !== markers[index - 1]);
 }
 
+function getDynamicWaveY(dynamic) {
+  return ({ p: 72, mp: 60, mf: 48, f: 26 })[dynamic] ?? 48;
+}
+
+function getDynamicWavePath(exercise) {
+  const pattern = getExercisePattern(exercise);
+  if (!pattern.length || exercise.id === "steady-8") return null;
+  if (exercise.id === "dynamic-layers") {
+    const startX = 24;
+    const endX = 296;
+    const segmentWidth = (endX - startX) / pattern.length;
+    let path = `M${startX} ${getDynamicWaveY(pattern[0].dynamic)}`;
+    pattern.forEach((item, index) => {
+      const segmentEndX = startX + segmentWidth * (index + 1);
+      path += ` H${segmentEndX}`;
+      if (pattern[index + 1]) path += ` V${getDynamicWaveY(pattern[index + 1].dynamic)}`;
+    });
+    return path;
+  }
+  const firstY = getDynamicWaveY(pattern[0].dynamic);
+  const lastY = getDynamicWaveY(pattern[pattern.length - 1].dynamic);
+  if (["crescendo-8", "decrescendo-8"].includes(exercise.id)) {
+    return `M24 ${firstY} C88 ${firstY} 232 ${lastY} 296 ${lastY}`;
+  }
+  if (exercise.id === "swell-12") {
+    const middleY = getDynamicWaveY(pattern[Math.floor(pattern.length / 2)].dynamic);
+    return `M24 ${firstY} C78 ${firstY} 104 ${middleY} 160 ${middleY} S242 ${lastY} 296 ${lastY}`;
+  }
+  return null;
+}
+
 function getExerciseWaveGuide(exercise) {
   const guides = {
     "steady-8": {
@@ -1054,7 +1153,7 @@ function renderWaveGuide() {
   const markers = guide.markers || getPatternDynamicMarkers(exercise);
   $("#waveGuideTitle").textContent = guide.title;
   $("#waveGuideText").textContent = guide.text;
-  $("#waveLine").setAttribute("d", guide.path);
+  $("#waveLine").setAttribute("d", getDynamicWavePath(exercise) || guide.path);
   $("#waveGuide").dataset.type = guide.type;
   const labels = $("#waveLabels");
   labels.innerHTML = markers.length
@@ -1078,7 +1177,7 @@ function getPatternSummary(pattern) {
 
 function getExerciseVariantLabel(exercise) {
   if (!exercise.variants?.length) return "";
-  const variantIndex = selectedVariants[exercise.id] || 0;
+  const variantIndex = getSelectedVariantIndex(exercise);
   return exercise.variants[variantIndex].label;
 }
 
@@ -1180,7 +1279,10 @@ function getCollectedSpeciesSet(collection = getGardenCollection()) {
 
 function getUncollectedGardenSpecies(collection = getGardenCollection()) {
   const collectedSpecies = getCollectedSpeciesSet(collection);
-  return gardenSpecies.filter((species) => !collectedSpecies.has(species.species));
+  return gardenSpecies.filter((species) => (
+    availableGardenSpeciesIds.has(species.species)
+    && !collectedSpecies.has(species.species)
+  ));
 }
 
 function getGardenSpecies(speciesId) {
@@ -1290,7 +1392,11 @@ function syncStarterPlantStateForExistingUser() {
 }
 
 function createGardenPlant(speciesId = "") {
-  const availableSpecies = speciesId ? [getGardenSpecies(speciesId)] : getUncollectedGardenSpecies();
+  if (speciesId && !availableGardenSpeciesIds.has(speciesId)) return null;
+  const requestedSpecies = speciesId && availableGardenSpeciesIds.has(speciesId)
+    ? getGardenSpecies(speciesId)
+    : null;
+  const availableSpecies = requestedSpecies ? [requestedSpecies] : getUncollectedGardenSpecies();
   if (!availableSpecies.length) return null;
   const species = availableSpecies[Math.floor(Math.random() * availableSpecies.length)];
   const now = new Date().toISOString();
@@ -1377,6 +1483,85 @@ function addWaterDrops(amount) {
   if (!added) return 0;
   setWaterDrops(getWaterDrops() + added);
   return added;
+}
+
+function getDefaultHomeSpiritTapRewardState() {
+  return {
+    date: getTodayKey(),
+    tapCount: 0,
+    rewardsClaimed: 0,
+  };
+}
+
+function isValidHomeSpiritTapRewardState(state) {
+  return Boolean(
+    state
+    && typeof state === "object"
+    && /^\d{4}-\d{2}-\d{2}$/.test(state.date)
+    && Number.isInteger(state.tapCount)
+    && state.tapCount >= 0
+    && state.tapCount <= HOME_SPIRIT_MAX_DAILY_TAPS
+    && Number.isInteger(state.rewardsClaimed)
+    && state.rewardsClaimed >= 0
+    && state.rewardsClaimed <= HOME_SPIRIT_MAX_DAILY_REWARDS
+    && state.rewardsClaimed <= Math.floor(state.tapCount / HOME_SPIRIT_TAPS_PER_REWARD)
+  );
+}
+
+function setHomeSpiritTapRewardState(state) {
+  localStorage.setItem(HOME_SPIRIT_TAP_REWARD_KEY, JSON.stringify(state));
+}
+
+function getHomeSpiritTapRewardState() {
+  const today = getTodayKey();
+  const stored = readJsonStorage(HOME_SPIRIT_TAP_REWARD_KEY, null);
+  if (!isValidHomeSpiritTapRewardState(stored) || stored.date !== today) {
+    const resetState = getDefaultHomeSpiritTapRewardState();
+    setHomeSpiritTapRewardState(resetState);
+    return resetState;
+  }
+  return stored;
+}
+
+function showHomeSpiritRewardToast() {
+  const toast = $("#homeSpiritRewardToast");
+  if (!toast) return;
+  $("#homeSpiritRewardToastTitle").textContent = "精靈送你 1 滴水滴！💧";
+  window.clearTimeout(homeSpiritRewardToastTimer);
+  window.clearTimeout(homeSpiritRewardToastHideTimer);
+  toast.classList.remove("hidden", "is-visible");
+  void toast.offsetWidth;
+  toast.classList.add("is-visible");
+  homeSpiritRewardToastTimer = window.setTimeout(() => {
+    toast.classList.remove("is-visible");
+    homeSpiritRewardToastHideTimer = window.setTimeout(() => toast.classList.add("hidden"), 180);
+  }, 2200);
+}
+
+function recordHomeSpiritTap() {
+  const state = getHomeSpiritTapRewardState();
+  const nextState = {
+    ...state,
+    tapCount: state.tapCount < HOME_SPIRIT_MAX_DAILY_TAPS
+      ? state.tapCount + 1
+      : state.tapCount,
+  };
+  const expectedRewards = Math.min(
+    HOME_SPIRIT_MAX_DAILY_REWARDS,
+    Math.floor(nextState.tapCount / HOME_SPIRIT_TAPS_PER_REWARD),
+  );
+  const pendingRewards = Math.max(0, expectedRewards - nextState.rewardsClaimed);
+  let added = 0;
+  if (pendingRewards > 0) {
+    added = addWaterDrops(pendingRewards);
+    nextState.rewardsClaimed += added;
+  }
+  setHomeSpiritTapRewardState(nextState);
+  if (added > 0) {
+    renderGarden();
+    showHomeSpiritRewardToast();
+  }
+  return nextState;
 }
 
 function addEarnedWaterDrops(amount) {
@@ -1683,7 +1868,7 @@ function setStarterPlantModalOpen(open) {
 }
 
 function getStarterPlantOptions() {
-  return gardenSpecies.slice(0, 5);
+  return gardenSpecies.filter((species) => availableGardenSpeciesIds.has(species.species));
 }
 
 function renderStarterPlantChoices() {
@@ -1719,7 +1904,7 @@ function showStarterPlantSelectionIfNeeded() {
 }
 
 function selectStarterPlant(speciesId) {
-  if (!gardenSpecies.some((species) => species.species === speciesId)) return;
+  if (!getStarterPlantOptions().some((species) => species.species === speciesId)) return;
   selectedStarterSpeciesId = speciesId;
   playSound("uiTap");
   renderStarterPlantChoices();
@@ -2041,7 +2226,11 @@ function waterCurrentPlant() {
   if (plant.waterProgress >= PLANT_WATER_REQUIRED) {
     showGardenToastAfterAnimation(`${getPlantDisplayName(plant, 3)}成熟了！`, "可以採收這株植物了。", GARDEN_EVOLUTION_NOTICE_DELAY_MS);
   } else if (plant.stage > previousStage) {
-    showGardenToastAfterAnimation(`${getPlantDisplayName(plant, plant.stage)}長大了！`, `進入${getPlantStageName(plant, plant.stage)}。`, GARDEN_EVOLUTION_NOTICE_DELAY_MS);
+    showGardenToastAfterAnimation(
+      `${getPlantDisplayName(plant, previousStage)}長大了！`,
+      `變成了【${getPlantStageName(plant, plant.stage)}】`,
+      GARDEN_EVOLUTION_NOTICE_DELAY_MS,
+    );
   }
 }
 
@@ -2430,7 +2619,7 @@ function getExerciseDailyGoalCombos(exercise) {
   }
   if (exercise.variants?.length) {
     return exercise.variants.map((variant, variantIndex) => ({
-      id: `variant-${variantIndex}`,
+      id: getVariantComboId(exercise, variantIndex),
       label: variant.label,
       volume: null,
       variantIndex,
@@ -2452,12 +2641,13 @@ function getDailyGoalCompletedCombos(state, task) {
     return [...new Set(Array.isArray(entry?.completedCombos) ? entry.completedCombos : [])];
   }
   const entry = state[task.id];
-  if (entry === true) return task.combos.map((combo) => combo.id);
+  const usesThreeLevelDynamics = THREE_LEVEL_DYNAMIC_EXERCISE_IDS.has(task.id);
+  if (entry === true) return usesThreeLevelDynamics ? [] : task.combos.map((combo) => combo.id);
   const storedCombos = Array.isArray(entry?.completedCombos) ? entry.completedCombos : [];
   const legacyCombos = task.combos
     .filter((combo) => {
       if (combo.volume) return state[`${task.id}-${combo.volume}`] === true;
-      if (combo.variantIndex !== null && combo.variantIndex !== undefined) {
+      if (!usesThreeLevelDynamics && combo.variantIndex !== null && combo.variantIndex !== undefined) {
         return state[`${task.id}-variant-${combo.variantIndex}`] === true;
       }
       return false;
@@ -2509,7 +2699,10 @@ function getDailyGoalTasks() {
 function getCurrentDailyGoalCompletion() {
   const exercise = exercises[selectedExercise];
   if (exercise.scored) return { goalId: exercise.id, comboId: `volume-${selectedTargetVolume}` };
-  if (exercise.variants?.length) return { goalId: exercise.id, comboId: `variant-${selectedVariants[exercise.id] || 0}` };
+  if (exercise.variants?.length) {
+    const variantIndex = getSelectedVariantIndex(exercise);
+    return { goalId: exercise.id, comboId: getVariantComboId(exercise, variantIndex) };
+  }
   return { goalId: exercise.id, comboId: "default" };
 }
 
@@ -4704,7 +4897,15 @@ function renderExercise() {
   steadyDurationSeconds = getPracticeSettings().steadyDurationSeconds;
   bpm = steadyMode ? 60 : Number($("#bpmInput").value) || exercise.bpm;
   $("#exerciseLevel").textContent = localizeLevel(exercise.level);
-  $("#exerciseTitle").textContent = steadyMode ? `${exercise.title}（固定 60 BPM）` : exercise.title;
+  const suggestedBpmTitles = {
+    "dynamic-layers": "音量分層（建議 60 ~ 100 BPM）",
+    "crescendo-8": "8 拍漸強（建議 80 ~ 140 BPM）",
+    "decrescendo-8": "8 拍漸弱（建議 80 ~ 140 BPM）",
+    "swell-12": "山形長音（建議 80 ~ 120 BPM）",
+  };
+  $("#exerciseTitle").textContent = steadyMode
+    ? `${exercise.title}（固定 60 BPM）`
+    : suggestedBpmTitles[exercise.id] || exercise.title;
   $("#exerciseInstruction").textContent = exercise.title;
   $("#currentBeat").textContent = steadyMode ? steadyDurationSeconds : 0;
   $("#beatTotal").textContent = steadyMode ? `/ ${steadyDurationSeconds} 拍` : `/ ${exercise.playBeats} 拍`;
@@ -4737,7 +4938,7 @@ function renderExercise() {
     $("#variantSelect").innerHTML = exercise.variants
       .map((variant, index) => `<option value="${index}">${variant.label}</option>`)
       .join("");
-    $("#variantSelect").value = String(selectedVariants[exercise.id] || 0);
+    $("#variantSelect").value = String(getSelectedVariantIndex(exercise));
   }
   $("#toneCardTitle").textContent = "練習目標";
   $("#stabilityStat").classList.toggle("hidden", !shouldShowStability());
@@ -5251,18 +5452,14 @@ function updatePhaseLabel() {
     done: "完成",
   };
   $("#phasePill").textContent = labels[phase];
+  $("#statusMetrics .beat-metric")?.classList.toggle("is-play-phase", phase === "play");
 }
 
 function updateBeatDisplay() {
   const exercise = exercises[selectedExercise];
   if (isSteadyLongTone(exercise)) {
-    const durationMs = getSteadyDurationMs();
-    const activeRemainingMs = phase === "play" && steadyPlayEndsAt
-      ? Math.max(0, steadyPlayEndsAt - performance.now())
-      : steadyPlayRemainingMs;
-    const remainingSeconds = Math.ceil((activeRemainingMs || durationMs) / 1000);
     $("#currentBeat").textContent = phase === "play"
-      ? remainingSeconds
+      ? beat
       : phase === "prepare" || phase === "rest"
         ? beat
         : steadyDurationSeconds;
@@ -5580,6 +5777,7 @@ function bindEvents() {
     void actionLayer.offsetWidth;
     actionLayer.classList.add("is-hopping");
     window.setTimeout(() => actionLayer.classList.remove("is-hopping"), 680);
+    recordHomeSpiritTap();
   });
 
   $$("[data-longtone-intro]").forEach((button) => {

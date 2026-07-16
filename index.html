@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
     <link rel="stylesheet" href="./public/assets/fonts/noto-sans-tc/noto-sans-tc-variable.css" />
     <link rel="stylesheet" href="./public/assets/fonts/lxgw-wenkai-tc/lxgw-wenkai-tc-bold.css" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-150" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-153" />
   </head>
   <body>
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
@@ -44,6 +44,10 @@
         <p id="goalToastText">你已完成今日目標。</p>
         <button id="goalToastClose" class="primary-btn" type="button">知道了</button>
       </div>
+    </div>
+
+    <div id="homeSpiritRewardToast" class="home-spirit-reward-toast hidden" role="status" aria-live="polite" aria-atomic="true">
+      <strong id="homeSpiritRewardToastTitle">精靈送你 1 滴水滴！💧</strong>
     </div>
 
     <div id="calendarModal" class="calendar-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="calendarModalTitle">
@@ -94,7 +98,7 @@
             <div class="intro-tip-grid">
               <article><span>呼吸</span><p>保持身體放鬆，用穩定氣流吹奏，不要用蠻力把音推出去。</p></article>
               <article><span>嘴型</span><p>嘴唇輕輕包住口琴，不要咬緊，口腔保持自然打開。</p></article>
-              <article><span>音量變化</span><p>先以 mp 音量練習，注意音量不要忽大忽小。</p></article>
+              <article><span>音量變化</span><p>先以 mf 音量練習，注意音量不要忽大忽小。</p></article>
               <article><span>起音</span><p>讓氣流與聲音平順開始，避免突然爆開或過度用舌。</p></article>
               <article><span>收尾</span><p>保持音色與音準直到最後，再平順停止氣流；不要先洩氣，也不要用嘴巴突然夾斷。</p></article>
               <article><span>音準</span><p>練習時可以搭配內建調音器觀察 cents，留意音準是否往上飄或往下掉。</p></article>
@@ -869,7 +873,7 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-150</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-153</span></strong>
                 </div>
                 <div class="setting-row">
                   <span>問題回報</span>
@@ -891,6 +895,6 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-150"></script>
+    <script src="./app.js?v=refresh-153"></script>
   </body>
 </html>
