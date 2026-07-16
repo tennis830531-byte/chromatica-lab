@@ -5,9 +5,11 @@ import { createClient } from "@supabase/supabase-js";
 import {
   ACTIVE_ACCOUNT_KEY,
   clearSignedOutWorkspace,
+  readAccountSnapshot,
   saveActiveAccountSnapshot,
   switchAccountWorkspace,
 } from "./account-workspace.js";
+import { createCloudSaveService } from "./cloud-save.js";
 
 const WEB_REDIRECT_URL = "https://tennis830531-byte.github.io/chromatica-lab/";
 const ANDROID_REDIRECT_URL = "chromaticalab://login-callback";
@@ -35,6 +37,7 @@ const COMMON_STARTUP_BACKGROUND_IMAGES = [
 ];
 
 let supabaseClient = null;
+let cloudSaveService = null;
 let authListenerRegistered = false;
 let nativeListenersRegistered = false;
 let authUiBound = false;
@@ -321,8 +324,19 @@ function getAuthElements() {
     gateRetryButton: byId("authGateRetryBtn"),
     gateStatus: byId("authGateStatus"),
     logoutModal: byId("logoutConfirmModal"),
+    logoutMessage: byId("logoutConfirmMessage"),
     logoutCancel: byId("logoutCancelBtn"),
     logoutConfirm: byId("logoutConfirmBtn"),
+    cloudPanel: byId("cloudSyncPanel"),
+    cloudStatus: byId("cloudSyncStatus"),
+    cloudTime: byId("cloudSyncTime"),
+    cloudSyncNow: byId("cloudSyncNowBtn"),
+    cloudConflictModal: byId("cloudConflictModal"),
+    cloudConflictLocalTime: byId("cloudConflictLocalTime"),
+    cloudConflictRemoteTime: byId("cloudConflictRemoteTime"),
+    cloudUseLocal: byId("cloudUseLocalBtn"),
+    cloudUseRemote: byId("cloudUseRemoteBtn"),
+    cloudConflictCancel: byId("cloudConflictCancelBtn"),
   };
 }
 
@@ -379,7 +393,7 @@ function showAuthToast(message) {
 function setAuthBusy(isBusy, message = "") {
   authBusy = isBusy;
   const elements = getAuthElements();
-  [elements.signInButton, elements.signOutButton, elements.gateSignInButton, elements.logoutConfirm]
+  [elements.signInButton, elements.signOutButton, elements.gateSignInButton, elements.logoutConfirm, elements.cloudSyncNow]
     .filter(Boolean)
     .forEach((button) => {
       button.disabled = isBusy;
@@ -410,6 +424,7 @@ function renderAuthSession(session) {
   elements.signedOut?.classList.toggle("hidden", Boolean(user));
   elements.signedIn?.classList.toggle("hidden", !user);
   if (!user) {
+    elements.cloudPanel?.classList.add("hidden");
     if (elements.avatar) {
       elements.avatar.removeAttribute("src");
       elements.avatar.classList.add("hidden");
@@ -419,6 +434,7 @@ function renderAuthSession(session) {
     if (elements.email) elements.email.textContent = "";
     return;
   }
+  elements.cloudPanel?.classList.remove("hidden");
   if (elements.name) elements.name.textContent = getDisplayName(user);
   if (elements.email) elements.email.textContent = user.email || "未提供 Email";
   const avatarUrl = getAvatarUrl(user);
@@ -433,15 +449,70 @@ function renderAuthSession(session) {
       elements.avatarFallback?.classList.remove("hidden");
     }
   }
+  if (cloudSaveService?.getActiveUserId() === user.id) {
+    renderCloudSyncState(user.id, cloudSaveService.getState());
+  }
 }
 
-function flushAccountSnapshot() {
+function formatCloudSyncTime(value) {
+  if (!value) return "尚無同步紀錄";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "尚無同步紀錄";
+  return `上次同步：${date.toLocaleString("zh-TW", { hour12: false })}`;
+}
+
+function renderCloudSyncState(userId, meta) {
+  if (!userId || localStorage.getItem(ACTIVE_ACCOUNT_KEY) !== userId) return;
+  const elements = getAuthElements();
+  const labels = {
+    synced: "已同步至雲端",
+    syncing: "正在同步…",
+    offline: "離線，等待同步",
+    conflict: "需要選擇保留的進度",
+    error: meta?.lastErrorCode === "snapshot-too-large"
+      ? "雲端存檔資料過大，暫時無法同步。"
+      : "雲端同步暫時失敗",
+    pending: meta?.dirty ? "有本機變更，等待同步" : "尚未同步",
+  };
+  const status = meta?.status || "pending";
+  if (elements.cloudPanel) {
+    elements.cloudPanel.dataset.status = status;
+    elements.cloudPanel.classList.remove("hidden");
+  }
+  if (elements.cloudStatus) elements.cloudStatus.textContent = labels[status] || "尚未同步";
+  if (elements.cloudTime) elements.cloudTime.textContent = formatCloudSyncTime(meta?.lastSyncedAt);
+  if (elements.cloudSyncNow) {
+    elements.cloudSyncNow.disabled = status === "syncing" || authBusy;
+    elements.cloudSyncNow.textContent = status === "conflict" ? "處理衝突" : "立即同步";
+  }
+}
+
+function showCloudConflictModal() {
+  const elements = getAuthElements();
+  const userId = cloudSaveService?.getActiveUserId();
+  const localSnapshot = userId ? readAccountSnapshot(userId, localStorage) : null;
+  const cloudState = cloudSaveService?.getState();
+  if (elements.cloudConflictLocalTime) {
+    elements.cloudConflictLocalTime.textContent = `此裝置最後修改：${formatCloudSyncTime(localSnapshot?.updatedAt).replace("上次同步：", "")}`;
+  }
+  if (elements.cloudConflictRemoteTime) {
+    elements.cloudConflictRemoteTime.textContent = `雲端最後更新：${formatCloudSyncTime(cloudState?.remoteUpdatedAt).replace("上次同步：", "")}`;
+  }
+  elements.cloudConflictModal?.classList.remove("hidden");
+}
+
+function closeCloudConflictModal() {
+  getAuthElements().cloudConflictModal?.classList.add("hidden");
+}
+
+function flushAccountSnapshot({ notifyCloud = true } = {}) {
   if (snapshotTimer) {
     window.clearTimeout(snapshotTimer);
     snapshotTimer = null;
   }
   if (!localStorage.getItem(ACTIVE_ACCOUNT_KEY)) return true;
-  saveActiveAccountSnapshot(localStorage);
+  const snapshot = saveActiveAccountSnapshot(localStorage);
+  if (snapshot && notifyCloud) void cloudSaveService?.noteLocalSnapshot(snapshot);
   return true;
 }
 
@@ -451,7 +522,8 @@ function scheduleAccountSnapshot() {
   snapshotTimer = window.setTimeout(() => {
     snapshotTimer = null;
     try {
-      saveActiveAccountSnapshot(localStorage);
+      const snapshot = saveActiveAccountSnapshot(localStorage);
+      if (snapshot) void cloudSaveService?.noteLocalSnapshot(snapshot);
     } catch {
       setAuthStatus("無法保存此帳號的本機資料，請確認裝置儲存空間。", "error");
     }
@@ -489,6 +561,12 @@ function queueWorkspaceTransition(callback) {
 
 function getWorkspaceErrorMessage(error) {
   const message = String(error?.message || "");
+  if (error?.code === "unsupported-schema") {
+    return "此帳號的雲端資料來自較新的 App 版本，請先更新 App。";
+  }
+  if (error?.code === "cloud-unavailable-no-local" || /cloud-unavailable-no-local/i.test(message)) {
+    return "無法取得此帳號的雲端資料，請確認網路後重新嘗試。";
+  }
   if (/snapshot|migration/i.test(message)) {
     return "無法載入此帳號的本機資料，請重新嘗試。";
   }
@@ -559,7 +637,20 @@ async function prepareAuthenticatedSession(session) {
         && document.body.classList.contains("auth-authenticated");
       if (!alreadyActive) {
         switchAccountWorkspace(userId, localStorage);
+        const localSnapshot = readAccountSnapshot(userId, localStorage);
+        const cloudResult = await cloudSaveService.reconcileStartup(userId, localSnapshot);
+        if (cloudResult.kind === "stale") throw createTimeoutError("workspace-stale");
+        if (cloudResult.kind === "fatal") {
+          const cloudError = new Error("cloud-unavailable-no-local");
+          cloudError.code = cloudResult.code === "unsupported-schema"
+            ? "unsupported-schema"
+            : "cloud-unavailable-no-local";
+          throw cloudError;
+        }
         window.chromaticaApp?.initializeForAuthenticatedAccount?.();
+        if (cloudResult.kind === "new-workspace") {
+          void cloudSaveService.initializeNewWorkspace();
+        }
       }
       if (workspaceAttempt !== workspaceAttemptGeneration) {
         throw createTimeoutError("workspace-stale");
@@ -571,6 +662,7 @@ async function prepareAuthenticatedSession(session) {
     if (workspaceAttempt === workspaceAttemptGeneration) {
       workspaceAttemptGeneration += 1;
     }
+    cloudSaveService?.deactivate();
     await showWorkspaceErrorGate(error);
     return false;
   }
@@ -588,6 +680,10 @@ async function prepareAuthenticatedSession(session) {
   if (workspaceAttempt !== workspaceAttemptGeneration) return false;
   startupState.destination = "app";
   setGateState("authenticated");
+  renderCloudSyncState(userId, cloudSaveService?.getState() || {});
+  if (cloudSaveService?.getState()?.conflict) {
+    window.setTimeout(showCloudConflictModal, 0);
+  }
   schedulePostStartupGardenWarmup(true);
   scheduleAccountSnapshot();
   return true;
@@ -612,6 +708,7 @@ function activateSession(session) {
 
 async function deactivateSession({ preserveLegacy = true, snapshotAlreadySaved = false } = {}) {
   invalidateAsyncStartupFlow();
+  cloudSaveService?.deactivate();
   await queueWorkspaceTransition(async () => {
     const activeUserId = localStorage.getItem(ACTIVE_ACCOUNT_KEY);
     if (activeUserId) {
@@ -717,6 +814,9 @@ async function registerNativeAuthListeners() {
   await App.addListener("appStateChange", ({ isActive }) => {
     if (!isActive) {
       try { flushAccountSnapshot(); } catch { /* Keep the active UI; retry on the next write. */ }
+      void cloudSaveService?.syncNow("background");
+    } else {
+      void cloudSaveService?.handleForeground();
     }
   });
   await Browser.addListener("browserFinished", () => {
@@ -758,7 +858,18 @@ async function startGoogleSignIn() {
 
 function openLogoutConfirmation() {
   if (authBusy) return;
-  getAuthElements().logoutModal?.classList.remove("hidden");
+  const elements = getAuthElements();
+  const cloudState = cloudSaveService?.getState();
+  const hasUnsyncedProgress = cloudState?.conflict || cloudState?.dirty;
+  if (elements.logoutMessage) {
+    elements.logoutMessage.textContent = hasUnsyncedProgress
+      ? "尚有進度未同步到雲端。此裝置會保留目前資料，但其他裝置暫時無法取得最新進度。"
+        : "登出後需要重新使用 Google 帳號登入，才能繼續使用 App。此帳號的本機與雲端進度會保留。";
+  }
+  if (elements.logoutConfirm) {
+    elements.logoutConfirm.textContent = hasUnsyncedProgress ? "仍要登出" : "確定登出";
+  }
+  elements.logoutModal?.classList.remove("hidden");
 }
 
 function closeLogoutConfirmation() {
@@ -770,6 +881,7 @@ async function confirmSignOut() {
   setAuthBusy(true, "正在保存並登出…");
   try {
     flushAccountSnapshot();
+    await cloudSaveService?.prepareForSignOut();
     signOutSnapshotFlushed = true;
   } catch {
     setAuthBusy(false);
@@ -790,6 +902,56 @@ async function confirmSignOut() {
   setAuthBusy(false);
   closeLogoutConfirmation();
   setGateState("unauthenticated", "已登出");
+}
+
+async function handleManualCloudSync() {
+  if (!cloudSaveService || authBusy) return;
+  const state = cloudSaveService.getState();
+  if (state.conflict) {
+    showCloudConflictModal();
+    return;
+  }
+  const button = getAuthElements().cloudSyncNow;
+  if (button) button.disabled = true;
+  try {
+    const result = await cloudSaveService.syncNow("manual");
+    if (result?.status === "synced") showAuthToast("遊戲進度已同步");
+    else if (result?.status === "offline") setAuthStatus("目前離線，會在恢復網路後同步。", "error");
+    else if (result?.status === "conflict") showCloudConflictModal();
+    else if (result?.lastErrorCode === "snapshot-too-large") {
+      setAuthStatus("雲端存檔資料過大，暫時無法同步。", "error");
+    }
+    else setAuthStatus("雲端同步暫時失敗，請稍後再試。", "error");
+  } catch {
+    setAuthStatus("雲端同步暫時失敗，請稍後再試。", "error");
+  } finally {
+    renderCloudSyncState(cloudSaveService.getActiveUserId(), cloudSaveService.getState());
+  }
+}
+
+async function handleCloudConflictChoice(choice) {
+  if (!cloudSaveService || authBusy) return;
+  const elements = getAuthElements();
+  if (choice === "cancel") {
+    closeCloudConflictModal();
+    return;
+  }
+  [elements.cloudUseLocal, elements.cloudUseRemote, elements.cloudConflictCancel]
+    .filter(Boolean)
+    .forEach((button) => { button.disabled = true; });
+  try {
+    const result = await cloudSaveService.resolveConflict(choice);
+    if (!result?.ok) throw new Error(result?.code || "conflict-resolution-failed");
+    closeCloudConflictModal();
+    showAuthToast(choice === "local" ? "已保留這台裝置的進度" : "已載入雲端進度");
+  } catch {
+    setAuthStatus("無法完成進度選擇，請確認網路後重試。", "error");
+  } finally {
+    [elements.cloudUseLocal, elements.cloudUseRemote, elements.cloudConflictCancel]
+      .filter(Boolean)
+      .forEach((button) => { button.disabled = false; });
+    renderCloudSyncState(cloudSaveService.getActiveUserId(), cloudSaveService.getState());
+  }
 }
 
 async function retryAuthCheck() {
@@ -826,13 +988,20 @@ function bindAuthUi() {
   elements.signOutButton?.addEventListener("click", openLogoutConfirmation);
   elements.logoutCancel?.addEventListener("click", closeLogoutConfirmation);
   elements.logoutConfirm?.addEventListener("click", confirmSignOut);
+  elements.cloudSyncNow?.addEventListener("click", handleManualCloudSync);
+  elements.cloudUseLocal?.addEventListener("click", () => { void handleCloudConflictChoice("local"); });
+  elements.cloudUseRemote?.addEventListener("click", () => { void handleCloudConflictChoice("remote"); });
+  elements.cloudConflictCancel?.addEventListener("click", () => { void handleCloudConflictChoice("cancel"); });
   elements.gateRetryButton?.addEventListener("click", retryAuthCheck);
   elements.avatar?.addEventListener("error", () => {
     elements.avatar.classList.add("hidden");
     elements.avatarFallback?.classList.remove("hidden");
   });
   window.addEventListener("beforeunload", () => {
-    try { flushAccountSnapshot(); } catch { /* Browser is closing; preserve existing snapshot. */ }
+    try { flushAccountSnapshot({ notifyCloud: false }); } catch { /* Browser is closing; preserve existing snapshot. */ }
+  });
+  window.addEventListener("online", () => {
+    void cloudSaveService?.handleOnline();
   });
 }
 
@@ -869,6 +1038,16 @@ async function initializeGoogleAuth() {
         autoRefreshToken: true,
         detectSessionInUrl: false,
         flowType: "pkce",
+      },
+    });
+    cloudSaveService = createCloudSaveService({
+      client: supabaseClient,
+      storage: localStorage,
+      onStateChange: renderCloudSyncState,
+      onRemoteApplied: async (userId) => {
+        if (localStorage.getItem(ACTIVE_ACCOUNT_KEY) !== userId) return;
+        window.chromaticaApp?.initializeForAuthenticatedAccount?.();
+        scheduleAccountSnapshot();
       },
     });
     bindAuthUi();

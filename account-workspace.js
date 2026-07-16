@@ -87,6 +87,11 @@ export function readAccountSnapshot(userId, storage = window.localStorage) {
   } catch {
     throw new Error("Account snapshot is not valid JSON.");
   }
+  return validateAccountSnapshot(snapshot, normalizedUserId);
+}
+
+export function validateAccountSnapshot(snapshot, userId) {
+  const normalizedUserId = requireUserId(userId);
   if (
     snapshot?.schemaVersion !== ACCOUNT_SNAPSHOT_SCHEMA_VERSION
     || snapshot?.userId !== normalizedUserId
@@ -105,6 +110,13 @@ export function readAccountSnapshot(userId, storage = window.localStorage) {
     }
   }
   return snapshot;
+}
+
+export function storeAccountSnapshot(userId, snapshot, storage = window.localStorage) {
+  const normalizedUserId = requireUserId(userId);
+  const validatedSnapshot = validateAccountSnapshot(snapshot, normalizedUserId);
+  storage.setItem(getAccountSnapshotKey(normalizedUserId), JSON.stringify(validatedSnapshot));
+  return validatedSnapshot;
 }
 
 export function saveAccountSnapshot(userId, storage = window.localStorage) {

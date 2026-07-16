@@ -152,6 +152,24 @@ body.auth-authenticated #authGate {
   margin-top: 22px;
 }
 
+.cloud-conflict-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.cloud-conflict-times {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.cloud-conflict-actions button {
+  width: 100%;
+}
+
 .app-shell,
 [role="dialog"] {
   -webkit-user-select: none;
@@ -3953,6 +3971,60 @@ input[type="range"] {
   color: var(--primary);
   background: rgba(255, 253, 249, 0.88);
   font-weight: 900;
+}
+
+.cloud-sync-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(231, 216, 200, 0.76);
+  border-radius: 16px;
+  background: rgba(255, 253, 249, 0.64);
+}
+
+.cloud-sync-panel.hidden {
+  display: none;
+}
+
+.cloud-sync-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.cloud-sync-copy strong {
+  color: var(--text-main);
+  font-size: 14px;
+}
+
+.cloud-sync-copy span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.cloud-sync-panel[data-status="conflict"] {
+  border-color: rgba(164, 70, 61, 0.46);
+  background: rgba(255, 240, 232, 0.74);
+}
+
+.cloud-sync-panel[data-status="conflict"] .cloud-sync-copy strong,
+.cloud-sync-panel[data-status="error"] .cloud-sync-copy strong {
+  color: #a4463d;
+}
+
+.cloud-sync-panel button:disabled,
+.cloud-conflict-actions button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+@media (max-width: 360px) {
+  .cloud-sync-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 
 .settings-status-text[data-kind="error"] {

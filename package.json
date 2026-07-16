@@ -8,6 +8,7 @@
     "build:auth": "node scripts/build-auth.mjs",
     "build:web": "npm run build:auth && node scripts/build-web.mjs",
     "test:account-workspace": "node --test tests/account-workspace.test.mjs",
+    "test:cloud-save": "node --test tests/cloud-save.test.mjs",
     "cap:sync": "npm run build:web && npx cap sync",
     "cap:open:android": "npx cap open android"
   },

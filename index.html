@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
     <link rel="stylesheet" href="./public/assets/fonts/noto-sans-tc/noto-sans-tc-variable.css" />
     <link rel="stylesheet" href="./public/assets/fonts/lxgw-wenkai-tc/lxgw-wenkai-tc-bold.css" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-156" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-157" />
   </head>
   <body class="auth-checking">
     <div id="authGate" class="auth-gate" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
@@ -29,7 +29,7 @@
           <button id="authGateGoogleLoginBtn" class="google-login-btn" type="button"><span aria-hidden="true">G</span>使用 Google 登入</button>
           <button id="authGateRetryBtn" class="ghost-btn hidden" type="button">重新檢查登入</button>
           <p id="authGateStatus" class="settings-status-text" aria-live="polite"></p>
-          <small>目前帳號資料僅在此裝置分開保存，跨裝置同步將於後續版本提供。</small>
+          <small>登入後可在不同裝置同步你的練習室進度。</small>
         </div>
       </div>
     </div>
@@ -37,10 +37,26 @@
     <div id="logoutConfirmModal" class="logout-confirm-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="logoutConfirmTitle">
       <div class="logout-confirm-card paper-card">
         <h2 id="logoutConfirmTitle">確定要登出嗎？</h2>
-        <p>登出後需要重新使用 Google 帳號登入，才能繼續使用 App。此帳號的本機進度會保留在這台裝置。</p>
+        <p id="logoutConfirmMessage">登出後需要重新使用 Google 帳號登入，才能繼續使用 App。此帳號的本機與雲端進度會保留。</p>
         <div class="logout-confirm-actions">
           <button id="logoutCancelBtn" class="ghost-btn" type="button">取消</button>
           <button id="logoutConfirmBtn" class="primary-btn" type="button">確定登出</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="cloudConflictModal" class="logout-confirm-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="cloudConflictTitle">
+      <div class="logout-confirm-card cloud-conflict-card paper-card">
+        <h2 id="cloudConflictTitle">發現兩份不同的進度</h2>
+        <p>這台裝置與雲端都有更新。為避免覆蓋資料，請選擇要保留的版本；另一份會先在本機保留備份。</p>
+        <div class="cloud-conflict-times">
+          <span id="cloudConflictLocalTime">此裝置最後修改：尚無紀錄</span>
+          <span id="cloudConflictRemoteTime">雲端最後更新：尚無紀錄</span>
+        </div>
+        <div class="cloud-conflict-actions">
+          <button id="cloudUseLocalBtn" class="primary-btn" type="button">使用這台裝置</button>
+          <button id="cloudUseRemoteBtn" class="ghost-btn" type="button">使用雲端進度</button>
+          <button id="cloudConflictCancelBtn" class="ghost-btn" type="button">稍後決定</button>
         </div>
       </div>
     </div>
@@ -909,7 +925,14 @@
                   </div>
                   <button id="googleLogoutBtn" class="google-logout-btn" type="button">登出</button>
                 </div>
-                <p class="settings-card-copy">目前帳號資料僅在此裝置分開保存，跨裝置同步將於後續版本提供。</p>
+                <div id="cloudSyncPanel" class="cloud-sync-panel hidden">
+                  <div class="cloud-sync-copy">
+                    <strong id="cloudSyncStatus">尚未同步</strong>
+                    <span id="cloudSyncTime">尚無同步紀錄</span>
+                  </div>
+                  <button id="cloudSyncNowBtn" class="google-logout-btn" type="button">立即同步</button>
+                </div>
+                <p class="settings-card-copy">遊戲進度會保留在本機，並在網路可用時同步到此 Google 帳號。</p>
                 <p id="googleLoginStatus" class="settings-status-text" aria-live="polite"></p>
               </div>
             </details>
@@ -918,7 +941,7 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-156</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-157</span></strong>
                 </div>
                 <div class="setting-row">
                   <span>問題回報</span>
@@ -940,8 +963,8 @@
       </nav>
     </div>
 
-    <script src="./supabase-config.js?v=refresh-156"></script>
-    <script src="./app.js?v=refresh-156"></script>
-    <script src="./auth-runtime.js?v=refresh-156"></script>
+    <script src="./supabase-config.js?v=refresh-157"></script>
+    <script src="./app.js?v=refresh-157"></script>
+    <script src="./auth-runtime.js?v=refresh-157"></script>
   </body>
 </html>
