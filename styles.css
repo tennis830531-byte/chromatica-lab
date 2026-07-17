@@ -1236,11 +1236,11 @@ body.simple-motion .hero-plant-action {
 
 .quick-section::before {
   position: absolute;
-  inset: -18px -10px;
+  inset: -18px -12px;
   z-index: -1;
   content: "";
   pointer-events: none;
-  background: url("./public/assets/chromatic-refresh/feature/quick_start_paper.png") center / 100% 100% no-repeat;
+  background: url("./public/assets/chromatic-refresh/feature/quick_start_paper.png") center / calc(100% + 10px) 100% no-repeat;
 }
 
 .quick-section-heading {
@@ -5618,6 +5618,7 @@ body.simple-motion .plant-action-layer.is-stage-up {
 }
 
 .feedback-field input,
+.feedback-field select,
 .feedback-field textarea {
   width: 100%;
   box-sizing: border-box;

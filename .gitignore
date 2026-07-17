@@ -8,3 +8,4 @@ android/build/
 *.keystore
 keystore.properties
 local.properties
+supabase/.temp/

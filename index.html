@@ -95,23 +95,23 @@
           </div>
           <button id="feedbackCloseBtn" class="settings-close-btn" type="button" aria-label="關閉問題回報">×</button>
         </div>
-        <p class="feedback-intro">此封問題回報會傳送給半音階口琴練習室的開發者，歡迎寫信告知我們 App 使用上的任何問題。</p>
+        <p class="feedback-intro">問題回報會直接在 App 內安全送出，不會開啟外部郵件 App。</p>
         <label class="feedback-field">
-          <span>名字</span>
-          <input id="feedbackName" name="name" type="text" maxlength="60" autocomplete="name" required />
+          <span>分類</span>
+          <select id="feedbackCategory" name="category" required>
+            <option value="功能異常">功能異常</option><option value="帳號與雲端同步">帳號與雲端同步</option>
+            <option value="練習與音準偵測">練習與音準偵測</option><option value="介面或操作建議">介面或操作建議</option>
+            <option value="其他">其他</option>
+          </select>
         </label>
         <label class="feedback-field">
-          <span>電子郵件或其他聯繫方式</span>
-          <input id="feedbackContact" name="contact" type="text" maxlength="120" autocomplete="email" required />
-        </label>
-        <label class="feedback-field">
-          <span>信件內容</span>
-          <textarea id="feedbackMessage" name="message" rows="6" maxlength="2000" required></textarea>
+          <span>問題描述</span>
+          <textarea id="feedbackDescription" name="description" rows="6" minlength="10" maxlength="2000" required></textarea>
         </label>
         <p id="feedbackStatus" class="settings-status-text" aria-live="polite"></p>
         <div class="feedback-actions">
           <button id="feedbackCancelBtn" class="ghost-btn" type="button">取消</button>
-          <button class="primary-btn" type="submit">開啟郵件 App</button>
+          <button id="feedbackSubmitBtn" class="primary-btn" type="submit">傳送問題回報</button>
         </div>
       </form>
     </div>
@@ -933,10 +933,11 @@
             <details class="audio-setting-card paper-card">
               <summary class="settings-accordion-head"><span><strong>通知與語言</strong></span><i aria-hidden="true"></i></summary>
               <div class="settings-accordion-body">
-                <div class="setting-row">
-                  <span>練習提醒</span>
-                  <strong>準備中</strong>
-                </div>
+                <label class="sound-toggle-row">
+                  <span><strong>開啟每日練習提醒</strong></span>
+                  <input id="practiceReminderToggle" type="checkbox" />
+                </label>
+                <p id="practiceReminderStatus" class="settings-status-text" aria-live="polite"></p>
                 <div class="setting-row">
                   <span>語言</span>
                   <strong>繁體中文</strong>
@@ -971,7 +972,7 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-159</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-160</span></strong>
                 </div>
                 <button id="feedbackOpenBtn" class="setting-row settings-action-row" type="button">
                   <span>問題回報</span>
@@ -993,8 +994,9 @@
       </nav>
     </div>
 
-    <script src="./supabase-config.js?v=refresh-159"></script>
-    <script src="./app.js?v=refresh-159"></script>
-    <script src="./auth-runtime.js?v=refresh-159"></script>
+    <script src="./supabase-config.js?v=refresh-160"></script>
+    <script src="./practice-reminders.js?v=refresh-160"></script>
+    <script src="./app.js?v=refresh-160"></script>
+    <script src="./auth-runtime.js?v=refresh-160"></script>
   </body>
 </html>
