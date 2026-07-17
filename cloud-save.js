@@ -1,6 +1,7 @@
 import {
   ACCOUNT_SNAPSHOT_SCHEMA_VERSION,
   clearActiveAccountWorkspace,
+  createCleanAccountSnapshot,
   getAccountSnapshotKey,
   loadAccountSnapshot,
   readAccountSnapshot,
@@ -271,19 +272,6 @@ export async function saveSnapshotToCloud(client, snapshot, expectedRevision) {
   }
 }
 
-function storeCloudConflict(userId, remoteRow, storage) {
-  const payload = {
-    schemaVersion: ACCOUNT_SNAPSHOT_SCHEMA_VERSION,
-    userId,
-    remoteRevision: remoteRow.revision,
-    remoteUpdatedAt: remoteRow.updatedAt,
-    remoteSnapshot: remoteRow.snapshot,
-    detectedAt: nowIso(),
-  };
-  storage.setItem(cloudConflictKey(userId), JSON.stringify(payload));
-  return payload;
-}
-
 function readCloudConflict(userId, storage) {
   const raw = storage.getItem(cloudConflictKey(userId));
   if (!raw) return null;
@@ -328,6 +316,7 @@ export function createCloudSaveService({
   let syncFlightGeneration = 0;
   let pendingDirty = false;
   let applyingRemote = false;
+  let resetInProgress = false;
 
   function isCurrent(userId, expectedGeneration = generation) {
     return activeUserId === userId && generation === expectedGeneration;
@@ -350,23 +339,21 @@ export function createCloudSaveService({
     }
   }
 
-  async function applyRemoteSnapshot(userId, remoteRow) {
-    const previous = readAccountSnapshot(userId, targetStorage);
+  function replaceLocalSnapshot(userId, snapshot, previousSnapshot = readAccountSnapshot(userId, targetStorage)) {
     const stagingKey = cloudStagingKey(userId);
-    const remoteSnapshot = validateAccountSnapshot(remoteRow.snapshot, userId);
-    assertSnapshotSize(remoteSnapshot);
-    createCloudBackup(userId, previous, targetStorage);
-    targetStorage.setItem(stagingKey, JSON.stringify(remoteSnapshot));
+    const validatedSnapshot = validateAccountSnapshot(snapshot, userId);
+    assertSnapshotSize(validatedSnapshot);
+    targetStorage.setItem(stagingKey, JSON.stringify(validatedSnapshot));
     applyingRemote = true;
     try {
       const staged = JSON.parse(targetStorage.getItem(stagingKey));
       validateAccountSnapshot(staged, userId);
       storeAccountSnapshot(userId, staged, targetStorage);
-      if (!loadAccountSnapshot(userId, targetStorage)) throw new Error("Remote snapshot could not be loaded.");
+      if (!loadAccountSnapshot(userId, targetStorage)) throw new Error("Account snapshot could not be loaded.");
       readAccountSnapshot(userId, targetStorage);
     } catch (error) {
-      if (previous) {
-        storeAccountSnapshot(userId, previous, targetStorage);
+      if (previousSnapshot) {
+        storeAccountSnapshot(userId, previousSnapshot, targetStorage);
         loadAccountSnapshot(userId, targetStorage);
       } else {
         targetStorage.removeItem(getAccountSnapshotKey(userId));
@@ -377,6 +364,15 @@ export function createCloudSaveService({
       applyingRemote = false;
       targetStorage.removeItem(stagingKey);
     }
+    return validatedSnapshot;
+  }
+
+  async function applyRemoteSnapshot(userId, remoteRow) {
+    const previous = readAccountSnapshot(userId, targetStorage);
+    const remoteSnapshot = validateAccountSnapshot(remoteRow.snapshot, userId);
+    assertSnapshotSize(remoteSnapshot);
+    createCloudBackup(userId, previous, targetStorage);
+    replaceLocalSnapshot(userId, remoteSnapshot, previous);
     const remoteHash = await hashAccountSnapshot(remoteSnapshot);
     targetStorage.removeItem(cloudConflictKey(userId));
     return updateMeta(userId, {
@@ -392,17 +388,11 @@ export function createCloudSaveService({
     });
   }
 
-  async function markConflict(userId, localSnapshot, remoteRow) {
-    createCloudBackup(userId, localSnapshot, targetStorage);
-    storeCloudConflict(userId, remoteRow, targetStorage);
-    return updateMeta(userId, {
-      dirty: true,
-      status: "conflict",
-      conflict: true,
-      remoteRevision: remoteRow.revision,
-      remoteUpdatedAt: remoteRow.updatedAt || "",
-      lastErrorCode: "revision-conflict",
-    });
+  async function acceptRemoteAsAuthority(userId, remoteRow, expectedGeneration) {
+    await applyRemoteSnapshot(userId, remoteRow);
+    if (!isCurrent(userId, expectedGeneration)) return readCloudSyncMeta(userId, targetStorage);
+    await onRemoteApplied(userId);
+    return readCloudSyncMeta(userId, targetStorage);
   }
 
   async function acceptSuccessfulSave(userId, snapshot, result, expectedGeneration) {
@@ -445,7 +435,9 @@ export function createCloudSaveService({
     if (result.status === "missing") {
       const refreshed = await fetchCloudGameSave(client, userId);
       if (!isCurrent(userId, expectedGeneration)) return readCloudSyncMeta(userId, targetStorage);
-      if (refreshed.kind === "found") return markConflict(userId, snapshot, refreshed.row);
+      if (refreshed.kind === "found") {
+        return acceptRemoteAsAuthority(userId, refreshed.row, expectedGeneration);
+      }
       return updateMeta(userId, {
         dirty: true,
         status: refreshed.kind === "error" && ["offline", "network", "timeout"].includes(refreshed.code)
@@ -455,15 +447,17 @@ export function createCloudSaveService({
       });
     }
     if (result.remoteSnapshot && normalizeRevision(result.revision) !== null) {
-      return markConflict(userId, snapshot, {
+      return acceptRemoteAsAuthority(userId, {
         revision: result.revision,
         updatedAt: result.updatedAt,
         snapshot: result.remoteSnapshot,
-      });
+      }, expectedGeneration);
     }
     const remote = await fetchCloudGameSave(client, userId);
     if (!isCurrent(userId, expectedGeneration)) return readCloudSyncMeta(userId, targetStorage);
-    if (remote.kind === "found") return markConflict(userId, snapshot, remote.row);
+    if (remote.kind === "found") {
+      return acceptRemoteAsAuthority(userId, remote.row, expectedGeneration);
+    }
     return updateMeta(userId, {
       dirty: true,
       status: remote.kind === "error" && ["offline", "network", "timeout"].includes(remote.code) ? "offline" : "error",
@@ -477,7 +471,28 @@ export function createCloudSaveService({
     if (!localSnapshot) return updateMeta(userId, { dirty: false, status: "pending", lastErrorCode: "no-local-snapshot" });
     let meta = readCloudSyncMeta(userId, targetStorage);
     if (meta.conflict || readCloudConflict(userId, targetStorage)) {
-      return updateMeta(userId, { dirty: true, status: "conflict", conflict: true });
+      const remote = await fetchCloudGameSave(client, userId);
+      if (!isCurrent(userId, expectedGeneration)) return readCloudSyncMeta(userId, targetStorage);
+      if (remote.kind === "found") {
+        return acceptRemoteAsAuthority(userId, remote.row, expectedGeneration);
+      }
+      if (remote.kind === "error") {
+        return updateMeta(userId, {
+          dirty: true,
+          status: ["offline", "network", "timeout"].includes(remote.code) ? "offline" : "error",
+          conflict: true,
+          lastErrorCode: remote.code,
+        });
+      }
+      targetStorage.removeItem(cloudConflictKey(userId));
+      meta = updateMeta(userId, {
+        baseRevision: 0,
+        dirty: true,
+        status: "pending",
+        conflict: false,
+        remoteRevision: null,
+        lastErrorCode: "",
+      });
     }
     if (isOffline()) return updateMeta(userId, { dirty: true, status: "offline", lastErrorCode: "offline" });
     const localHash = await hashAccountSnapshot(localSnapshot);
@@ -502,7 +517,7 @@ export function createCloudSaveService({
             lastErrorCode: "",
           });
         }
-        return markConflict(userId, localSnapshot, remote.row);
+        return acceptRemoteAsAuthority(userId, remote.row, expectedGeneration);
       }
       if (remote.kind === "error") {
         return updateMeta(userId, {
@@ -518,6 +533,7 @@ export function createCloudSaveService({
 
   function runSingleFlight(reason = "manual") {
     if (!activeUserId) return Promise.resolve(null);
+    if (resetInProgress) return Promise.resolve(readCloudSyncMeta(activeUserId, targetStorage));
     if (
       syncFlight
       && syncFlightUserId === activeUserId
@@ -557,6 +573,7 @@ export function createCloudSaveService({
   }
 
   function scheduleCloudSync() {
+    if (resetInProgress) return;
     clearSyncTimer();
     syncTimer = setTimeout(() => {
       syncTimer = null;
@@ -565,7 +582,7 @@ export function createCloudSaveService({
   }
 
   async function noteLocalSnapshot(snapshot, { immediate = false } = {}) {
-    if (!activeUserId || applyingRemote || snapshot?.userId !== activeUserId) return null;
+    if (!activeUserId || applyingRemote || resetInProgress || snapshot?.userId !== activeUserId) return null;
     const userId = activeUserId;
     const expectedGeneration = generation;
     let hash;
@@ -654,8 +671,9 @@ export function createCloudSaveService({
       return { kind: "local-ready" };
     }
     if (!meta.lastSyncedHash || meta.baseRevision === null) {
-      await markConflict(normalizedUserId, localSnapshot, remote.row);
-      return { kind: "conflict" };
+      await applyRemoteSnapshot(normalizedUserId, remote.row);
+      if (!isCurrent(normalizedUserId, expectedGeneration)) return { kind: "stale" };
+      return { kind: "remote-applied", remote: remote.row };
     }
     const localChanged = meta.dirty || localHash !== meta.lastSyncedHash;
     const remoteChanged = remoteHash !== meta.lastSyncedHash || remote.row.revision !== meta.baseRevision;
@@ -669,8 +687,9 @@ export function createCloudSaveService({
       void noteLocalSnapshot(localSnapshot, { immediate: true });
       return { kind: "local-ready" };
     }
-    await markConflict(normalizedUserId, localSnapshot, remote.row);
-    return { kind: "conflict" };
+    await applyRemoteSnapshot(normalizedUserId, remote.row);
+    if (!isCurrent(normalizedUserId, expectedGeneration)) return { kind: "stale" };
+    return { kind: "remote-applied", remote: remote.row };
   }
 
   async function initializeNewWorkspace() {
@@ -688,37 +707,94 @@ export function createCloudSaveService({
     return runSingleFlight(reason);
   }
 
-  async function resolveConflict(choice) {
+  async function resetCurrentWorkspace({ userId: requestedUserId = "" } = {}) {
     if (!activeUserId) return { ok: false, code: "no-active-account" };
-    const userId = activeUserId;
-    const expectedGeneration = generation;
-    const conflict = readCloudConflict(userId, targetStorage);
-    if (!conflict) return { ok: false, code: "no-conflict" };
-    if (choice === "cancel") return { ok: true, cancelled: true };
-    if (choice === "remote") {
-      await applyRemoteSnapshot(userId, {
-        revision: conflict.remoteRevision,
-        updatedAt: conflict.remoteUpdatedAt,
-        snapshot: conflict.remoteSnapshot,
-      });
-      if (!isCurrent(userId, expectedGeneration)) return { ok: false, code: "stale" };
-      await onRemoteApplied(userId);
-      return { ok: true, choice };
+    const normalizedRequestedUserId = requestedUserId ? normalizeUserId(requestedUserId) : "";
+    if (normalizedRequestedUserId && normalizedRequestedUserId !== activeUserId) {
+      return { ok: false, code: "reset-session-invalid" };
     }
-    if (choice === "local") {
+    if (resetInProgress) return { ok: false, code: "reset-in-progress" };
+    resetInProgress = true;
+    let originalAccountSnapshotRaw;
+    let originalAccountSnapshotKey = "";
+    let accountSnapshotCaptured = false;
+    let resetCommitted = false;
+    clearSyncTimer();
+    try {
+      if (
+        syncFlight
+        && syncFlightUserId === activeUserId
+        && syncFlightGeneration === generation
+      ) {
+        await syncFlight;
+      }
+      const userId = activeUserId;
+      if (!userId || (normalizedRequestedUserId && normalizedRequestedUserId !== userId)) {
+        return { ok: false, code: "reset-session-invalid" };
+      }
+
+      originalAccountSnapshotKey = getAccountSnapshotKey(userId);
+      originalAccountSnapshotRaw = targetStorage.getItem(originalAccountSnapshotKey);
+      accountSnapshotCaptured = true;
+      const previousSnapshot = saveActiveAccountSnapshot(targetStorage);
+      if (!previousSnapshot) return { ok: false, code: "invalid-local-data" };
+      const cleanSnapshot = createCleanAccountSnapshot(userId);
+      assertSnapshotSize(cleanSnapshot);
+      const cleanHash = await hashAccountSnapshot(cleanSnapshot);
+      createCloudBackup(userId, previousSnapshot, targetStorage);
+
+      generation += 1;
+      const expectedGeneration = generation;
+      pendingDirty = false;
+      if (isOffline()) return { ok: false, code: "cloud-fetch-offline" };
+
+      let remote = await fetchCloudGameSave(client, userId);
+      if (!isCurrent(userId, expectedGeneration)) return { ok: false, code: "stale" };
+      if (remote.kind === "error") return { ok: false, code: `cloud-fetch-${remote.code}` };
+      let expectedRevision = remote.kind === "found" ? remote.row.revision : 0;
+      let saveResult = await saveSnapshotToCloud(client, cleanSnapshot, expectedRevision);
+      if (!isCurrent(userId, expectedGeneration)) return { ok: false, code: "stale" };
+      if (saveResult.kind === "error") return { ok: false, code: saveResult.code };
+
+      if (saveResult.status === "conflict") {
+        remote = await fetchCloudGameSave(client, userId);
+        if (!isCurrent(userId, expectedGeneration)) return { ok: false, code: "stale" };
+        if (remote.kind === "error") return { ok: false, code: `cloud-fetch-${remote.code}` };
+        expectedRevision = remote.kind === "found" ? remote.row.revision : 0;
+        saveResult = await saveSnapshotToCloud(client, cleanSnapshot, expectedRevision);
+        if (!isCurrent(userId, expectedGeneration)) return { ok: false, code: "stale" };
+        if (saveResult.kind === "error") return { ok: false, code: saveResult.code };
+      }
+
+      if (!["created", "updated"].includes(saveResult.status) || normalizeRevision(saveResult.revision) === null) {
+        return { ok: false, code: "reset-conflict" };
+      }
+
+      replaceLocalSnapshot(userId, cleanSnapshot, previousSnapshot);
       targetStorage.removeItem(cloudConflictKey(userId));
+      targetStorage.removeItem(cloudStagingKey(userId));
       updateMeta(userId, {
-        baseRevision: conflict.remoteRevision,
-        dirty: true,
-        status: "pending",
+        baseRevision: saveResult.revision,
+        lastSyncedHash: cleanHash,
+        lastSyncedAt: nowIso(),
+        remoteUpdatedAt: saveResult.updatedAt || nowIso(),
+        dirty: false,
+        status: "synced",
         conflict: false,
-        remoteRevision: conflict.remoteRevision,
+        remoteRevision: null,
         lastErrorCode: "",
       });
-      const result = await runSingleFlight("resolve-conflict-local");
-      return { ok: result?.status === "synced", choice, meta: result };
+      resetCommitted = true;
+      return { ok: true, userId, snapshot: cleanSnapshot, revision: saveResult.revision };
+    } catch (error) {
+      return { ok: false, code: error?.code || classifyLocalCloudError(error), error };
+    } finally {
+      if (accountSnapshotCaptured && !resetCommitted) {
+        if (originalAccountSnapshotRaw === null) targetStorage.removeItem(originalAccountSnapshotKey);
+        else targetStorage.setItem(originalAccountSnapshotKey, originalAccountSnapshotRaw);
+      }
+      resetInProgress = false;
     }
-    return { ok: false, code: "invalid-choice" };
   }
 
   async function prepareForSignOut() {
@@ -732,7 +808,7 @@ export function createCloudSaveService({
   }
 
   async function reconcileCurrent(reason = "online") {
-    if (!activeUserId) return null;
+    if (!activeUserId || resetInProgress) return null;
     clearSyncTimer();
     if (
       syncFlight
@@ -761,7 +837,7 @@ export function createCloudSaveService({
     initializeNewWorkspace,
     noteLocalSnapshot,
     syncNow,
-    resolveConflict,
+    resetCurrentWorkspace,
     prepareForSignOut,
     deactivate,
     handleForeground: () => reconcileCurrent("foreground"),

@@ -140,8 +140,29 @@ export function saveActiveAccountSnapshot(storage = window.localStorage) {
   return activeUserId ? saveAccountSnapshot(activeUserId, storage) : null;
 }
 
+export function createCleanAccountSnapshot(userId, updatedAt = new Date().toISOString()) {
+  const normalizedUserId = requireUserId(userId);
+  const snapshot = {
+    schemaVersion: ACCOUNT_SNAPSHOT_SCHEMA_VERSION,
+    userId: normalizedUserId,
+    updatedAt,
+    data: Object.fromEntries(ACCOUNT_SCOPED_KEYS.map((key) => [key, null])),
+  };
+  return validateAccountSnapshot(snapshot, normalizedUserId);
+}
+
 export function clearActiveAccountWorkspace(storage = window.localStorage) {
   getAccountScopedKeys(storage).forEach((key) => storage.removeItem(key));
+}
+
+export function resetAccountWorkspace(userId, storage = window.localStorage) {
+  const normalizedUserId = requireUserId(userId);
+  if (storage.getItem(ACTIVE_ACCOUNT_KEY) !== normalizedUserId) {
+    throw new Error("Only the active account workspace can be reset.");
+  }
+  clearActiveAccountWorkspace(storage);
+  storage.removeItem(getAccountSnapshotKey(normalizedUserId));
+  return { userId: normalizedUserId, reset: true };
 }
 
 export function loadAccountSnapshot(userId, storage = window.localStorage) {

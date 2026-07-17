@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
     <link rel="stylesheet" href="./public/assets/fonts/noto-sans-tc/noto-sans-tc-variable.css" />
     <link rel="stylesheet" href="./public/assets/fonts/lxgw-wenkai-tc/lxgw-wenkai-tc-bold.css" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-157" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-159" />
   </head>
   <body class="auth-checking">
     <div id="authGate" class="auth-gate" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
@@ -45,18 +45,13 @@
       </div>
     </div>
 
-    <div id="cloudConflictModal" class="logout-confirm-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="cloudConflictTitle">
-      <div class="logout-confirm-card cloud-conflict-card paper-card">
-        <h2 id="cloudConflictTitle">發現兩份不同的進度</h2>
-        <p>這台裝置與雲端都有更新。為避免覆蓋資料，請選擇要保留的版本；另一份會先在本機保留備份。</p>
-        <div class="cloud-conflict-times">
-          <span id="cloudConflictLocalTime">此裝置最後修改：尚無紀錄</span>
-          <span id="cloudConflictRemoteTime">雲端最後更新：尚無紀錄</span>
-        </div>
-        <div class="cloud-conflict-actions">
-          <button id="cloudUseLocalBtn" class="primary-btn" type="button">使用這台裝置</button>
-          <button id="cloudUseRemoteBtn" class="ghost-btn" type="button">使用雲端進度</button>
-          <button id="cloudConflictCancelBtn" class="ghost-btn" type="button">稍後決定</button>
+    <div id="resetAccountModal" class="logout-confirm-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="resetAccountTitle">
+      <div class="logout-confirm-card paper-card">
+        <h2 id="resetAccountTitle">確定清除所有紀錄嗎？</h2>
+        <p>水滴、植物、圖鑑、練習紀錄、每日目標與個人練習設定都會回到初始狀態，且會同步清除這個帳號的雲端進度。此操作無法復原。</p>
+        <div class="logout-confirm-actions">
+          <button id="resetAccountCancelBtn" class="ghost-btn" type="button">取消</button>
+          <button id="resetAccountConfirmBtn" class="primary-btn danger-action-btn" type="button">確定全部清除</button>
         </div>
       </div>
     </div>
@@ -89,6 +84,36 @@
         <p id="goalToastText">你已完成今日目標。</p>
         <button id="goalToastClose" class="primary-btn" type="button">知道了</button>
       </div>
+    </div>
+
+    <div id="feedbackModal" class="feedback-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="feedbackModalTitle">
+      <form id="feedbackForm" class="feedback-modal-card paper-card">
+        <div class="feedback-modal-head">
+          <div>
+            <p class="eyebrow">問題回報</p>
+            <h2 id="feedbackModalTitle">告訴我們你的回饋</h2>
+          </div>
+          <button id="feedbackCloseBtn" class="settings-close-btn" type="button" aria-label="關閉問題回報">×</button>
+        </div>
+        <p class="feedback-intro">此封問題回報會傳送給半音階口琴練習室的開發者，歡迎寫信告知我們 App 使用上的任何問題。</p>
+        <label class="feedback-field">
+          <span>名字</span>
+          <input id="feedbackName" name="name" type="text" maxlength="60" autocomplete="name" required />
+        </label>
+        <label class="feedback-field">
+          <span>電子郵件或其他聯繫方式</span>
+          <input id="feedbackContact" name="contact" type="text" maxlength="120" autocomplete="email" required />
+        </label>
+        <label class="feedback-field">
+          <span>信件內容</span>
+          <textarea id="feedbackMessage" name="message" rows="6" maxlength="2000" required></textarea>
+        </label>
+        <p id="feedbackStatus" class="settings-status-text" aria-live="polite"></p>
+        <div class="feedback-actions">
+          <button id="feedbackCancelBtn" class="ghost-btn" type="button">取消</button>
+          <button class="primary-btn" type="submit">開啟郵件 App</button>
+        </div>
+      </form>
     </div>
 
     <div id="homeSpiritRewardToast" class="home-spirit-reward-toast hidden" role="status" aria-live="polite" aria-atomic="true">
@@ -664,8 +689,7 @@
                       <span>目標音量</span>
                       <select id="targetVolumeSelect" class="cycle-select" aria-label="目標音量">
                         <option value="p">p</option>
-                        <option value="mp" selected>mp</option>
-                        <option value="mf">mf</option>
+                        <option value="mf" selected>mf</option>
                         <option value="f">f</option>
                       </select>
                     </label>
@@ -683,15 +707,27 @@
                       </select>
                     </div>
                   </div>
-                  <div class="flow-grid compact-flow">
-                    <span>準備 <b id="prepareBeats">4 拍</b></span>
-                    <span><i id="playFlowLabel">長音</i> <b id="playBeats">4 拍</b></span>
-                    <span>休息 <b id="restBeats">4 拍</b></span>
-                  </div>
                 </div>
               </div>
             </section>
           </div>
+
+          <section id="longToneComplete" class="interval-complete paper-card hidden" aria-live="polite">
+            <div class="interval-complete-mark" aria-hidden="true">♪</div>
+            <p class="eyebrow">練習紀錄已保存</p>
+            <h2>長音練習完成！</h2>
+            <dl class="interval-complete-summary">
+              <div><dt>練習項目</dt><dd id="longToneCompleteExercise">平穩長音</dd></div>
+              <div><dt>練習設定</dt><dd id="longToneCompleteSetting">mf</dd></div>
+              <div><dt>完成循環</dt><dd id="longToneCompleteCycles">4 / 4</dd></div>
+              <div><dt>獲得水滴</dt><dd id="longToneCompleteWater">4 滴 💧</dd></div>
+            </dl>
+            <p id="longToneCompleteNote" class="interval-complete-note"></p>
+            <div class="interval-complete-actions">
+              <button id="longToneAgainBtn" class="primary-btn" type="button">再練一次</button>
+              <button id="longToneBackBtn" class="ghost-btn" type="button">回到練習列表</button>
+            </div>
+          </section>
         </section>
 
         <section id="daily" class="view">
@@ -764,7 +800,7 @@
               <div class="garden-progress">
                 <div class="garden-progress-row"><span>階段進度</span><b id="gardenProgressText">0 / 100</b></div>
                 <div class="garden-progress-track"><i id="gardenProgressBar"></i></div>
-                <div class="daily-practice-water"><span>今日練習水滴</span><b id="dailyPracticeWaterText">0 / 80</b></div>
+                <div class="daily-practice-water"><span>今日練習水滴上限</span><b id="dailyPracticeWaterText">0 / 80</b></div>
               </div>
             </section>
 
@@ -925,13 +961,7 @@
                   </div>
                   <button id="googleLogoutBtn" class="google-logout-btn" type="button">登出</button>
                 </div>
-                <div id="cloudSyncPanel" class="cloud-sync-panel hidden">
-                  <div class="cloud-sync-copy">
-                    <strong id="cloudSyncStatus">尚未同步</strong>
-                    <span id="cloudSyncTime">尚無同步紀錄</span>
-                  </div>
-                  <button id="cloudSyncNowBtn" class="google-logout-btn" type="button">立即同步</button>
-                </div>
+                <button id="resetAccountDataBtn" class="account-reset-btn" type="button">清除所有紀錄</button>
                 <p class="settings-card-copy">遊戲進度會保留在本機，並在網路可用時同步到此 Google 帳號。</p>
                 <p id="googleLoginStatus" class="settings-status-text" aria-live="polite"></p>
               </div>
@@ -941,12 +971,12 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-157</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-159</span></strong>
                 </div>
-                <div class="setting-row">
+                <button id="feedbackOpenBtn" class="setting-row settings-action-row" type="button">
                   <span>問題回報</span>
-                  <strong>準備中</strong>
-                </div>
+                  <strong>填寫表單 〉</strong>
+                </button>
               </div>
             </details>
           </div>
@@ -963,8 +993,8 @@
       </nav>
     </div>
 
-    <script src="./supabase-config.js?v=refresh-157"></script>
-    <script src="./app.js?v=refresh-157"></script>
-    <script src="./auth-runtime.js?v=refresh-157"></script>
+    <script src="./supabase-config.js?v=refresh-159"></script>
+    <script src="./app.js?v=refresh-159"></script>
+    <script src="./auth-runtime.js?v=refresh-159"></script>
   </body>
 </html>

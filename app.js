@@ -6,7 +6,7 @@ const dynamics = {
   f: 5,
 };
 
-const targetVolumes = ["p", "mp", "mf", "f"];
+const targetVolumes = ["p", "mf", "f"];
 const THREE_LEVEL_DYNAMIC_EXERCISE_IDS = new Set([
   "dynamic-layers",
   "crescendo-8",
@@ -24,7 +24,7 @@ const DAILY_GOAL_REQUIRED_COMBOS = 2;
 const INTERVAL_DAILY_GOAL_STATE_KEY = "intervalUniqueCombos";
 const INTERVAL_DAILY_GOAL_TASKS = [
   { id: "interval-variety-3", title: "音程組合挑戰 3 次", required: 3 },
-  { id: "interval-variety-8", title: "音程組合挑戰 8 次", required: 8 },
+  { id: "interval-variety-5", title: "音程組合挑戰 5 次", required: 5 },
 ];
 const STREAK_WATER_MILESTONES = [
   { days: 7, amount: 50 },
@@ -208,8 +208,8 @@ const exercises = [
     playBeats: 4,
     restBeats: 4,
     pattern: [
-      { beat: 1, dynamic: "mp" },
-      { beat: 4, dynamic: "mp" },
+      { beat: 1, dynamic: "mf" },
+      { beat: 4, dynamic: "mf" },
     ],
     instruction: "以穩定氣息維持指定拍數，觀察音準是否平穩。",
     scored: true,
@@ -496,7 +496,7 @@ let selectedMapHole = null;
 let selectedExercise = 0;
 let bpm = exercises[0].bpm;
 let steadyDurationSeconds = DEFAULT_PRACTICE_SETTINGS.steadyDurationSeconds;
-let selectedTargetVolume = "mp";
+let selectedTargetVolume = "mf";
 let selectedVariants = {};
 let selectedGardenSpiritId = "";
 let selectedGardenSpiritStage = 3;
@@ -2072,14 +2072,13 @@ function renderGardenCollection() {
   const collection = getGardenCollection();
   const collectionBySpecies = new Map(collection.map((item) => [item.species, item]));
   const featuredId = getFeaturedSpiritId();
-  const featuredStage = getFeaturedSpiritStage();
   const cells = Array.from({ length: 50 }, (_, index) => {
     const slot = index + 1;
     const speciesForSlot = gardenSpecies[index];
     const collected = speciesForSlot ? collectionBySpecies.get(speciesForSlot.species) : null;
     if (collected) {
       const featured = collected.id === featuredId;
-      const previewStage = featured ? featuredStage : 3;
+      const previewStage = 1;
       return `
         <div class="garden-collection-cell ${featured ? "featured" : ""}">
           <span class="slot-number">${slot}</span>
@@ -2972,7 +2971,7 @@ function markDailyGoalDone(goalId, comboId) {
   if (!task) {
     const streakResult = markPracticeCompletedToday();
     renderDailyGoals();
-    return { isNew: false, isAllDone: false, streakResult };
+    return { isNew: false, isAllDone: false, streakResult, progress: null };
   }
   const previousProgress = getDailyGoalProgress(state, task);
   const completedCombos = new Set(previousProgress.completedCombos);
@@ -2989,7 +2988,17 @@ function markDailyGoalDone(goalId, comboId) {
   const nextState = getDailyGoalState();
   const nextProgress = getDailyGoalProgress(nextState, task);
   const isAllDone = tasks.every((item) => getDailyGoalProgress(nextState, item).done);
-  return { isNew: !previousProgress.done && nextProgress.done, isAllDone, streakResult };
+  return {
+    isNew: !previousProgress.done && nextProgress.done,
+    isAllDone,
+    streakResult,
+    progress: {
+      title: task.title,
+      completedCount: nextProgress.completedCount,
+      required: nextProgress.required,
+      done: nextProgress.done,
+    },
+  };
 }
 
 function markIntervalDailyGoalsDone(keyName, intervalSize) {
@@ -3006,8 +3015,27 @@ function markIntervalDailyGoalsDone(keyName, intervalSize) {
   const streakResult = markPracticeCompletedToday();
   renderDailyGoals();
   const nextState = getDailyGoalState();
-  const isAllDone = getDailyGoalTasks().every((task) => getDailyGoalProgress(nextState, task).done);
-  return { isAllDone, streakResult };
+  const allTasks = getDailyGoalTasks();
+  const isAllDone = allTasks.every((task) => getDailyGoalProgress(nextState, task).done);
+  const progress = intervalTasks.map((task) => {
+    const taskProgress = getDailyGoalProgress(nextState, task);
+    return {
+      title: task.title,
+      completedCount: taskProgress.completedCount,
+      required: taskProgress.required,
+      done: taskProgress.done,
+    };
+  });
+  return { isAllDone, streakResult, progress };
+}
+
+function formatDailyGoalProgress(progress) {
+  if (!progress) return "";
+  const items = Array.isArray(progress) ? progress : [progress];
+  if (!items.length) return "";
+  return `每日目標：${items
+    .map((item) => `${item.title} ${item.completedCount} / ${item.required}${item.done ? "（已完成）" : ""}`)
+    .join("、")}`;
 }
 
 function showGoalCompletedDialog(title) {
@@ -4935,10 +4963,6 @@ function renderExercise() {
   $("#exerciseInstruction").textContent = exercise.title;
   $("#currentBeat").textContent = steadyMode ? steadyDurationSeconds : 0;
   $("#beatTotal").textContent = steadyMode ? `/ ${steadyDurationSeconds} 拍` : `/ ${exercise.playBeats} 拍`;
-  $("#prepareBeats").textContent = `${exercise.prepareBeats} 拍`;
-  $("#playBeats").textContent = steadyMode ? `${steadyDurationSeconds} 拍` : `${exercise.playBeats} 拍`;
-  $("#playFlowLabel").textContent = steadyMode ? "長音" : "吹奏";
-  $("#restBeats").textContent = `${exercise.restBeats} 拍`;
   $("#cycleCount").textContent = totalCycles;
   $("#currentCycle").textContent = cycle;
   $("#cycleTotal").textContent = `/ ${totalCycles} 次`;
@@ -5128,21 +5152,23 @@ function getIntervalPracticeSelection() {
 
 function getIntervalNumberNotation(noteName) {
   const match = noteName.match(/^([A-G])([#b]?)(\d)$/);
-  if (!match) return { degree: "?", accidental: "", octave: 0 };
+  if (!match) return { degree: "?", accidental: "", octave: 0, displayNoteName: noteName };
   const fixedDoDegrees = { C: "1", D: "2", E: "3", F: "4", G: "5", A: "6", B: "7" };
+  const displayOctave = Number(match[3]) - 1;
   return {
     degree: fixedDoDegrees[match[1]],
     accidental: match[2] === "#" ? "♯" : match[2] === "b" ? "♭" : "",
-    octave: Math.max(0, Number(match[3]) - 4),
+    octave: displayOctave - 4,
+    displayNoteName: `${match[1]}${match[2]}${displayOctave}`,
   };
 }
 
 function renderIntervalNumberNote(noteName, isActive = false) {
   const notation = getIntervalNumberNotation(noteName);
-  const dots = notation.octave > 0
-    ? `<i class="jianpu-octave-dot" aria-hidden="true">${"•".repeat(notation.octave)}</i>`
+  const dots = notation.octave !== 0
+    ? `<i class="jianpu-octave-dot ${notation.octave < 0 ? "is-low" : "is-high"}" aria-hidden="true">${"•".repeat(Math.abs(notation.octave))}</i>`
     : "";
-  return `<b class="jianpu-note${isActive ? " active" : ""}" aria-label="${noteName}">${dots}<i class="jianpu-accidental" aria-hidden="true">${notation.accidental}</i>${notation.degree}</b>`;
+  return `<b class="jianpu-note${isActive ? " active" : ""}" aria-label="${notation.displayNoteName}">${dots}<i class="jianpu-accidental" aria-hidden="true">${notation.accidental}</i>${notation.degree}</b>`;
 }
 
 function renderIntervalPractice() {
@@ -5375,14 +5401,56 @@ function finishIntervalPractice() {
   $("#intervalCompleteSize").textContent = INTERVAL_LABELS[state.interval];
   $("#intervalCompleteDirection").textContent = INTERVAL_DIRECTION_LABELS[state.direction];
   $("#intervalCompleteCycles").textContent = `${state.completedCycles} / ${state.totalCycles}`;
-  $("#intervalCompleteWater").textContent = `${waterResult.water} 滴`;
+  $("#intervalCompleteWater").textContent = `${waterResult.water} 滴 💧`;
   const notes = [];
+  const dailyGoalProgress = formatDailyGoalProgress(goalResult.progress);
+  if (dailyGoalProgress) notes.push(dailyGoalProgress);
   if (waterResult.capped) notes.push("今日練習水滴已達上限，完成紀錄仍已保存。");
   if (streakResult.isFirstCompletionToday) notes.push(`今日連續學習已完成，目前連續 ${streakResult.currentStreak} 天。`);
   notes.push(...bonusMessages);
   $("#intervalCompleteNote").textContent = notes.join("\n");
   playSound("practiceComplete");
   scrollToSection("intervalComplete");
+}
+
+function setLongToneCompletionVisible(visible) {
+  $("#longtone .practice-layout")?.classList.toggle("hidden", visible);
+  $("#longToneComplete")?.classList.toggle("hidden", !visible);
+}
+
+function getLongToneCompletionSetting(exercise) {
+  if (isSteadyLongTone(exercise)) return `${steadyDurationSeconds} 拍 · ${selectedTargetVolume}`;
+  if (exercise.scored) return selectedTargetVolume;
+  if (exercise.variants?.length) return getExerciseVariantLabel(exercise);
+  return `${exercise.playBeats} 拍`;
+}
+
+function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessages }) {
+  $("#longToneCompleteExercise").textContent = exercise.title;
+  $("#longToneCompleteSetting").textContent = getLongToneCompletionSetting(exercise);
+  $("#longToneCompleteCycles").textContent = `${totalCycles} / ${totalCycles}`;
+  $("#longToneCompleteWater").textContent = `${waterResult.water} 滴 💧`;
+  const notes = [];
+  const dailyGoalProgress = formatDailyGoalProgress(goalResult.progress);
+  if (dailyGoalProgress) notes.push(dailyGoalProgress);
+  if (waterResult.capped) notes.push("今日練習水滴已達上限，完成紀錄仍已保存。");
+  if (goalResult.streakResult?.isFirstCompletionToday) {
+    notes.push(`今日連續學習已完成，目前連續 ${goalResult.streakResult.currentStreak} 天。`);
+  }
+  notes.push(...bonusMessages);
+  $("#longToneCompleteNote").textContent = notes.join("\n");
+  setLongToneCompletionVisible(true);
+  playSound("practiceComplete");
+  scrollToSection("longToneComplete");
+}
+
+function returnToLongTonePractice() {
+  setLongToneCompletionVisible(false);
+  stopPractice(false);
+  renderExercise();
+  resetMicStats();
+  updateBeatDisplay();
+  scrollToLongTonePageTop();
 }
 
 function showIntervalSetup() {
@@ -5599,12 +5667,8 @@ function stepPractice() {
       if (isCurrentExerciseScored()) {
         showAverageScore();
       }
+      const averageScore = getAverageCycleScore();
       const currentGoal = getCurrentDailyGoalCompletion();
-      const currentGoalTitle = exercise.scored
-        ? `${exercise.title} ${selectedTargetVolume}`
-        : exercise.variants?.length
-          ? `${exercise.title} ${getExerciseVariantLabel(exercise)}`
-          : exercise.title;
       const goalResult = markDailyGoalDone(currentGoal.goalId, currentGoal.comboId);
       const waterResult = awardGardenWaterForPractice(totalCycles);
       const bonusMessages = [
@@ -5612,12 +5676,8 @@ function stepPractice() {
         ...awardStreakMilestoneBonusesIfNeeded(goalResult.streakResult),
       ].filter(Boolean);
       if (bonusMessages.length) renderGarden();
-      if (goalResult.streakResult?.isFirstCompletionToday) {
-        showFirstDailyCompletionToast(currentGoalTitle, goalResult.streakResult, waterResult, bonusMessages);
-      } else {
-        showPracticeCompletedToast(currentGoalTitle, waterResult, bonusMessages);
-      }
       stopPractice(true);
+      showLongToneCompletion({ exercise, averageScore, waterResult, goalResult, bonusMessages });
       return;
     }
     cycle += 1;
@@ -5638,6 +5698,7 @@ function stepPractice() {
 function startPractice() {
   const exercise = exercises[selectedExercise];
   let shouldScrollAfterStart = false;
+  setLongToneCompletionVisible(false);
   setPracticeSettingsOpen(false);
   if (timer) {
     if (isSteadyLongTone(exercise) && phase === "play" && steadyPlayEndsAt) {
@@ -5760,6 +5821,40 @@ function launchStartPracticeButton(button, navigate) {
   }, launchDelay);
 }
 
+function setFeedbackModalOpen(open) {
+  const modal = $("#feedbackModal");
+  if (!modal) return;
+  modal.classList.toggle("hidden", !open);
+  document.body.classList.toggle("modal-open", open);
+  if (open) {
+    $("#feedbackStatus").textContent = "";
+    window.setTimeout(() => $("#feedbackName")?.focus(), 0);
+  }
+}
+
+function submitFeedbackForm(event) {
+  event.preventDefault();
+  const name = $("#feedbackName")?.value.trim() || "";
+  const contact = $("#feedbackContact")?.value.trim() || "";
+  const message = $("#feedbackMessage")?.value.trim() || "";
+  const status = $("#feedbackStatus");
+  if (!name || !contact || !message) {
+    status.textContent = "請完整填寫名字、聯繫方式與信件內容。";
+    return;
+  }
+  const recipient = ["tennis830531", "gmail.com"].join("@");
+  const subject = encodeURIComponent(`Chromatic Harmonica Lab 問題回報｜${name}`);
+  const body = encodeURIComponent([
+    `名字：${name}`,
+    `聯繫方式：${contact}`,
+    "",
+    "回報內容：",
+    message,
+  ].join("\n"));
+  status.textContent = "正在開啟郵件 App，請確認內容後送出。";
+  window.location.href = `mailto:${recipient}?subject=${subject}&body=${body}`;
+}
+
 function bindEvents() {
   $$("[data-view]").forEach((button) => {
     if (button.id === "headerSettingsBtn") return;
@@ -5820,6 +5915,20 @@ function bindEvents() {
     showIntervalSetup();
     setView("practicehub");
   });
+  $("#longToneAgainBtn")?.addEventListener("click", returnToLongTonePractice);
+  $("#longToneBackBtn")?.addEventListener("click", () => {
+    setLongToneCompletionVisible(false);
+    stopPractice(false);
+    setView("practicehub");
+  });
+
+  $("#feedbackOpenBtn")?.addEventListener("click", () => setFeedbackModalOpen(true));
+  $("#feedbackCloseBtn")?.addEventListener("click", () => setFeedbackModalOpen(false));
+  $("#feedbackCancelBtn")?.addEventListener("click", () => setFeedbackModalOpen(false));
+  $("#feedbackForm")?.addEventListener("submit", submitFeedbackForm);
+  $("#feedbackModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "feedbackModal") setFeedbackModalOpen(false);
+  });
 
   $$("[data-leaderboard-open]").forEach((button) => {
     button.addEventListener("click", () => setLeaderboardModalOpen(true));
@@ -5851,6 +5960,7 @@ function bindEvents() {
   $("#exerciseList").addEventListener("click", (event) => {
     const button = event.target.closest("[data-exercise]");
     if (!button) return;
+    setLongToneCompletionVisible(false);
     stopPractice(false);
     setPracticeSettingsOpen(false);
     selectedExercise = Number(button.dataset.exercise);
@@ -5913,6 +6023,7 @@ function bindEvents() {
       scrollToSection("intervalSetup");
       return;
     }
+    setLongToneCompletionVisible(false);
     setPracticeSettingsOpen(false);
     selectedExercise = Number(button.dataset.goalExercise);
     const exercise = exercises[selectedExercise];
@@ -6281,6 +6392,7 @@ window.chromaticaApp = {
     document.body.classList.remove("modal-open");
     [
       "goalToast",
+      "feedbackModal",
       "calendarModal",
       "longToneIntroModal",
       "gardenSpiritModal",

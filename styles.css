@@ -152,22 +152,19 @@ body.auth-authenticated #authGate {
   margin-top: 22px;
 }
 
-.cloud-conflict-actions {
-  display: grid;
-  gap: 10px;
-  margin-top: 22px;
+.danger-action-btn {
+  border-color: #a4463d;
+  background: #a4463d;
 }
 
-.cloud-conflict-times {
-  display: grid;
-  gap: 6px;
-  margin-top: 14px;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
-.cloud-conflict-actions button {
+.account-reset-btn {
   width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(164, 70, 61, 0.38);
+  border-radius: 14px;
+  color: #a4463d;
+  background: rgba(255, 248, 244, 0.78);
+  font-weight: 900;
 }
 
 .app-shell,
@@ -730,9 +727,25 @@ body.simple-motion .hero-plant-action {
   max-height: 162px;
 }
 
+.hero-garden-plant-image.species-flower-spirit.hero-stage-2 {
+  max-width: 75%;
+  max-height: 144px;
+}
+
 .hero-garden-plant-image.hero-stage-3 {
   max-width: 102%;
   max-height: 182px;
+}
+
+.hero-garden-plant-image.species-mushroom-spirit.hero-stage-3,
+.hero-garden-plant-image.species-flower-spirit.hero-stage-3 {
+  max-width: 112%;
+  max-height: 200px;
+}
+
+.hero-garden-plant-image.species-melody-sprout.hero-stage-3 {
+  max-width: 120%;
+  max-height: 214px;
 }
 
 .hero-plant-slot b,
@@ -863,7 +876,7 @@ body.simple-motion .hero-plant-action {
 
 .start-practice-label {
   position: absolute;
-  left: 58.5%;
+  left: 56.5%;
   top: 49%;
   transform: translate(-50%, -50%);
   white-space: nowrap;
@@ -1015,31 +1028,6 @@ body.simple-motion .hero-plant-action {
 .today-start {
   justify-self: start;
   min-width: 150px;
-}
-
-.flow-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: 16px 0;
-}
-
-.flow-grid span {
-  display: grid;
-  gap: 4px;
-  min-height: 56px;
-  padding: 10px 12px;
-  border: 1px solid rgba(122, 78, 45, 0.11);
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  background: rgba(255, 253, 249, 0.72);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.flow-grid b {
-  color: var(--text-main);
-  font-size: 15px;
 }
 
 .home-tuner-card {
@@ -1761,6 +1749,7 @@ body.hide-featured-spirit .hero-plant-slot {
   justify-content: center;
   min-width: 11px;
   padding-top: 5px;
+  padding-bottom: 5px;
   color: var(--primary);
   font-size: 16px;
   font-weight: 900;
@@ -1799,6 +1788,11 @@ body.hide-featured-spirit .hero-plant-slot {
   letter-spacing: -2px;
   line-height: 1;
   transform: translateX(-50%);
+}
+
+.jianpu-octave-dot.is-low {
+  top: auto;
+  bottom: -3px;
 }
 
 .jianpu-accidental {
@@ -2538,10 +2532,6 @@ body.hide-featured-spirit .hero-plant-slot {
   font-size: clamp(19px, 4.95vw, 29px);
 }
 
-#playFlowLabel {
-  font-style: normal;
-}
-
 .practice-status-actions {
   display: grid;
   grid-template-rows: repeat(3, 1fr);
@@ -2941,10 +2931,6 @@ body.hide-featured-spirit .hero-plant-slot {
 input[type="range"] {
   width: 100%;
   accent-color: var(--primary);
-}
-
-.compact-flow {
-  margin-bottom: 0;
 }
 
 .daily-page {
@@ -3973,58 +3959,9 @@ input[type="range"] {
   font-weight: 900;
 }
 
-.cloud-sync-panel {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid rgba(231, 216, 200, 0.76);
-  border-radius: 16px;
-  background: rgba(255, 253, 249, 0.64);
-}
-
-.cloud-sync-panel.hidden {
-  display: none;
-}
-
-.cloud-sync-copy {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.cloud-sync-copy strong {
-  color: var(--text-main);
-  font-size: 14px;
-}
-
-.cloud-sync-copy span {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.cloud-sync-panel[data-status="conflict"] {
-  border-color: rgba(164, 70, 61, 0.46);
-  background: rgba(255, 240, 232, 0.74);
-}
-
-.cloud-sync-panel[data-status="conflict"] .cloud-sync-copy strong,
-.cloud-sync-panel[data-status="error"] .cloud-sync-copy strong {
-  color: #a4463d;
-}
-
-.cloud-sync-panel button:disabled,
-.cloud-conflict-actions button:disabled {
+.account-reset-btn:disabled {
   cursor: wait;
   opacity: 0.62;
-}
-
-@media (max-width: 360px) {
-  .cloud-sync-panel {
-    align-items: stretch;
-    flex-direction: column;
-  }
 }
 
 .settings-status-text[data-kind="error"] {
@@ -4546,11 +4483,24 @@ body.simple-motion .plant-action-layer.is-stage-up {
 }
 
 .plant-action-layer.species-melody-sprout.garden-stage-1 {
-  width: min(40%, 132px);
+  width: min(36%, 118px);
 }
 
 .plant-action-layer.species-flower-spirit.garden-stage-1 {
   width: min(36%, 118px);
+}
+
+.plant-action-layer.species-mushroom-spirit.garden-stage-3,
+.plant-action-layer.species-flower-spirit.garden-stage-3 {
+  width: min(118%, 380px);
+}
+
+.plant-action-layer.species-melody-sprout.garden-stage-3 {
+  width: min(126%, 406px);
+}
+
+.plant-action-layer.species-flower-spirit.garden-stage-2 {
+  width: min(64%, 210px);
 }
 
 .plant-action-layer.species-lucky-leaf-spirit.garden-stage-1,
@@ -4568,6 +4518,15 @@ body.simple-motion .plant-action-layer.is-stage-up {
 
 .garden-plant-image.garden-stage-3 {
   width: 100%;
+}
+
+.garden-plant-image.species-mushroom-spirit.garden-stage-3,
+.garden-plant-image.species-flower-spirit.garden-stage-3 {
+  max-height: 270px;
+}
+
+.garden-plant-image.species-melody-sprout.garden-stage-3 {
+  max-height: 286px;
 }
 
 .garden-plant-image.is-watered {
@@ -5307,14 +5266,28 @@ body.simple-motion .plant-action-layer.is-stage-up {
   max-height: 168px;
 }
 
+.garden-spirit-stage-card.spirit-melody-sprout.stage-1 img,
 .garden-spirit-stage-card.spirit-flower-spirit.stage-1 img {
-  width: 48%;
-  max-height: 92px;
+  width: 42%;
+  max-height: 81px;
 }
 
 .garden-spirit-stage-card.spirit-flower-spirit.stage-2 img {
-  width: 82%;
-  max-height: 140px;
+  width: 64%;
+  max-height: 112px;
+}
+
+.garden-spirit-stage-card.spirit-mushroom-spirit.stage-3 img,
+.garden-spirit-stage-card.spirit-flower-spirit.stage-3 img {
+  width: 123%;
+  max-width: 123%;
+  max-height: 184px;
+}
+
+.garden-spirit-stage-card.spirit-melody-sprout.stage-3 img {
+  width: 132%;
+  max-width: 132%;
+  max-height: 197px;
 }
 
 .garden-spirit-description {
@@ -5591,6 +5564,89 @@ body.simple-motion .plant-action-layer.is-stage-up {
   border-radius: var(--radius-lg);
   background: var(--card);
   box-shadow: var(--shadow-card);
+}
+
+.feedback-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 86;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(58, 44, 35, 0.32);
+  backdrop-filter: blur(12px);
+}
+
+.feedback-modal-backdrop.hidden {
+  display: none;
+}
+
+.feedback-modal-card {
+  width: min(100%, 430px);
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.feedback-modal-head,
+.feedback-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.feedback-modal-head h2,
+.feedback-modal-head p,
+.feedback-intro,
+.feedback-field {
+  margin: 0;
+}
+
+.feedback-intro {
+  margin-block: 14px;
+  color: var(--text-body);
+  line-height: 1.65;
+}
+
+.feedback-field {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-weight: 800;
+}
+
+.feedback-field input,
+.feedback-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--text-main);
+  background: rgba(255, 253, 249, 0.9);
+  font: inherit;
+}
+
+.feedback-field textarea {
+  resize: vertical;
+}
+
+.feedback-actions {
+  margin-top: 16px;
+}
+
+.feedback-actions button {
+  flex: 1 1 0;
+}
+
+.settings-action-row {
+  width: 100%;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .home-spirit-reward-toast {

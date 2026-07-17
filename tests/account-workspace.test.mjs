@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  ACCOUNT_SCOPED_KEYS,
   ACCOUNT_MIGRATION_KEY,
   ACTIVE_ACCOUNT_KEY,
   clearSignedOutWorkspace,
+  createCleanAccountSnapshot,
   getAccountSnapshotKey,
   readAccountSnapshot,
   readAccountMigration,
+  resetAccountWorkspace,
   saveActiveAccountSnapshot,
   switchAccountWorkspace,
 } from "../account-workspace.js";
@@ -19,6 +22,17 @@ class MemoryStorage {
   setItem(key, value) { this.#data.set(String(key), String(value)); }
   removeItem(key) { this.#data.delete(String(key)); }
 }
+
+test("clean account snapshot uses the strict account allowlist with null values", () => {
+  const snapshot = createCleanAccountSnapshot("user-a", "2026-07-17T00:00:00.000Z");
+  assert.equal(snapshot.schemaVersion, 1);
+  assert.equal(snapshot.userId, "user-a");
+  assert.equal(snapshot.updatedAt, "2026-07-17T00:00:00.000Z");
+  assert.deepEqual(Object.keys(snapshot.data).sort(), [...ACCOUNT_SCOPED_KEYS].sort());
+  assert.ok(Object.values(snapshot.data).every((value) => value === null));
+  assert.equal(Object.hasOwn(snapshot.data, "chromatica.settings.sound"), false);
+  assert.equal(Object.hasOwn(snapshot.data, "chromatica.settings.display"), false);
+});
 
 test("legacy data migrates once, accounts stay isolated, and device settings remain shared", () => {
   const storage = new MemoryStorage();
@@ -82,4 +96,26 @@ test("a contradictory one-time migration marker fails without clearing legacy da
   assert.throws(() => switchAccountWorkspace("user-a", storage), /conflicts/);
   assert.equal(storage.getItem("chromatica.waterDrops"), "19");
   assert.equal(storage.getItem(getAccountSnapshotKey("user-a")), null);
+});
+
+test("reset clears only the active account snapshot and scoped workspace", () => {
+  const storage = new MemoryStorage();
+  storage.setItem(ACTIVE_ACCOUNT_KEY, "user-a");
+  storage.setItem("chromatica.waterDrops", "12");
+  storage.setItem("chromatica.settings.sound", JSON.stringify({ click: false }));
+  saveActiveAccountSnapshot(storage);
+  storage.setItem(getAccountSnapshotKey("user-b"), JSON.stringify({
+    schemaVersion: 1,
+    userId: "user-b",
+    updatedAt: "2026-07-16T00:00:00.000Z",
+    data: { "chromatica.waterDrops": "9" },
+  }));
+
+  resetAccountWorkspace("user-a", storage);
+
+  assert.equal(storage.getItem(ACTIVE_ACCOUNT_KEY), "user-a");
+  assert.equal(storage.getItem("chromatica.waterDrops"), null);
+  assert.equal(storage.getItem(getAccountSnapshotKey("user-a")), null);
+  assert.ok(storage.getItem(getAccountSnapshotKey("user-b")));
+  assert.equal(storage.getItem("chromatica.settings.sound"), JSON.stringify({ click: false }));
 });
