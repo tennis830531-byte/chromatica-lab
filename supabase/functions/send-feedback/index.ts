@@ -71,13 +71,12 @@ Deno.serve(async (request) => {
   }
   const category = cleanText(payload.category, 40);
   const description = cleanText(payload.description, 2000);
-  const reproductionSteps = cleanText(payload.reproductionSteps, 1000);
   const appVersion = cleanText(payload.appVersion, 100);
   const platform = cleanText(payload.platform, 40);
   const currentView = cleanText(payload.currentView, 80);
   const requestId = cleanText(payload.requestId, 100);
   if (!CATEGORIES.has(category) || description.length < 10 || description.length > 2000
-    || reproductionSteps.length > 1000 || !/^[A-Za-z0-9-]{16,100}$/.test(requestId)) {
+    || !/^[A-Za-z0-9-]{16,100}$/.test(requestId)) {
     return response(request, 400, { error: "invalid_fields" });
   }
 
@@ -90,7 +89,6 @@ Deno.serve(async (request) => {
   const text = [
     `分類：${category}`,
     `問題描述：\n${description}`,
-    `重現步驟：\n${reproductionSteps || "（未提供）"}`,
     `Google 顯示名稱：${displayName}`,
     `Google Email：${email || "（未提供）"}`,
     `App 版本：${appVersion || "（未提供）"}`,

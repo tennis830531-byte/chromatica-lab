@@ -6036,11 +6036,10 @@ async function submitFeedbackForm(event) {
   if (feedbackSubmissionPromise) return feedbackSubmissionPromise;
   const category = $("#feedbackCategory")?.value || "";
   const description = $("#feedbackDescription")?.value.trim() || "";
-  const reproductionSteps = $("#feedbackReproductionSteps")?.value.trim() || "";
   const status = $("#feedbackStatus");
   const submit = $("#feedbackSubmitBtn");
-  if (description.length < 10 || description.length > 2000 || reproductionSteps.length > 1000) {
-    status.textContent = "問題描述請填寫 10 至 2000 字，重現步驟最多 1000 字。";
+  if (description.length < 10 || description.length > 2000) {
+    status.textContent = "問題描述請填寫 10 至 2000 字。";
     status.dataset.kind = "error";
     return;
   }
@@ -6051,7 +6050,7 @@ async function submitFeedbackForm(event) {
     status.textContent = "";
     try {
       const result = await window.chromaticaAuth?.invokeFunction?.("send-feedback", {
-        category, description, reproductionSteps,
+        category, description,
         appVersion: "refresh-160 / Android 1.0.44 (45)",
         platform: isNativeAndroidApp() ? "android" : "web",
         currentView, requestId,

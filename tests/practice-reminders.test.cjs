@@ -4,6 +4,14 @@ const fs = require("node:fs");
 const path = require("node:path");
 const core = require("../practice-reminders.js");
 const appSource = fs.readFileSync(path.resolve(__dirname, "../app.js"), "utf8");
+const htmlSource = fs.readFileSync(path.resolve(__dirname, "../index.html"), "utf8");
+const stylesSource = fs.readFileSync(path.resolve(__dirname, "../styles.css"), "utf8");
+
+test("reminder setting keeps its toggle without the removed explanatory subtitle", () => {
+  assert.match(htmlSource, /id="practiceReminderToggle"/);
+  assert.doesNotMatch(htmlSource, /若今天尚未完成任何一項練習，App 會在下午 6 點與晚上 10 點提醒您。/);
+  assert.doesNotMatch(stylesSource, /notification-toggle-row/);
+});
 
 test("notification preferences are disabled by default at the app boundary", () => {
   assert.equal(false, false);

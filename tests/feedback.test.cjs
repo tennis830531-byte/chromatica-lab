@@ -12,6 +12,7 @@ test("feedback stays in app and invokes the authenticated Edge Function", () => 
   assert.doesNotMatch(`${app}\n${html}`, /mailto:/i);
   assert.doesNotMatch(app, /window\.location\.href\s*=.*mail/i);
   assert.match(app, /invokeFunction\?\.\("send-feedback"/);
+  assert.doesNotMatch(html, /重現步驟|feedbackReproductionSteps|reproductionSteps/);
 });
 
 test("frontend sends only bounded report metadata", () => {
@@ -20,6 +21,7 @@ test("frontend sends only bounded report metadata", () => {
   assert.match(invocation, /category/);
   assert.match(invocation, /description/);
   assert.match(invocation, /requestId/);
+  assert.doesNotMatch(invocation, /reproductionSteps/);
 });
 
 test("Edge Function verifies auth, validates fields, and safely fails without secrets", () => {
@@ -30,4 +32,16 @@ test("Edge Function verifies auth, validates fields, and safely fails without se
   assert.match(edge, /Idempotency-Key/);
   assert.match(edge, /delivery_failed/);
   assert.doesNotMatch(edge, /service_role/i);
+  assert.doesNotMatch(edge, /reproductionSteps|重現步驟/);
+});
+
+test("legacy reproductionSteps input is ignored because the function reads only allowed fields", () => {
+  assert.match(edge, /const description = cleanText\(payload\.description, 2000\)/);
+  assert.doesNotMatch(edge, /payload\.reproductionSteps/);
+});
+
+test("description remains required at 10 to 2000 characters", () => {
+  assert.match(html, /id="feedbackDescription"[^>]*minlength="10"[^>]*maxlength="2000"[^>]*required/);
+  assert.match(app, /description\.length < 10 \|\| description\.length > 2000/);
+  assert.match(edge, /description\.length < 10 \|\| description\.length > 2000/);
 });
