@@ -10,6 +10,7 @@
     "test:account-workspace": "node --test tests/account-workspace.test.mjs",
     "test:cloud-save": "node --test tests/cloud-save.test.mjs",
     "test:practice-reminders": "node --test tests/practice-reminders.test.cjs",
+    "test:feedback": "node --test tests/feedback.test.cjs",
     "cap:sync": "npm run build:web && npx cap sync",
     "cap:open:android": "npx cap open android"
   },

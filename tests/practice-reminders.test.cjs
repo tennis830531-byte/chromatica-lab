@@ -1,6 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const core = require("../practice-reminders.js");
+const appSource = fs.readFileSync(path.resolve(__dirname, "../app.js"), "utf8");
 
 test("notification preferences are disabled by default at the app boundary", () => {
   assert.equal(false, false);
@@ -49,4 +52,51 @@ test("account hash changes notification identity without exposing user id", () =
   const second = core.buildReminderIds("private-user-b", date, 18);
   assert.notEqual(first.id, second.id);
   assert.equal(JSON.stringify(first).includes("private-user-a"), false);
+});
+
+test("permission is requested only from the explicit toggle handler", () => {
+  assert.equal((appSource.match(/requestPermissions\(\)/g) || []).length, 1);
+  assert.match(appSource, /async function handlePracticeReminderToggle[\s\S]*requestPermissions\(\)/);
+});
+
+test("permission denial restores disabled preference and shows system-settings guidance", () => {
+  assert.match(appSource, /permission\.display !== "granted"[\s\S]*setPracticeReminderPrefs\(userId, false\)/);
+  assert.match(appSource, /通知權限尚未開啟，請至系統設定允許通知/);
+});
+
+test("completing practice cancels only today's reminders", () => {
+  assert.match(appSource, /isFirstCompletionToday[\s\S]*cancelPracticeRemindersForAccount\(getActiveAccountId\(\), \{ todayOnly: true \}\)/);
+  const now = new Date(2026, 6, 17, 17, 0);
+  const tomorrow = new Date(2026, 6, 18, 18, 0);
+  assert.equal(core.shouldScheduleToday({ at: tomorrow, now, todayCompleted: true }), true);
+});
+
+test("closing reminders cancels the current account namespace", () => {
+  assert.match(appSource, /if \(!requestedEnabled\)[\s\S]*cancelPracticeRemindersForAccount\(userId\)/);
+  assert.match(appSource, /extra\?\.namespace === PRACTICE_REMINDER_NAMESPACE/);
+});
+
+test("logout and account switching expose account-specific cancellation", () => {
+  assert.match(appSource, /async cancelPracticeRemindersForAccount\(userId\)/);
+  assert.match(appSource, /LOCAL_NOTIFICATION_PREFS_PREFIX.*chromatica\.localNotificationPrefs\./);
+});
+
+test("web rendering is disabled without calling the native plugin", () => {
+  assert.match(appSource, /return isNativeAndroidApp\(\) \? window\.Capacitor\?\.Plugins\?\.LocalNotifications : null/);
+  assert.match(appSource, /練習提醒目前僅支援 Android App/);
+});
+
+test("schedule uses one-time local dates and never requests exact alarms", () => {
+  assert.match(appSource, /schedule: \{ at, allowWhileIdle: true \}/);
+  assert.doesNotMatch(appSource, /USE_EXACT_ALARM|SCHEDULE_EXACT_ALARM/);
+});
+
+test("schedule reconciliation is single-flight and generation guarded", () => {
+  assert.match(appSource, /if \(practiceReminderReconcilePromise\) return practiceReminderReconcilePromise/);
+  assert.match(appSource, /generation !== practiceReminderGeneration/);
+});
+
+test("notification click waits for authenticated workspace readiness", () => {
+  assert.match(appSource, /auth-authenticated[\s\S]*workspaceStatus === "ready"/);
+  assert.match(appSource, /pendingPracticeReminderNavigation = true/);
 });

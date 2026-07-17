@@ -1058,6 +1058,14 @@ window.chromaticaAuth = {
     if (currentAuthUser) return getDisplayName(currentAuthUser);
     return getAuthElements().name?.textContent?.trim() || "練習者";
   },
+  async invokeFunction(name, body) {
+    if (!supabaseClient) return { data: null, error: new Error("auth-unavailable") };
+    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError || !sessionData.session?.user) {
+      return { data: null, error: sessionError || new Error("auth-required") };
+    }
+    return supabaseClient.functions.invoke(name, { body });
+  },
 };
 
 void initializeGoogleAuth();

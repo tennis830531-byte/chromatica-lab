@@ -95,23 +95,27 @@
           </div>
           <button id="feedbackCloseBtn" class="settings-close-btn" type="button" aria-label="關閉問題回報">×</button>
         </div>
-        <p class="feedback-intro">此封問題回報會傳送給半音階口琴練習室的開發者，歡迎寫信告知我們 App 使用上的任何問題。</p>
+        <p class="feedback-intro">問題回報會直接在 App 內安全送出，不會開啟外部郵件 App。</p>
         <label class="feedback-field">
-          <span>名字</span>
-          <input id="feedbackName" name="name" type="text" maxlength="60" autocomplete="name" required />
+          <span>分類</span>
+          <select id="feedbackCategory" name="category" required>
+            <option value="功能異常">功能異常</option><option value="帳號與雲端同步">帳號與雲端同步</option>
+            <option value="練習與音準偵測">練習與音準偵測</option><option value="介面或操作建議">介面或操作建議</option>
+            <option value="其他">其他</option>
+          </select>
         </label>
         <label class="feedback-field">
-          <span>電子郵件或其他聯繫方式</span>
-          <input id="feedbackContact" name="contact" type="text" maxlength="120" autocomplete="email" required />
+          <span>問題描述</span>
+          <textarea id="feedbackDescription" name="description" rows="6" minlength="10" maxlength="2000" required></textarea>
         </label>
         <label class="feedback-field">
-          <span>信件內容</span>
-          <textarea id="feedbackMessage" name="message" rows="6" maxlength="2000" required></textarea>
+          <span>重現步驟（選填）</span>
+          <textarea id="feedbackReproductionSteps" name="reproductionSteps" rows="4" maxlength="1000"></textarea>
         </label>
         <p id="feedbackStatus" class="settings-status-text" aria-live="polite"></p>
         <div class="feedback-actions">
           <button id="feedbackCancelBtn" class="ghost-btn" type="button">取消</button>
-          <button class="primary-btn" type="submit">開啟郵件 App</button>
+          <button id="feedbackSubmitBtn" class="primary-btn" type="submit">傳送問題回報</button>
         </div>
       </form>
     </div>

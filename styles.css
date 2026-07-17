@@ -5618,6 +5618,7 @@ body.simple-motion .plant-action-layer.is-stage-up {
 }
 
 .feedback-field input,
+.feedback-field select,
 .feedback-field textarea {
   width: 100%;
   box-sizing: border-box;

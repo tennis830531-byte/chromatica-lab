@@ -6025,31 +6025,52 @@ function setFeedbackModalOpen(open) {
   document.body.classList.toggle("modal-open", open);
   if (open) {
     $("#feedbackStatus").textContent = "";
-    window.setTimeout(() => $("#feedbackName")?.focus(), 0);
+    window.setTimeout(() => $("#feedbackDescription")?.focus(), 0);
   }
 }
 
-function submitFeedbackForm(event) {
+let feedbackSubmissionPromise = null;
+
+async function submitFeedbackForm(event) {
   event.preventDefault();
-  const name = $("#feedbackName")?.value.trim() || "";
-  const contact = $("#feedbackContact")?.value.trim() || "";
-  const message = $("#feedbackMessage")?.value.trim() || "";
+  if (feedbackSubmissionPromise) return feedbackSubmissionPromise;
+  const category = $("#feedbackCategory")?.value || "";
+  const description = $("#feedbackDescription")?.value.trim() || "";
+  const reproductionSteps = $("#feedbackReproductionSteps")?.value.trim() || "";
   const status = $("#feedbackStatus");
-  if (!name || !contact || !message) {
-    status.textContent = "請完整填寫名字、聯繫方式與信件內容。";
+  const submit = $("#feedbackSubmitBtn");
+  if (description.length < 10 || description.length > 2000 || reproductionSteps.length > 1000) {
+    status.textContent = "問題描述請填寫 10 至 2000 字，重現步驟最多 1000 字。";
+    status.dataset.kind = "error";
     return;
   }
-  const recipient = ["tennis830531", "gmail.com"].join("@");
-  const subject = encodeURIComponent(`Chromatic Harmonica Lab 問題回報｜${name}`);
-  const body = encodeURIComponent([
-    `名字：${name}`,
-    `聯繫方式：${contact}`,
-    "",
-    "回報內容：",
-    message,
-  ].join("\n"));
-  status.textContent = "正在開啟郵件 App，請確認內容後送出。";
-  window.location.href = `mailto:${recipient}?subject=${subject}&body=${body}`;
+  const requestId = globalThis.crypto?.randomUUID?.() || `feedback-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  feedbackSubmissionPromise = (async () => {
+    submit.disabled = true;
+    submit.textContent = "傳送中…";
+    status.textContent = "";
+    try {
+      const result = await window.chromaticaAuth?.invokeFunction?.("send-feedback", {
+        category, description, reproductionSteps,
+        appVersion: "refresh-160 / Android 1.0.44 (45)",
+        platform: isNativeAndroidApp() ? "android" : "web",
+        currentView, requestId,
+      });
+      if (!result || result.error) throw result?.error || new Error("feedback-unavailable");
+      status.textContent = "問題回報已送出，謝謝您的協助！";
+      status.dataset.kind = "";
+      $("#feedbackForm")?.reset();
+      window.setTimeout(() => setFeedbackModalOpen(false), 700);
+    } catch {
+      status.textContent = "目前無法送出問題回報，請確認網路後再試。";
+      status.dataset.kind = "error";
+    } finally {
+      submit.disabled = false;
+      submit.textContent = "傳送問題回報";
+      feedbackSubmissionPromise = null;
+    }
+  })();
+  return feedbackSubmissionPromise;
 }
 
 function bindEvents() {
