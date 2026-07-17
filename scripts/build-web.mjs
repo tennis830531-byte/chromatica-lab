@@ -6,9 +6,16 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputRoot = path.join(projectRoot, "www");
-const webSourceFiles = ["index.html", "app.js", "styles.css", "manifest.webmanifest"];
+const webSourceFiles = [
+  "index.html",
+  "app.js",
+  "styles.css",
+  "manifest.webmanifest",
+  "supabase-config.js",
+  "auth-runtime.js",
+];
 const assetReferencePattern = /\.\/public\/assets\/[^\s"'`()<>$]+/g;
-const serviceWorkerCallPattern = /^registerServiceWorker\(\);$/gm;
+const serviceWorkerCallPattern = /^\s*registerServiceWorker\(\);$/gm;
 const execFileAsync = promisify(execFile);
 
 const { stdout: trackedOutput } = await execFileAsync("git", ["ls-files", "-z"], {

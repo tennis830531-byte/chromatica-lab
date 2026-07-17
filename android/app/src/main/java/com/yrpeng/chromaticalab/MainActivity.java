@@ -1,14 +1,17 @@
 package com.yrpeng.chromaticalab;
 
+import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.WindowCompat;
@@ -16,20 +19,29 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.core.view.ViewCompat;
 import com.getcapacitor.BridgeActivity;
+import org.json.JSONArray;
+import org.json.JSONException;
 
 public class MainActivity extends BridgeActivity {
     private static final long SPLASH_MINIMUM_MS = 1500L;
-    private static final long SPLASH_TIMEOUT_MS = 6000L;
     private final Handler splashHandler = new Handler(Looper.getMainLooper());
     private FrameLayout splashOverlay;
+    private ProgressBar startupProgressBar;
     private long splashShownAt;
     private Runnable splashReadinessCheck;
+    private boolean fullArtworkSplashActive;
+    private boolean splashDismissStarted;
+    private boolean appPageReady;
+    private boolean webAuthReady;
+    private boolean webWorkspaceReady;
+    private boolean webImagesReady;
+    private boolean webReadinessCheckPending;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        showFullArtworkSplash();
         configureStatusBarInsets();
+        showFullArtworkSplash();
         applySystemBarMode();
     }
 
@@ -52,10 +64,15 @@ public class MainActivity extends BridgeActivity {
         if (splashReadinessCheck != null) {
             splashHandler.removeCallbacks(splashReadinessCheck);
         }
+        if (splashOverlay != null) {
+            splashOverlay.animate().cancel();
+        }
         super.onDestroy();
     }
 
     private void showFullArtworkSplash() {
+        fullArtworkSplashActive = true;
+        splashDismissStarted = false;
         ViewGroup contentRoot = findViewById(android.R.id.content);
         splashOverlay = new FrameLayout(this);
         splashOverlay.setBackgroundColor(ContextCompat.getColor(this, R.color.chromatica_background));
@@ -71,6 +88,24 @@ public class MainActivity extends BridgeActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
         );
+
+        startupProgressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        startupProgressBar.setIndeterminate(false);
+        startupProgressBar.setMax(100);
+        startupProgressBar.setProgress(0);
+        startupProgressBar.setProgressTintList(
+            ColorStateList.valueOf(ContextCompat.getColor(this, R.color.chromatica_splash_progress))
+        );
+        startupProgressBar.setProgressBackgroundTintList(
+            ColorStateList.valueOf(ContextCompat.getColor(this, R.color.chromatica_splash_progress_track))
+        );
+        FrameLayout.LayoutParams progressLayoutParams = new FrameLayout.LayoutParams(
+            dpToPx(184),
+            dpToPx(4),
+            Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL
+        );
+        progressLayoutParams.bottomMargin = dpToPx(54);
+        splashOverlay.addView(startupProgressBar, progressLayoutParams);
 
         contentRoot.addView(
             splashOverlay,
@@ -92,27 +127,82 @@ public class MainActivity extends BridgeActivity {
 
                 long elapsed = SystemClock.uptimeMillis() - splashShownAt;
                 String currentUrl = webView.getUrl();
-                boolean appPageReady = currentUrl != null
+                appPageReady = currentUrl != null
                     && !currentUrl.isEmpty()
                     && !"about:blank".equals(currentUrl)
                     && webView.getProgress() >= 100;
 
-                if ((appPageReady && elapsed >= SPLASH_MINIMUM_MS) || elapsed >= SPLASH_TIMEOUT_MS) {
-                    hideFullArtworkSplash();
-                    return;
+                if (appPageReady) {
+                    requestWebStartupState(webView);
                 }
-                splashHandler.postDelayed(this, 50L);
+                finishStartupSplash();
             }
         };
         splashHandler.post(splashReadinessCheck);
     }
 
-    private void hideFullArtworkSplash() {
-        FrameLayout overlay = splashOverlay;
-        if (overlay == null) {
+    private void requestWebStartupState(WebView webView) {
+        if (webReadinessCheckPending || splashDismissStarted) {
             return;
         }
-        splashOverlay = null;
+        webReadinessCheckPending = true;
+        webView.evaluateJavascript(
+            "(function(){var s=window.chromaticaStartupState;if(!s){return ['pending','pending','pending',0];}"
+                + "return [String(s.authStatus||'pending'),String(s.workspaceStatus||'pending'),"
+                + "String(s.imagesStatus||'pending'),Math.max(0,Math.min(100,Number(s.imageProgress)||0))];})()",
+            value -> {
+                webReadinessCheckPending = false;
+                if (splashDismissStarted || value == null) {
+                    return;
+                }
+                try {
+                    JSONArray readiness = new JSONArray(value);
+                    String authStatus = readiness.optString(0, "pending");
+                    String workspaceStatus = readiness.optString(1, "pending");
+                    String imagesStatus = readiness.optString(2, "pending");
+                    webAuthReady = "authenticated".equals(authStatus)
+                        || "unauthenticated".equals(authStatus)
+                        || "error".equals(authStatus);
+                    webWorkspaceReady = "ready".equals(workspaceStatus)
+                        || "not-required".equals(workspaceStatus)
+                        || "error".equals(workspaceStatus);
+                    webImagesReady = "ready".equals(imagesStatus)
+                        || "timeout".equals(imagesStatus)
+                        || "error".equals(imagesStatus);
+                    if (startupProgressBar != null) {
+                        startupProgressBar.setProgress(readiness.optInt(3, 0), true);
+                    }
+                } catch (JSONException ignored) {
+                    webAuthReady = false;
+                    webWorkspaceReady = false;
+                    webImagesReady = false;
+                }
+            }
+        );
+    }
+
+    private void finishStartupSplash() {
+        if (splashOverlay == null || splashDismissStarted) {
+            return;
+        }
+        long elapsed = SystemClock.uptimeMillis() - splashShownAt;
+        boolean minimumReached = elapsed >= SPLASH_MINIMUM_MS;
+        boolean destinationReady = appPageReady && webAuthReady && webWorkspaceReady;
+        if (!minimumReached || !destinationReady || !webImagesReady) {
+            splashHandler.removeCallbacks(splashReadinessCheck);
+            splashHandler.postDelayed(splashReadinessCheck, 50L);
+            return;
+        }
+        splashHandler.removeCallbacks(splashReadinessCheck);
+        hideFullArtworkSplash();
+    }
+
+    private void hideFullArtworkSplash() {
+        FrameLayout overlay = splashOverlay;
+        if (overlay == null || splashDismissStarted) {
+            return;
+        }
+        splashDismissStarted = true;
         overlay.animate()
             .alpha(0f)
             .setDuration(180L)
@@ -121,8 +211,23 @@ public class MainActivity extends BridgeActivity {
                 if (parent != null) {
                     parent.removeView(overlay);
                 }
+                splashOverlay = null;
+                startupProgressBar = null;
+                fullArtworkSplashActive = false;
+                splashReadinessCheck = null;
+                applySystemBarMode();
+                ViewCompat.requestApplyInsets(bridge.getWebView());
+                bridge.getWebView().evaluateJavascript(
+                    "window.chromaticaStartupSplashFinished=true;"
+                        + "window.dispatchEvent(new CustomEvent('chromatica:startup-splash-finished'));",
+                    null
+                );
             })
             .start();
+    }
+
+    private int dpToPx(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     private void configureStatusBarInsets() {
@@ -154,6 +259,10 @@ public class MainActivity extends BridgeActivity {
         WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         controller.setAppearanceLightStatusBars(true);
         controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        if (fullArtworkSplashActive) {
+            controller.hide(WindowInsetsCompat.Type.systemBars());
+            return;
+        }
         controller.show(WindowInsetsCompat.Type.statusBars());
         controller.hide(WindowInsetsCompat.Type.navigationBars());
     }

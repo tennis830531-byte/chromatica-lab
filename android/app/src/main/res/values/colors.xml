@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="chromatica_background">#F8F3EC</color>
+    <color name="chromatica_splash_progress">#B77A32</color>
+    <color name="chromatica_splash_progress_track">#5CD8B98E</color>
 </resources>

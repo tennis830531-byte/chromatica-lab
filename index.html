@@ -13,9 +13,49 @@
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
     <link rel="stylesheet" href="./public/assets/fonts/noto-sans-tc/noto-sans-tc-variable.css" />
     <link rel="stylesheet" href="./public/assets/fonts/lxgw-wenkai-tc/lxgw-wenkai-tc-bold.css" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-153" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-159" />
   </head>
-  <body>
+  <body class="auth-checking">
+    <div id="authGate" class="auth-gate" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
+      <div class="auth-gate-card paper-card">
+        <img class="auth-gate-logo" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="" aria-hidden="true" />
+        <div id="authGateChecking" class="auth-gate-state">
+          <h1 id="authGateTitle">Chromatic Harmonica Lab</h1>
+          <p id="authGateCheckingMessage">正在確認登入狀態…</p>
+        </div>
+        <div id="authGateSignedOut" class="auth-gate-state hidden">
+          <h1>歡迎來到半音階口琴練習室</h1>
+          <p>請先使用 Google 帳號登入，開始你的練習旅程。</p>
+          <button id="authGateGoogleLoginBtn" class="google-login-btn" type="button"><span aria-hidden="true">G</span>使用 Google 登入</button>
+          <button id="authGateRetryBtn" class="ghost-btn hidden" type="button">重新檢查登入</button>
+          <p id="authGateStatus" class="settings-status-text" aria-live="polite"></p>
+          <small>登入後可在不同裝置同步你的練習室進度。</small>
+        </div>
+      </div>
+    </div>
+
+    <div id="logoutConfirmModal" class="logout-confirm-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="logoutConfirmTitle">
+      <div class="logout-confirm-card paper-card">
+        <h2 id="logoutConfirmTitle">確定要登出嗎？</h2>
+        <p id="logoutConfirmMessage">登出後需要重新使用 Google 帳號登入，才能繼續使用 App。此帳號的本機與雲端進度會保留。</p>
+        <div class="logout-confirm-actions">
+          <button id="logoutCancelBtn" class="ghost-btn" type="button">取消</button>
+          <button id="logoutConfirmBtn" class="primary-btn" type="button">確定登出</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="resetAccountModal" class="logout-confirm-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="resetAccountTitle">
+      <div class="logout-confirm-card paper-card">
+        <h2 id="resetAccountTitle">確定清除所有紀錄嗎？</h2>
+        <p>水滴、植物、圖鑑、練習紀錄、每日目標與個人練習設定都會回到初始狀態，且會同步清除這個帳號的雲端進度。此操作無法復原。</p>
+        <div class="logout-confirm-actions">
+          <button id="resetAccountCancelBtn" class="ghost-btn" type="button">取消</button>
+          <button id="resetAccountConfirmBtn" class="primary-btn danger-action-btn" type="button">確定全部清除</button>
+        </div>
+      </div>
+    </div>
+
     <div id="micGate" class="mic-gate" role="dialog" aria-modal="true" aria-labelledby="micGateTitle">
       <div class="mic-gate-card">
         <div class="mic-gate-illustration media-box" aria-hidden="true">
@@ -46,9 +86,41 @@
       </div>
     </div>
 
+    <div id="feedbackModal" class="feedback-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="feedbackModalTitle">
+      <form id="feedbackForm" class="feedback-modal-card paper-card">
+        <div class="feedback-modal-head">
+          <div>
+            <p class="eyebrow">問題回報</p>
+            <h2 id="feedbackModalTitle">告訴我們你的回饋</h2>
+          </div>
+          <button id="feedbackCloseBtn" class="settings-close-btn" type="button" aria-label="關閉問題回報">×</button>
+        </div>
+        <p class="feedback-intro">此封問題回報會傳送給半音階口琴練習室的開發者，歡迎寫信告知我們 App 使用上的任何問題。</p>
+        <label class="feedback-field">
+          <span>名字</span>
+          <input id="feedbackName" name="name" type="text" maxlength="60" autocomplete="name" required />
+        </label>
+        <label class="feedback-field">
+          <span>電子郵件或其他聯繫方式</span>
+          <input id="feedbackContact" name="contact" type="text" maxlength="120" autocomplete="email" required />
+        </label>
+        <label class="feedback-field">
+          <span>信件內容</span>
+          <textarea id="feedbackMessage" name="message" rows="6" maxlength="2000" required></textarea>
+        </label>
+        <p id="feedbackStatus" class="settings-status-text" aria-live="polite"></p>
+        <div class="feedback-actions">
+          <button id="feedbackCancelBtn" class="ghost-btn" type="button">取消</button>
+          <button class="primary-btn" type="submit">開啟郵件 App</button>
+        </div>
+      </form>
+    </div>
+
     <div id="homeSpiritRewardToast" class="home-spirit-reward-toast hidden" role="status" aria-live="polite" aria-atomic="true">
       <strong id="homeSpiritRewardToastTitle">精靈送你 1 滴水滴！💧</strong>
     </div>
+
+    <div id="authToast" class="auth-toast hidden" role="status" aria-live="polite" aria-atomic="true"></div>
 
     <div id="calendarModal" class="calendar-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="calendarModalTitle">
       <div class="calendar-modal">
@@ -617,8 +689,7 @@
                       <span>目標音量</span>
                       <select id="targetVolumeSelect" class="cycle-select" aria-label="目標音量">
                         <option value="p">p</option>
-                        <option value="mp" selected>mp</option>
-                        <option value="mf">mf</option>
+                        <option value="mf" selected>mf</option>
                         <option value="f">f</option>
                       </select>
                     </label>
@@ -636,15 +707,27 @@
                       </select>
                     </div>
                   </div>
-                  <div class="flow-grid compact-flow">
-                    <span>準備 <b id="prepareBeats">4 拍</b></span>
-                    <span><i id="playFlowLabel">長音</i> <b id="playBeats">4 拍</b></span>
-                    <span>休息 <b id="restBeats">4 拍</b></span>
-                  </div>
                 </div>
               </div>
             </section>
           </div>
+
+          <section id="longToneComplete" class="interval-complete paper-card hidden" aria-live="polite">
+            <div class="interval-complete-mark" aria-hidden="true">♪</div>
+            <p class="eyebrow">練習紀錄已保存</p>
+            <h2>長音練習完成！</h2>
+            <dl class="interval-complete-summary">
+              <div><dt>練習項目</dt><dd id="longToneCompleteExercise">平穩長音</dd></div>
+              <div><dt>練習設定</dt><dd id="longToneCompleteSetting">mf</dd></div>
+              <div><dt>完成循環</dt><dd id="longToneCompleteCycles">4 / 4</dd></div>
+              <div><dt>獲得水滴</dt><dd id="longToneCompleteWater">4 滴 💧</dd></div>
+            </dl>
+            <p id="longToneCompleteNote" class="interval-complete-note"></p>
+            <div class="interval-complete-actions">
+              <button id="longToneAgainBtn" class="primary-btn" type="button">再練一次</button>
+              <button id="longToneBackBtn" class="ghost-btn" type="button">回到練習列表</button>
+            </div>
+          </section>
         </section>
 
         <section id="daily" class="view">
@@ -710,14 +793,14 @@
                 <img class="garden-scene-backdrop" src="./public/assets/garden/icons/garden-stage-backdrop-refresh.png" alt="" aria-hidden="true" />
                 <div id="gardenPlantIdleLayer" class="plant-idle-layer is-idle">
                   <div id="gardenPlantActionLayer" class="plant-action-layer">
-                    <img id="gardenPlantImage" class="garden-plant-image garden-stage-1" src="./public/assets/garden/plants/melody-sprout-stage1.png" alt="" />
+                    <img id="gardenPlantImage" class="garden-plant-image garden-stage-1" src="./public/assets/garden/collection/starter-pot.png" alt="" />
                   </div>
                 </div>
               </div>
               <div class="garden-progress">
                 <div class="garden-progress-row"><span>階段進度</span><b id="gardenProgressText">0 / 100</b></div>
                 <div class="garden-progress-track"><i id="gardenProgressBar"></i></div>
-                <div class="daily-practice-water"><span>今日練習水滴</span><b id="dailyPracticeWaterText">0 / 80</b></div>
+                <div class="daily-practice-water"><span>今日練習水滴上限</span><b id="dailyPracticeWaterText">0 / 80</b></div>
               </div>
             </section>
 
@@ -863,8 +946,23 @@
             <details class="audio-setting-card paper-card">
               <summary class="settings-accordion-head"><span><strong>會員帳號</strong></span><i aria-hidden="true"></i></summary>
               <div class="settings-accordion-body">
-                <p class="settings-card-copy">登入後可同步練習資料與精靈花園進度。</p>
-                <button id="googleLoginBtn" class="google-login-btn" type="button"><span>G</span>使用 Google 登入</button>
+                <div id="googleAuthSignedOut" class="google-auth-state">
+                  <p class="settings-card-copy">登入後即可使用 App；同一台裝置上的不同帳號會保留各自的本機遊戲資料。</p>
+                  <button id="googleLoginBtn" class="google-login-btn" type="button"><span aria-hidden="true">G</span>使用 Google 登入</button>
+                </div>
+                <div id="googleAuthSignedIn" class="google-auth-state google-account-card hidden">
+                  <div class="google-account-avatar-wrap" aria-hidden="true">
+                    <img id="googleAccountAvatar" class="google-account-avatar hidden" alt="" referrerpolicy="no-referrer" />
+                    <span id="googleAccountAvatarFallback" class="google-account-avatar-fallback">G</span>
+                  </div>
+                  <div class="google-account-copy">
+                    <strong id="googleAccountName">Google 使用者</strong>
+                    <span id="googleAccountEmail"></span>
+                  </div>
+                  <button id="googleLogoutBtn" class="google-logout-btn" type="button">登出</button>
+                </div>
+                <button id="resetAccountDataBtn" class="account-reset-btn" type="button">清除所有紀錄</button>
+                <p class="settings-card-copy">遊戲進度會保留在本機，並在網路可用時同步到此 Google 帳號。</p>
                 <p id="googleLoginStatus" class="settings-status-text" aria-live="polite"></p>
               </div>
             </details>
@@ -873,12 +971,12 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-153</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-159</span></strong>
                 </div>
-                <div class="setting-row">
+                <button id="feedbackOpenBtn" class="setting-row settings-action-row" type="button">
                   <span>問題回報</span>
-                  <strong>準備中</strong>
-                </div>
+                  <strong>填寫表單 〉</strong>
+                </button>
               </div>
             </details>
           </div>
@@ -895,6 +993,8 @@
       </nav>
     </div>
 
-    <script src="./app.js?v=refresh-153"></script>
+    <script src="./supabase-config.js?v=refresh-159"></script>
+    <script src="./app.js?v=refresh-159"></script>
+    <script src="./auth-runtime.js?v=refresh-159"></script>
   </body>
 </html>

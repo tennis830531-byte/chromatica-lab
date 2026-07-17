@@ -5,17 +5,23 @@
   "description": "Chromatic Harmonica Lab Android wrapper",
   "scripts": {
     "clean:web": "rm -rf www",
-    "build:web": "node scripts/build-web.mjs",
+    "build:auth": "node scripts/build-auth.mjs",
+    "build:web": "npm run build:auth && node scripts/build-web.mjs",
+    "test:account-workspace": "node --test tests/account-workspace.test.mjs",
+    "test:cloud-save": "node --test tests/cloud-save.test.mjs",
     "cap:sync": "npm run build:web && npx cap sync",
     "cap:open:android": "npx cap open android"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.1",
     "@capacitor/app": "^8.1.0",
-    "@capacitor/core": "^8.4.1"
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/core": "^8.4.1",
+    "@supabase/supabase-js": "^2.110.6"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^8.4.1"
+    "@capacitor/cli": "^8.4.1",
+    "esbuild": "^0.28.1"
   }
 }

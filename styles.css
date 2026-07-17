@@ -60,6 +60,113 @@ body.modal-open {
   overflow: hidden;
 }
 
+body.auth-checking,
+body.auth-unauthenticated {
+  overflow: hidden;
+}
+
+body.auth-checking > :not(#authGate):not(script),
+body.auth-unauthenticated > :not(#authGate):not(script) {
+  display: none !important;
+}
+
+body.auth-authenticated #authGate {
+  display: none;
+}
+
+.auth-gate,
+.logout-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: grid;
+  place-items: center;
+  padding: max(22px, env(safe-area-inset-top, 0px)) 20px max(22px, env(safe-area-inset-bottom, 0px));
+  background: var(--bg);
+}
+
+.auth-gate-card,
+.logout-confirm-card {
+  width: min(100%, 430px);
+  padding: clamp(24px, 7vw, 36px);
+  text-align: center;
+}
+
+.auth-gate-logo {
+  display: block;
+  width: clamp(92px, 28vw, 132px);
+  height: auto;
+  margin: 0 auto 18px;
+}
+
+.auth-gate-state {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-gate-state.hidden,
+.logout-confirm-backdrop.hidden {
+  display: none;
+}
+
+.auth-gate-state h1,
+.logout-confirm-card h2 {
+  margin: 0;
+  font-family: var(--font-hand);
+  font-size: clamp(26px, 8vw, 36px);
+}
+
+.auth-gate-state p,
+.logout-confirm-card p,
+.auth-gate-state small {
+  margin: 0;
+  color: var(--text-body);
+  line-height: 1.75;
+}
+
+.auth-gate-state small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.auth-gate .google-login-btn {
+  width: 100%;
+  min-height: 54px;
+  justify-content: center;
+}
+
+.auth-gate .ghost-btn.hidden {
+  display: none;
+}
+
+.logout-confirm-backdrop {
+  z-index: 230;
+  background: rgba(58, 44, 35, 0.42);
+  backdrop-filter: blur(8px);
+}
+
+.logout-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.danger-action-btn {
+  border-color: #a4463d;
+  background: #a4463d;
+}
+
+.account-reset-btn {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(164, 70, 61, 0.38);
+  border-radius: 14px;
+  color: #a4463d;
+  background: rgba(255, 248, 244, 0.78);
+  font-weight: 900;
+}
+
 .app-shell,
 [role="dialog"] {
   -webkit-user-select: none;
@@ -620,9 +727,25 @@ body.simple-motion .hero-plant-action {
   max-height: 162px;
 }
 
+.hero-garden-plant-image.species-flower-spirit.hero-stage-2 {
+  max-width: 75%;
+  max-height: 144px;
+}
+
 .hero-garden-plant-image.hero-stage-3 {
   max-width: 102%;
   max-height: 182px;
+}
+
+.hero-garden-plant-image.species-mushroom-spirit.hero-stage-3,
+.hero-garden-plant-image.species-flower-spirit.hero-stage-3 {
+  max-width: 112%;
+  max-height: 200px;
+}
+
+.hero-garden-plant-image.species-melody-sprout.hero-stage-3 {
+  max-width: 120%;
+  max-height: 214px;
 }
 
 .hero-plant-slot b,
@@ -753,7 +876,7 @@ body.simple-motion .hero-plant-action {
 
 .start-practice-label {
   position: absolute;
-  left: 58.5%;
+  left: 56.5%;
   top: 49%;
   transform: translate(-50%, -50%);
   white-space: nowrap;
@@ -905,31 +1028,6 @@ body.simple-motion .hero-plant-action {
 .today-start {
   justify-self: start;
   min-width: 150px;
-}
-
-.flow-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: 16px 0;
-}
-
-.flow-grid span {
-  display: grid;
-  gap: 4px;
-  min-height: 56px;
-  padding: 10px 12px;
-  border: 1px solid rgba(122, 78, 45, 0.11);
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  background: rgba(255, 253, 249, 0.72);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.flow-grid b {
-  color: var(--text-main);
-  font-size: 15px;
 }
 
 .home-tuner-card {
@@ -1651,6 +1749,7 @@ body.hide-featured-spirit .hero-plant-slot {
   justify-content: center;
   min-width: 11px;
   padding-top: 5px;
+  padding-bottom: 5px;
   color: var(--primary);
   font-size: 16px;
   font-weight: 900;
@@ -1689,6 +1788,11 @@ body.hide-featured-spirit .hero-plant-slot {
   letter-spacing: -2px;
   line-height: 1;
   transform: translateX(-50%);
+}
+
+.jianpu-octave-dot.is-low {
+  top: auto;
+  bottom: -3px;
 }
 
 .jianpu-accidental {
@@ -2428,10 +2532,6 @@ body.hide-featured-spirit .hero-plant-slot {
   font-size: clamp(19px, 4.95vw, 29px);
 }
 
-#playFlowLabel {
-  font-style: normal;
-}
-
 .practice-status-actions {
   display: grid;
   grid-template-rows: repeat(3, 1fr);
@@ -2831,10 +2931,6 @@ body.hide-featured-spirit .hero-plant-slot {
 input[type="range"] {
   width: 100%;
   accent-color: var(--primary);
-}
-
-.compact-flow {
-  margin-bottom: 0;
 }
 
 .daily-page {
@@ -3772,6 +3868,136 @@ input[type="range"] {
   font-weight: 900;
 }
 
+.google-auth-state {
+  display: grid;
+  gap: 12px;
+}
+
+.google-auth-state.hidden {
+  display: none;
+}
+
+.google-login-btn:disabled,
+.google-logout-btn:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.google-account-card {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(231, 216, 200, 0.76);
+  border-radius: 18px;
+  background: rgba(255, 253, 249, 0.7);
+}
+
+.google-account-avatar-wrap {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  overflow: hidden;
+  border: 1px solid rgba(122, 78, 45, 0.18);
+  border-radius: 50%;
+  background: rgba(248, 243, 236, 0.96);
+}
+
+.google-account-avatar,
+.google-account-avatar-fallback {
+  width: 100%;
+  height: 100%;
+}
+
+.google-account-avatar {
+  display: block;
+  object-fit: cover;
+}
+
+.google-account-avatar.hidden,
+.google-account-avatar-fallback.hidden {
+  display: none;
+}
+
+.google-account-avatar-fallback {
+  display: grid;
+  place-items: center;
+  color: #fffdf9;
+  background: var(--primary);
+  font-weight: 900;
+}
+
+.google-account-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.google-account-copy strong,
+.google-account-copy span {
+  overflow-wrap: anywhere;
+}
+
+.google-account-copy strong {
+  color: var(--text-main);
+  font-size: 15px;
+}
+
+.google-account-copy span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.google-logout-btn {
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  color: var(--primary);
+  background: rgba(255, 253, 249, 0.88);
+  font-weight: 900;
+}
+
+.account-reset-btn:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.settings-status-text[data-kind="error"] {
+  color: #a4463d;
+}
+
+.auth-toast {
+  position: fixed;
+  z-index: 180;
+  left: 50%;
+  bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+  width: max-content;
+  max-width: min(86vw, 360px);
+  padding: 11px 16px;
+  border: 1px solid rgba(231, 216, 200, 0.88);
+  border-radius: 999px;
+  color: #fffdf9;
+  background: rgba(105, 68, 42, 0.96);
+  box-shadow: 0 12px 28px rgba(72, 48, 31, 0.22);
+  font-size: 14px;
+  font-weight: 900;
+  text-align: center;
+  opacity: 0;
+  transform: translate(-50%, 10px);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.auth-toast.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.auth-toast.hidden {
+  display: none;
+}
+
 .sound-toggle-row {
   display: flex;
   align-items: center;
@@ -4257,11 +4483,24 @@ body.simple-motion .plant-action-layer.is-stage-up {
 }
 
 .plant-action-layer.species-melody-sprout.garden-stage-1 {
-  width: min(40%, 132px);
+  width: min(36%, 118px);
 }
 
 .plant-action-layer.species-flower-spirit.garden-stage-1 {
   width: min(36%, 118px);
+}
+
+.plant-action-layer.species-mushroom-spirit.garden-stage-3,
+.plant-action-layer.species-flower-spirit.garden-stage-3 {
+  width: min(118%, 380px);
+}
+
+.plant-action-layer.species-melody-sprout.garden-stage-3 {
+  width: min(126%, 406px);
+}
+
+.plant-action-layer.species-flower-spirit.garden-stage-2 {
+  width: min(64%, 210px);
 }
 
 .plant-action-layer.species-lucky-leaf-spirit.garden-stage-1,
@@ -4279,6 +4518,15 @@ body.simple-motion .plant-action-layer.is-stage-up {
 
 .garden-plant-image.garden-stage-3 {
   width: 100%;
+}
+
+.garden-plant-image.species-mushroom-spirit.garden-stage-3,
+.garden-plant-image.species-flower-spirit.garden-stage-3 {
+  max-height: 270px;
+}
+
+.garden-plant-image.species-melody-sprout.garden-stage-3 {
+  max-height: 286px;
 }
 
 .garden-plant-image.is-watered {
@@ -5018,14 +5266,28 @@ body.simple-motion .plant-action-layer.is-stage-up {
   max-height: 168px;
 }
 
+.garden-spirit-stage-card.spirit-melody-sprout.stage-1 img,
 .garden-spirit-stage-card.spirit-flower-spirit.stage-1 img {
-  width: 48%;
-  max-height: 92px;
+  width: 42%;
+  max-height: 81px;
 }
 
 .garden-spirit-stage-card.spirit-flower-spirit.stage-2 img {
-  width: 82%;
-  max-height: 140px;
+  width: 64%;
+  max-height: 112px;
+}
+
+.garden-spirit-stage-card.spirit-mushroom-spirit.stage-3 img,
+.garden-spirit-stage-card.spirit-flower-spirit.stage-3 img {
+  width: 123%;
+  max-width: 123%;
+  max-height: 184px;
+}
+
+.garden-spirit-stage-card.spirit-melody-sprout.stage-3 img {
+  width: 132%;
+  max-width: 132%;
+  max-height: 197px;
 }
 
 .garden-spirit-description {
@@ -5302,6 +5564,89 @@ body.simple-motion .plant-action-layer.is-stage-up {
   border-radius: var(--radius-lg);
   background: var(--card);
   box-shadow: var(--shadow-card);
+}
+
+.feedback-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 86;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(58, 44, 35, 0.32);
+  backdrop-filter: blur(12px);
+}
+
+.feedback-modal-backdrop.hidden {
+  display: none;
+}
+
+.feedback-modal-card {
+  width: min(100%, 430px);
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.feedback-modal-head,
+.feedback-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.feedback-modal-head h2,
+.feedback-modal-head p,
+.feedback-intro,
+.feedback-field {
+  margin: 0;
+}
+
+.feedback-intro {
+  margin-block: 14px;
+  color: var(--text-body);
+  line-height: 1.65;
+}
+
+.feedback-field {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-weight: 800;
+}
+
+.feedback-field input,
+.feedback-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--text-main);
+  background: rgba(255, 253, 249, 0.9);
+  font: inherit;
+}
+
+.feedback-field textarea {
+  resize: vertical;
+}
+
+.feedback-actions {
+  margin-top: 16px;
+}
+
+.feedback-actions button {
+  flex: 1 1 0;
+}
+
+.settings-action-row {
+  width: 100%;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .home-spirit-reward-toast {
