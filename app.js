@@ -138,9 +138,202 @@ const starterPlantDescriptions = {
 const PRACTICE_SETTINGS_KEY = "chromatica.settings.practice";
 const SOUND_SETTINGS_KEY = "chromatica.settings.sound";
 const DISPLAY_SETTINGS_KEY = "chromatica.settings.display";
+const LOCAL_NOTIFICATION_PREFS_PREFIX = "chromatica.localNotificationPrefs.";
+const PRACTICE_REMINDER_CHANNEL_ID = "practice-reminders";
+const PRACTICE_REMINDER_NAMESPACE = "chromatica-practice-reminder";
+let practiceReminderBusy = false;
+let practiceReminderReconcilePromise = null;
+let practiceReminderGeneration = 0;
+let practiceReminderListenerRegistered = false;
+let practiceReminderUiMessage = "";
+let practiceReminderUiKind = "";
+let pendingPracticeReminderNavigation = false;
 
 function scheduleAccountSnapshotSave() {
   window.chromaticaAccountWorkspace?.scheduleSave?.();
+}
+
+function isNativeAndroidApp() {
+  const capacitor = window.Capacitor;
+  return Boolean(capacitor?.isNativePlatform?.() && capacitor.getPlatform?.() === "android");
+}
+
+function getLocalNotificationsPlugin() {
+  return isNativeAndroidApp() ? window.Capacitor?.Plugins?.LocalNotifications : null;
+}
+
+function getActiveAccountId() {
+  return localStorage.getItem("chromatica.activeAccountId") || "";
+}
+
+function getPracticeReminderPrefs(userId) {
+  if (!userId) return { schemaVersion: 1, enabled: false, updatedAt: "" };
+  return readJsonStorage(`${LOCAL_NOTIFICATION_PREFS_PREFIX}${userId}`, {
+    schemaVersion: 1,
+    enabled: false,
+    updatedAt: "",
+  });
+}
+
+function setPracticeReminderPrefs(userId, enabled) {
+  if (!userId) return;
+  localStorage.setItem(`${LOCAL_NOTIFICATION_PREFS_PREFIX}${userId}`, JSON.stringify({
+    schemaVersion: 1,
+    enabled: Boolean(enabled),
+    updatedAt: new Date().toISOString(),
+  }));
+}
+
+function getTodayPracticeCompletion(now = new Date()) {
+  return window.ChromaticaPracticeReminderCore.getTodayPracticeCompletion(getPracticeHistory(), now);
+}
+
+function getReminderPlantName() {
+  const plant = getCurrentPlant(false);
+  if (!plant) return "植物精靈";
+  if (plant.customName && plant.name) return plant.name;
+  return plant.name || getPlantDisplayName(plant) || "植物精靈";
+}
+
+function getReminderGoogleName() {
+  return window.chromaticaAuth?.getDisplayName?.() || "練習者";
+}
+
+function renderPracticeReminderSetting(message = "", kind = "") {
+  const toggle = $("#practiceReminderToggle");
+  const status = $("#practiceReminderStatus");
+  const userId = getActiveAccountId();
+  if (!toggle || !status) return;
+  const nativeAndroid = isNativeAndroidApp();
+  toggle.checked = nativeAndroid && getPracticeReminderPrefs(userId).enabled === true;
+  toggle.disabled = practiceReminderBusy || !nativeAndroid || !userId;
+  if (message) {
+    practiceReminderUiMessage = message;
+    practiceReminderUiKind = kind;
+  }
+  status.textContent = practiceReminderUiMessage || (nativeAndroid ? "" : "練習提醒目前僅支援 Android App。");
+  status.dataset.kind = practiceReminderUiKind;
+}
+
+function isPracticeReminderNotification(notification) {
+  return notification?.extra?.namespace === PRACTICE_REMINDER_NAMESPACE;
+}
+
+async function cancelPracticeRemindersForAccount(userId, { todayOnly = false } = {}) {
+  const plugin = getLocalNotificationsPlugin();
+  if (!plugin || !userId) return;
+  const core = window.ChromaticaPracticeReminderCore;
+  const accountHash = core.shortAccountHash(userId);
+  const todayKey = core.localDateKey(new Date());
+  const pending = await plugin.getPending();
+  const notifications = (pending?.notifications || []).filter((item) => (
+    isPracticeReminderNotification(item)
+    && item.extra?.accountHash === accountHash
+    && (!todayOnly || item.extra?.dateKey === todayKey)
+  ));
+  if (notifications.length) await plugin.cancel({ notifications: notifications.map(({ id }) => ({ id })) });
+}
+
+async function reconcilePracticeReminderSchedule({ userId = getActiveAccountId() } = {}) {
+  if (practiceReminderReconcilePromise) return practiceReminderReconcilePromise;
+  const generation = practiceReminderGeneration;
+  practiceReminderReconcilePromise = (async () => {
+    const plugin = getLocalNotificationsPlugin();
+    if (!plugin || !userId || userId !== getActiveAccountId()) return;
+    const prefs = getPracticeReminderPrefs(userId);
+    const permission = await plugin.checkPermissions();
+    if (!prefs.enabled || permission.display !== "granted") {
+      await cancelPracticeRemindersForAccount(userId);
+      return;
+    }
+    await plugin.createChannel({
+      id: PRACTICE_REMINDER_CHANNEL_ID,
+      name: "練習提醒",
+      description: "提醒尚未完成每日練習",
+      importance: 3,
+      visibility: 1,
+    });
+    const core = window.ChromaticaPracticeReminderCore;
+    const now = new Date();
+    const todayCompleted = getTodayPracticeCompletion(now);
+    const desired = core.buildReminderDates(now).filter(({ at }) => (
+      core.shouldScheduleToday({ at, now, todayCompleted })
+    )).map(({ at, hour }) => {
+      const identity = core.buildReminderIds(userId, at, hour);
+      return {
+        ...core.buildReminderContent({
+          hour,
+          googleDisplayName: getReminderGoogleName(),
+          plantName: getReminderPlantName(),
+        }),
+        id: identity.id,
+        schedule: { at, allowWhileIdle: true },
+        channelId: PRACTICE_REMINDER_CHANNEL_ID,
+        smallIcon: "ic_practice_notification",
+        extra: { namespace: PRACTICE_REMINDER_NAMESPACE, ...identity },
+      };
+    });
+    const pending = await plugin.getPending();
+    const old = (pending?.notifications || []).filter(isPracticeReminderNotification);
+    if (old.length) await plugin.cancel({ notifications: old.map(({ id }) => ({ id })) });
+    if (generation !== practiceReminderGeneration || userId !== getActiveAccountId()) return;
+    if (desired.length) await plugin.schedule({ notifications: desired });
+  })().catch((error) => {
+    console.warn("Unable to reconcile practice reminders.", error);
+  }).finally(() => {
+    practiceReminderReconcilePromise = null;
+    renderPracticeReminderSetting();
+  });
+  return practiceReminderReconcilePromise;
+}
+
+async function handlePracticeReminderToggle(event) {
+  if (practiceReminderBusy) return;
+  const toggle = event.currentTarget;
+  const requestedEnabled = toggle.checked;
+  const userId = getActiveAccountId();
+  const plugin = getLocalNotificationsPlugin();
+  if (!plugin || !userId) return renderPracticeReminderSetting();
+  practiceReminderBusy = true;
+  renderPracticeReminderSetting();
+  try {
+    if (!requestedEnabled) {
+      practiceReminderUiMessage = "";
+      practiceReminderUiKind = "";
+      setPracticeReminderPrefs(userId, false);
+      practiceReminderGeneration += 1;
+      await cancelPracticeRemindersForAccount(userId);
+      return;
+    }
+    const permission = await plugin.requestPermissions();
+    if (permission.display !== "granted") {
+      setPracticeReminderPrefs(userId, false);
+      renderPracticeReminderSetting("通知權限尚未開啟，請至系統設定允許通知。", "error");
+      return;
+    }
+    practiceReminderUiMessage = "";
+    practiceReminderUiKind = "";
+    setPracticeReminderPrefs(userId, true);
+    await reconcilePracticeReminderSchedule({ userId });
+  } finally {
+    practiceReminderBusy = false;
+    renderPracticeReminderSetting();
+  }
+}
+
+function registerPracticeReminderListener() {
+  if (practiceReminderListenerRegistered) return;
+  const plugin = getLocalNotificationsPlugin();
+  if (!plugin?.addListener) return;
+  practiceReminderListenerRegistered = true;
+  void plugin.addListener("localNotificationActionPerformed", (event) => {
+    if (!isPracticeReminderNotification(event?.notification)) return;
+    if (document.body.classList.contains("auth-authenticated") && window.chromaticaStartupState?.workspaceStatus === "ready") {
+      setView("practicehub");
+    } else {
+      pendingPracticeReminderNavigation = true;
+    }
+  });
 }
 const INTERVAL_PRACTICE_HISTORY_KEY = "chromatica.intervalPracticeHistory";
 const INTERVAL_GROUPS_PER_PAGE = 4;
@@ -1452,6 +1645,7 @@ function setCurrentPlant(plant) {
   }
   localStorage.setItem(gardenStorageKeys.currentPlant, JSON.stringify(plant));
   scheduleAccountSnapshotSave();
+  void reconcilePracticeReminderSchedule();
 }
 
 function getPlantImage(plant) {
@@ -2049,6 +2243,7 @@ function saveGardenSpiritName() {
   renderHeroGarden();
   renderGardenSpiritModal();
   closeGardenRenameModal();
+  void reconcilePracticeReminderSchedule();
   showGardenToast("名字已更新", `已改名為「${getPlantDisplayName(updated)}」。`);
 }
 
@@ -2540,6 +2735,7 @@ function markPracticeCompletedToday() {
   const reward = isFirstCompletionToday
     ? maybeRewardFreeze(currentStreak)
     : { rewarded: false, freezeCount: getFreezeCount() };
+  if (isFirstCompletionToday) void cancelPracticeRemindersForAccount(getActiveAccountId(), { todayOnly: true });
   return { isFirstCompletionToday, currentStreak, reward, freezeResult };
 }
 
@@ -5791,6 +5987,7 @@ function registerAndroidAppLifecycle() {
     }
     nativeAppIsActive = true;
     // Background-paused audio stays paused until the user explicitly starts it again.
+    void reconcilePracticeReminderSchedule();
   });
   listenerPromise?.catch?.((error) => {
     nativeAppLifecycleRegistered = false;
@@ -5926,6 +6123,7 @@ function bindEvents() {
   $("#feedbackCloseBtn")?.addEventListener("click", () => setFeedbackModalOpen(false));
   $("#feedbackCancelBtn")?.addEventListener("click", () => setFeedbackModalOpen(false));
   $("#feedbackForm")?.addEventListener("submit", submitFeedbackForm);
+  $("#practiceReminderToggle")?.addEventListener("change", handlePracticeReminderToggle);
   $("#feedbackModal")?.addEventListener("click", (event) => {
     if (event.target.id === "feedbackModal") setFeedbackModalOpen(false);
   });
@@ -6326,6 +6524,12 @@ function renderAuthenticatedAccountWorkspace() {
   if (dailyLoginBonusMessage) showGardenToast("每日水滴", dailyLoginBonusMessage);
   scheduleGardenPlantHop();
   scheduleAccountSnapshotSave();
+  renderPracticeReminderSetting();
+  void reconcilePracticeReminderSchedule();
+  if (pendingPracticeReminderNavigation) {
+    pendingPracticeReminderNavigation = false;
+    setView("practicehub");
+  }
 }
 
 function initializeAuthenticatedApp() {
@@ -6336,6 +6540,7 @@ function initializeAuthenticatedApp() {
     bindSoundFeedback();
     bindDisplaySettings();
     registerAndroidAppLifecycle();
+    registerPracticeReminderListener();
     renderSoundSettings();
     renderDisplaySettings();
     applyDisplaySettings();
@@ -6400,5 +6605,10 @@ window.chromaticaApp = {
       "starterPlantModal",
       "leaderboardModal",
     ].forEach((id) => document.getElementById(id)?.classList.add("hidden"));
+  },
+  async cancelPracticeRemindersForAccount(userId) {
+    practiceReminderGeneration += 1;
+    if (practiceReminderReconcilePromise) await practiceReminderReconcilePromise;
+    await cancelPracticeRemindersForAccount(userId);
   },
 };

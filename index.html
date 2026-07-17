@@ -933,10 +933,11 @@
             <details class="audio-setting-card paper-card">
               <summary class="settings-accordion-head"><span><strong>通知與語言</strong></span><i aria-hidden="true"></i></summary>
               <div class="settings-accordion-body">
-                <div class="setting-row">
-                  <span>練習提醒</span>
-                  <strong>準備中</strong>
-                </div>
+                <label class="sound-toggle-row notification-toggle-row">
+                  <span><strong>開啟每日練習提醒</strong><small>若今天尚未完成任何一項練習，App 會在下午 6 點與晚上 10 點提醒您。</small></span>
+                  <input id="practiceReminderToggle" type="checkbox" />
+                </label>
+                <p id="practiceReminderStatus" class="settings-status-text" aria-live="polite"></p>
                 <div class="setting-row">
                   <span>語言</span>
                   <strong>繁體中文</strong>
@@ -971,7 +972,7 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-159</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-160</span></strong>
                 </div>
                 <button id="feedbackOpenBtn" class="setting-row settings-action-row" type="button">
                   <span>問題回報</span>
@@ -993,8 +994,9 @@
       </nav>
     </div>
 
-    <script src="./supabase-config.js?v=refresh-159"></script>
-    <script src="./app.js?v=refresh-159"></script>
-    <script src="./auth-runtime.js?v=refresh-159"></script>
+    <script src="./supabase-config.js?v=refresh-160"></script>
+    <script src="./practice-reminders.js?v=refresh-160"></script>
+    <script src="./app.js?v=refresh-160"></script>
+    <script src="./auth-runtime.js?v=refresh-160"></script>
   </body>
 </html>

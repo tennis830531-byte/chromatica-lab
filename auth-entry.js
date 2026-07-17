@@ -37,6 +37,7 @@ const COMMON_STARTUP_BACKGROUND_IMAGES = [
 ];
 
 let supabaseClient = null;
+let currentAuthUser = null;
 let cloudSaveService = null;
 let authListenerRegistered = false;
 let nativeListenersRegistered = false;
@@ -412,7 +413,7 @@ function setAuthBusy(isBusy, message = "") {
 
 function getDisplayName(user) {
   const metadata = user?.user_metadata || {};
-  return metadata.full_name || metadata.name || user?.email?.split("@")[0] || "Google 使用者";
+  return metadata.full_name || metadata.name || metadata.given_name || "練習者";
 }
 
 function getAvatarUrl(user) {
@@ -423,6 +424,7 @@ function getAvatarUrl(user) {
 function renderAuthSession(session) {
   const elements = getAuthElements();
   const user = session?.user || null;
+  currentAuthUser = user;
   elements.signedOut?.classList.toggle("hidden", Boolean(user));
   elements.signedIn?.classList.toggle("hidden", !user);
   if (!user) {
@@ -607,6 +609,10 @@ async function prepareAuthenticatedSession(session) {
       const alreadyActive = localStorage.getItem(ACTIVE_ACCOUNT_KEY) === userId
         && document.body.classList.contains("auth-authenticated");
       if (!alreadyActive) {
+        const previousUserId = localStorage.getItem(ACTIVE_ACCOUNT_KEY) || "";
+        if (previousUserId && previousUserId !== userId) {
+          await window.chromaticaApp?.cancelPracticeRemindersForAccount?.(previousUserId);
+        }
         switchAccountWorkspace(userId, localStorage);
         const localSnapshot = readAccountSnapshot(userId, localStorage);
         const cloudResult = await cloudSaveService.reconcileStartup(userId, localSnapshot);
@@ -850,6 +856,7 @@ async function confirmSignOut() {
   try {
     flushAccountSnapshot();
     await cloudSaveService?.prepareForSignOut();
+    await window.chromaticaApp?.cancelPracticeRemindersForAccount?.(localStorage.getItem(ACTIVE_ACCOUNT_KEY) || "");
     signOutSnapshotFlushed = true;
   } catch {
     setAuthBusy(false);
@@ -1045,5 +1052,12 @@ async function initializeGoogleAuth() {
     }
   }
 }
+
+window.chromaticaAuth = {
+  getDisplayName() {
+    if (currentAuthUser) return getDisplayName(currentAuthUser);
+    return getAuthElements().name?.textContent?.trim() || "練習者";
+  },
+};
 
 void initializeGoogleAuth();

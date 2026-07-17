@@ -12,6 +12,7 @@ const webSourceFiles = [
   "styles.css",
   "manifest.webmanifest",
   "supabase-config.js",
+  "practice-reminders.js",
   "auth-runtime.js",
 ];
 const assetReferencePattern = /\.\/public\/assets\/[^\s"'`()<>$]+/g;

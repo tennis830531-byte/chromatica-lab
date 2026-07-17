@@ -5629,6 +5629,17 @@ body.simple-motion .plant-action-layer.is-stage-up {
   font: inherit;
 }
 
+.notification-toggle-row > span {
+  display: grid;
+  gap: 4px;
+}
+
+.notification-toggle-row small {
+  color: var(--text-muted);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
 .feedback-field textarea {
   resize: vertical;
 }

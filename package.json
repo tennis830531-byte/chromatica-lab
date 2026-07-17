@@ -9,6 +9,7 @@
     "build:web": "npm run build:auth && node scripts/build-web.mjs",
     "test:account-workspace": "node --test tests/account-workspace.test.mjs",
     "test:cloud-save": "node --test tests/cloud-save.test.mjs",
+    "test:practice-reminders": "node --test tests/practice-reminders.test.cjs",
     "cap:sync": "npm run build:web && npx cap sync",
     "cap:open:android": "npx cap open android"
   },
@@ -17,6 +18,7 @@
     "@capacitor/app": "^8.1.0",
     "@capacitor/browser": "^8.0.4",
     "@capacitor/core": "^8.4.1",
+    "@capacitor/local-notifications": "^8.2.1",
     "@supabase/supabase-js": "^2.110.6"
   },
   "devDependencies": {
