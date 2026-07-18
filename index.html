@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
     <link rel="stylesheet" href="./public/assets/fonts/noto-sans-tc/noto-sans-tc-variable.css" />
     <link rel="stylesheet" href="./public/assets/fonts/lxgw-wenkai-tc/lxgw-wenkai-tc-bold.css" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-162" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-163" />
   </head>
   <body class="auth-checking">
     <div id="authGate" class="auth-gate" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
@@ -95,6 +95,18 @@
         <div class="logout-confirm-actions">
           <button id="practiceExitContinueBtn" class="ghost-btn" type="button">繼續練習</button>
           <button id="practiceExitConfirmBtn" class="primary-btn" type="button">結束並返回</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="appExitModal" class="logout-confirm-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="appExitTitle">
+      <div class="logout-confirm-card paper-card">
+        <h2 id="appExitTitle">退出 App？</h2>
+        <p>將關閉 App，您的 Google 帳號仍會保持登入。</p>
+        <p id="appExitStatus" class="settings-status-text" aria-live="polite"></p>
+        <div class="logout-confirm-actions">
+          <button id="appExitCancelBtn" class="ghost-btn" type="button">取消</button>
+          <button id="appExitConfirmBtn" class="primary-btn" type="button">確定退出</button>
         </div>
       </div>
     </div>
@@ -1018,7 +1030,7 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-162</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-163</span></strong>
                 </div>
                 <button id="feedbackOpenBtn" class="setting-row settings-action-row" type="button">
                   <span>問題回報</span>
@@ -1026,6 +1038,7 @@
                 </button>
               </div>
             </details>
+            <button id="appExitBtn" class="app-exit-btn hidden" type="button">退出 App</button>
           </div>
         </section>
 
@@ -1040,10 +1053,10 @@
       </nav>
     </div>
 
-    <script src="./supabase-config.js?v=refresh-162"></script>
-    <script src="./practice-reminders.js?v=refresh-162"></script>
-    <script src="./quick-practice.js?v=refresh-162"></script>
-    <script src="./app.js?v=refresh-162"></script>
-    <script src="./auth-runtime.js?v=refresh-162"></script>
+    <script src="./supabase-config.js?v=refresh-163"></script>
+    <script src="./practice-reminders.js?v=refresh-163"></script>
+    <script src="./quick-practice.js?v=refresh-163"></script>
+    <script src="./app.js?v=refresh-163"></script>
+    <script src="./auth-runtime.js?v=refresh-163"></script>
   </body>
 </html>

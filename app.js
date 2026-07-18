@@ -170,6 +170,50 @@ function isNativeAndroidApp() {
   return Boolean(capacitor?.isNativePlatform?.() && capacitor.getPlatform?.() === "android");
 }
 
+function renderAppExitControl() {
+  $("#appExitBtn")?.classList.toggle("hidden", !isNativeAndroidApp());
+}
+
+let appExitBusy = false;
+
+function setAppExitModalOpen(open) {
+  $("#appExitModal")?.classList.toggle("hidden", !open);
+  document.body.classList.toggle("modal-open", open);
+  if (open) $("#appExitStatus").textContent = "";
+}
+
+async function confirmAppExit() {
+  if (appExitBusy || !isNativeAndroidApp()) return;
+  const confirmButton = $("#appExitConfirmBtn");
+  const status = $("#appExitStatus");
+  appExitBusy = true;
+  confirmButton.disabled = true;
+  confirmButton.textContent = "保存中…";
+  try {
+    const saved = window.chromaticaAccountWorkspace?.flushSave?.();
+    if (saved !== true) throw new Error("local-save-failed");
+  } catch {
+    status.textContent = "無法保存目前資料，請稍後再試。";
+    appExitBusy = false;
+    confirmButton.disabled = false;
+    confirmButton.textContent = "確定退出";
+    return;
+  }
+  try {
+    await Promise.race([
+      Promise.resolve(window.chromaticaAccountWorkspace?.syncBestEffort?.()),
+      new Promise((resolve) => window.setTimeout(resolve, 1500)),
+    ]);
+  } catch {
+    // Local snapshot is authoritative while offline; cloud sync retries next launch.
+  }
+  const App = window.Capacitor?.Plugins?.App;
+  if (typeof App?.exitApp === "function") await App.exitApp();
+  appExitBusy = false;
+  confirmButton.disabled = false;
+  confirmButton.textContent = "確定退出";
+}
+
 function getLocalNotificationsPlugin() {
   return isNativeAndroidApp() ? window.Capacitor?.Plugins?.LocalNotifications : null;
 }
@@ -6255,7 +6299,7 @@ async function submitFeedbackForm(event) {
     try {
       const result = await window.chromaticaAuth?.invokeFunction?.("send-feedback", {
         category, description,
-        appVersion: "refresh-162 / Android 1.0.46 (47)",
+        appVersion: "refresh-163 / Android 1.0.47 (48)",
         platform: isNativeAndroidApp() ? "android" : "web",
         currentView, requestId,
       });
@@ -6298,6 +6342,11 @@ function bindEvents() {
     }
     setView("audio");
   });
+  $("#appExitBtn")?.addEventListener("click", () => setAppExitModalOpen(true));
+  $("#appExitCancelBtn")?.addEventListener("click", () => {
+    if (!appExitBusy) setAppExitModalOpen(false);
+  });
+  $("#appExitConfirmBtn")?.addEventListener("click", confirmAppExit);
 
   $("#quickPracticeOpenBtn")?.addEventListener("click", () => {
     quickPracticeActive = true;
@@ -6385,6 +6434,7 @@ function bindEvents() {
       }
     }
     renderMicrophoneSetting();
+    renderAppExitControl();
   });
 
   $("#intervalStartBtn")?.addEventListener("click", beginIntervalPractice);

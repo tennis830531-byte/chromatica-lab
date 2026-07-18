@@ -525,6 +525,9 @@ function scheduleAccountSnapshot() {
 window.chromaticaAccountWorkspace = {
   scheduleSave: scheduleAccountSnapshot,
   flushSave: flushAccountSnapshot,
+  syncBestEffort() {
+    return cloudSaveService?.syncNow?.("manual") || Promise.resolve(null);
+  },
 };
 
 function cleanWebCallbackUrl(url) {
