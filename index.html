@@ -77,6 +77,28 @@
       </div>
     </div>
 
+    <div id="micDisabledModal" class="logout-confirm-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="micDisabledTitle">
+      <div class="logout-confirm-card paper-card">
+        <h2 id="micDisabledTitle">麥克風已關閉</h2>
+        <p id="micDisabledMessage">請先在設定的收音設定中開啟麥克風。</p>
+        <div class="logout-confirm-actions">
+          <button id="micDisabledBackBtn" class="ghost-btn" type="button">返回</button>
+          <button id="micDisabledSettingsBtn" class="primary-btn" type="button">前往設定</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="practiceExitModal" class="logout-confirm-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="practiceExitTitle">
+      <div class="logout-confirm-card paper-card">
+        <h2 id="practiceExitTitle">結束本次練習？</h2>
+        <p>目前進度不會記錄，確定要返回練習列表嗎？</p>
+        <div class="logout-confirm-actions">
+          <button id="practiceExitContinueBtn" class="ghost-btn" type="button">繼續練習</button>
+          <button id="practiceExitConfirmBtn" class="primary-btn" type="button">結束並返回</button>
+        </div>
+      </div>
+    </div>
+
     <div id="goalToast" class="goal-toast hidden" role="dialog" aria-modal="true" aria-labelledby="goalToastTitle">
       <div class="goal-toast-card">
         <p id="goalToastEyebrow" class="eyebrow">每日目標</p>
@@ -418,6 +440,7 @@
         </section>
 
         <section id="interval" class="view interval-practice-view">
+          <button class="practice-view-back" data-practice-back="interval" type="button" aria-label="返回練習列表">← 返回</button>
           <div class="section-head compact">
             <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/long_tone_bird.png" alt="" aria-hidden="true" />
             <p class="eyebrow">看譜練習</p>
@@ -429,7 +452,6 @@
             <div class="interval-card-heading">
               <p class="eyebrow">練習設定</p>
               <h3 id="intervalSetupTitle">今天想練哪一種音程？</h3>
-              <p>第一版由你自行判斷完成，不會開啟麥克風或進行音準評分。</p>
             </div>
             <div class="interval-settings-grid">
               <label class="interval-setting">
@@ -584,6 +606,7 @@
         </section>
 
         <section id="longtone" class="view">
+          <button class="practice-view-back" data-practice-back="longtone" type="button" aria-label="返回練習列表">← 返回</button>
           <div class="section-head compact">
             <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/long_tone_bird.png" alt="" aria-hidden="true" />
             <p class="eyebrow">第一課</p>
@@ -827,10 +850,10 @@
             <details class="audio-setting-card paper-card">
               <summary class="settings-accordion-head"><span><strong>收音設定</strong></span><i aria-hidden="true"></i></summary>
               <div class="settings-accordion-body">
-                <div class="setting-row">
+                <label class="sound-toggle-row">
                   <span>麥克風狀態</span>
-                  <strong id="audioMicStatus">待開啟</strong>
-                </div>
+                  <span class="setting-toggle-status"><strong id="audioMicStatus">已開啟，尚未授權</strong><input id="microphoneEnabledToggle" type="checkbox" checked /></span>
+                </label>
                 <div class="setting-row action-row">
                   <span>靜音校正</span>
                   <button id="audioCalibrateBtn" class="ghost-btn" type="button">重新校正</button>

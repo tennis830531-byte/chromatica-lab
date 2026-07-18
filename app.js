@@ -138,6 +138,7 @@ const starterPlantDescriptions = {
 const PRACTICE_SETTINGS_KEY = "chromatica.settings.practice";
 const SOUND_SETTINGS_KEY = "chromatica.settings.sound";
 const DISPLAY_SETTINGS_KEY = "chromatica.settings.display";
+const MICROPHONE_ENABLED_KEY = "chromatica.settings.microphoneEnabled";
 const LOCAL_NOTIFICATION_PREFS_PREFIX = "chromatica.localNotificationPrefs.";
 const PRACTICE_REMINDER_CHANNEL_ID = "practice-reminders";
 const PRACTICE_REMINDER_NAMESPACE = "chromatica-practice-reminder";
@@ -151,6 +152,14 @@ let pendingPracticeReminderNavigation = false;
 
 function scheduleAccountSnapshotSave() {
   window.chromaticaAccountWorkspace?.scheduleSave?.();
+}
+
+function isMicrophoneEnabled() {
+  return localStorage.getItem(MICROPHONE_ENABLED_KEY) !== "false";
+}
+
+function saveMicrophoneEnabled(enabled) {
+  localStorage.setItem(MICROPHONE_ENABLED_KEY, String(Boolean(enabled)));
 }
 
 function isNativeAndroidApp() {
@@ -3012,6 +3021,53 @@ function updateAudioStatus(text) {
   if (status) status.textContent = text;
 }
 
+function renderMicrophoneSetting() {
+  const enabled = isMicrophoneEnabled();
+  const toggle = $("#microphoneEnabledToggle");
+  if (toggle) toggle.checked = enabled;
+  updateAudioStatus(enabled ? (micAnalyser ? "已開啟" : "已開啟，尚未授權") : "已關閉");
+}
+
+function stopMicrophoneResources() {
+  if (micFrame) cancelAnimationFrame(micFrame);
+  micFrame = null;
+  micStream?.getTracks?.().forEach((track) => track.stop());
+  micStream = null;
+  micAnalyser = null;
+  micData = null;
+  micFloatTimeData = null;
+  micFrequencyData = null;
+  micFloatFrequencyData = null;
+  resetPitchTracker();
+}
+
+function setMicDisabledModalOpen(open) {
+  $("#micDisabledModal")?.classList.toggle("hidden", !open);
+  document.body.classList.toggle("modal-open", open);
+}
+
+function setMicDisabledMessage(message = "請先在設定的收音設定中開啟麥克風。") {
+  const text = $("#micDisabledMessage");
+  if (text) text.textContent = message;
+}
+
+function openMicrophoneSetting() {
+  setMicDisabledModalOpen(false);
+  setView("audio");
+  requestAnimationFrame(() => {
+    const toggle = $("#microphoneEnabledToggle");
+    toggle?.closest("details")?.setAttribute("open", "");
+    toggle?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}
+
+function requireMicrophoneEnabled() {
+  if (isMicrophoneEnabled()) return true;
+  setMicDisabledMessage();
+  setMicDisabledModalOpen(true);
+  return false;
+}
+
 function modelRangeClass(hole) {
   if (hole >= 5) return "range-12";
   if (hole >= 3) return "range-14";
@@ -5076,6 +5132,10 @@ function updateMicMonitor() {
 }
 
 async function startMic() {
+  if (!isMicrophoneEnabled()) {
+    renderMicrophoneSetting();
+    return false;
+  }
   if (micAnalyser) return true;
   try {
     updateAudioStatus("開啟中");
@@ -5896,6 +5956,7 @@ function stepPractice() {
 }
 
 function startPractice() {
+  if (!requireMicrophoneEnabled()) return;
   const exercise = exercises[selectedExercise];
   let shouldScrollAfterStart = false;
   setLongToneCompletionVisible(false);
@@ -5949,6 +6010,38 @@ function stopPractice(done = false) {
     resetMicStats();
   }
   updateBeatDisplay();
+}
+
+function cleanupPracticeForReturn(type) {
+  if (type === "interval") {
+    stopIntervalMetronome();
+    intervalPracticeState = null;
+    showIntervalSetup();
+  } else {
+    setPracticeSettingsOpen(false);
+    setLongToneCompletionVisible(false);
+    stopPractice(false);
+    stopMicrophoneResources();
+  }
+}
+
+let pendingPracticeExitType = "";
+
+function returnToPracticeHub(type) {
+  const running = type === "interval"
+    ? Boolean(intervalPracticeState?.hasStarted && $("#intervalComplete")?.classList.contains("hidden"))
+    : Boolean(timer || steadyProgressTimer || !["idle", "done"].includes(phase));
+  const completeVisible = type === "interval"
+    ? !$("#intervalComplete")?.classList.contains("hidden")
+    : !$("#longToneComplete")?.classList.contains("hidden");
+  if (running && !completeVisible) {
+    pendingPracticeExitType = type;
+    $("#practiceExitModal")?.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    return;
+  }
+  cleanupPracticeForReturn(type);
+  setView("practicehub");
 }
 
 function pauseLongToneForAppBackground() {
@@ -6080,6 +6173,7 @@ function bindEvents() {
   $$("[data-view]").forEach((button) => {
     if (button.id === "headerSettingsBtn") return;
     button.addEventListener("click", () => {
+      if (button.dataset.view === "tuner" && !requireMicrophoneEnabled()) return;
       setView(button.dataset.view, {
         activeTarget: button.dataset.navTarget || "",
         scrollTarget: button.dataset.scrollTarget || "",
@@ -6124,7 +6218,42 @@ function bindEvents() {
   });
 
   $$("[data-longtone-intro]").forEach((button) => {
-    button.addEventListener("click", () => setLongToneIntroOpen(true));
+    button.addEventListener("click", () => {
+      if (requireMicrophoneEnabled()) setLongToneIntroOpen(true);
+    });
+  });
+
+  $$("[data-practice-back]").forEach((button) => {
+    button.addEventListener("click", () => returnToPracticeHub(button.dataset.practiceBack));
+  });
+  $("#practiceExitContinueBtn")?.addEventListener("click", () => {
+    pendingPracticeExitType = "";
+    $("#practiceExitModal")?.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+  });
+  $("#practiceExitConfirmBtn")?.addEventListener("click", () => {
+    const type = pendingPracticeExitType;
+    pendingPracticeExitType = "";
+    $("#practiceExitModal")?.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    cleanupPracticeForReturn(type);
+    setView("practicehub");
+  });
+  $("#micDisabledBackBtn")?.addEventListener("click", () => setMicDisabledModalOpen(false));
+  $("#micDisabledSettingsBtn")?.addEventListener("click", openMicrophoneSetting);
+  $("#microphoneEnabledToggle")?.addEventListener("change", (event) => {
+    const enabled = event.target.checked;
+    saveMicrophoneEnabled(enabled);
+    if (!enabled) {
+      const longToneWasRunning = Boolean(timer || steadyProgressTimer || !["idle", "done"].includes(phase));
+      stopPractice(false);
+      stopMicrophoneResources();
+      if (longToneWasRunning && currentView === "longtone") {
+        setMicDisabledMessage("麥克風已關閉，本次練習已停止。");
+        setMicDisabledModalOpen(true);
+      }
+    }
+    renderMicrophoneSetting();
   });
 
   $("#intervalStartBtn")?.addEventListener("click", beginIntervalPractice);
@@ -6575,6 +6704,7 @@ function initializeAuthenticatedApp() {
     registerPracticeReminderListener();
     renderSoundSettings();
     renderDisplaySettings();
+    renderMicrophoneSetting();
     applyDisplaySettings();
     registerServiceWorker();
     refreshAllowedNotes();
