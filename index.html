@@ -548,7 +548,7 @@
             <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/note_map_explorer.png" alt="" aria-hidden="true" />
             <div>
               <h2>音符地圖</h2>
-              <p>切換琴型後左右滑動，逐孔查看吹音、吸音與按鍵音。</p>
+              <p>選擇琴型與孔位，查看吹音、吸音與按鍵音。</p>
             </div>
           </div>
 
@@ -576,7 +576,8 @@
           </div>
 
           <div class="note-map-wrap panel">
-            <div id="noteMap" class="note-map" aria-live="polite"></div>
+            <div id="noteMapHoles" class="note-map-holes" aria-label="口琴孔位"></div>
+            <article id="noteMap" class="hole-card selected-hole-card" aria-live="polite"></article>
           </div>
 
           <div class="map-footnote">常見配置，實際音位仍以你的琴款標示為準。</div>

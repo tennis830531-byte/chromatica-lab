@@ -685,7 +685,7 @@ let settingsReturnView = "intro";
 let settingsReturnTarget = "";
 let settingsReturnScrollY = 0;
 let selectedHoles = 16;
-let selectedMapHole = null;
+let selectedMapHole = 1;
 let selectedExercise = 0;
 let bpm = exercises[0].bpm;
 let steadyDurationSeconds = DEFAULT_PRACTICE_SETTINGS.steadyDurationSeconds;
@@ -2940,27 +2940,31 @@ function makeLayout(holeCount) {
 
 function renderNoteMap() {
   const map = $("#noteMap");
+  const holes = $("#noteMapHoles");
   const harmonicaImage = $("#mapHarmonicaImage");
-  const startIndex = selectedHoles === 16 ? 0 : selectedHoles === 14 ? 2 : 4;
-  const layout = makeLayout(16).slice(startIndex);
+  const layout = makeLayout(selectedHoles);
+  if (!Number.isInteger(selectedMapHole) || selectedMapHole < 1 || selectedMapHole > layout.length) {
+    selectedMapHole = 1;
+  }
+  const note = layout[selectedMapHole - 1];
 
   if (harmonicaImage) {
     harmonicaImage.src = mapHarmonicaImages[selectedHoles] || mapHarmonicaImages[16];
     harmonicaImage.dataset.holes = String(selectedHoles);
   }
 
-  map.style.setProperty("--holes", selectedHoles);
-  map.innerHTML = layout
-    .map((note, index) => `
-      <article class="hole-card">
-        <strong>第 ${index + 1} 孔</strong>
-        <div><span>吹</span><b>${note.blow}</b></div>
-        <div><span>吸</span><b>${note.draw}</b></div>
-        <div><span>按鍵吹</span><b>${note.buttonBlow}</b></div>
-        <div><span>按鍵吸</span><b>${note.buttonDraw}</b></div>
-      </article>
-    `)
-    .join("");
+  holes.style.setProperty("--holes", selectedHoles);
+  holes.innerHTML = layout.map(({ hole }) => `
+    <button class="note-map-hole ${hole === selectedMapHole ? "active" : ""}" data-map-hole="${hole}"
+      type="button" aria-label="第 ${hole} 孔" aria-pressed="${hole === selectedMapHole}">${hole}</button>
+  `).join("");
+  map.innerHTML = `
+    <strong>第 ${selectedMapHole} 孔</strong>
+    <div><span>吹氣</span><b>${note.blow}</b></div>
+    <div><span>吸氣</span><b>${note.draw}</b></div>
+    <div><span>按鍵吹氣</span><b>${note.buttonBlow}</b></div>
+    <div><span>按鍵吸氣</span><b>${note.buttonDraw}</b></div>
+  `;
 }
 
 function activateViewButton(view, target = "") {
@@ -6170,9 +6174,17 @@ function bindEvents() {
   $$(".map-model").forEach((button) => {
     button.addEventListener("click", () => {
       selectedHoles = Number(button.dataset.modelHoles);
+      if (selectedMapHole > selectedHoles) selectedMapHole = 1;
       $$(".map-model").forEach((item) => item.classList.toggle("active", item === button));
       renderNoteMap();
     });
+  });
+
+  $("#noteMapHoles")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-map-hole]");
+    if (!button) return;
+    selectedMapHole = Number(button.dataset.mapHole);
+    renderNoteMap();
   });
 
   $("#exerciseList").addEventListener("click", (event) => {
