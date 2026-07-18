@@ -10,6 +10,8 @@ import {
   switchAccountWorkspace,
 } from "./account-workspace.js";
 import { createCloudSaveService } from "./cloud-save.js";
+import { createOAuthDiagnostics, parseOAuthCallbackMetadata } from "./oauth-diagnostics.js";
+import { createOAuthAttemptController } from "./oauth-attempt.js";
 
 const WEB_REDIRECT_URL = "https://tennis830531-byte.github.io/chromatica-lab/";
 const ANDROID_REDIRECT_URL = "chromaticalab://login-callback";
@@ -48,7 +50,6 @@ let activeCloudNotice = "";
 let snapshotTimer = null;
 let workspaceTransition = Promise.resolve();
 let signOutSnapshotFlushed = false;
-const exchangedAuthCodes = new Set();
 const preloadCache = new Map();
 let blockingImageGeneration = 0;
 let commonPreloadPromise = null;
@@ -73,6 +74,24 @@ const startupState = {
 };
 
 window.chromaticaStartupState = startupState;
+
+const oauthDiagnostics = createOAuthDiagnostics({
+  platform: isNativeAndroid() ? "android" : "web",
+  storage: window.sessionStorage,
+  pkceStorage: window.localStorage,
+});
+const oauthAttempt = createOAuthAttemptController({
+  storage: window.sessionStorage,
+  onEvent(event, fields) {
+    oauthDiagnostics.record(event, fields);
+  },
+  onCancellation() {
+    void showUnauthenticatedGate("登入已取消。");
+  },
+  onSettled() {
+    setAuthBusy(false);
+  },
+});
 
 const byId = (id) => document.getElementById(id);
 
@@ -523,7 +542,17 @@ function getCallbackErrorMessage(url) {
 
 async function closeNativeBrowser() {
   if (!isNativeAndroid()) return;
-  try { await Browser.close(); } catch { /* Custom Tab may already be closed. */ }
+  oauthAttempt.markBrowserClosedByApp();
+  oauthDiagnostics.record("browserCloseRequested");
+  try {
+    await Browser.close();
+    oauthDiagnostics.record("browserCloseResolved");
+  } catch (error) {
+    oauthDiagnostics.record("browserCloseFailed", {
+      exchangeFailedErrorName: error?.name || "Error",
+      exchangeFailedErrorMessage: error?.message || "Custom Tab may already be closed",
+    });
+  }
 }
 
 function queueWorkspaceTransition(callback) {
@@ -702,8 +731,9 @@ async function deactivateSession({ preserveLegacy = true, snapshotAlreadySaved =
 }
 
 async function exchangeCallbackCode(code) {
-  if (!code || exchangedAuthCodes.has(code)) return false;
-  exchangedAuthCodes.add(code);
+  if (!oauthAttempt.claimAuthorizationCode(code)) return false;
+  oauthAttempt.markExchangeStarted(oauthDiagnostics.ensureAttempt());
+  oauthDiagnostics.recordPkceStorage("exchangeStarted", { exchangeStarted: true });
   resetStartupCheck();
   setGateState("checking", "正在完成 Google 登入…");
   setAuthBusy(true, "正在完成 Google 登入…");
@@ -712,7 +742,16 @@ async function exchangeCallbackCode(code) {
     AUTH_CHECK_TIMEOUT_MS,
     "auth-timeout",
   );
-  if (error) throw error;
+  if (error) {
+    oauthAttempt.markFailed(oauthDiagnostics.ensureAttempt());
+    oauthDiagnostics.recordExchangeFailure(error);
+    throw error;
+  }
+  oauthAttempt.markExchangeSucceeded();
+  oauthDiagnostics.recordPkceStorage("exchangeSucceeded", {
+    exchangeSucceeded: true,
+    sessionDetected: Boolean(data.session),
+  });
   const activated = await activateSession(data.session);
   if (activated) showAuthToast("Google 登入成功");
   return activated;
@@ -747,26 +786,37 @@ async function handleWebOAuthCallback() {
 }
 
 function isAndroidLoginCallback(url) {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === "chromaticalab:" && parsed.hostname === "login-callback";
-  } catch { return false; }
+  const parsed = parseOAuthCallbackMetadata(url);
+  return parsed.callbackScheme === "chromaticalab" && parsed.callbackHost === "login-callback";
+}
+
+function getAndroidCallbackParams(callbackUrl) {
+  const query = String(callbackUrl || "").split("?", 2)[1]?.split("#", 1)[0] || "";
+  return new URLSearchParams(query);
 }
 
 async function handleAndroidOAuthCallback(callbackUrl) {
   if (!isAndroidLoginCallback(callbackUrl)) return false;
-  const url = new URL(callbackUrl);
-  const callbackError = getCallbackErrorMessage(url);
+  const loginAttemptId = oauthDiagnostics.ensureAttempt();
+  oauthAttempt.markCallbackReceived(loginAttemptId);
+  oauthDiagnostics.recordCallback("callbackAccepted", callbackUrl);
+  const callback = { searchParams: getAndroidCallbackParams(callbackUrl) };
+  const callbackError = getCallbackErrorMessage(callback);
   try {
     if (callbackError) {
+      const errorCode = callback.searchParams.get("error") || callback.searchParams.get("error_code") || "";
+      if (errorCode === "access_denied") oauthAttempt.markAccessDenied(loginAttemptId);
+      else oauthAttempt.markFailed(loginAttemptId);
       await showUnauthenticatedGate(callbackError);
       return true;
     }
-    const code = url.searchParams.get("code");
+    const code = callback.searchParams.get("code");
     if (!code) throw new Error("Missing callback code");
     await exchangeCallbackCode(code);
     return true;
   } catch (error) {
+    oauthAttempt.markFailed(loginAttemptId);
+    oauthDiagnostics.recordExchangeFailure(error);
     if (startupState.workspaceStatus !== "error") {
       await showAuthErrorGate(
         error?.code === "auth-timeout"
@@ -784,8 +834,15 @@ async function handleAndroidOAuthCallback(callbackUrl) {
 async function registerNativeAuthListeners() {
   if (!isNativeAndroid() || nativeListenersRegistered) return;
   nativeListenersRegistered = true;
-  await App.addListener("appUrlOpen", ({ url }) => { void handleAndroidOAuthCallback(url); });
+  await App.addListener("appUrlOpen", ({ url }) => {
+    oauthDiagnostics.recordCallback("appUrlOpenReceived", url, { appUrlOpenReceived: true });
+    void handleAndroidOAuthCallback(url);
+  });
   await App.addListener("appStateChange", ({ isActive }) => {
+    oauthDiagnostics.record(isActive ? "appBecameActive" : "appBecameInactive", {
+      appBecameActive: isActive,
+      appBecameInactive: !isActive,
+    });
     if (!isActive) {
       try { flushAccountSnapshot(); } catch { /* Keep the active UI; retry on the next write. */ }
       void cloudSaveService?.syncNow("background");
@@ -794,12 +851,14 @@ async function registerNativeAuthListeners() {
     }
   });
   await Browser.addListener("browserFinished", () => {
-    if (!authBusy) return;
-    setAuthBusy(false);
-    void showUnauthenticatedGate("登入已取消。");
+    oauthDiagnostics.record("browserFinishedReceived", { browserFinishedReceived: true });
+    oauthAttempt.handleBrowserFinished();
   });
   const launch = await App.getLaunchUrl();
-  if (launch?.url) await handleAndroidOAuthCallback(launch.url);
+  if (launch?.url) {
+    oauthDiagnostics.recordCallback("launchUrlReceived", launch.url, { launchUrlReceived: true });
+    await handleAndroidOAuthCallback(launch.url);
+  }
 }
 
 async function startGoogleSignIn() {
@@ -808,9 +867,15 @@ async function startGoogleSignIn() {
     void showUnauthenticatedGate("目前無法連線至 Google 登入，請確認網路後再試。", true);
     return;
   }
+  const currentAttempt = oauthAttempt.getState();
+  if (currentAttempt && !currentAttempt.completed && !currentAttempt.cancelled) return;
+  const loginAttemptId = oauthDiagnostics.beginAttempt();
+  const attempt = oauthAttempt.beginAttempt(loginAttemptId);
+  if (!attempt.created) return;
   setAuthBusy(true, "正在開啟 Google 登入…");
   try {
     const nativeAndroid = isNativeAndroid();
+    oauthDiagnostics.record("oauthRequestStarted");
     const { data, error } = await supabaseClient.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -820,11 +885,19 @@ async function startGoogleSignIn() {
       },
     });
     if (error) throw error;
+    oauthDiagnostics.recordPkceStorage("oauthRequestResolved");
     if (nativeAndroid) {
       if (!data?.url) throw new Error("Missing OAuth URL");
+      oauthDiagnostics.record("browserOpenRequested", { browserOpenRequested: true });
       await Browser.open({ url: data.url });
+      oauthDiagnostics.record("browserOpenResolved", { browserOpenResolved: true });
     }
-  } catch {
+  } catch (error) {
+    oauthAttempt.markFailed(loginAttemptId);
+    oauthDiagnostics.record("browserOpenFailed", {
+      exchangeFailedErrorName: error?.name || "Error",
+      exchangeFailedErrorMessage: error?.message || "Unable to open OAuth browser",
+    });
     setAuthBusy(false);
     await showUnauthenticatedGate("無法開啟 Google 登入，請稍後再試。", true);
   }
@@ -984,6 +1057,18 @@ function registerAuthStateListener() {
   if (authListenerRegistered) return;
   authListenerRegistered = true;
   supabaseClient.auth.onAuthStateChange((event, session) => {
+    const attemptState = oauthAttempt.getState();
+    const oauthRelevant = authBusy || event === "SIGNED_IN" || Boolean(attemptState && !attemptState.completed);
+    if (oauthRelevant) {
+      oauthDiagnostics.record("authStateChanged", {
+        sessionDetected: Boolean(session),
+        authEvent: event,
+      });
+    }
+    if (session && oauthRelevant) {
+      oauthAttempt.markSessionDetected(oauthDiagnostics.ensureAttempt());
+      setAuthBusy(false);
+    }
     window.setTimeout(() => {
       if (["INITIAL_SESSION", "SIGNED_IN"].includes(event) && session?.user) {
         void activateSession(session).catch((error) => showWorkspaceErrorGate(error));
