@@ -2236,6 +2236,39 @@ body.hide-featured-spirit .hero-plant-slot {
   font-weight: 800;
 }
 
+.quick-practice-card {
+  grid-column: 1 / -1;
+  border-color: rgba(176, 112, 48, 0.42);
+  background: linear-gradient(135deg, rgba(255, 247, 226, 0.96), rgba(249, 235, 207, 0.82));
+}
+
+.quick-practice-panel { clear: both; padding: 20px; }
+.quick-practice-list { display: grid; gap: 10px; margin: 16px 0; padding: 0; list-style: none; }
+.quick-practice-list li {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: rgba(255, 253, 249, 0.72);
+}
+.quick-practice-list li > span {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #fffaf2;
+  background: #a96f38;
+  font-weight: 800;
+}
+.quick-practice-list div, .quick-practice-list strong, .quick-practice-list small { display: block; }
+.quick-practice-list small { margin-top: 3px; color: var(--text-muted); }
+.quick-practice-list em { color: var(--text-muted); font-size: 12px; font-style: normal; }
+.quick-practice-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
 .setting-toggle-status {
   display: inline-flex;
   align-items: center;

@@ -149,6 +149,9 @@ let practiceReminderListenerRegistered = false;
 let practiceReminderUiMessage = "";
 let practiceReminderUiKind = "";
 let pendingPracticeReminderNavigation = false;
+let quickPracticeActive = false;
+let quickPracticeCurrentTaskId = "";
+let quickPracticeJustCompletedTitle = "";
 
 function scheduleAccountSnapshotSave() {
   window.chromaticaAccountWorkspace?.scheduleSave?.();
@@ -2926,6 +2929,107 @@ function getDailyGoalTasks() {
   return [...longToneTasks, ...intervalTasks];
 }
 
+function getQuickPracticeSnapshot() {
+  const state = getDailyGoalState();
+  return window.ChromaticaQuickPracticeCore.buildSnapshot(
+    getDailyGoalTasks(),
+    (task) => getDailyGoalProgress(state, task),
+  );
+}
+
+function getQuickPracticeTaskDetail(task, progress) {
+  if (task.type === "interval") return `不重複音程組合 ${progress.completedCount} / ${progress.required}`;
+  const combo = getNextDailyGoalCombo(task);
+  return `${combo?.label || "既有設定"} · ${progress.completedCount} / ${progress.required}`;
+}
+
+function renderQuickPractice() {
+  const snapshot = getQuickPracticeSnapshot();
+  const title = $("#quickPracticeStateTitle");
+  const text = $("#quickPracticeStateText");
+  const list = $("#quickPracticeTaskList");
+  const primary = $("#quickPracticePrimaryBtn");
+  const later = $("#quickPracticeLaterBtn");
+  const results = $("#quickPracticeResultsBtn");
+  const home = $("#quickPracticeHomeBtn");
+  $("#quickPracticeSummary").textContent = `已完成 ${snapshot.done}／${snapshot.total}，尚有 ${snapshot.remaining.length} 項`;
+  list.innerHTML = snapshot.remaining.map(({ task, progress }, index) => `
+    <li><span>${index + 1}</span><div><strong>${task.title}</strong><small>${getQuickPracticeTaskDetail(task, progress)}</small></div><em>尚未完成</em></li>
+  `).join("");
+  [later, results, home].forEach((button) => button.classList.add("hidden"));
+  primary.classList.remove("hidden");
+  if (!snapshot.total) {
+    title.textContent = "尚未設定每日目標。";
+    text.textContent = "請先前往每日目標設定。";
+    primary.textContent = "前往每日目標設定";
+    primary.dataset.action = "daily";
+    return;
+  }
+  if (!snapshot.remaining.length) {
+    title.textContent = "今日目標全部完成！";
+    text.textContent = `今天共完成 ${snapshot.total} 項每日目標。`;
+    list.innerHTML = "";
+    primary.classList.add("hidden");
+    results.classList.remove("hidden");
+    home.classList.remove("hidden");
+    quickPracticeCurrentTaskId = "";
+    return;
+  }
+  if (quickPracticeJustCompletedTitle) {
+    title.textContent = "本項完成！";
+    text.textContent = `已完成「${quickPracticeJustCompletedTitle}」。下一項：${snapshot.remaining[0].task.title}`;
+    primary.textContent = "繼續下一項";
+    later.classList.remove("hidden");
+  } else {
+    title.textContent = "今天的任務";
+    text.textContent = "準備好後，再由你開始第一項練習。";
+    primary.textContent = "開始第一項";
+  }
+  primary.dataset.action = "start";
+}
+
+function launchQuickPracticeTask(item) {
+  if (!item) return;
+  const { task } = item;
+  quickPracticeActive = true;
+  quickPracticeCurrentTaskId = task.id;
+  quickPracticeJustCompletedTitle = "";
+  if (task.type === "interval") {
+    setView("interval");
+    showIntervalSetup();
+    return;
+  }
+  if (task.type === "longtone") {
+    if (!requireMicrophoneEnabled()) return;
+    const combo = getNextDailyGoalCombo(task);
+    selectedExercise = task.exerciseIndex;
+    const exercise = exercises[selectedExercise];
+    if (exercise.scored && combo?.volume) selectedTargetVolume = combo.volume;
+    if (exercise.variants?.length && combo?.variantIndex !== null && combo?.variantIndex !== undefined) selectedVariants[exercise.id] = Number(combo.variantIndex);
+    setLongToneCompletionVisible(false);
+    stopPractice(false);
+    setView("longtone");
+    renderExercise();
+    resetMicStats();
+    updateBeatDisplay();
+    return;
+  }
+  $("#quickPracticeStateText").textContent = `任務類型「${task.type}」暫時無法從快速練習啟動，請由原入口完成。`;
+}
+
+function startNextQuickPracticeTask() {
+  launchQuickPracticeTask(window.ChromaticaQuickPracticeCore.getNext(getQuickPracticeSnapshot()));
+}
+
+function handleQuickPracticeCompletion(taskTitle) {
+  if (!quickPracticeActive || !quickPracticeCurrentTaskId) return false;
+  quickPracticeJustCompletedTitle = taskTitle;
+  quickPracticeCurrentTaskId = "";
+  renderQuickPractice();
+  setView("quickpractice");
+  return true;
+}
+
 function getCurrentDailyGoalCompletion() {
   const exercise = exercises[selectedExercise];
   if (exercise.scored) return { goalId: exercise.id, comboId: `volume-${selectedTargetVolume}` };
@@ -2980,7 +3084,7 @@ function activateViewButton(view, target = "") {
   $$("[data-view]").forEach((item) => {
     const itemTarget = item.dataset.navTarget || "";
     const isPracticeNav = item.dataset.view === "practicehub";
-    const matches = (item.dataset.view === view && itemTarget === target) || (isPracticeNav && ["longtone", "interval"].includes(view));
+    const matches = (item.dataset.view === view && itemTarget === target) || (isPracticeNav && ["longtone", "interval", "quickpractice"].includes(view));
     if (item.classList.contains("nav-item") || item.classList.contains("bottom-nav-item") || item.classList.contains("icon-btn")) {
       item.classList.toggle("active", matches);
     }
@@ -5671,6 +5775,7 @@ function finishIntervalPractice() {
   $("#intervalCompleteNote").textContent = notes.join("\n");
   playSound("practiceComplete");
   scrollToSection("intervalComplete");
+  handleQuickPracticeCompletion("音程練習");
 }
 
 function setLongToneCompletionVisible(visible) {
@@ -5702,6 +5807,7 @@ function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessag
   setLongToneCompletionVisible(true);
   playSound("practiceComplete");
   scrollToSection("longToneComplete");
+  handleQuickPracticeCompletion(exercise.title);
 }
 
 function returnToLongTonePractice() {
@@ -5744,6 +5850,7 @@ function setView(view, options = {}) {
     renderGarden();
     if (!showStarterPlantSelectionIfNeeded()) checkGardenRainEvent();
   }
+  if (view === "quickpractice") renderQuickPractice();
   syncGardenBgmWithView();
   const headerSettingsButton = $("#headerSettingsBtn");
   if (headerSettingsButton) {
@@ -6041,7 +6148,7 @@ function returnToPracticeHub(type) {
     return;
   }
   cleanupPracticeForReturn(type);
-  setView("practicehub");
+  setView(quickPracticeActive ? "quickpractice" : "practicehub");
 }
 
 function pauseLongToneForAppBackground() {
@@ -6192,6 +6299,30 @@ function bindEvents() {
     setView("audio");
   });
 
+  $("#quickPracticeOpenBtn")?.addEventListener("click", () => {
+    quickPracticeActive = true;
+    quickPracticeCurrentTaskId = "";
+    quickPracticeJustCompletedTitle = "";
+    setView("quickpractice");
+  });
+  $("#quickPracticeBackBtn")?.addEventListener("click", () => {
+    quickPracticeActive = false;
+    quickPracticeCurrentTaskId = "";
+    quickPracticeJustCompletedTitle = "";
+    setView("practicehub");
+  });
+  $("#quickPracticePrimaryBtn")?.addEventListener("click", (event) => {
+    if (event.currentTarget.dataset.action === "daily") setView("daily");
+    else startNextQuickPracticeTask();
+  });
+  $("#quickPracticeLaterBtn")?.addEventListener("click", () => {
+    quickPracticeActive = false;
+    quickPracticeJustCompletedTitle = "";
+    setView("practicehub");
+  });
+  $("#quickPracticeResultsBtn")?.addEventListener("click", () => setView("daily"));
+  $("#quickPracticeHomeBtn")?.addEventListener("click", () => setView("intro"));
+
   $$("[data-jump]").forEach((button) => {
     button.addEventListener("click", () => {
       const view = button.dataset.jump;
@@ -6237,7 +6368,7 @@ function bindEvents() {
     $("#practiceExitModal")?.classList.add("hidden");
     document.body.classList.remove("modal-open");
     cleanupPracticeForReturn(type);
-    setView("practicehub");
+    setView(quickPracticeActive ? "quickpractice" : "practicehub");
   });
   $("#micDisabledBackBtn")?.addEventListener("click", () => setMicDisabledModalOpen(false));
   $("#micDisabledSettingsBtn")?.addEventListener("click", openMicrophoneSetting);

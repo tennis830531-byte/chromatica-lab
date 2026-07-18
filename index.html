@@ -399,6 +399,10 @@
 
           <section id="practice-hub-section" class="practice-hub-section paper-card">
             <div class="practice-room-grid">
+              <article class="practice-room-card quick-practice-card available">
+                <div><span class="room-badge open">今日推薦</span><h4>快速練習</h4><p>依序完成今天的每日目標</p></div>
+                <button id="quickPracticeOpenBtn" class="room-action" type="button">查看今日任務</button>
+              </article>
               <article class="practice-room-card available">
                 <div>
                   <span class="room-badge open">已開放</span>
@@ -435,6 +439,24 @@
                 <h4>合奏練習室</h4>
                 <p>練習聲部進入、聽感與合奏默契。</p>
               </article>
+            </div>
+          </section>
+        </section>
+
+        <section id="quickpractice" class="view">
+          <button id="quickPracticeBackBtn" class="practice-view-back" type="button" aria-label="返回練習列表">← 返回練習列表</button>
+          <div class="section-head compact no-eyebrow">
+            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" aria-hidden="true" />
+            <h2>今日快速練習</h2><p id="quickPracticeSummary">讀取今天的每日目標中…</p>
+          </div>
+          <section class="quick-practice-panel paper-card" aria-live="polite">
+            <h3 id="quickPracticeStateTitle">今天的任務</h3><p id="quickPracticeStateText"></p>
+            <ol id="quickPracticeTaskList" class="quick-practice-list"></ol>
+            <div class="quick-practice-actions">
+              <button id="quickPracticePrimaryBtn" class="primary-btn" type="button">開始第一項</button>
+              <button id="quickPracticeLaterBtn" class="ghost-btn hidden" type="button">稍後再練</button>
+              <button id="quickPracticeResultsBtn" class="ghost-btn hidden" type="button">查看今日成果</button>
+              <button id="quickPracticeHomeBtn" class="ghost-btn hidden" type="button">返回首頁</button>
             </div>
           </section>
         </section>
@@ -1020,6 +1042,7 @@
 
     <script src="./supabase-config.js?v=refresh-162"></script>
     <script src="./practice-reminders.js?v=refresh-162"></script>
+    <script src="./quick-practice.js?v=refresh-162"></script>
     <script src="./app.js?v=refresh-162"></script>
     <script src="./auth-runtime.js?v=refresh-162"></script>
   </body>

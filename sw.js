@@ -5,6 +5,7 @@ const APP_SHELL = [
   "./styles.css?v=refresh-162",
   "./supabase-config.js?v=refresh-162",
   "./practice-reminders.js?v=refresh-162",
+  "./quick-practice.js?v=refresh-162",
   "./app.js?v=refresh-162",
   "./auth-runtime.js?v=refresh-162",
   "./manifest.webmanifest",
