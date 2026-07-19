@@ -22,7 +22,7 @@ test("every local index script is tracked and exists in www", async () => {
   assert.deepEqual(verified, localScripts);
 });
 
-for (const script of ["daily-login-bonus.js", "daily-goal-rewards.js", "quick-practice.js", "app.js", "auth-runtime.js"]) {
+for (const script of ["daily-login-bonus.js", "daily-goal-rewards.js", "quick-practice.js", "metronome-core.js", "metronome.js", "garden-qa.js", "app.js", "auth-runtime.js"]) {
   test(`${script} exists in the web bundle`, () => {
     assert.ok(localScripts.includes(script));
     assert.ok(trackedSourceFiles.has(script));
@@ -72,6 +72,12 @@ test("daily goal reward runtime is available before app initialization", async (
   vm.runInContext(await readFile(path.join(outputRoot, "daily-goal-rewards.js"), "utf8"), context);
   assert.equal(typeof context.window.ChromaticaDailyGoalRewardCore?.createController, "function");
   assert.ok(localScripts.indexOf("daily-goal-rewards.js") < localScripts.indexOf("app.js"));
+});
+
+test("metronome and garden QA runtimes load before app initialization", async () => {
+  for (const script of ["metronome-core.js", "metronome.js", "garden-qa.js"]) {
+    assert.ok(localScripts.indexOf(script) < localScripts.indexOf("app.js"));
+  }
 });
 
 test("microphone gate controls and click handler registrations remain bundled", async () => {

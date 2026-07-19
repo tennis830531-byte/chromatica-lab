@@ -17,6 +17,9 @@ const webSourceFiles = [
   "daily-login-bonus.js",
   "daily-goal-rewards.js",
   "quick-practice.js",
+  "metronome-core.js",
+  "metronome.js",
+  "garden-qa.js",
   "auth-runtime.js",
 ];
 const assetReferencePattern = /\.\/public\/assets\/[^\s"'`()<>$]+/g;

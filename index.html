@@ -7,13 +7,20 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="口琴練習室" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <script>
+      try {
+        if (sessionStorage.getItem("chromatica.qaGardenMode") === "true") {
+          document.documentElement.dataset.qaGardenActive = "true";
+        }
+      } catch { /* Session storage may be unavailable; normal startup remains unchanged. */ }
+    </script>
     <title>Chromatic Harmonica Lab</title>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" type="image/png" />
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
     <link rel="stylesheet" href="./public/assets/fonts/noto-sans-tc/noto-sans-tc-variable.css" />
     <link rel="stylesheet" href="./public/assets/fonts/lxgw-wenkai-tc/lxgw-wenkai-tc-bold.css" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-167" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-168" />
   </head>
   <body class="auth-checking">
     <div id="authGate" class="auth-gate" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
@@ -306,7 +313,7 @@
           <div class="home-hero paper-card">
             <div class="hero-top">
               <div class="hero-copy">
-                <h2>半音階口琴練習室</h2>
+                <h2 id="homeHeroQaTitle">半音階口琴練習室</h2>
                 <p>透過音符地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p>
               </div>
             </div>
@@ -342,6 +349,7 @@
             <div class="quick-grid">
               <button class="quick-card" data-jump="map" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/note_map_explorer.png" alt="" /></span><strong>音符地圖</strong></button>
               <button class="quick-card" data-jump="tuner" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/tuner_badge.png" alt="" /></span><strong>全音域調音器</strong></button>
+              <button class="quick-card" data-jump="metronome" type="button"><span class="quick-card-icon"><img class="ui-quick-icon metronome-quick-icon" src="./public/assets/chromatic-refresh/feature/metronome-bird.png" alt="" /></span><strong>節拍器</strong></button>
               <button class="quick-card" data-jump="practicehub" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/practice_record_icon.png" alt="" /></span><strong>開始練習</strong></button>
               <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" /></span><strong>每日目標</strong></button>
               <button class="quick-card" data-jump="garden" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/garden/icons/spirit-garden-icon.png" alt="" /></span><strong>精靈花園</strong></button>
@@ -395,6 +403,56 @@
                 </ul>
               </div>
             </details>
+          </div>
+        </section>
+
+        <section id="metronome" class="view">
+          <div class="section-head compact no-eyebrow">
+            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/metronome-bird.png" alt="" aria-hidden="true" />
+            <h2>專用節拍器</h2>
+            <p>穩定拍點，專心練習。</p>
+          </div>
+          <div class="metronome-page">
+            <section class="metronome-stage paper-card">
+              <div class="metronome-readout"><strong id="metronomeBpm">80</strong><span>BPM</span><em id="metronomeTempoTerm">Andante</em></div>
+              <div class="metronome-visual" aria-hidden="true"><div id="metronomePendulum" class="metronome-pendulum"><i></i></div><div id="metronomeSubdivisionPulse" class="metronome-subdivision-pulse">●</div></div>
+              <div class="metronome-status-row"><span>拍號 <b id="metronomeSignatureDisplay">4/4</b></span><span>小節 <b id="metronomeMeasureCount">1</b></span><span>第 <b id="metronomeCurrentBeat">1</b> 拍</span></div>
+              <div id="metronomeBeatDots" class="metronome-beat-dots" aria-hidden="true"></div>
+              <button id="metronomeToggle" class="primary-btn metronome-toggle" type="button">開始</button>
+              <div id="metronomeLive" class="sr-only" aria-live="polite"></div>
+            </section>
+
+            <section class="metronome-controls paper-card">
+              <h3>速度</h3>
+              <input id="metronomeBpmRange" type="range" min="30" max="240" value="80" aria-label="BPM 滑桿" />
+              <div class="metronome-bpm-controls"><button data-bpm-delta="-5" type="button">−5</button><button data-bpm-delta="-1" type="button">−1</button><input id="metronomeBpmInput" type="number" min="30" max="240" value="80" inputmode="numeric" aria-label="BPM 數字" /><button data-bpm-delta="1" type="button">+1</button><button data-bpm-delta="5" type="button">+5</button></div>
+              <div class="metronome-tap-row"><button id="metronomeTap" type="button">Tap Tempo</button><span id="metronomeTapResult">至少點兩下</span></div>
+            </section>
+
+            <section class="metronome-controls paper-card">
+              <h3>拍號與細分</h3>
+              <div class="metronome-choice-grid" aria-label="拍號">
+                <button data-time-signature="2/4" type="button">2/4</button><button data-time-signature="3/4" type="button">3/4</button><button data-time-signature="4/4" class="active" type="button">4/4</button><button data-time-signature="5/4" type="button">5/4</button><button data-time-signature="6/8" type="button">6/8</button><button data-time-signature="7/8" type="button">7/8</button><button data-time-signature="9/8" type="button">9/8</button><button data-time-signature="12/8" type="button">12/8</button><button data-time-signature="custom" type="button">自訂</button>
+              </div>
+              <div id="customTimeSignature" class="metronome-inline hidden"><label>分子<input id="customNumerator" type="number" min="1" max="12" value="4" /></label><label>分母<select id="customDenominator"><option>2</option><option selected>4</option><option>8</option><option>16</option></select></label></div>
+              <div class="metronome-choice-grid subdivision-grid" aria-label="細分音符"><button data-subdivision="quarter" class="active" type="button">四分音符</button><button data-subdivision="eighth" type="button">八分音符</button><button data-subdivision="triplet" type="button">三連音</button><button data-subdivision="sixteenth" type="button">十六分音符</button></div>
+              <label id="metronomeSwingRow" class="metronome-range-row is-disabled"><span>Swing <b id="metronomeSwingValue">50%</b></span><input id="metronomeSwing" type="range" min="50" max="75" step="1" value="50" disabled /></label>
+            </section>
+
+            <section class="metronome-controls paper-card"><h3>每拍重音</h3><div id="metronomeAccents" class="metronome-accents"></div></section>
+            <section class="metronome-controls paper-card">
+              <h3>聲音與預備拍</h3>
+              <div class="metronome-inline"><label>音色<select id="metronomeSound"><option value="wood">木質</option><option value="mechanical">經典機械</option><option value="soft">柔和</option></select></label><label>音量<input id="metronomeVolume" type="range" min="0" max="100" value="70" /></label><button id="metronomeMute" type="button">靜音</button></div>
+              <div class="metronome-choice-grid count-in-grid"><button data-count-in="0" class="active" type="button">預備拍關閉</button><button data-count-in="1" type="button">1 小節</button><button data-count-in="2" type="button">2 小節</button></div>
+            </section>
+            <section class="metronome-controls paper-card">
+              <h3>速度訓練</h3>
+              <label class="metronome-toggle-row"><span>速度訓練</span><input id="tempoTrainerEnabled" type="checkbox" /></label>
+              <div class="metronome-trainer-grid"><label>起始 BPM<input id="tempoTrainerStart" type="number" min="30" max="239" value="80" /></label><label>目標 BPM<input id="tempoTrainerTarget" type="number" min="31" max="240" value="100" /></label><label>每次增加<select id="tempoTrainerIncrement"><option>1</option><option>2</option><option>5</option></select></label><label>每隔小節<select id="tempoTrainerEvery"><option>1</option><option>2</option><option>4</option><option>8</option></select></label></div>
+              <label>停止後<select id="tempoTrainerKeep"><option value="reset">回到起始 BPM</option><option value="keep">保留目前 BPM</option></select></label>
+            </section>
+            <section class="metronome-controls paper-card"><h3>自動停止</h3><select id="metronomeAutoStop"><option value="off:0">關閉</option><option value="minutes:1">1 分鐘</option><option value="minutes:3">3 分鐘</option><option value="minutes:5">5 分鐘</option><option value="minutes:10">10 分鐘</option><option value="measures:1">自訂小節數</option></select><input id="metronomeCustomMeasures" class="hidden" type="number" min="1" max="999" value="1" aria-label="自訂停止小節數" /></section>
+            <section class="metronome-controls paper-card"><div class="card-row-head"><h3>預設組合</h3><button id="metronomeSavePreset" type="button">儲存目前設定</button></div><ul id="metronomePresetList" class="metronome-preset-list"></ul></section>
           </div>
         </section>
 
@@ -879,6 +937,27 @@
           </div>
         </section>
 
+        <section id="gardenqa" class="view">
+          <div class="garden-qa-banner"><strong>植物測試模式｜不影響正式進度</strong><button data-qa-leave type="button">離開測試模式</button></div>
+          <div class="section-head compact no-eyebrow"><img class="section-icon ui-quick-icon" src="./public/assets/garden/icons/watering-can.png" alt="" /><h2>植物精靈測試花園</h2><p>所有操作只保存在本次 session。</p></div>
+          <div class="garden-layout garden-qa-layout">
+            <section class="garden-card paper-card">
+              <div class="garden-card-head"><div><h3 id="gardenQaPlantName">測試植物</h3><span>水滴 <b id="gardenQaWater">∞</b></span></div></div>
+              <div id="gardenQaPlantScene" class="garden-plant-scene">
+                <img class="garden-scene-backdrop" src="./public/assets/garden/icons/garden-stage-backdrop-refresh.png" alt="" />
+                <div id="gardenQaPlantIdleLayer" class="plant-idle-layer is-idle">
+                  <div id="gardenQaPlantActionLayer" class="plant-action-layer garden-stage-1">
+                    <img id="gardenQaPlantImage" class="garden-plant-image garden-stage-1" src="./public/assets/garden/collection/starter-pot.png" alt="" />
+                  </div>
+                </div>
+              </div>
+              <div class="garden-progress"><div class="garden-progress-row"><span>階段進度</span><b id="gardenQaProgress">0 / 100</b></div><div class="garden-progress-track"><i id="gardenQaProgressBar"></i></div></div>
+              <div class="garden-qa-toolbar" aria-label="植物測試工具"><button data-qa-action="water" type="button">澆水</button><button data-qa-action="fill" type="button">本階段補滿</button><button data-qa-action="mature" type="button">直接成熟</button><button data-qa-action="harvest" type="button">採收</button><button data-qa-action="reset" type="button">重置目前植物</button><button id="gardenQaResetAll" type="button">重置測試花園</button><button data-qa-leave type="button">離開測試模式</button></div>
+            </section>
+            <section class="garden-card paper-card garden-collection-card"><h3>QA 植物精靈圖鑑</h3><div id="gardenQaCollection" class="garden-qa-collection"></div><p class="garden-hint">點擊已採收精靈可改名並設為 QA 首頁展示。</p></section>
+          </div>
+        </section>
+
         <section id="audio" class="view">
           <div class="section-head compact no-eyebrow">
             <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/icon/mic_settings_icon.png" alt="" aria-hidden="true" />
@@ -1035,7 +1114,7 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-167</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-168</span></strong>
                 </div>
                 <button id="feedbackOpenBtn" class="setting-row settings-action-row" type="button">
                   <span>問題回報</span>
@@ -1058,12 +1137,22 @@
       </nav>
     </div>
 
-    <script src="./supabase-config.js?v=refresh-167"></script>
-    <script src="./practice-reminders.js?v=refresh-167"></script>
-    <script src="./daily-login-bonus.js?v=refresh-167"></script>
-    <script src="./daily-goal-rewards.js?v=refresh-167"></script>
-    <script src="./quick-practice.js?v=refresh-167"></script>
-    <script src="./app.js?v=refresh-167"></script>
-    <script src="./auth-runtime.js?v=refresh-167"></script>
+    <div id="metronomeComplete" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="metronomeCompleteTitle"><div class="feedback-modal paper-card"><h2 id="metronomeCompleteTitle">節拍器練習完成</h2><p>這次節拍器使用不會記錄為正式練習，也不會發放水滴。</p><button id="metronomeCompleteClose" class="primary-btn" type="button">完成</button></div></div>
+
+    <div id="gardenQaPasswordModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="gardenQaPasswordTitle">
+      <div class="feedback-modal paper-card"><h2 id="gardenQaPasswordTitle">植物精靈測試模式</h2><p>此模式只使用測試資料，不會修改正式帳號進度。</p><label class="feedback-field"><span>測試密碼</span><input id="gardenQaPassword" type="password" inputmode="numeric" maxlength="8" autocomplete="off" /></label><p id="gardenQaPasswordError" class="settings-status-text" aria-live="polite"></p><div class="feedback-actions"><button id="gardenQaCancel" class="secondary-btn" type="button">取消</button><button id="gardenQaEnter" class="primary-btn" type="button">進入測試模式</button></div></div>
+    </div>
+
+
+    <script src="./supabase-config.js?v=refresh-168"></script>
+    <script src="./practice-reminders.js?v=refresh-168"></script>
+    <script src="./daily-login-bonus.js?v=refresh-168"></script>
+    <script src="./daily-goal-rewards.js?v=refresh-168"></script>
+    <script src="./quick-practice.js?v=refresh-168"></script>
+    <script src="./metronome-core.js?v=refresh-168"></script>
+    <script src="./metronome.js?v=refresh-168"></script>
+    <script src="./garden-qa.js?v=refresh-168"></script>
+    <script src="./app.js?v=refresh-168"></script>
+    <script src="./auth-runtime.js?v=refresh-168"></script>
   </body>
 </html>

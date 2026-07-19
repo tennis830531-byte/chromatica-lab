@@ -765,6 +765,12 @@ const mapHarmonicaImages = {
 
 let currentView = "intro";
 let currentViewTarget = "";
+const qaResumeRequested = Boolean(window.ChromaticaGardenQA?.isGardenQaSessionActive?.());
+let qaFormalResumePromise = null;
+
+function isGardenQaSessionActive() {
+  return Boolean(window.ChromaticaGardenQA?.isGardenQaSessionActive?.());
+}
 let settingsReturnView = "intro";
 let settingsReturnTarget = "";
 let settingsReturnScrollY = 0;
@@ -779,6 +785,7 @@ let selectedGardenSpiritId = "";
 let selectedGardenSpiritStage = 3;
 let selectedStarterSpeciesId = "";
 let gardenHopTimer = null;
+let suppressNextGardenPersistence = false;
 let gardenIdleResumeTimer = null;
 let homeSpiritRewardToastTimer = null;
 let homeSpiritRewardToastHideTimer = null;
@@ -2441,7 +2448,7 @@ function renderEmptyGardenState() {
   renderHeroGarden();
 }
 
-function renderGarden() {
+function renderGarden({ persistNormalizedState = true } = {}) {
   syncStarterPlantStateForExistingUser();
   const plant = getCurrentPlant(false);
   if (!plant) {
@@ -2450,7 +2457,7 @@ function renderGarden() {
   }
   const progress = Math.max(0, Math.min(PLANT_WATER_REQUIRED, plant.waterProgress || 0));
   plant.stage = getPlantStage(progress);
-  setCurrentPlant(plant);
+  if (persistNormalizedState) setCurrentPlant(plant);
   const ready = progress >= PLANT_WATER_REQUIRED;
   const stageRequired = getStageWaterRequired(plant.stage);
   const stageProgress = getStageProgress(progress, plant.stage);
@@ -3244,7 +3251,9 @@ function activateViewButton(view, target = "") {
   $$("[data-view]").forEach((item) => {
     const itemTarget = item.dataset.navTarget || "";
     const isPracticeNav = item.dataset.view === "practicehub";
-    const matches = (item.dataset.view === view && itemTarget === target) || (isPracticeNav && ["longtone", "interval", "quickpractice"].includes(view));
+    const matches = (item.dataset.view === view && itemTarget === target)
+      || (isPracticeNav && ["longtone", "interval", "quickpractice"].includes(view))
+      || (item.dataset.view === "garden" && view === "gardenqa");
     if (item.classList.contains("nav-item") || item.classList.contains("bottom-nav-item") || item.classList.contains("icon-btn")) {
       item.classList.toggle("active", matches);
     }
@@ -5438,6 +5447,7 @@ function updateMicMonitor() {
 }
 
 async function startMic() {
+  if (isGardenQaSessionActive()) return false;
   if (!isMicrophoneEnabled()) {
     renderMicrophoneSetting();
     return false;
@@ -6039,11 +6049,16 @@ function setView(view, options = {}) {
   activateViewButton(view, currentViewTarget);
   if (view !== "longtone") stopPractice(false);
   if (view !== "interval") stopIntervalMetronome();
+  if (view !== "metronome") window.ChromaticaMetronome?.stop?.();
   if (view === "garden") {
-    renderGarden();
-    if (!showStarterPlantSelectionIfNeeded()) checkGardenRainEvent();
+    const suppressGardenPersistence = suppressNextGardenPersistence;
+    renderGarden({ persistNormalizedState: !suppressGardenPersistence });
+    suppressNextGardenPersistence = false;
+    if (!suppressGardenPersistence && !showStarterPlantSelectionIfNeeded()) checkGardenRainEvent();
   }
   if (view === "quickpractice") renderQuickPractice();
+  if (view === "gardenqa") window.ChromaticaGardenQA?.render?.();
+  window.ChromaticaGardenQA?.onViewChanged?.(view);
   if (view === "audio" && changedView && isMicrophoneEnabled() && !micAnalyser) {
     requestMicrophoneFromSettings();
   }
@@ -6082,6 +6097,11 @@ function playClick(strong = false) {
   oscillator.connect(gain).connect(audioContext.destination);
   oscillator.start();
   oscillator.stop(audioContext.currentTime + 0.1);
+}
+
+function getSharedAudioContext() {
+  if (!audioContext) audioContext = new AudioContext();
+  return audioContext;
 }
 
 function playPrepareClick(strong = false) {
@@ -6371,6 +6391,7 @@ function pauseAudioForAppBackground() {
   stopGardenBgm();
   stopIntervalMetronome();
   pauseLongToneForAppBackground();
+  window.ChromaticaMetronome?.stop?.();
 }
 
 function registerAndroidAppLifecycle() {
@@ -6394,6 +6415,14 @@ function registerAndroidAppLifecycle() {
     nativeAppLifecycleRegistered = false;
     console.warn("Unable to register Android app lifecycle listener.", error);
   });
+  App.addListener("backButton", ({ canGoBack }) => {
+    if (currentView === "metronome") {
+      window.ChromaticaMetronome?.stop?.();
+      setView("intro");
+      return;
+    }
+    if (canGoBack) window.history.back();
+  })?.catch?.((error) => console.warn("Unable to register Android back listener.", error));
 }
 
 let startPracticeLaunchLocked = false;
@@ -6452,7 +6481,7 @@ async function submitFeedbackForm(event) {
     try {
       const result = await window.chromaticaAuth?.invokeFunction?.("send-feedback", {
         category, description,
-        appVersion: "refresh-167 / Android 1.0.51 (52)",
+        appVersion: "refresh-168 / Android 1.0.52 (53)",
         platform: isNativeAndroidApp() ? "android" : "web",
         currentView, requestId,
       });
@@ -6904,6 +6933,7 @@ function bindEvents() {
 }
 
 async function requestMicOnEntry() {
+  if (isGardenQaSessionActive()) return false;
   const started = await startMic();
   if (started) {
     await calibrateMic();
@@ -7025,6 +7055,14 @@ let gardenBgmMetadataPrepared = false;
 
 function renderAuthenticatedAccountWorkspace({ allowDailyLoginBonus = false, initializationReason = "rerender" } = {}) {
   const userId = getActiveAccountId();
+  const qaGardenActive = isGardenQaSessionActive();
+  if (qaGardenActive) {
+    window.ChromaticaGardenQA?.resumeGardenQaSession?.({
+      reason: initializationReason === "remote-apply" ? "remote-apply" : "auth-ready",
+      afterAuthReady: true,
+    });
+    return;
+  }
   dailyLoginBonusController.record("authenticated workspace initial render", {
     userId,
     date: getTodayKey(),
@@ -7035,13 +7073,27 @@ function renderAuthenticatedAccountWorkspace({ allowDailyLoginBonus = false, ini
   applyPracticeSettings();
   renderDailyGoals();
   renderStreakSummary();
-  renderGarden();
-  renderHeroGarden();
-  setView("intro");
+  if (!qaGardenActive) {
+    renderGarden();
+    renderHeroGarden();
+  }
+  const defaultView = initializationReason === "qa-exit" ? "garden" : "intro";
+  setView(window.ChromaticaGardenQA?.resolveInitialView?.({ qaActive: false, defaultView }) || defaultView, {
+    reason: initializationReason,
+  });
   if (allowDailyLoginBonus) {
-    const dailyLoginBonusMessage = awardDailyLoginBonusIfNeeded();
-    if (dailyLoginBonusMessage && dailyLoginBonusController.markToastDisplayed(userId, getTodayKey())) {
-      showGardenToast("每日水滴", dailyLoginBonusMessage);
+    if (!qaGardenActive) {
+      const dailyLoginBonusMessage = awardDailyLoginBonusIfNeeded();
+      if (dailyLoginBonusMessage && dailyLoginBonusController.markToastDisplayed(userId, getTodayKey())) {
+        showGardenToast("每日水滴", dailyLoginBonusMessage);
+      }
+    } else {
+      dailyLoginBonusController.record("daily login claim skipped", {
+        userId,
+        date: getTodayKey(),
+        initializationReason,
+        cancellationReason: "qa-garden-active",
+      });
     }
   } else {
     dailyLoginBonusController.record("daily login claim skipped", {
@@ -7051,16 +7103,18 @@ function renderAuthenticatedAccountWorkspace({ allowDailyLoginBonus = false, ini
       cancellationReason: "rerender-not-authorized",
     });
   }
-  scheduleGardenPlantHop();
-  scheduleAccountSnapshotSave();
-  dailyLoginBonusController.record("account snapshot scheduled", {
-    userId,
-    date: getTodayKey(),
-    initializationReason,
-    remoteApply: initializationReason === "remote-apply",
-  });
-  renderPracticeReminderSetting();
-  void reconcilePracticeReminderSchedule();
+  if (!qaGardenActive) scheduleGardenPlantHop();
+  if (!qaGardenActive) {
+    scheduleAccountSnapshotSave();
+    dailyLoginBonusController.record("account snapshot scheduled", {
+      userId,
+      date: getTodayKey(),
+      initializationReason,
+      remoteApply: initializationReason === "remote-apply",
+    });
+    renderPracticeReminderSetting();
+    void reconcilePracticeReminderSchedule();
+  }
   if (pendingPracticeReminderNavigation) {
     pendingPracticeReminderNavigation = false;
     setView("practicehub");
@@ -7086,6 +7140,27 @@ function initializeAuthenticatedApp(options = {}) {
     renderNoteMap();
     updateBeatDisplay();
     renderMicCurve();
+    window.ChromaticaMetronome?.init?.({ getAudioContext: getSharedAudioContext });
+    window.ChromaticaGardenQA?.init?.({
+      species: gardenSpecies,
+      stageRequirements: PLANT_STAGE_WATER_REQUIREMENTS,
+      getCurrentView: () => currentView,
+      navigate: (view, routeOptions = {}) => setView(view, routeOptions),
+      enterIsolation: () => window.chromaticaAuth?.enterGardenQaIsolation?.(),
+      resumeFormalWorkspace: async () => {
+        if (qaFormalResumePromise) return qaFormalResumePromise;
+        qaFormalResumePromise = Promise.resolve(window.chromaticaAuth?.resumeFormalWorkspaceAfterQa?.())
+          .finally(() => { qaFormalResumePromise = null; });
+        return qaFormalResumePromise;
+      },
+      playGardenEffect: (evolved) => {
+        playSound("watering");
+        if (evolved) {
+          playSound("evolveStart");
+          window.setTimeout(() => playSound("evolveComplete"), 600);
+        }
+      },
+    });
   } else {
     stopGardenBgm();
     stopIntervalMetronome();
@@ -7097,6 +7172,14 @@ function initializeAuthenticatedApp(options = {}) {
     initializationReason: options.initializationReason || "rerender",
     remoteApply: options.initializationReason === "remote-apply",
   });
+  if (isGardenQaSessionActive()) {
+    $("#micGate")?.classList.add("hidden");
+    window.ChromaticaGardenQA?.resumeGardenQaSession?.({
+      reason: qaResumeRequested ? "qa-resume" : (options.initializationReason || "auth-ready"),
+      afterAuthReady: true,
+    });
+    return;
+  }
   renderAuthenticatedAccountWorkspace(options);
 }
 
@@ -7145,6 +7228,7 @@ window.chromaticaApp = {
     stopGardenBgm();
     stopIntervalMetronome();
     stopPractice(false);
+    window.ChromaticaMetronome?.stop?.();
     document.body.classList.remove("modal-open");
     [
       "goalToast",

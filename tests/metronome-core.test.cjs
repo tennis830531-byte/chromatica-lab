@@ -1,0 +1,48 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+
+const source = fs.readFileSync(path.join(__dirname, "..", "metronome-core.js"), "utf8");
+const context = { globalThis: {} };
+vm.runInNewContext(source, context);
+const core = context.globalThis.ChromaticaMetronomeCore;
+
+test("defaults normalize to 80 BPM and 4/4", () => {
+  assert.equal(core.normalizeBpm(undefined), 80);
+  assert.deepEqual({ ...core.normalizeTimeSignature({}) }, { numerator: 4, denominator: 4 });
+  assert.equal(core.getSubdivisionCount("quarter"), 1);
+});
+test("BPM clamps at 30 and 240", () => { assert.equal(core.normalizeBpm(1), 30); assert.equal(core.normalizeBpm(999), 240); });
+test("empty BPM input restores 80", () => { assert.deepEqual({ ...core.parseMetronomeBpmInput("", 80) }, { bpm: 80, valid: false, restored: true }); });
+test("whitespace BPM input restores 96", () => { assert.deepEqual({ ...core.parseMetronomeBpmInput("   ", 96) }, { bpm: 96, valid: false, restored: true }); });
+test("NaN BPM input restores the previous value", () => { assert.deepEqual({ ...core.parseMetronomeBpmInput(Number.NaN, 104) }, { bpm: 104, valid: false, restored: true }); });
+test("invalid text BPM input restores the previous value", () => { assert.deepEqual({ ...core.parseMetronomeBpmInput("not-a-tempo", 112) }, { bpm: 112, valid: false, restored: true }); });
+test("incomplete BPM input restores the previous value", () => { assert.deepEqual({ ...core.parseMetronomeBpmInput("-", 88) }, { bpm: 88, valid: false, restored: true }); });
+test("valid BPM below range clamps to 30", () => { assert.deepEqual({ ...core.parseMetronomeBpmInput("20", 80) }, { bpm: 30, valid: true, restored: false }); });
+test("valid BPM above range clamps to 240", () => { assert.deepEqual({ ...core.parseMetronomeBpmInput("260", 80) }, { bpm: 240, valid: true, restored: false }); });
+test("valid BPM input becomes canonical", () => { assert.deepEqual({ ...core.parseMetronomeBpmInput("120", 80) }, { bpm: 120, valid: true, restored: false }); });
+test("BPM delta math supports one and five", () => { assert.equal(core.normalizeBpm(80 - 5), 75); assert.equal(core.normalizeBpm(80 + 1), 81); });
+test("tap tempo needs two taps", () => { const one = core.registerTap(core.createTapTempoState(), 1000); assert.equal(one.bpm, null); assert.equal(core.registerTap(one, 1750).bpm, 80); });
+test("tap tempo resets after timeout", () => { const one = core.registerTap(core.createTapTempoState(), 1000); const reset = core.registerTap(one, 4000); assert.equal(reset.bpm, null); assert.equal(reset.intervals.length, 0); });
+test("tap tempo keeps at most six intervals and rejects outlier influence", () => { let state = core.createTapTempoState(); [0, 750, 1500, 2250, 3000, 3750, 4500, 5000].forEach((time) => { state = core.registerTap(state, time + 1); }); assert.ok(state.intervals.length <= 6); assert.ok(state.bpm >= 75 && state.bpm <= 85); });
+for (const [numerator, denominator] of [[2,4],[3,4],[4,4],[6,8],[7,8]]) test(`${numerator}/${denominator} signature normalizes`, () => assert.deepEqual({ ...core.normalizeTimeSignature({ numerator, denominator }) }, { numerator, denominator }));
+test("custom signature clamps numerator and denominator", () => { assert.equal(core.normalizeTimeSignature({ numerator: 99, denominator: 3 }).numerator, 12); assert.equal(core.normalizeTimeSignature({ numerator: 7, denominator: 3 }).denominator, 4); });
+for (const [name, count] of [["quarter",1],["eighth",2],["triplet",3],["sixteenth",4]]) test(`${name} subdivision has ${count} steps`, () => assert.equal(core.getSubdivisionCount(name), count));
+test("swing only changes eighth notes", () => { assert.equal(core.getSwingRatio("quarter", 75), .5); assert.equal(core.getSwingRatio("eighth", 66), .66); });
+test("swing pair preserves a beat", () => { const base = { bpm: 60, signature: { numerator: 4, denominator: 4 }, subdivision: "eighth", swingPercent: 66 }; const pair = core.getStepDurationSeconds({ ...base, subdivisionIndex: 0 }) + core.getStepDurationSeconds({ ...base, subdivisionIndex: 1 }); assert.ok(Math.abs(pair - 1) < 1e-9); });
+test("accent cycle is normal strong muted normal", () => { assert.equal(core.cycleAccent("normal"), "strong"); assert.equal(core.cycleAccent("strong"), "muted"); assert.equal(core.cycleAccent("muted"), "normal"); });
+test("first beat may be normal or muted", () => { assert.equal(core.normalizeAccentPattern(["normal"], 4)[0], "normal"); assert.equal(core.normalizeAccentPattern(["muted"], 4)[0], "muted"); });
+test("accent pattern preserves prefix and grows with normal beats", () => { assert.deepEqual([...core.normalizeAccentPattern(["muted", "strong"], 4)], ["muted", "strong", "normal", "normal"]); });
+test("one and two count-in measures remain separate from formal measures", () => { for (const countInMeasures of [1,2]) { let state = core.createSchedulerState({ signature: { numerator: 4, denominator: 4 }, countInMeasures }, 0); for (let i=0;i<4*countInMeasures;i++) state = core.advanceSchedulerState(state,{bpm:60,subdivision:"quarter"}); assert.equal(state.countInMeasuresRemaining,0); assert.equal(state.formalMeasures,0); } });
+test("tempo trainer changes only after a completed measure", () => { const settings={tempoTrainer:{enabled:true,startBpm:80,targetBpm:100,increment:2,everyMeasures:2}}; assert.equal(core.getTrainerBpm(settings,1,80),80); assert.equal(core.getTrainerBpm(settings,2,80),82); });
+test("tempo trainer never exceeds target or 240", () => { const settings={tempoTrainer:{enabled:true,startBpm:230,targetBpm:240,increment:5,everyMeasures:1}}; assert.equal(core.getTrainerBpm(settings,9,230),240); });
+test("minute auto stop excludes count-in by accepting formal elapsed only", () => { assert.equal(core.shouldAutoStop({autoStop:{mode:"minutes",value:1}},{formalMeasures:0},59999),false); assert.equal(core.shouldAutoStop({autoStop:{mode:"minutes",value:1}},{formalMeasures:0},60000),true); });
+test("measure auto stop clamps custom range", () => { assert.equal(core.shouldAutoStop({autoStop:{mode:"measures",value:4}},{formalMeasures:3},0),false); assert.equal(core.shouldAutoStop({autoStop:{mode:"measures",value:4}},{formalMeasures:4},0),true); });
+test("mute does not affect scheduler advancement", () => { const before=core.createSchedulerState({signature:{numerator:4,denominator:4}},1); const after=core.advanceSchedulerState(before,{bpm:80,subdivision:"quarter",muted:true}); assert.ok(after.nextNoteTime>before.nextNoteTime); });
+test("preset list is limited to five and supports deletion outside core", () => { let list=[]; for(let i=0;i<7;i++) list=core.savePresetList(list,{name:`p${i}`,bpm:80}); assert.equal(list.length,5); list.splice(0,1); assert.equal(list.length,4); });
+test("preset preserves device metronome fields", () => { const preset=core.normalizePreset({name:"練習",bpm:120,signature:{numerator:7,denominator:8},subdivision:"eighth",swingPercent:66,accents:["muted"],sound:"soft",volume:0,countInMeasures:2}); assert.equal(preset.bpm,120); assert.equal(preset.signature.numerator,7); assert.equal(preset.swingPercent,66); assert.equal(preset.sound,"soft"); });
+test("pending time signature applies only at bar start", () => { const state=core.createSchedulerState({signature:{numerator:4,denominator:4}},1); state.pendingSignature={numerator:3,denominator:4}; state.beatIndex=2; assert.equal(core.applyPendingSignatureAtBar(state,["strong"]).state.signature.numerator,4); state.beatIndex=0; assert.equal(core.applyPendingSignatureAtBar(state,["strong"]).state.signature.numerator,3); });
+test("five minute theoretical schedule has negligible floating error", () => { let state=core.createSchedulerState({signature:{numerator:4,denominator:4}},0); const settings={bpm:137,subdivision:"sixteenth"}; const steps=Math.floor(300/(60/137/4)); for(let i=0;i<steps;i++) state=core.advanceSchedulerState(state,settings); const expected=steps*(60/137/4); assert.ok(Math.abs(state.nextNoteTime-expected)<1e-8); });
+test("tempo terms cover six labels", () => { assert.deepEqual([40,65,90,112,140,190].map(core.getTempoTerm),["Largo","Adagio","Andante","Moderato","Allegro","Presto"]); });

@@ -103,6 +103,10 @@ function isNativeAndroid() {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
 }
 
+function isGardenQaSessionActive() {
+  return Boolean(window.ChromaticaGardenQA?.isGardenQaSessionActive?.());
+}
+
 function getPreloadableImageUrl(source) {
   if (!source) return "";
   try {
@@ -498,6 +502,7 @@ function renderCloudSyncState(userId, meta) {
 }
 
 function flushAccountSnapshot({ notifyCloud = true } = {}) {
+  if (isGardenQaSessionActive()) return true;
   if (snapshotTimer) {
     window.clearTimeout(snapshotTimer);
     snapshotTimer = null;
@@ -509,10 +514,12 @@ function flushAccountSnapshot({ notifyCloud = true } = {}) {
 }
 
 function scheduleAccountSnapshot() {
+  if (isGardenQaSessionActive()) return;
   if (!localStorage.getItem(ACTIVE_ACCOUNT_KEY)) return;
   if (snapshotTimer) window.clearTimeout(snapshotTimer);
   snapshotTimer = window.setTimeout(() => {
     snapshotTimer = null;
+    if (isGardenQaSessionActive()) return;
     try {
       const snapshot = saveActiveAccountSnapshot(localStorage);
       if (snapshot) void cloudSaveService?.noteLocalSnapshot(snapshot);
@@ -526,6 +533,7 @@ window.chromaticaAccountWorkspace = {
   scheduleSave: scheduleAccountSnapshot,
   flushSave: flushAccountSnapshot,
   syncBestEffort() {
+    if (isGardenQaSessionActive()) return Promise.resolve(null);
     const snapshot = saveActiveAccountSnapshot(localStorage);
     return snapshot
       ? cloudSaveService?.noteLocalSnapshot?.(snapshot, { immediate: true }) || Promise.resolve(null)
@@ -618,16 +626,24 @@ async function showWorkspaceErrorGate(error) {
   await settleGateImages();
 }
 
-async function prepareAuthenticatedSession(session) {
+async function prepareAuthenticatedSession(session, { forceFormalInitialization = false } = {}) {
   const userId = session?.user?.id;
   if (!userId) return false;
+  const qaResumeRequested = isGardenQaSessionActive();
   if (
-    localStorage.getItem(ACTIVE_ACCOUNT_KEY) === userId
+    !forceFormalInitialization
+    && localStorage.getItem(ACTIVE_ACCOUNT_KEY) === userId
     && startupState.authStatus === "authenticated"
     && startupState.workspaceStatus === "ready"
     && startupState.destination === "app"
   ) {
     renderAuthSession(session);
+    if (qaResumeRequested) {
+      window.chromaticaApp?.initializeForAuthenticatedAccount?.({
+        allowDailyLoginBonus: false,
+        initializationReason: "qa-resume",
+      });
+    }
     return true;
   }
   setStartupAuthStatus("authenticated");
@@ -643,12 +659,17 @@ async function prepareAuthenticatedSession(session) {
       }
       const alreadyActive = localStorage.getItem(ACTIVE_ACCOUNT_KEY) === userId
         && document.body.classList.contains("auth-authenticated");
-      if (!alreadyActive) {
+      if (qaResumeRequested && !forceFormalInitialization) {
+        window.chromaticaApp?.initializeForAuthenticatedAccount?.({
+          allowDailyLoginBonus: false,
+          initializationReason: "qa-resume",
+        });
+      } else if (!alreadyActive || forceFormalInitialization) {
         const previousUserId = localStorage.getItem(ACTIVE_ACCOUNT_KEY) || "";
         if (previousUserId && previousUserId !== userId) {
           await window.chromaticaApp?.cancelPracticeRemindersForAccount?.(previousUserId);
         }
-        switchAccountWorkspace(userId, localStorage);
+        if (!alreadyActive) switchAccountWorkspace(userId, localStorage);
         const localSnapshot = readAccountSnapshot(userId, localStorage);
         const cloudResult = await cloudSaveService.reconcileStartup(userId, localSnapshot);
         if (cloudResult.kind === "stale") throw createTimeoutError("workspace-stale");
@@ -660,8 +681,8 @@ async function prepareAuthenticatedSession(session) {
           throw cloudError;
         }
         window.chromaticaApp?.initializeForAuthenticatedAccount?.({
-          allowDailyLoginBonus: true,
-          initializationReason: "authenticated-ready",
+          allowDailyLoginBonus: !forceFormalInitialization,
+          initializationReason: forceFormalInitialization ? "qa-exit" : "authenticated-ready",
         });
         if (cloudResult.kind === "new-workspace") {
           void cloudSaveService.initializeNewWorkspace();
@@ -695,9 +716,13 @@ async function prepareAuthenticatedSession(session) {
   if (workspaceAttempt !== workspaceAttemptGeneration) return false;
   startupState.destination = "app";
   setGateState("authenticated");
-  renderCloudSyncState(userId, cloudSaveService?.getState() || {});
-  schedulePostStartupGardenWarmup(true);
-  scheduleAccountSnapshot();
+  if (qaResumeRequested && !forceFormalInitialization) {
+    schedulePostStartupGardenWarmup(false);
+  } else {
+    renderCloudSyncState(userId, cloudSaveService?.getState() || {});
+    schedulePostStartupGardenWarmup(true);
+    scheduleAccountSnapshot();
+  }
   return true;
 }
 
@@ -852,6 +877,7 @@ async function registerNativeAuthListeners() {
       appBecameActive: isActive,
       appBecameInactive: !isActive,
     });
+    if (isGardenQaSessionActive()) return;
     if (!isActive) {
       try { flushAccountSnapshot(); } catch { /* Keep the active UI; retry on the next write. */ }
       void cloudSaveService?.syncNow("background");
@@ -1058,9 +1084,11 @@ function bindAuthUi() {
     elements.avatarFallback?.classList.remove("hidden");
   });
   window.addEventListener("beforeunload", () => {
+    if (isGardenQaSessionActive()) return;
     try { flushAccountSnapshot({ notifyCloud: false }); } catch { /* Browser is closing; preserve existing snapshot. */ }
   });
   window.addEventListener("online", () => {
+    if (isGardenQaSessionActive()) return;
     void cloudSaveService?.handleOnline();
   });
 }
@@ -1117,6 +1145,7 @@ async function initializeGoogleAuth() {
       storage: localStorage,
       onStateChange: renderCloudSyncState,
       onRemoteApplied: async (userId) => {
+        if (isGardenQaSessionActive()) return;
         if (localStorage.getItem(ACTIVE_ACCOUNT_KEY) !== userId) return;
         window.chromaticaApp?.recordDailyLoginEvent?.("onRemoteApplied called", {
           initializationReason: "remote-apply",
@@ -1177,6 +1206,21 @@ window.chromaticaAuth = {
       return { data: null, error: sessionError || new Error("auth-required") };
     }
     return supabaseClient.functions.invoke(name, { body });
+  },
+  async resumeFormalWorkspaceAfterQa() {
+    if (!supabaseClient || isGardenQaSessionActive()) return false;
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (error || !data.session?.user) return false;
+    return prepareAuthenticatedSession(data.session, { forceFormalInitialization: true });
+  },
+  enterGardenQaIsolation() {
+    if (snapshotTimer) {
+      window.clearTimeout(snapshotTimer);
+      snapshotTimer = null;
+    }
+    cancelGardenWarmupSchedule();
+    cloudSaveService?.deactivate();
+    return true;
   },
 };
 
