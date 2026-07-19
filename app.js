@@ -3244,7 +3244,8 @@ function activateViewButton(view, target = "") {
   $$("[data-view]").forEach((item) => {
     const itemTarget = item.dataset.navTarget || "";
     const isPracticeNav = item.dataset.view === "practicehub";
-    const matches = (item.dataset.view === view && itemTarget === target) || (isPracticeNav && ["longtone", "interval", "quickpractice"].includes(view));
+    const matches = (item.dataset.view === view && itemTarget === target)
+      || (isPracticeNav && ["longtone", "interval", "quickpractice"].includes(view));
     if (item.classList.contains("nav-item") || item.classList.contains("bottom-nav-item") || item.classList.contains("icon-btn")) {
       item.classList.toggle("active", matches);
     }
@@ -6039,6 +6040,7 @@ function setView(view, options = {}) {
   activateViewButton(view, currentViewTarget);
   if (view !== "longtone") stopPractice(false);
   if (view !== "interval") stopIntervalMetronome();
+  if (view !== "metronome") window.ChromaticaMetronome?.stop?.();
   if (view === "garden") {
     renderGarden();
     if (!showStarterPlantSelectionIfNeeded()) checkGardenRainEvent();
@@ -6082,6 +6084,11 @@ function playClick(strong = false) {
   oscillator.connect(gain).connect(audioContext.destination);
   oscillator.start();
   oscillator.stop(audioContext.currentTime + 0.1);
+}
+
+function getSharedAudioContext() {
+  if (!audioContext) audioContext = new AudioContext();
+  return audioContext;
 }
 
 function playPrepareClick(strong = false) {
@@ -6371,6 +6378,7 @@ function pauseAudioForAppBackground() {
   stopGardenBgm();
   stopIntervalMetronome();
   pauseLongToneForAppBackground();
+  window.ChromaticaMetronome?.stop?.();
 }
 
 function registerAndroidAppLifecycle() {
@@ -6394,6 +6402,14 @@ function registerAndroidAppLifecycle() {
     nativeAppLifecycleRegistered = false;
     console.warn("Unable to register Android app lifecycle listener.", error);
   });
+  App.addListener("backButton", ({ canGoBack }) => {
+    if (currentView === "metronome") {
+      window.ChromaticaMetronome?.stop?.();
+      setView("intro");
+      return;
+    }
+    if (canGoBack) window.history.back();
+  })?.catch?.((error) => console.warn("Unable to register Android back listener.", error));
 }
 
 let startPracticeLaunchLocked = false;
@@ -7086,6 +7102,7 @@ function initializeAuthenticatedApp(options = {}) {
     renderNoteMap();
     updateBeatDisplay();
     renderMicCurve();
+    window.ChromaticaMetronome?.init?.({ getAudioContext: getSharedAudioContext });
   } else {
     stopGardenBgm();
     stopIntervalMetronome();
@@ -7145,6 +7162,7 @@ window.chromaticaApp = {
     stopGardenBgm();
     stopIntervalMetronome();
     stopPractice(false);
+    window.ChromaticaMetronome?.stop?.();
     document.body.classList.remove("modal-open");
     [
       "goalToast",
