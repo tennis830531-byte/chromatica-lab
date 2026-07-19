@@ -26,3 +26,13 @@ test("holes are accessible circular buttons in an eight-wide scrolling row", () 
   assert.match(css, /calc\(\(100% - 56px\) \/ 8\)/);
   assert.match(css, /\.note-map-hole[\s\S]*?border-radius: 50%/);
 });
+
+test("hole labels use low-register upper dots before the standard twelve-hole numbering", () => {
+  assert.match(appSource, /function getNoteMapHoleDisplay\(holeCount, hole\)/);
+  assert.match(appSource, /const lowRegisterOffset = Math\.max\(0, holeCount - 12\)/);
+  assert.match(appSource, /label: String\(hole \+ \(4 - lowRegisterOffset\)\)/);
+  assert.match(appSource, /label: String\(hole - lowRegisterOffset\)/);
+  assert.match(appSource, /function renderNoteMapHoleNumber\(display\)/);
+  assert.match(appSource, /第 \$\{renderNoteMapHoleNumber\(selectedDisplay\)\} 孔/);
+  assert.match(css, /\.note-map-number\.has-upper-dot::before[\s\S]*?position: absolute/);
+});

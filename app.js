@@ -3170,6 +3170,24 @@ function makeLayout(holeCount) {
   }));
 }
 
+function getNoteMapHoleDisplay(holeCount, hole) {
+  const lowRegisterOffset = Math.max(0, holeCount - 12);
+  if (hole <= lowRegisterOffset) {
+    return {
+      label: String(hole + (4 - lowRegisterOffset)),
+      hasUpperDot: true,
+    };
+  }
+  return {
+    label: String(hole - lowRegisterOffset),
+    hasUpperDot: false,
+  };
+}
+
+function renderNoteMapHoleNumber(display) {
+  return `<span class="note-map-number ${display.hasUpperDot ? "has-upper-dot" : ""}">${display.label}</span>`;
+}
+
 function renderNoteMap() {
   const map = $("#noteMap");
   const holes = $("#noteMapHoles");
@@ -3186,15 +3204,21 @@ function renderNoteMap() {
   }
 
   holes.style.setProperty("--holes", selectedHoles);
-  holes.innerHTML = layout.map(({ hole }) => `
-    <button class="note-map-hole ${hole === selectedMapHole ? "active" : ""}" data-map-hole="${hole}"
-      type="button" aria-label="第 ${hole} 孔" aria-pressed="${hole === selectedMapHole}">${hole}</button>
-  `).join("");
+  holes.innerHTML = layout.map(({ hole }) => {
+    const display = getNoteMapHoleDisplay(selectedHoles, hole);
+    return `
+      <button class="note-map-hole ${hole === selectedMapHole ? "active" : ""}" data-map-hole="${hole}"
+        type="button" aria-label="第 ${hole} 孔" aria-pressed="${hole === selectedMapHole}">
+        ${renderNoteMapHoleNumber(display)}
+      </button>
+    `;
+  }).join("");
   requestAnimationFrame(() => {
     holes.querySelector(".note-map-hole.active")?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   });
+  const selectedDisplay = getNoteMapHoleDisplay(selectedHoles, selectedMapHole);
   map.innerHTML = `
-    <strong>第 ${selectedMapHole} 孔</strong>
+    <strong>第 ${renderNoteMapHoleNumber(selectedDisplay)} 孔</strong>
     <div><span>吹氣</span><b>${note.blow}</b></div>
     <div><span>吸氣</span><b>${note.draw}</b></div>
     <div><span>按鍵吹氣</span><b>${note.buttonBlow}</b></div>
@@ -3616,6 +3640,22 @@ function showPracticeCompletedToast(practiceName, waterResult = null, bonusMessa
   setGoalToastTextLines([waterText || "這項練習已加入今日完成進度。", bonusText]);
   $("#goalToast").classList.remove("hidden");
   playSound("practiceComplete");
+}
+
+function showPracticeCompletionRewardDialog(practiceName, waterResult, goalResult, bonusMessages = []) {
+  const lines = [];
+  if (waterResult?.water > 0) lines.push(`本次練習獲得 ${waterResult.water} 滴 💧。`);
+  if (waterResult?.capped) lines.push("今日練習獎勵已達上限，完成紀錄仍已保存。");
+  const dailyGoalProgress = formatDailyGoalProgress(goalResult?.progress);
+  if (dailyGoalProgress) lines.push(dailyGoalProgress);
+  if (goalResult?.streakResult?.isFirstCompletionToday) {
+    lines.push(`今日連續學習已完成，目前連續 ${goalResult.streakResult.currentStreak} 天。`);
+  }
+  lines.push(...bonusMessages.filter(Boolean));
+  setGoalToastEyebrow("練習獎勵");
+  $("#goalToastTitle").textContent = `完成「${practiceName}」`;
+  setGoalToastTextLines(lines);
+  $("#goalToast").classList.remove("hidden");
 }
 
 function setCalendarModalOpen(isOpen) {
@@ -5952,16 +5992,11 @@ function finishIntervalPractice() {
   $("#intervalCompleteSize").textContent = INTERVAL_LABELS[state.interval];
   $("#intervalCompleteDirection").textContent = INTERVAL_DIRECTION_LABELS[state.direction];
   $("#intervalCompleteCycles").textContent = `${state.completedCycles} / ${state.totalCycles}`;
-  $("#intervalCompleteWater").textContent = `${waterResult.water} 滴 💧`;
-  const notes = [];
-  const dailyGoalProgress = formatDailyGoalProgress(goalResult.progress);
-  if (dailyGoalProgress) notes.push(dailyGoalProgress);
-  if (waterResult.capped) notes.push("今日練習水滴已達上限，完成紀錄仍已保存。");
-  if (streakResult.isFirstCompletionToday) notes.push(`今日連續學習已完成，目前連續 ${streakResult.currentStreak} 天。`);
-  notes.push(...bonusMessages);
-  $("#intervalCompleteNote").textContent = notes.join("\n");
   playSound("practiceComplete");
   scrollToSection("intervalComplete");
+  if (!quickPracticeActive) {
+    showPracticeCompletionRewardDialog("音程練習", waterResult, goalResult, bonusMessages);
+  }
   handleQuickPracticeCompletion("音程練習");
 }
 
@@ -5981,19 +6016,12 @@ function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessag
   $("#longToneCompleteExercise").textContent = exercise.title;
   $("#longToneCompleteSetting").textContent = getLongToneCompletionSetting(exercise);
   $("#longToneCompleteCycles").textContent = `${totalCycles} / ${totalCycles}`;
-  $("#longToneCompleteWater").textContent = `${waterResult.water} 滴 💧`;
-  const notes = [];
-  const dailyGoalProgress = formatDailyGoalProgress(goalResult.progress);
-  if (dailyGoalProgress) notes.push(dailyGoalProgress);
-  if (waterResult.capped) notes.push("今日練習水滴已達上限，完成紀錄仍已保存。");
-  if (goalResult.streakResult?.isFirstCompletionToday) {
-    notes.push(`今日連續學習已完成，目前連續 ${goalResult.streakResult.currentStreak} 天。`);
-  }
-  notes.push(...bonusMessages);
-  $("#longToneCompleteNote").textContent = notes.join("\n");
   setLongToneCompletionVisible(true);
   playSound("practiceComplete");
   scrollToSection("longToneComplete");
+  if (!quickPracticeActive) {
+    showPracticeCompletionRewardDialog(exercise.title, waterResult, goalResult, bonusMessages);
+  }
   handleQuickPracticeCompletion(exercise.title);
 }
 
@@ -6446,7 +6474,7 @@ async function submitFeedbackForm(event) {
     try {
       const result = await window.chromaticaAuth?.invokeFunction?.("send-feedback", {
         category, description,
-        appVersion: "refresh-165 / Android 1.0.49 (50)",
+        appVersion: "refresh-166 / Android 1.0.50 (51)",
         platform: isNativeAndroidApp() ? "android" : "web",
         currentView, requestId,
       });

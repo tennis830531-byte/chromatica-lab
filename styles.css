@@ -1953,15 +1953,6 @@ body.hide-featured-spirit .hero-plant-slot {
   font-weight: 900;
 }
 
-.interval-complete-note {
-  min-height: 20px;
-  margin: 0;
-  color: var(--text-body);
-  font-size: 12px;
-  line-height: 1.55;
-  white-space: pre-line;
-}
-
 @keyframes intervalMetronomePulse {
   50% {
     transform: scale(1.35);
@@ -2379,6 +2370,9 @@ body.hide-featured-spirit .hero-plant-slot {
 }
 
 .note-map-hole {
+  position: relative;
+  display: grid;
+  place-items: center;
   flex: 0 0 max(40px, calc((100% - 56px) / 8));
   min-width: 0;
   aspect-ratio: 1;
@@ -2391,6 +2385,22 @@ body.hide-featured-spirit .hero-plant-slot {
   font-size: clamp(9px, 2.5vw, 13px);
   font-weight: 800;
   scroll-snap-align: start;
+}
+
+.note-map-number {
+  position: relative;
+  display: inline-block;
+  line-height: 1;
+}
+
+.note-map-number.has-upper-dot::before {
+  content: "•";
+  position: absolute;
+  bottom: 0.82em;
+  left: 50%;
+  font-size: 0.65em;
+  line-height: 1;
+  transform: translateX(-50%);
 }
 
 .note-map-hole.active {
