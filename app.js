@@ -3618,6 +3618,22 @@ function showPracticeCompletedToast(practiceName, waterResult = null, bonusMessa
   playSound("practiceComplete");
 }
 
+function showPracticeCompletionRewardDialog(practiceName, waterResult, goalResult, bonusMessages = []) {
+  const lines = [];
+  if (waterResult?.water > 0) lines.push(`本次練習獲得 ${waterResult.water} 滴 💧。`);
+  if (waterResult?.capped) lines.push("今日練習獎勵已達上限，完成紀錄仍已保存。");
+  const dailyGoalProgress = formatDailyGoalProgress(goalResult?.progress);
+  if (dailyGoalProgress) lines.push(dailyGoalProgress);
+  if (goalResult?.streakResult?.isFirstCompletionToday) {
+    lines.push(`今日連續學習已完成，目前連續 ${goalResult.streakResult.currentStreak} 天。`);
+  }
+  lines.push(...bonusMessages.filter(Boolean));
+  setGoalToastEyebrow("練習獎勵");
+  $("#goalToastTitle").textContent = `完成「${practiceName}」`;
+  setGoalToastTextLines(lines);
+  $("#goalToast").classList.remove("hidden");
+}
+
 function setCalendarModalOpen(isOpen) {
   const modal = $("#calendarModal");
   modal.classList.toggle("hidden", !isOpen);
@@ -5952,16 +5968,11 @@ function finishIntervalPractice() {
   $("#intervalCompleteSize").textContent = INTERVAL_LABELS[state.interval];
   $("#intervalCompleteDirection").textContent = INTERVAL_DIRECTION_LABELS[state.direction];
   $("#intervalCompleteCycles").textContent = `${state.completedCycles} / ${state.totalCycles}`;
-  $("#intervalCompleteWater").textContent = `${waterResult.water} 滴 💧`;
-  const notes = [];
-  const dailyGoalProgress = formatDailyGoalProgress(goalResult.progress);
-  if (dailyGoalProgress) notes.push(dailyGoalProgress);
-  if (waterResult.capped) notes.push("今日練習水滴已達上限，完成紀錄仍已保存。");
-  if (streakResult.isFirstCompletionToday) notes.push(`今日連續學習已完成，目前連續 ${streakResult.currentStreak} 天。`);
-  notes.push(...bonusMessages);
-  $("#intervalCompleteNote").textContent = notes.join("\n");
   playSound("practiceComplete");
   scrollToSection("intervalComplete");
+  if (!quickPracticeActive) {
+    showPracticeCompletionRewardDialog("音程練習", waterResult, goalResult, bonusMessages);
+  }
   handleQuickPracticeCompletion("音程練習");
 }
 
@@ -5981,19 +5992,12 @@ function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessag
   $("#longToneCompleteExercise").textContent = exercise.title;
   $("#longToneCompleteSetting").textContent = getLongToneCompletionSetting(exercise);
   $("#longToneCompleteCycles").textContent = `${totalCycles} / ${totalCycles}`;
-  $("#longToneCompleteWater").textContent = `${waterResult.water} 滴 💧`;
-  const notes = [];
-  const dailyGoalProgress = formatDailyGoalProgress(goalResult.progress);
-  if (dailyGoalProgress) notes.push(dailyGoalProgress);
-  if (waterResult.capped) notes.push("今日練習水滴已達上限，完成紀錄仍已保存。");
-  if (goalResult.streakResult?.isFirstCompletionToday) {
-    notes.push(`今日連續學習已完成，目前連續 ${goalResult.streakResult.currentStreak} 天。`);
-  }
-  notes.push(...bonusMessages);
-  $("#longToneCompleteNote").textContent = notes.join("\n");
   setLongToneCompletionVisible(true);
   playSound("practiceComplete");
   scrollToSection("longToneComplete");
+  if (!quickPracticeActive) {
+    showPracticeCompletionRewardDialog(exercise.title, waterResult, goalResult, bonusMessages);
+  }
   handleQuickPracticeCompletion(exercise.title);
 }
 
@@ -6446,7 +6450,7 @@ async function submitFeedbackForm(event) {
     try {
       const result = await window.chromaticaAuth?.invokeFunction?.("send-feedback", {
         category, description,
-        appVersion: "refresh-165 / Android 1.0.49 (50)",
+        appVersion: "refresh-166 / Android 1.0.50 (51)",
         platform: isNativeAndroidApp() ? "android" : "web",
         currentView, requestId,
       });

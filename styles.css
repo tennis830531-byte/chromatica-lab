@@ -1953,15 +1953,6 @@ body.hide-featured-spirit .hero-plant-slot {
   font-weight: 900;
 }
 
-.interval-complete-note {
-  min-height: 20px;
-  margin: 0;
-  color: var(--text-body);
-  font-size: 12px;
-  line-height: 1.55;
-  white-space: pre-line;
-}
-
 @keyframes intervalMetronomePulse {
   50% {
     transform: scale(1.35);
