@@ -85,12 +85,12 @@ test("today recommendation badge uses the quick-practice green treatment", () =>
   assert.match(css, /\.quick-practice-card \.room-badge\.open\s*\{\s*background: #7fa45f;/);
 });
 
-test("refresh-167 web and Android release metadata stay aligned", () => {
-  assert.match(html, /version-number">refresh-167</);
+test("refresh-168 web and Android release metadata stay aligned", () => {
+  assert.match(html, /version-number">refresh-168</);
   assert.doesNotMatch(html, /refresh-166/);
-  assert.match(serviceWorker, /CACHE_NAME = "chromatica-lab-refresh-167"/);
+  assert.match(serviceWorker, /CACHE_NAME = "chromatica-lab-refresh-168"/);
   assert.doesNotMatch(serviceWorker, /refresh-166/);
-  assert.match(app, /appVersion: "refresh-167 \/ Android 1\.0\.51 \(52\)"/);
-  assert.match(androidBuild, /versionCode 52/);
-  assert.match(androidBuild, /versionName "1\.0\.51"/);
+  assert.match(app, /appVersion: "refresh-168 \/ Android 1\.0\.52 \(53\)"/);
+  assert.match(androidBuild, /versionCode 53/);
+  assert.match(androidBuild, /versionName "1\.0\.52"/);
 });
