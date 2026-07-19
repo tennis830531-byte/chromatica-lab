@@ -64,7 +64,7 @@ test("practice rewards and daily-goal progress open in a separate completion dia
   assert.match(app, /function showPracticeCompletionRewardDialog\(practiceName, waterResult, goalResult, bonusMessages = \[\]\)/);
   assert.match(app, /setGoalToastEyebrow\("練習獎勵"\)/);
   assert.match(app, /本次練習獲得 \$\{waterResult\.water\} 滴 💧/);
-  assert.equal((app.match(/if \(!quickPracticeActive\) \{/g) || []).length >= 2, true);
-  assert.match(app, /if \(!quickPracticeActive\) \{\s*showPracticeCompletionRewardDialog\("音程練習", waterResult, goalResult, bonusMessages\)/);
-  assert.match(app, /if \(!quickPracticeActive\) \{\s*showPracticeCompletionRewardDialog\(exercise\.title, waterResult, goalResult, bonusMessages\)/);
+  assert.equal((app.match(/const completedFromQuickPractice = hasActiveQuickPracticeTask\(\);/g) || []).length, 2);
+  assert.match(app, /showPracticeCompletionRewardDialog\("音程練習", waterResult, goalResult, bonusMessages\);\s*handleQuickPracticeCompletion\("音程練習", completedFromQuickPractice\)/);
+  assert.match(app, /showPracticeCompletionRewardDialog\(exercise\.title, waterResult, goalResult, bonusMessages\);\s*handleQuickPracticeCompletion\(exercise\.title, completedFromQuickPractice\)/);
 });

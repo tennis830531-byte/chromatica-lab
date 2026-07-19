@@ -154,6 +154,20 @@ let pendingPracticeReminderNavigation = false;
 let quickPracticeActive = false;
 let quickPracticeCurrentTaskId = "";
 let quickPracticeJustCompletedTitle = "";
+
+function hasActiveQuickPracticeTask() {
+  return window.ChromaticaQuickPracticeCore.hasActiveTask(
+    quickPracticeActive,
+    quickPracticeCurrentTaskId,
+  );
+}
+
+function resetQuickPracticeSession() {
+  const reset = window.ChromaticaQuickPracticeCore.resetSession();
+  quickPracticeActive = reset.active;
+  quickPracticeCurrentTaskId = reset.currentTaskId;
+  quickPracticeJustCompletedTitle = reset.justCompletedTitle;
+}
 let microphoneSettingRequestBusy = false;
 let microphoneLastErrorMessage = "";
 const dailyLoginBonusController = window.ChromaticaDailyLoginBonusCore.createController({
@@ -2925,7 +2939,7 @@ function claimDailyGoalItemRewards(state, newlyCompletedTaskIds) {
     rewardedTaskIds: state[DAILY_GOAL_REWARDED_TASKS_KEY],
     waterBefore: getWaterDrops(),
     amountPerTask: DAILY_GOAL_ITEM_WATER_BONUS,
-    source: quickPracticeActive ? "quick-practice" : "formal-practice",
+    source: hasActiveQuickPracticeTask() ? "quick-practice" : "formal-practice",
     commit({ rewardedTaskIds, waterAfter }) {
       state[DAILY_GOAL_REWARDED_TASKS_KEY] = rewardedTaskIds;
       setDailyGoalState(state);
@@ -3127,8 +3141,8 @@ function startNextQuickPracticeTask() {
   launchQuickPracticeTask(window.ChromaticaQuickPracticeCore.getNext(getQuickPracticeSnapshot()));
 }
 
-function handleQuickPracticeCompletion(taskTitle) {
-  if (!quickPracticeActive || !quickPracticeCurrentTaskId) {
+function handleQuickPracticeCompletion(taskTitle, completedFromQuickPractice = hasActiveQuickPracticeTask()) {
+  if (!completedFromQuickPractice) {
     [$("#longToneQuickNextBtn"), $("#intervalQuickNextBtn")].forEach((button) => button?.classList.add("hidden"));
     return false;
   }
@@ -5963,6 +5977,7 @@ function saveIntervalPracticeRecord(record) {
 function finishIntervalPractice() {
   const state = intervalPracticeState;
   if (!state) return;
+  const completedFromQuickPractice = hasActiveQuickPracticeTask();
   stopIntervalMetronome();
   const goalResult = markIntervalDailyGoalsDone(state.key, state.interval);
   const streakResult = goalResult.streakResult;
@@ -5994,10 +6009,8 @@ function finishIntervalPractice() {
   $("#intervalCompleteCycles").textContent = `${state.completedCycles} / ${state.totalCycles}`;
   playSound("practiceComplete");
   scrollToSection("intervalComplete");
-  if (!quickPracticeActive) {
-    showPracticeCompletionRewardDialog("音程練習", waterResult, goalResult, bonusMessages);
-  }
-  handleQuickPracticeCompletion("音程練習");
+  showPracticeCompletionRewardDialog("音程練習", waterResult, goalResult, bonusMessages);
+  handleQuickPracticeCompletion("音程練習", completedFromQuickPractice);
 }
 
 function setLongToneCompletionVisible(visible) {
@@ -6013,16 +6026,15 @@ function getLongToneCompletionSetting(exercise) {
 }
 
 function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessages }) {
+  const completedFromQuickPractice = hasActiveQuickPracticeTask();
   $("#longToneCompleteExercise").textContent = exercise.title;
   $("#longToneCompleteSetting").textContent = getLongToneCompletionSetting(exercise);
   $("#longToneCompleteCycles").textContent = `${totalCycles} / ${totalCycles}`;
   setLongToneCompletionVisible(true);
   playSound("practiceComplete");
   scrollToSection("longToneComplete");
-  if (!quickPracticeActive) {
-    showPracticeCompletionRewardDialog(exercise.title, waterResult, goalResult, bonusMessages);
-  }
-  handleQuickPracticeCompletion(exercise.title);
+  showPracticeCompletionRewardDialog(exercise.title, waterResult, goalResult, bonusMessages);
+  handleQuickPracticeCompletion(exercise.title, completedFromQuickPractice);
 }
 
 function returnToLongTonePractice() {
@@ -6500,6 +6512,7 @@ function bindEvents() {
     if (button.id === "headerSettingsBtn") return;
     button.addEventListener("click", () => {
       if (button.dataset.view === "tuner" && !requireMicrophoneEnabled()) return;
+      resetQuickPracticeSession();
       setView(button.dataset.view, {
         activeTarget: button.dataset.navTarget || "",
         scrollTarget: button.dataset.scrollTarget || "",
@@ -6515,6 +6528,7 @@ function bindEvents() {
       });
       return;
     }
+    resetQuickPracticeSession();
     setView("audio");
   });
   $("#appExitBtn")?.addEventListener("click", () => setAppExitModalOpen(true));
@@ -6530,30 +6544,39 @@ function bindEvents() {
     setView("quickpractice");
   });
   $("#quickPracticeBackBtn")?.addEventListener("click", () => {
-    quickPracticeActive = false;
-    quickPracticeCurrentTaskId = "";
-    quickPracticeJustCompletedTitle = "";
+    resetQuickPracticeSession();
     setView("practicehub");
   });
   $("#quickPracticePrimaryBtn")?.addEventListener("click", (event) => {
-    if (event.currentTarget.dataset.action === "daily") setView("daily");
+    if (event.currentTarget.dataset.action === "daily") {
+      resetQuickPracticeSession();
+      setView("daily");
+    }
     else startNextQuickPracticeTask();
   });
   $("#quickPracticeLaterBtn")?.addEventListener("click", () => {
-    quickPracticeActive = false;
-    quickPracticeJustCompletedTitle = "";
+    resetQuickPracticeSession();
     setView("practicehub");
   });
-  $("#quickPracticeResultsBtn")?.addEventListener("click", () => setView("daily"));
-  $("#quickPracticeHomeBtn")?.addEventListener("click", () => setView("intro"));
+  $("#quickPracticeResultsBtn")?.addEventListener("click", () => {
+    resetQuickPracticeSession();
+    setView("daily");
+  });
+  $("#quickPracticeHomeBtn")?.addEventListener("click", () => {
+    resetQuickPracticeSession();
+    setView("intro");
+  });
 
   $$("[data-jump]").forEach((button) => {
     button.addEventListener("click", () => {
       const view = button.dataset.jump;
-      const navigate = () => setView(view, {
-        activeTarget: button.dataset.scrollTarget || "",
-        scrollTarget: button.dataset.scrollTarget || "",
-      });
+      const navigate = () => {
+        resetQuickPracticeSession();
+        setView(view, {
+          activeTarget: button.dataset.scrollTarget || "",
+          scrollTarget: button.dataset.scrollTarget || "",
+        });
+      };
       if (button.dataset.startPracticeLaunch === "true") {
         launchStartPracticeButton(button, navigate);
         return;
@@ -6738,6 +6761,7 @@ function bindEvents() {
   $("#dailyGoalList").addEventListener("click", (event) => {
     const button = event.target.closest(".goal-chip");
     if (!button) return;
+    resetQuickPracticeSession();
     if (button.dataset.goalType === "interval") {
       setView("interval");
       showIntervalSetup();
