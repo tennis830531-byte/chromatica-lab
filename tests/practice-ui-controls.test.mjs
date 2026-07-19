@@ -4,6 +4,9 @@ import test from "node:test";
 
 const app = fs.readFileSync(new URL("../app.js", import.meta.url), "utf8");
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const css = fs.readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+const serviceWorker = fs.readFileSync(new URL("../sw.js", import.meta.url), "utf8");
+const androidBuild = fs.readFileSync(new URL("../android/app/build.gradle", import.meta.url), "utf8");
 
 test("microphone preference is device-local and defaults on", () => {
   assert.match(app, /MICROPHONE_ENABLED_KEY = "chromatica\.settings\.microphoneEnabled"/);
@@ -67,4 +70,20 @@ test("practice rewards and daily-goal progress open in a separate completion dia
   assert.equal((app.match(/const completedFromQuickPractice = hasActiveQuickPracticeTask\(\);/g) || []).length, 2);
   assert.match(app, /showPracticeCompletionRewardDialog\("音程練習", waterResult, goalResult, bonusMessages\);\s*handleQuickPracticeCompletion\("音程練習", completedFromQuickPractice\)/);
   assert.match(app, /showPracticeCompletionRewardDialog\(exercise\.title, waterResult, goalResult, bonusMessages\);\s*handleQuickPracticeCompletion\(exercise\.title, completedFromQuickPractice\)/);
+});
+
+test("daily goal reward note is a fixed two-line message", () => {
+  assert.match(html, /class="daily-goal-bonus-note">\s*<span>每完成一項任務獲得 5 💧<\/span>\s*<span>全部完成再加 20 💧！<\/span>/);
+  assert.doesNotMatch(html, /獲得 5 💧，全部完成/);
+  assert.match(css, /\.daily-goal-bonus-note span\s*\{\s*display: block;/);
+});
+
+test("refresh-167 web and Android release metadata stay aligned", () => {
+  assert.match(html, /version-number">refresh-167</);
+  assert.doesNotMatch(html, /refresh-166/);
+  assert.match(serviceWorker, /CACHE_NAME = "chromatica-lab-refresh-167"/);
+  assert.doesNotMatch(serviceWorker, /refresh-166/);
+  assert.match(app, /appVersion: "refresh-167 \/ Android 1\.0\.51 \(52\)"/);
+  assert.match(androidBuild, /versionCode 52/);
+  assert.match(androidBuild, /versionName "1\.0\.51"/);
 });

@@ -3293,6 +3293,10 @@ input[type="range"] {
   font-size: 13px;
 }
 
+.daily-goal-bonus-note span {
+  display: block;
+}
+
 .daily-goal-note {
   display: block;
   margin-top: 2px;
