@@ -1046,7 +1046,6 @@ body.simple-motion .hero-plant-action {
 
 .garden-qa-banner { position: sticky; top: 0; z-index: 12; display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0 -4px 14px; padding: 10px 12px; border: 2px solid #936126; border-radius: 14px; background: #fff1b8; color: #663d1f; font-family: var(--font-sans); }
 .garden-qa-banner button, .garden-qa-toolbar button { border: 1px solid #8b5a29; border-radius: 11px; background: #704321; color: white; min-height: 38px; font-weight: 800; }
-.garden-qa-layout .garden-plant-image { position: absolute; inset: auto 50% 7%; translate: 50% 0; max-height: 72%; width: auto; }
 .garden-qa-toolbar { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; margin-top: 14px; }
 .garden-qa-collection { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
 .garden-qa-spirit { border: 1px solid #d9c29f; border-radius: 14px; background: #fffaf0; padding: 8px; color: #5c3926; }

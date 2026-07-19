@@ -24,14 +24,16 @@ function loadQa(initial = {}) {
   const node = (selector) => {
     if (!nodes.has(selector)) nodes.set(selector, {
       textContent: "", src: "", value: "", disabled: false,
-      style: {}, dataset: {}, classList: { toggle() {} },
+      style: {}, dataset: {}, classList: { toggle() {}, add() {}, remove() {} },
       addEventListener() {}, focus() {},
       innerHTML: "",
     });
     return nodes.get(selector);
   };
+  const qaRoot = { querySelector: node, querySelectorAll() { return []; } };
   const document = {
     documentElement: { dataset: {} },
+    getElementById(id) { return id === "gardenqa" ? qaRoot : null; },
     querySelector: node,
     querySelectorAll() { return []; },
   };

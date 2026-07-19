@@ -24,7 +24,7 @@ test("password field is numeric, private and not saved", () => { assert.match(ht
 test("five failures lock for thirty seconds", () => { assert.match(source, /MAX_FAILURES = 5/); assert.match(source, /LOCK_MS = 30000/); assert.match(source, /lockedUntil = Date\.now\(\) \+ LOCK_MS/); });
 test("sandbox uses sessionStorage only", () => { assert.match(source, /sessionStorage/); assert.doesNotMatch(source, /localStorage|indexedDB/); });
 test("sandbox schema has unlimited water and isolated garden fields", () => { for (const field of ["schemaVersion","currentPlant","collection","featuredSpiritId","featuredSpiritStage","starterPlantSelected","unlimitedWater"]) assert.match(source, new RegExp(field)); assert.match(source, /unlimitedWater: true/); });
-test("QA water displays infinity and watering does not decrement", () => { assert.match(source, /gardenQaWater.*∞/); assert.doesNotMatch(source, /waterDrops|setWaterDrops|chromatica\.waterDrops/); });
+test("QA water displays infinity and watering does not decrement", () => { assert.match(source, /qa\$\("#gardenQaWater"\)[\s\S]*water\.textContent = "∞"/); assert.doesNotMatch(source, /waterDrops|setWaterDrops|chromatica\.waterDrops/); });
 test("QA supports progression mature harvest collection rename and featured", () => { for (const token of ["water","fill","mature","harvest","collection","customName","featuredSpiritId"]) assert.match(source, new RegExp(token)); });
 test("QA module cannot invoke formal save or cloud APIs", () => { assert.doesNotMatch(source, /scheduleAccountSnapshotSave|flushSave|noteLocalSnapshot|syncBestEffort|save_game_state|cloudSaveService/); });
 test("QA keys are not account scoped", () => { assert.doesNotMatch(account, /qaGardenSandbox|qaGardenMode/); });

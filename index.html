@@ -943,7 +943,14 @@
           <div class="garden-layout garden-qa-layout">
             <section class="garden-card paper-card">
               <div class="garden-card-head"><div><h3 id="gardenQaPlantName">測試植物</h3><span>水滴 <b id="gardenQaWater">∞</b></span></div></div>
-              <div class="garden-plant-scene"><img class="garden-scene-backdrop" src="./public/assets/garden/icons/garden-stage-backdrop-refresh.png" alt="" /><img id="gardenQaPlantImage" class="garden-plant-image garden-stage-1" src="./public/assets/garden/collection/starter-pot.png" alt="" /></div>
+              <div id="gardenQaPlantScene" class="garden-plant-scene">
+                <img class="garden-scene-backdrop" src="./public/assets/garden/icons/garden-stage-backdrop-refresh.png" alt="" />
+                <div id="gardenQaPlantIdleLayer" class="plant-idle-layer is-idle">
+                  <div id="gardenQaPlantActionLayer" class="plant-action-layer garden-stage-1">
+                    <img id="gardenQaPlantImage" class="garden-plant-image garden-stage-1" src="./public/assets/garden/collection/starter-pot.png" alt="" />
+                  </div>
+                </div>
+              </div>
               <div class="garden-progress"><div class="garden-progress-row"><span>階段進度</span><b id="gardenQaProgress">0 / 100</b></div><div class="garden-progress-track"><i id="gardenQaProgressBar"></i></div></div>
               <div class="garden-qa-toolbar" aria-label="植物測試工具"><button data-qa-action="water" type="button">澆水</button><button data-qa-action="fill" type="button">本階段補滿</button><button data-qa-action="mature" type="button">直接成熟</button><button data-qa-action="harvest" type="button">採收</button><button data-qa-action="reset" type="button">重置目前植物</button><button id="gardenQaResetAll" type="button">重置測試花園</button><button data-qa-leave type="button">離開測試模式</button></div>
             </section>
