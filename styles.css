@@ -1676,26 +1676,6 @@ body.hide-featured-spirit .hero-plant-slot {
   font-size: 12px;
 }
 
-.interval-page-controls {
-  display: flex;
-  gap: 6px;
-}
-
-.interval-page-controls button {
-  min-height: 32px;
-  padding: 0 9px;
-  border: 1px solid rgba(122, 78, 45, 0.24);
-  border-radius: 10px;
-  color: var(--primary);
-  background: rgba(255, 253, 249, 0.82);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.interval-page-controls button:disabled {
-  opacity: 0.38;
-}
-
 .interval-staff {
   width: 100%;
   min-width: 0;
@@ -1705,22 +1685,11 @@ body.hide-featured-spirit .hero-plant-slot {
   background: rgba(255, 255, 252, 0.78);
 }
 
-.interval-next-preview {
-  display: grid;
-  gap: 8px;
+.interval-score-line + .interval-score-line {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px dashed rgba(122, 78, 45, 0.28);
 }
-
-.interval-next-preview > strong {
-  color: var(--primary);
-  font-size: 12px;
-}
-
-.interval-next-staff { opacity: 0.72; }
-.interval-next-staff svg { max-height: 74px; }
-.interval-next-note-help { margin-top: 0; opacity: 0.78; }
 
 .interval-staff svg {
   display: block;
@@ -3295,6 +3264,11 @@ input[type="range"] {
 
 .daily-goal-bonus-note span {
   display: block;
+}
+
+.daily-goal-copy .daily-goal-bonus-note {
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .daily-goal-note {

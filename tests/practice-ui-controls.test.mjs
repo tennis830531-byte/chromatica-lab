@@ -46,19 +46,17 @@ test("long-tone goal heading is removed without removing its guide", () => {
   assert.match(html, /id="waveGuide"/);
 });
 
-test("interval score previews the next page before page turnover", () => {
-  assert.match(html, /id="intervalNextPreview"/);
-  assert.match(app, /const nextPageStart = pageStart \+ INTERVAL_GROUPS_PER_PAGE/);
-  assert.match(app, /下一輪第 1 頁預覽/);
-  assert.match(html, /id="intervalPrevPageBtn"[^>]*>上一頁</);
-  assert.match(html, /id="intervalNextPageBtn"[^>]*>下一頁</);
-  assert.match(app, /function clampIntervalPage\(page, totalPages\)/);
-  assert.match(app, /state\.page = clampIntervalPage\(state\.page \+ delta, totalPages\)/);
-  assert.match(app, /intervalPracticeState\.page = 0;[\s\S]*?intervalPracticeState\.lastActivePage = 0;/);
-  assert.match(app, /intervalStaff"\)\.innerHTML = createIntervalStaffSvg\([\s\S]*?pageGroups/);
-  assert.match(app, /intervalNoteHelp"\)\.innerHTML = renderIntervalNumberHelp\(pageGroups/);
-  assert.match(app, /intervalPrevPageBtn"\)\.disabled = state\.page <= 0/);
-  assert.match(app, /intervalNextPageBtn"\)\.disabled = state\.page >= totalPages - 1/);
+test("interval score renders all eight groups as two synchronized rows", () => {
+  assert.match(html, /id="intervalStaff"/);
+  assert.match(html, /id="intervalStaffSecond"/);
+  assert.match(html, /id="intervalNoteHelp"/);
+  assert.match(html, /id="intervalNoteHelpSecond"/);
+  assert.doesNotMatch(html, /intervalNextPreview|intervalPrevPageBtn|intervalNextPageBtn/);
+  assert.match(app, /const firstLineGroups = state\.groups\.slice\(0, INTERVAL_GROUPS_PER_PAGE\)/);
+  assert.match(app, /const secondLineGroups = state\.groups\.slice\(INTERVAL_GROUPS_PER_PAGE, INTERVAL_GROUPS_PER_PAGE \* 2\)/);
+  assert.match(app, /intervalNoteHelp"\)\.innerHTML = renderIntervalNumberHelp\(firstLineGroups, 0, state\.groupIndex, activeNoteIndex\)/);
+  assert.match(app, /intervalNoteHelpSecond"\)\.innerHTML = renderIntervalNumberHelp\(secondLineGroups, INTERVAL_GROUPS_PER_PAGE, state\.groupIndex, activeNoteIndex\)/);
+  assert.doesNotMatch(app, /function changeIntervalScorePage|function clampIntervalPage/);
 });
 
 test("practice rewards and daily-goal progress open in a separate completion dialog", () => {
@@ -76,6 +74,7 @@ test("daily goal reward note is a fixed two-line message", () => {
   assert.match(html, /class="daily-goal-bonus-note">\s*<span>每完成一項任務獲得 5 💧<\/span>\s*<span>全部完成再加 20 💧！<\/span>/);
   assert.doesNotMatch(html, /獲得 5 💧，全部完成/);
   assert.match(css, /\.daily-goal-bonus-note span\s*\{\s*display: block;/);
+  assert.match(css, /\.daily-goal-copy \.daily-goal-bonus-note\s*\{[\s\S]*?font-size: 11px/);
 });
 
 test("refresh-167 web and Android release metadata stay aligned", () => {
