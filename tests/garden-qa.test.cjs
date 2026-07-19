@@ -7,6 +7,8 @@ const crypto = require("node:crypto");
 const source = fs.readFileSync(path.join(__dirname, "..", "garden-qa.js"), "utf8");
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+const auth = fs.readFileSync(path.join(__dirname, "..", "auth-entry.js"), "utf8");
+const styles = fs.readFileSync(path.join(__dirname, "..", "styles.css"), "utf8");
 const account = fs.readFileSync(path.join(__dirname, "..", "account-workspace.js"), "utf8");
 
 test("stores only the expected password hash", () => {
@@ -27,8 +29,22 @@ test("QA supports progression mature harvest collection rename and featured", ()
 test("QA module cannot invoke formal save or cloud APIs", () => { assert.doesNotMatch(source, /scheduleAccountSnapshotSave|flushSave|noteLocalSnapshot|syncBestEffort|save_game_state|cloudSaveService/); });
 test("QA keys are not account scoped", () => { assert.doesNotMatch(account, /qaGardenSandbox|qaGardenMode/); });
 test("formal garden keys are absent from QA module", () => { for (const key of ["chromatica.waterDrops","chromatica.currentPlant","chromatica.spiritCollection","chromatica.featuredSpiritId","chromatica.featuredSpiritStage","chromatica.starterPlantSelected"]) assert.doesNotMatch(source, new RegExp(key.replaceAll(".","\\."))); });
-test("leaving disables QA before rendering formal workspace", () => { assert.match(source, /setActive\(false\);[\s\S]*renderFormalWorkspace\?\.\(\);[\s\S]*navigate\?\.\("garden"\)/); });
+test("leaving disables QA before resuming formal workspace", () => { assert.match(source, /setActive\(false\);[\s\S]*resumeFormalWorkspace\?\.\(\{ reason: "qa-exit" \}\)/); });
 test("reset confirmation clears sandbox state only", () => { assert.match(source, /確定重置測試花園嗎/); assert.match(source, /sessionStorage\.removeItem\(SANDBOX_KEY\)/); });
-test("reload resumes active QA without copying formal snapshot", () => { assert.match(source, /if \(isActive\(\)\).*render\(\).*navigate\?\.\("gardenqa"\)/); assert.doesNotMatch(source, /getWaterDrops|getGardenCollection|getCurrentPlant/); });
+test("reload resumes active QA without copying formal snapshot", () => { assert.match(source, /resumeGardenQaSession[\s\S]*render\(\);[\s\S]*resolveInitialView\(\{ qaActive: true \}\)/); assert.doesNotMatch(source, /getWaterDrops|getGardenCollection|getCurrentPlant/); });
 test("app integrates shared species rules without exporting QA keys", () => { assert.match(app, /species: gardenSpecies/); assert.match(app, /stageRequirements: PLANT_STAGE_WATER_REQUIREMENTS/); assert.doesNotMatch(account, /chromatica\.qaGarden/); });
 test("QA banner and exit controls are confined to QA view", () => { const section = html.match(/<section id="gardenqa"[\s\S]*?<\/section>/)?.[0] || ""; assert.match(section, /植物測試模式｜不影響正式進度/); assert.match(section, /data-qa-leave/); assert.doesNotMatch(html.match(/<section id="garden"[\s\S]*?<\/section>/)?.[0] || "", /data-qa-leave/); });
+test("QA session activity check is a synchronous storage-only read", () => { const body = source.match(/function isGardenQaSessionActive\(\) \{([\s\S]*?)\n  \}/)?.[1] || ""; assert.match(body, /sessionStorage\.getItem\(ACTIVE_KEY\)/); assert.doesNotMatch(body, /setItem|render|navigate|options\./); });
+test("active QA always wins initial view resolution", () => { assert.match(source, /return qaActive \? "gardenqa" : \(savedView \|\| defaultView\)/); });
+test("QA mode is marked before normal application initialization", () => { const marker = html.indexOf('sessionStorage.getItem("chromatica.qaGardenMode")'); const appScript = html.indexOf('src=".\/app.js'); assert.ok(marker > 0); assert.ok(marker < appScript); });
+test("QA mode hides mic onboarding in CSS before first visible frame", () => { assert.match(styles, /\[data-qa-garden-active="true"\] #micGate\s*\{\s*display: none !important/); });
+test("mic entry and start have independent QA guards", () => { assert.match(app, /async function startMic\(\) \{\s*if \(isGardenQaSessionActive\(\)\) return false/); assert.match(app, /async function requestMicOnEntry\(\) \{\s*if \(isGardenQaSessionActive\(\)\) return false/); });
+test("QA authenticated initialization returns before formal workspace render", () => { assert.match(app, /if \(isGardenQaSessionActive\(\)\) \{[\s\S]*resumeGardenQaSession[\s\S]*return;[\s\S]*renderAuthenticatedAccountWorkspace\(options\)/); });
+test("QA authenticated session skips cloud startup reconcile", () => { assert.match(auth, /if \(qaResumeRequested && !forceFormalInitialization\) \{[\s\S]*initializationReason: "qa-resume"[\s\S]*\} else if[\s\S]*reconcileStartup/); });
+test("remote apply exits immediately while QA is active", () => { assert.match(auth, /onRemoteApplied: async \(userId\) => \{\s*if \(isGardenQaSessionActive\(\)\) return/); });
+test("formal snapshot scheduling and flushing are no-ops in QA", () => { assert.match(auth, /function flushAccountSnapshot[\s\S]*?if \(isGardenQaSessionActive\(\)\) return true/); assert.match(auth, /function scheduleAccountSnapshot[\s\S]*?if \(isGardenQaSessionActive\(\)\) return/); });
+test("cloud best effort is a no-op in QA", () => { assert.match(auth, /syncBestEffort\(\) \{\s*if \(isGardenQaSessionActive\(\)\) return Promise\.resolve\(null\)/); });
+test("entering QA cancels pending formal persistence and deactivates cloud service", () => { assert.match(auth, /enterGardenQaIsolation\(\)[\s\S]*window\.clearTimeout\(snapshotTimer\)[\s\S]*cloudSaveService\?\.deactivate\(\)/); assert.match(source, /options\.enterIsolation\?\.\(\)/); });
+test("app background and online cloud hooks are disabled in QA", () => { assert.match(auth, /appStateChange[\s\S]*?if \(isGardenQaSessionActive\(\)\) return/); assert.match(auth, /addEventListener\("online"[\s\S]*?if \(isGardenQaSessionActive\(\)\) return/); });
+test("QA exit requests one explicit formal initialization", () => { assert.match(app, /if \(qaFormalResumePromise\) return qaFormalResumePromise/); assert.match(auth, /resumeFormalWorkspaceAfterQa[\s\S]*forceFormalInitialization: true/); });
+test("QA route recovery uses no timeout polling observer or animation loop", () => { const resume = source.match(/function resumeGardenQaSession[\s\S]*?\n  \}/)?.[0] || ""; assert.doesNotMatch(resume, /setTimeout|setInterval|requestAnimationFrame|MutationObserver/); });

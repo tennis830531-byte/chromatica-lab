@@ -11,7 +11,7 @@ const androidBuild = fs.readFileSync(new URL("../android/app/build.gradle", impo
 test("microphone preference is device-local and defaults on", () => {
   assert.match(app, /MICROPHONE_ENABLED_KEY = "chromatica\.settings\.microphoneEnabled"/);
   assert.match(app, /localStorage\.getItem\(MICROPHONE_ENABLED_KEY\) !== "false"/);
-  assert.match(app, /async function startMic\(\) \{\s+if \(!isMicrophoneEnabled\(\)\)/);
+  assert.match(app, /async function startMic\(\) \{\s+if \(isGardenQaSessionActive\(\)\) return false;\s+if \(!isMicrophoneEnabled\(\)\)/);
   assert.doesNotMatch(app, /scheduleAccountSnapshotSave\(\);\s*\n\s*}\s*\n\s*function saveMicrophoneEnabled/);
 });
 

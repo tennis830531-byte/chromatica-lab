@@ -5891,6 +5891,10 @@ body.simple-motion .plant-action-layer.is-stage-up {
     var(--bg);
 }
 
+[data-qa-garden-active="true"] #micGate {
+  display: none !important;
+}
+
 .mic-gate.hidden,
 .goal-toast.hidden {
   display: none;

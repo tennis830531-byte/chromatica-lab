@@ -11,6 +11,18 @@
   let failedAttempts = 0;
   let lockedUntil = 0;
   let lockTimer = null;
+  let initialized = false;
+  let exitPromise = null;
+
+  function isGardenQaSessionActive() {
+    return sessionStorage.getItem(ACTIVE_KEY) === "true";
+  }
+  function syncDocumentMode(active = isGardenQaSessionActive()) {
+    if (active) document.documentElement.dataset.qaGardenActive = "true";
+    else delete document.documentElement.dataset.qaGardenActive;
+  }
+  const qaResumeRequested = isGardenQaSessionActive();
+  syncDocumentMode(qaResumeRequested);
 
   function $(selector) { return document.querySelector(selector); }
   function defaultState() {
@@ -37,8 +49,23 @@
     } catch { return defaultState(); }
   }
   function saveState(state) { sessionStorage.setItem(SANDBOX_KEY, JSON.stringify(state)); }
-  function isActive() { return sessionStorage.getItem(ACTIVE_KEY) === "true"; }
-  function setActive(active) { if (active) sessionStorage.setItem(ACTIVE_KEY, "true"); else sessionStorage.removeItem(ACTIVE_KEY); }
+  function isActive() { return isGardenQaSessionActive(); }
+  function setActive(active) {
+    if (active) sessionStorage.setItem(ACTIVE_KEY, "true");
+    else sessionStorage.removeItem(ACTIVE_KEY);
+    syncDocumentMode(active);
+  }
+  function resolveInitialView({ qaActive = isActive(), savedView = "", defaultView = "intro" } = {}) {
+    return qaActive ? "gardenqa" : (savedView || defaultView);
+  }
+  function resumeGardenQaSession({ reason = "qa-resume", afterAuthReady = false } = {}) {
+    if (!isActive()) return false;
+    syncDocumentMode(true);
+    if (!initialized) return true;
+    render();
+    options.navigate?.(resolveInitialView({ qaActive: true }), { reason, afterAuthReady });
+    return true;
+  }
   function stageStart(stage) { return (options.stageRequirements || [100, 180, 250]).slice(0, Math.max(0, stage - 1)).reduce((sum, value) => sum + value, 0); }
   function totalRequired() { return (options.stageRequirements || [100, 180, 250]).reduce((sum, value) => sum + value, 0); }
   function getStage(progress) { return progress >= stageStart(3) ? 3 : progress >= stageStart(2) ? 2 : 1; }
@@ -78,7 +105,9 @@
     }
     failedAttempts = 0; lockedUntil = 0; setModal(false);
     if (!sessionStorage.getItem(SANDBOX_KEY)) saveState(defaultState());
-    setActive(true); render(); options.navigate?.("gardenqa");
+    setActive(true);
+    options.enterIsolation?.();
+    resumeGardenQaSession({ reason: "user-navigation", afterAuthReady: true });
   }
   function onHeroTitleClick() {
     if (options.getCurrentView?.() !== "intro") { titleClicks = 0; return; }
@@ -125,9 +154,12 @@
   }
   function resetSandbox() { if (!confirm("確定重置測試花園嗎？")) return; sessionStorage.removeItem(SANDBOX_KEY); saveState(defaultState()); render(); }
   function leave() {
+    if (exitPromise) return exitPromise;
     const keep = confirm("要保留本次測試資料嗎？\n按「確定」保留，按「取消」清除。");
     setActive(false); if (!keep) sessionStorage.removeItem(SANDBOX_KEY);
-    options.renderFormalWorkspace?.(); options.navigate?.("garden");
+    exitPromise = Promise.resolve(options.resumeFormalWorkspace?.({ reason: "qa-exit" }))
+      .finally(() => { exitPromise = null; });
+    return exitPromise;
   }
   function bind() {
     $("#homeHeroQaTitle")?.addEventListener("click", onHeroTitleClick);
@@ -141,6 +173,21 @@
     $("#gardenQaCollection")?.addEventListener("click", (event) => { const button = event.target.closest("[data-qa-spirit]"); if (!button) return; const state = loadState(); const spirit = state.collection.find((item) => item.id === button.dataset.qaSpirit); if (!spirit) return; const name = prompt("精靈名字", plantName(spirit, 3)); if (name?.trim()) { spirit.name = name.trim().slice(0, 14); spirit.customName = true; state.featuredSpiritId = spirit.id; state.featuredSpiritStage = 3; saveState(state); render(); } });
   }
   function $$(selector) { return [...document.querySelectorAll(selector)]; }
-  function init(nextOptions = {}) { options = nextOptions; bind(); if (isActive()) { render(); options.navigate?.("gardenqa"); } }
-  global.ChromaticaGardenQA = Object.freeze({ init, isActive, onViewChanged, render, sha256, constants: Object.freeze({ ACTIVE_KEY, SANDBOX_KEY, EXPECTED_HASH, REQUIRED_CLICKS }) });
+  function init(nextOptions = {}) {
+    options = nextOptions;
+    if (!initialized) { initialized = true; bind(); }
+    resumeGardenQaSession({ reason: "bootstrap", afterAuthReady: false });
+  }
+  global.ChromaticaGardenQA = Object.freeze({
+    init,
+    isActive,
+    isGardenQaSessionActive,
+    resolveInitialView,
+    resumeGardenQaSession,
+    onViewChanged,
+    render,
+    sha256,
+    qaResumeRequested,
+    constants: Object.freeze({ ACTIVE_KEY, SANDBOX_KEY, EXPECTED_HASH, REQUIRED_CLICKS }),
+  });
 })(typeof window !== "undefined" ? window : globalThis);

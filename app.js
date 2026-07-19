@@ -765,6 +765,12 @@ const mapHarmonicaImages = {
 
 let currentView = "intro";
 let currentViewTarget = "";
+const qaResumeRequested = Boolean(window.ChromaticaGardenQA?.isGardenQaSessionActive?.());
+let qaFormalResumePromise = null;
+
+function isGardenQaSessionActive() {
+  return Boolean(window.ChromaticaGardenQA?.isGardenQaSessionActive?.());
+}
 let settingsReturnView = "intro";
 let settingsReturnTarget = "";
 let settingsReturnScrollY = 0;
@@ -5441,6 +5447,7 @@ function updateMicMonitor() {
 }
 
 async function startMic() {
+  if (isGardenQaSessionActive()) return false;
   if (!isMicrophoneEnabled()) {
     renderMicrophoneSetting();
     return false;
@@ -6926,6 +6933,7 @@ function bindEvents() {
 }
 
 async function requestMicOnEntry() {
+  if (isGardenQaSessionActive()) return false;
   const started = await startMic();
   if (started) {
     await calibrateMic();
@@ -7047,7 +7055,14 @@ let gardenBgmMetadataPrepared = false;
 
 function renderAuthenticatedAccountWorkspace({ allowDailyLoginBonus = false, initializationReason = "rerender" } = {}) {
   const userId = getActiveAccountId();
-  const qaGardenActive = Boolean(window.ChromaticaGardenQA?.isActive?.());
+  const qaGardenActive = isGardenQaSessionActive();
+  if (qaGardenActive) {
+    window.ChromaticaGardenQA?.resumeGardenQaSession?.({
+      reason: initializationReason === "remote-apply" ? "remote-apply" : "auth-ready",
+      afterAuthReady: true,
+    });
+    return;
+  }
   dailyLoginBonusController.record("authenticated workspace initial render", {
     userId,
     date: getTodayKey(),
@@ -7062,7 +7077,10 @@ function renderAuthenticatedAccountWorkspace({ allowDailyLoginBonus = false, ini
     renderGarden();
     renderHeroGarden();
   }
-  setView(qaGardenActive ? "gardenqa" : "intro");
+  const defaultView = initializationReason === "qa-exit" ? "garden" : "intro";
+  setView(window.ChromaticaGardenQA?.resolveInitialView?.({ qaActive: false, defaultView }) || defaultView, {
+    reason: initializationReason,
+  });
   if (allowDailyLoginBonus) {
     if (!qaGardenActive) {
       const dailyLoginBonusMessage = awardDailyLoginBonusIfNeeded();
@@ -7127,8 +7145,14 @@ function initializeAuthenticatedApp(options = {}) {
       species: gardenSpecies,
       stageRequirements: PLANT_STAGE_WATER_REQUIREMENTS,
       getCurrentView: () => currentView,
-      navigate: (view) => setView(view),
-      renderFormalWorkspace: () => { suppressNextGardenPersistence = true; },
+      navigate: (view, routeOptions = {}) => setView(view, routeOptions),
+      enterIsolation: () => window.chromaticaAuth?.enterGardenQaIsolation?.(),
+      resumeFormalWorkspace: async () => {
+        if (qaFormalResumePromise) return qaFormalResumePromise;
+        qaFormalResumePromise = Promise.resolve(window.chromaticaAuth?.resumeFormalWorkspaceAfterQa?.())
+          .finally(() => { qaFormalResumePromise = null; });
+        return qaFormalResumePromise;
+      },
       playGardenEffect: (evolved) => {
         playSound("watering");
         if (evolved) {
@@ -7148,8 +7172,15 @@ function initializeAuthenticatedApp(options = {}) {
     initializationReason: options.initializationReason || "rerender",
     remoteApply: options.initializationReason === "remote-apply",
   });
+  if (isGardenQaSessionActive()) {
+    $("#micGate")?.classList.add("hidden");
+    window.ChromaticaGardenQA?.resumeGardenQaSession?.({
+      reason: qaResumeRequested ? "qa-resume" : (options.initializationReason || "auth-ready"),
+      afterAuthReady: true,
+    });
+    return;
+  }
   renderAuthenticatedAccountWorkspace(options);
-  if (window.ChromaticaGardenQA?.isActive?.()) setView("gardenqa");
 }
 
 window.chromaticaApp = {
