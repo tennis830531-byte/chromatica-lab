@@ -80,6 +80,11 @@ test("daily goal reward note is a fixed two-line message", () => {
   assert.match(css, /@media \(max-width: 420px\)[\s\S]*?\.daily-goal-sticky\s*\{\s*width: 92px/);
 });
 
+test("today recommendation badge uses the quick-practice green treatment", () => {
+  assert.match(html, /quick-practice-card[\s\S]*?room-badge open">今日推薦/);
+  assert.match(css, /\.quick-practice-card \.room-badge\.open\s*\{\s*background: #7fa45f;/);
+});
+
 test("refresh-167 web and Android release metadata stay aligned", () => {
   assert.match(html, /version-number">refresh-167</);
   assert.doesNotMatch(html, /refresh-166/);

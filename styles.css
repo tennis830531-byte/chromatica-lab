@@ -2234,6 +2234,7 @@ body.hide-featured-spirit .hero-plant-slot {
 }
 
 .quick-practice-card .room-badge { min-height: 22px; padding: 3px 8px; }
+.quick-practice-card .room-badge.open { background: #7fa45f; }
 .quick-practice-card h4 { font-size: 16px; }
 .quick-practice-card p { font-size: 12px; line-height: 1.35; }
 .quick-practice-card .room-action {
