@@ -3262,8 +3262,9 @@ input[type="range"] {
   font-size: 13px;
 }
 
-.daily-goal-bonus-note span {
+.daily-goal-copy .daily-goal-bonus-note span {
   display: block;
+  font-size: 8px;
 }
 
 .daily-goal-copy .daily-goal-bonus-note {
