@@ -3170,6 +3170,24 @@ function makeLayout(holeCount) {
   }));
 }
 
+function getNoteMapHoleDisplay(holeCount, hole) {
+  const lowRegisterOffset = Math.max(0, holeCount - 12);
+  if (hole <= lowRegisterOffset) {
+    return {
+      label: String(hole + (4 - lowRegisterOffset)),
+      hasUpperDot: true,
+    };
+  }
+  return {
+    label: String(hole - lowRegisterOffset),
+    hasUpperDot: false,
+  };
+}
+
+function renderNoteMapHoleNumber(display) {
+  return `<span class="note-map-number ${display.hasUpperDot ? "has-upper-dot" : ""}">${display.label}</span>`;
+}
+
 function renderNoteMap() {
   const map = $("#noteMap");
   const holes = $("#noteMapHoles");
@@ -3186,15 +3204,21 @@ function renderNoteMap() {
   }
 
   holes.style.setProperty("--holes", selectedHoles);
-  holes.innerHTML = layout.map(({ hole }) => `
-    <button class="note-map-hole ${hole === selectedMapHole ? "active" : ""}" data-map-hole="${hole}"
-      type="button" aria-label="第 ${hole} 孔" aria-pressed="${hole === selectedMapHole}">${hole}</button>
-  `).join("");
+  holes.innerHTML = layout.map(({ hole }) => {
+    const display = getNoteMapHoleDisplay(selectedHoles, hole);
+    return `
+      <button class="note-map-hole ${hole === selectedMapHole ? "active" : ""}" data-map-hole="${hole}"
+        type="button" aria-label="第 ${hole} 孔" aria-pressed="${hole === selectedMapHole}">
+        ${renderNoteMapHoleNumber(display)}
+      </button>
+    `;
+  }).join("");
   requestAnimationFrame(() => {
     holes.querySelector(".note-map-hole.active")?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   });
+  const selectedDisplay = getNoteMapHoleDisplay(selectedHoles, selectedMapHole);
   map.innerHTML = `
-    <strong>第 ${selectedMapHole} 孔</strong>
+    <strong>第 ${renderNoteMapHoleNumber(selectedDisplay)} 孔</strong>
     <div><span>吹氣</span><b>${note.blow}</b></div>
     <div><span>吸氣</span><b>${note.draw}</b></div>
     <div><span>按鍵吹氣</span><b>${note.buttonBlow}</b></div>
