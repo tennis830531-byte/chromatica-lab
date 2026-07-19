@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
     <link rel="stylesheet" href="./public/assets/fonts/noto-sans-tc/noto-sans-tc-variable.css" />
     <link rel="stylesheet" href="./public/assets/fonts/lxgw-wenkai-tc/lxgw-wenkai-tc-bold.css" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-164" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-165" />
   </head>
   <body class="auth-checking">
     <div id="authGate" class="auth-gate" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
@@ -465,7 +465,7 @@
             <h3 id="quickPracticeStateTitle">今天的任務</h3><p id="quickPracticeStateText"></p>
             <ol id="quickPracticeTaskList" class="quick-practice-list"></ol>
             <div class="quick-practice-actions">
-              <button id="quickPracticePrimaryBtn" class="primary-btn" type="button">開始第一項</button>
+              <button id="quickPracticePrimaryBtn" class="primary-btn" type="button">準備開始！</button>
               <button id="quickPracticeLaterBtn" class="ghost-btn hidden" type="button">稍後再練</button>
               <button id="quickPracticeResultsBtn" class="ghost-btn hidden" type="button">查看今日成果</button>
               <button id="quickPracticeHomeBtn" class="ghost-btn hidden" type="button">返回首頁</button>
@@ -559,10 +559,18 @@
                   <span id="intervalScoreLabel">C 大調 · 三度</span>
                   <small id="intervalPageStatus">第 1 / 2 頁</small>
                 </div>
-                <span class="interval-self-check">自己聽、自己判斷</span>
+                <div class="interval-page-controls" aria-label="譜面分頁">
+                  <button id="intervalPrevPageBtn" type="button">上一頁</button>
+                  <button id="intervalNextPageBtn" type="button">下一頁</button>
+                </div>
               </div>
               <div id="intervalStaff" class="interval-staff" role="img" aria-label="音程練習五線譜"></div>
               <div id="intervalNoteHelp" class="interval-note-help"></div>
+              <div id="intervalNextPreview" class="interval-next-preview hidden" aria-label="下一頁預覽">
+                <strong id="intervalNextPreviewTitle">下一頁預覽</strong>
+                <div id="intervalNextStaff" class="interval-staff interval-next-staff" role="img"></div>
+                <div id="intervalNextNoteHelp" class="interval-note-help interval-next-note-help"></div>
+              </div>
             </div>
 
             <div class="interval-metronome paper-card">
@@ -593,6 +601,7 @@
             </dl>
             <p id="intervalCompleteNote" class="interval-complete-note"></p>
             <div class="interval-complete-actions">
+              <button id="intervalQuickNextBtn" class="primary-btn hidden" type="button">繼續下一項每日任務</button>
               <button id="intervalAgainBtn" class="primary-btn" type="button">再練一次</button>
               <button id="intervalBackBtn" class="ghost-btn" type="button">回到練習列表</button>
             </div>
@@ -687,7 +696,6 @@
               </div>
 
               <div class="tone-card paper-card">
-                <h3 class="card-title" id="toneCardTitle">練習目標</h3>
                 <div id="waveGuide" class="long-tone-illustration" data-type="stable" aria-label="長音練習示意圖">
                   <div>
                     <span id="waveGuideTitle">平穩長音</span>
@@ -782,6 +790,7 @@
             </dl>
             <p id="longToneCompleteNote" class="interval-complete-note"></p>
             <div class="interval-complete-actions">
+              <button id="longToneQuickNextBtn" class="primary-btn hidden" type="button">繼續下一項每日任務</button>
               <button id="longToneAgainBtn" class="primary-btn" type="button">再練一次</button>
               <button id="longToneBackBtn" class="ghost-btn" type="button">回到練習列表</button>
             </div>
@@ -818,7 +827,7 @@
                     <img class="ui-section-illustration" src="./public/assets/chromatic-refresh/note/encouragement_note.png" alt="" aria-hidden="true" />
                   </div>
                 </div>
-                <p class="daily-goal-bonus-note">完成今日所有任務可獲得20水滴！</p>
+                <p class="daily-goal-bonus-note">每完成一項任務獲得 5 水滴，全部完成再加 20 水滴！</p>
               </div>
             </div>
             <div id="dailyGoalList" class="daily-goal-list"></div>
@@ -886,7 +895,7 @@
               <div class="settings-accordion-body">
                 <label class="sound-toggle-row">
                   <span>麥克風狀態</span>
-                  <span class="setting-toggle-status"><strong id="audioMicStatus">已開啟，尚未授權</strong><input id="microphoneEnabledToggle" type="checkbox" checked /></span>
+                  <span class="setting-toggle-status"><strong id="audioMicStatus">已開啟</strong><input id="microphoneEnabledToggle" type="checkbox" checked /></span>
                 </label>
                 <div class="setting-row action-row">
                   <span>靜音校正</span>
@@ -1030,7 +1039,7 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-164</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-165</span></strong>
                 </div>
                 <button id="feedbackOpenBtn" class="setting-row settings-action-row" type="button">
                   <span>問題回報</span>
@@ -1053,11 +1062,12 @@
       </nav>
     </div>
 
-    <script src="./supabase-config.js?v=refresh-164"></script>
-    <script src="./practice-reminders.js?v=refresh-164"></script>
-    <script src="./daily-login-bonus.js?v=refresh-164"></script>
-    <script src="./quick-practice.js?v=refresh-164"></script>
-    <script src="./app.js?v=refresh-164"></script>
-    <script src="./auth-runtime.js?v=refresh-164"></script>
+    <script src="./supabase-config.js?v=refresh-165"></script>
+    <script src="./practice-reminders.js?v=refresh-165"></script>
+    <script src="./daily-login-bonus.js?v=refresh-165"></script>
+    <script src="./daily-goal-rewards.js?v=refresh-165"></script>
+    <script src="./quick-practice.js?v=refresh-165"></script>
+    <script src="./app.js?v=refresh-165"></script>
+    <script src="./auth-runtime.js?v=refresh-165"></script>
   </body>
 </html>

@@ -19,9 +19,11 @@ const MAX_SELECTABLE_CYCLES = 8;
 const MAX_SINGLE_PRACTICE_WATER_REWARD = 8;
 const MAX_DAILY_PRACTICE_WATER_REWARD = 80;
 const DAILY_LOGIN_WATER_BONUS = 5;
+const DAILY_GOAL_ITEM_WATER_BONUS = 5;
 const DAILY_TASK_WATER_BONUS = 20;
 const DAILY_GOAL_REQUIRED_COMBOS = 2;
 const INTERVAL_DAILY_GOAL_STATE_KEY = "intervalUniqueCombos";
+const DAILY_GOAL_REWARDED_TASKS_KEY = "rewardedTaskIds";
 const INTERVAL_DAILY_GOAL_TASKS = [
   { id: "interval-variety-3", title: "音程組合挑戰 3 次", required: 3 },
   { id: "interval-variety-5", title: "音程組合挑戰 5 次", required: 5 },
@@ -152,9 +154,16 @@ let pendingPracticeReminderNavigation = false;
 let quickPracticeActive = false;
 let quickPracticeCurrentTaskId = "";
 let quickPracticeJustCompletedTitle = "";
+let microphoneSettingRequestBusy = false;
+let microphoneLastErrorMessage = "";
 const dailyLoginBonusController = window.ChromaticaDailyLoginBonusCore.createController({
   logger(entry) {
     console.info("[daily-login-bonus]", entry);
+  },
+});
+const dailyGoalRewardController = window.ChromaticaDailyGoalRewardCore.createController({
+  logger(entry) {
+    console.info("[daily-goal-reward]", entry);
   },
 });
 
@@ -2908,6 +2917,32 @@ function setDailyGoalState(state) {
   scheduleAccountSnapshotSave();
 }
 
+function claimDailyGoalItemRewards(state, newlyCompletedTaskIds) {
+  const result = dailyGoalRewardController.claim({
+    userId: getActiveAccountId(),
+    date: getTodayKey(),
+    newlyCompletedTaskIds,
+    rewardedTaskIds: state[DAILY_GOAL_REWARDED_TASKS_KEY],
+    waterBefore: getWaterDrops(),
+    amountPerTask: DAILY_GOAL_ITEM_WATER_BONUS,
+    source: quickPracticeActive ? "quick-practice" : "formal-practice",
+    commit({ rewardedTaskIds, waterAfter }) {
+      state[DAILY_GOAL_REWARDED_TASKS_KEY] = rewardedTaskIds;
+      setDailyGoalState(state);
+      setWaterDrops(waterAfter);
+    },
+    flush() {
+      const saved = window.chromaticaAccountWorkspace?.flushSave?.();
+      if (saved !== true) throw new Error("daily-goal-reward-local-save-failed");
+    },
+    sync() {
+      return window.chromaticaAccountWorkspace?.syncBestEffort?.();
+    },
+  });
+  if (!result.granted) return null;
+  return `完成 ${result.awardedTaskIds.length} 項每日任務！精靈花園獲得 ${result.amount} 滴水滴 💧`;
+}
+
 function getExerciseDailyGoalCombos(exercise) {
   if (exercise.scored) {
     return targetVolumes.map((volume) => ({
@@ -3054,7 +3089,7 @@ function renderQuickPractice() {
   } else {
     title.textContent = "今天的任務";
     text.textContent = "準備好後，再由你開始第一項練習。";
-    primary.textContent = "開始第一項";
+    primary.textContent = "準備開始！";
   }
   primary.dataset.action = "start";
 }
@@ -3093,12 +3128,25 @@ function startNextQuickPracticeTask() {
 }
 
 function handleQuickPracticeCompletion(taskTitle) {
-  if (!quickPracticeActive || !quickPracticeCurrentTaskId) return false;
+  if (!quickPracticeActive || !quickPracticeCurrentTaskId) {
+    [$("#longToneQuickNextBtn"), $("#intervalQuickNextBtn")].forEach((button) => button?.classList.add("hidden"));
+    return false;
+  }
   quickPracticeJustCompletedTitle = taskTitle;
   quickPracticeCurrentTaskId = "";
-  renderQuickPractice();
-  setView("quickpractice");
+  const hasNextTask = Boolean(window.ChromaticaQuickPracticeCore.getNext(getQuickPracticeSnapshot()));
+  [$("#longToneQuickNextBtn"), $("#intervalQuickNextBtn")].forEach((button) => {
+    if (!button) return;
+    button.textContent = hasNextTask ? "繼續下一項每日任務" : "查看今日成果";
+    button.classList.remove("hidden");
+  });
   return true;
+}
+
+function continueQuickPracticeFromCompletion() {
+  const next = window.ChromaticaQuickPracticeCore.getNext(getQuickPracticeSnapshot());
+  if (next) launchQuickPracticeTask(next);
+  else setView("quickpractice");
 }
 
 function getCurrentDailyGoalCompletion() {
@@ -3142,6 +3190,9 @@ function renderNoteMap() {
     <button class="note-map-hole ${hole === selectedMapHole ? "active" : ""}" data-map-hole="${hole}"
       type="button" aria-label="第 ${hole} 孔" aria-pressed="${hole === selectedMapHole}">${hole}</button>
   `).join("");
+  requestAnimationFrame(() => {
+    holes.querySelector(".note-map-hole.active")?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  });
   map.innerHTML = `
     <strong>第 ${selectedMapHole} 孔</strong>
     <div><span>吹氣</span><b>${note.blow}</b></div>
@@ -3200,7 +3251,25 @@ function renderMicrophoneSetting() {
   const enabled = isMicrophoneEnabled();
   const toggle = $("#microphoneEnabledToggle");
   if (toggle) toggle.checked = enabled;
-  updateAudioStatus(enabled ? (micAnalyser ? "已開啟" : "已開啟，尚未授權") : "已關閉");
+  updateAudioStatus(enabled ? "已開啟" : "已關閉");
+}
+
+async function requestMicrophoneFromSettings() {
+  if (microphoneSettingRequestBusy || micAnalyser || !isMicrophoneEnabled()) return Boolean(micAnalyser);
+  microphoneSettingRequestBusy = true;
+  updateAudioStatus("正在要求授權…");
+  const started = await startMic();
+  microphoneSettingRequestBusy = false;
+  if (!started) {
+    saveMicrophoneEnabled(false);
+    const toggle = $("#microphoneEnabledToggle");
+    if (toggle) toggle.checked = false;
+    updateAudioStatus(microphoneLastErrorMessage || "無法開啟麥克風，請檢查系統權限。");
+    return false;
+  }
+  saveMicrophoneEnabled(true);
+  updateAudioStatus("已開啟");
+  return true;
 }
 
 function stopMicrophoneResources() {
@@ -3418,10 +3487,13 @@ function markDailyGoalDone(goalId, comboId) {
   const tasks = getDailyGoalTasks();
   const nextState = getDailyGoalState();
   const nextProgress = getDailyGoalProgress(nextState, task);
+  const isNew = !previousProgress.done && nextProgress.done;
+  const taskRewardMessage = claimDailyGoalItemRewards(nextState, isNew ? [task.id] : []);
   const isAllDone = tasks.every((item) => getDailyGoalProgress(nextState, item).done);
   return {
-    isNew: !previousProgress.done && nextProgress.done,
+    isNew,
     isAllDone,
+    taskRewardMessage,
     streakResult,
     progress: {
       title: task.title,
@@ -3436,6 +3508,7 @@ function markIntervalDailyGoalsDone(keyName, intervalSize) {
   const state = getDailyGoalState();
   const comboId = `${keyName}-${intervalSize}`;
   const intervalTasks = getDailyGoalTasks().filter((task) => task.type === "interval");
+  const previousProgress = new Map(intervalTasks.map((task) => [task.id, getDailyGoalProgress(state, task)]));
   const completedCombos = new Set(getDailyGoalCompletedCombos(state, intervalTasks[0]));
   completedCombos.add(comboId);
   state[INTERVAL_DAILY_GOAL_STATE_KEY] = {
@@ -3457,7 +3530,11 @@ function markIntervalDailyGoalsDone(keyName, intervalSize) {
       done: taskProgress.done,
     };
   });
-  return { isAllDone, streakResult, progress };
+  const newlyCompletedTaskIds = intervalTasks
+    .filter((task) => !previousProgress.get(task.id)?.done && getDailyGoalProgress(nextState, task).done)
+    .map((task) => task.id);
+  const taskRewardMessage = claimDailyGoalItemRewards(nextState, newlyCompletedTaskIds);
+  return { isAllDone, streakResult, progress, taskRewardMessage };
 }
 
 function formatDailyGoalProgress(progress) {
@@ -5313,6 +5390,7 @@ async function startMic() {
   }
   if (micAnalyser) return true;
   try {
+    microphoneLastErrorMessage = "";
     updateAudioStatus("開啟中");
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error("getUserMedia is not available");
@@ -5347,7 +5425,10 @@ async function startMic() {
     updateAudioStatus("已開啟");
     return true;
   } catch (error) {
-    updateAudioStatus("無法開啟");
+    microphoneLastErrorMessage = error?.name === "NotAllowedError"
+      ? "麥克風授權遭拒，請至系統設定允許後再開啟。"
+      : "無法開啟麥克風，請檢查裝置或系統權限。";
+    updateAudioStatus(microphoneLastErrorMessage);
     return false;
   }
 }
@@ -5425,7 +5506,6 @@ function renderExercise() {
       .join("");
     $("#variantSelect").value = String(getSelectedVariantIndex(exercise));
   }
-  $("#toneCardTitle").textContent = "練習目標";
   $("#stabilityStat").classList.toggle("hidden", !shouldShowStability());
   renderWaveGuide();
   renderDailyGoals();
@@ -5606,13 +5686,44 @@ function renderIntervalNumberNote(noteName, isActive = false) {
   return `<b class="jianpu-note${isActive ? " active" : ""}" aria-label="${notation.displayNoteName}">${dots}<i class="jianpu-accidental" aria-hidden="true">${notation.accidental}</i>${notation.degree}</b>`;
 }
 
+function renderIntervalNumberHelp(groups, startIndex, activeGroupIndex = -1, activeNoteIndex = -1) {
+  return groups.map((group, index) => {
+    const groupIndex = startIndex + index;
+    const isActiveGroup = groupIndex === activeGroupIndex;
+    const notes = group.notes.map((noteName, noteIndex) => {
+      const isActiveNote = isActiveGroup && activeNoteIndex === noteIndex;
+      const hold = (group.durations?.[noteIndex] || 1) > 1
+        ? `<b class="jianpu-hold${isActiveNote ? " active" : ""}" aria-label="延長一拍">—</b>`
+        : "";
+      return `${renderIntervalNumberNote(noteName, isActiveNote)}${hold}`;
+    }).join("");
+    return `<span class="${isActiveGroup ? "active" : ""}"><small>第 ${groupIndex + 1} 小節</small><em>${notes}</em></span>`;
+  }).join("");
+}
+
+function clampIntervalPage(page, totalPages) {
+  return Math.max(0, Math.min(Math.max(1, totalPages) - 1, Math.floor(Number(page) || 0)));
+}
+
+function changeIntervalScorePage(delta) {
+  const state = intervalPracticeState;
+  if (!state) return;
+  const totalPages = Math.ceil(state.groups.length / INTERVAL_GROUPS_PER_PAGE);
+  state.page = clampIntervalPage(state.page + delta, totalPages);
+  renderIntervalPractice();
+}
+
 function renderIntervalPractice() {
   if (!intervalPracticeState) return;
   const state = intervalPracticeState;
-  state.page = Math.min(
+  const activePage = Math.min(
     Math.ceil(state.groups.length / INTERVAL_GROUPS_PER_PAGE) - 1,
     Math.floor(state.groupIndex / INTERVAL_GROUPS_PER_PAGE),
   );
+  if (state.lastActivePage !== activePage) {
+    state.page = activePage;
+    state.lastActivePage = activePage;
+  }
   const key = INTERVAL_KEYS[state.key];
   const intervalLabel = INTERVAL_LABELS[state.interval];
   const directionLabel = INTERVAL_DIRECTION_LABELS[state.direction];
@@ -5624,6 +5735,8 @@ function renderIntervalPractice() {
   $("#intervalPracticeTitle").textContent = `${key.label}｜${directionLabel}${intervalLabel}`;
   $("#intervalScoreLabel").textContent = `${key.label} · ${directionLabel}${intervalLabel}`;
   $("#intervalPageStatus").textContent = `第 ${state.groupIndex + 1} / ${state.groups.length} 組 · 第 ${state.page + 1} / ${totalPages} 頁`;
+  $("#intervalPrevPageBtn").disabled = state.page <= 0;
+  $("#intervalNextPageBtn").disabled = state.page >= totalPages - 1;
   $("#intervalCycleProgress").textContent = `${state.completedCycles} / ${state.totalCycles}`;
   $("#intervalBpmStatus").textContent = state.bpm;
   $("#intervalMetronomeHelp").textContent = state.direction === "continuousBoth"
@@ -5636,22 +5749,22 @@ function renderIntervalPractice() {
     activeNoteIndex,
   );
   $("#intervalStaff").setAttribute("aria-label", `${key.label}${directionLabel}${intervalLabel}，${pageGroups.map((group) => group.label).join("；")}`);
-  $("#intervalNoteHelp").innerHTML = pageGroups
-    .map((group, index) => {
-      const groupIndex = pageStart + index;
-      const isActiveGroup = groupIndex === state.groupIndex;
-      const notes = group.notes
-        .map((noteName, noteIndex) => {
-          const isActiveNote = isActiveGroup && activeNoteIndex === noteIndex;
-          const hold = (group.durations?.[noteIndex] || 1) > 1
-            ? `<b class="jianpu-hold${isActiveNote ? " active" : ""}" aria-label="延長一拍">—</b>`
-            : "";
-          return `${renderIntervalNumberNote(noteName, isActiveNote)}${hold}`;
-        })
-        .join("");
-      return `<span class="${isActiveGroup ? "active" : ""}"><small>第 ${groupIndex + 1} 小節</small><em>${notes}</em></span>`;
-    })
-    .join("");
+  $("#intervalNoteHelp").innerHTML = renderIntervalNumberHelp(pageGroups, pageStart, state.groupIndex, activeNoteIndex);
+
+  const nextPageStart = pageStart + INTERVAL_GROUPS_PER_PAGE;
+  const wrapsToNextCycle = nextPageStart >= state.groups.length && state.completedCycles + 1 < state.totalCycles;
+  const previewStart = wrapsToNextCycle ? 0 : nextPageStart;
+  const previewGroups = previewStart < state.groups.length
+    ? state.groups.slice(previewStart, previewStart + INTERVAL_GROUPS_PER_PAGE)
+    : [];
+  const preview = $("#intervalNextPreview");
+  preview.classList.toggle("hidden", !previewGroups.length);
+  if (previewGroups.length) {
+    $("#intervalNextPreviewTitle").textContent = wrapsToNextCycle ? "下一輪第 1 頁預覽" : `第 ${state.page + 2} 頁預覽`;
+    $("#intervalNextStaff").innerHTML = createIntervalStaffSvg(previewGroups, state.key);
+    $("#intervalNextStaff").setAttribute("aria-label", `下一段：${previewGroups.map((group) => group.label).join("；")}`);
+    $("#intervalNextNoteHelp").innerHTML = renderIntervalNumberHelp(previewGroups, previewStart);
+  }
 }
 
 function updateIntervalMetronomeUi() {
@@ -5766,6 +5879,7 @@ function beginIntervalPractice() {
     ...selection,
     groups: generateIntervalGroups(selection.key, selection.interval, selection.direction),
     page: 0,
+    lastActivePage: 0,
     groupIndex: 0,
     completedCycles: 0,
     hasStarted: false,
@@ -5786,6 +5900,7 @@ function resetIntervalPractice() {
   if (!intervalPracticeState) return;
   stopIntervalMetronome();
   intervalPracticeState.page = 0;
+  intervalPracticeState.lastActivePage = 0;
   intervalPracticeState.groupIndex = 0;
   intervalPracticeState.completedCycles = 0;
   intervalPracticeState.hasStarted = false;
@@ -5813,6 +5928,7 @@ function finishIntervalPractice() {
   const streakResult = goalResult.streakResult;
   const waterResult = awardGardenWaterForPractice(state.completedCycles);
   const bonusMessages = [
+    goalResult.taskRewardMessage,
     awardDailyTaskBonusIfNeeded(goalResult.isAllDone),
     ...awardStreakMilestoneBonusesIfNeeded(streakResult),
   ].filter(Boolean);
@@ -5922,6 +6038,9 @@ function setView(view, options = {}) {
     if (!showStarterPlantSelectionIfNeeded()) checkGardenRainEvent();
   }
   if (view === "quickpractice") renderQuickPractice();
+  if (view === "audio" && changedView && isMicrophoneEnabled() && !micAnalyser) {
+    requestMicrophoneFromSettings();
+  }
   syncGardenBgmWithView();
   const headerSettingsButton = $("#headerSettingsBtn");
   if (headerSettingsButton) {
@@ -6110,6 +6229,7 @@ function stepPractice() {
       const goalResult = markDailyGoalDone(currentGoal.goalId, currentGoal.comboId);
       const waterResult = awardGardenWaterForPractice(totalCycles);
       const bonusMessages = [
+        goalResult.taskRewardMessage,
         awardDailyTaskBonusIfNeeded(goalResult.isAllDone),
         ...awardStreakMilestoneBonusesIfNeeded(goalResult.streakResult),
       ].filter(Boolean);
@@ -6326,7 +6446,7 @@ async function submitFeedbackForm(event) {
     try {
       const result = await window.chromaticaAuth?.invokeFunction?.("send-feedback", {
         category, description,
-        appVersion: "refresh-164 / Android 1.0.48 (49)",
+        appVersion: "refresh-165 / Android 1.0.49 (50)",
         platform: isNativeAndroidApp() ? "android" : "web",
         currentView, requestId,
       });
@@ -6448,10 +6568,12 @@ function bindEvents() {
   });
   $("#micDisabledBackBtn")?.addEventListener("click", () => setMicDisabledModalOpen(false));
   $("#micDisabledSettingsBtn")?.addEventListener("click", openMicrophoneSetting);
-  $("#microphoneEnabledToggle")?.addEventListener("change", (event) => {
+  $("#microphoneEnabledToggle")?.addEventListener("change", async (event) => {
     const enabled = event.target.checked;
     saveMicrophoneEnabled(enabled);
-    if (!enabled) {
+    if (enabled) {
+      await requestMicrophoneFromSettings();
+    } else {
       const longToneWasRunning = Boolean(timer || steadyProgressTimer || !["idle", "done"].includes(phase));
       stopPractice(false);
       stopMicrophoneResources();
@@ -6468,12 +6590,16 @@ function bindEvents() {
   $("#intervalStartPauseBtn")?.addEventListener("click", toggleIntervalPractice);
   $("#intervalRestartBtn")?.addEventListener("click", resetIntervalPractice);
   $("#intervalSettingsBtn")?.addEventListener("click", editIntervalPracticeSettings);
+  $("#intervalPrevPageBtn")?.addEventListener("click", () => changeIntervalScorePage(-1));
+  $("#intervalNextPageBtn")?.addEventListener("click", () => changeIntervalScorePage(1));
   $("#intervalAgainBtn")?.addEventListener("click", beginIntervalPractice);
   $("#intervalBackBtn")?.addEventListener("click", () => {
     showIntervalSetup();
     setView("practicehub");
   });
+  $("#intervalQuickNextBtn")?.addEventListener("click", continueQuickPracticeFromCompletion);
   $("#longToneAgainBtn")?.addEventListener("click", returnToLongTonePractice);
+  $("#longToneQuickNextBtn")?.addEventListener("click", continueQuickPracticeFromCompletion);
   $("#longToneBackBtn")?.addEventListener("click", () => {
     setLongToneCompletionVisible(false);
     stopPractice(false);
@@ -6965,6 +7091,9 @@ window.chromaticaApp = {
   },
   getDailyLoginDiagnostics() {
     return dailyLoginBonusController.getDiagnostics();
+  },
+  getDailyGoalRewardDiagnostics() {
+    return dailyGoalRewardController.getDiagnostics();
   },
   getAuthenticatedStartupImageUrls() {
     const heroImage = document.getElementById("heroGardenPlant");

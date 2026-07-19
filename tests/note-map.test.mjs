@@ -19,9 +19,10 @@ test("note map uses each model's authoritative mapping", () => {
   }
 });
 
-test("all holes are one accessible, non-scrolling button row", () => {
+test("holes are accessible circular buttons in an eight-wide scrolling row", () => {
   assert.match(html, /id="noteMapHoles"[^>]*aria-label="口琴孔位"/);
   assert.match(appSource, /aria-label="第 \$\{hole\} 孔" aria-pressed=/);
-  assert.match(css, /grid-template-columns: repeat\(var\(--holes\), minmax\(0, 1fr\)\)/);
-  assert.match(css, /\.note-map-holes[\s\S]*?overflow: hidden/);
+  assert.match(css, /\.note-map-holes[\s\S]*?overflow-x: auto/);
+  assert.match(css, /calc\(\(100% - 56px\) \/ 8\)/);
+  assert.match(css, /\.note-map-hole[\s\S]*?border-radius: 50%/);
 });
