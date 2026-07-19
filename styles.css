@@ -1676,14 +1676,24 @@ body.hide-featured-spirit .hero-plant-slot {
   font-size: 12px;
 }
 
-.interval-self-check {
-  flex: 0 0 auto;
-  padding: 5px 8px;
-  border: 1px solid rgba(212, 165, 90, 0.35);
-  border-radius: 999px;
-  color: #8a6030 !important;
-  background: rgba(243, 227, 199, 0.58);
-  font-size: 10px;
+.interval-page-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.interval-page-controls button {
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid rgba(122, 78, 45, 0.24);
+  border-radius: 10px;
+  color: var(--primary);
+  background: rgba(255, 253, 249, 0.82);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.interval-page-controls button:disabled {
+  opacity: 0.38;
 }
 
 .interval-staff {
@@ -1694,6 +1704,23 @@ body.hide-featured-spirit .hero-plant-slot {
   border-radius: 16px;
   background: rgba(255, 255, 252, 0.78);
 }
+
+.interval-next-preview {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(122, 78, 45, 0.28);
+}
+
+.interval-next-preview > strong {
+  color: var(--primary);
+  font-size: 12px;
+}
+
+.interval-next-staff { opacity: 0.72; }
+.interval-next-staff svg { max-height: 74px; }
+.interval-next-note-help { margin-top: 0; opacity: 0.78; }
 
 .interval-staff svg {
   display: block;
@@ -2238,8 +2265,24 @@ body.hide-featured-spirit .hero-plant-slot {
 
 .quick-practice-card {
   grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
   border-color: rgba(176, 112, 48, 0.42);
   background: linear-gradient(135deg, rgba(255, 247, 226, 0.96), rgba(249, 235, 207, 0.82));
+}
+
+.quick-practice-card .room-badge { min-height: 22px; padding: 3px 8px; }
+.quick-practice-card h4 { font-size: 16px; }
+.quick-practice-card p { font-size: 12px; line-height: 1.35; }
+.quick-practice-card .room-action {
+  justify-self: end;
+  width: auto;
+  min-height: 36px;
+  padding: 0 13px;
+  border-radius: 13px;
+  white-space: nowrap;
 }
 
 .quick-practice-panel { clear: both; padding: 20px; }
@@ -2324,24 +2367,30 @@ body.hide-featured-spirit .hero-plant-slot {
 }
 
 .note-map-holes {
-  display: grid;
-  grid-template-columns: repeat(var(--holes), minmax(0, 1fr));
-  gap: 3px;
+  display: flex;
+  gap: 8px;
   width: 100%;
   min-width: 0;
-  overflow: hidden;
+  padding: 2px 0 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
 }
 
 .note-map-hole {
+  flex: 0 0 max(40px, calc((100% - 56px) / 8));
   min-width: 0;
-  min-height: 44px;
+  aspect-ratio: 1;
+  min-height: 0;
   padding: 0;
   border: 1px solid rgba(122, 78, 45, 0.24);
-  border-radius: 9px;
+  border-radius: 50%;
   color: var(--text-muted);
   background: rgba(255, 253, 249, 0.78);
   font-size: clamp(9px, 2.5vw, 13px);
   font-weight: 800;
+  scroll-snap-align: start;
 }
 
 .note-map-hole.active {
@@ -2648,6 +2697,8 @@ body.hide-featured-spirit .hero-plant-slot {
 .mic-card {
   padding: 18px;
 }
+
+.tone-card { padding-top: 14px; }
 
 .card-title {
   margin-bottom: 14px;

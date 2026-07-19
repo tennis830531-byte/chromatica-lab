@@ -465,7 +465,7 @@
             <h3 id="quickPracticeStateTitle">今天的任務</h3><p id="quickPracticeStateText"></p>
             <ol id="quickPracticeTaskList" class="quick-practice-list"></ol>
             <div class="quick-practice-actions">
-              <button id="quickPracticePrimaryBtn" class="primary-btn" type="button">開始第一項</button>
+              <button id="quickPracticePrimaryBtn" class="primary-btn" type="button">準備開始！</button>
               <button id="quickPracticeLaterBtn" class="ghost-btn hidden" type="button">稍後再練</button>
               <button id="quickPracticeResultsBtn" class="ghost-btn hidden" type="button">查看今日成果</button>
               <button id="quickPracticeHomeBtn" class="ghost-btn hidden" type="button">返回首頁</button>
@@ -559,10 +559,18 @@
                   <span id="intervalScoreLabel">C 大調 · 三度</span>
                   <small id="intervalPageStatus">第 1 / 2 頁</small>
                 </div>
-                <span class="interval-self-check">自己聽、自己判斷</span>
+                <div class="interval-page-controls" aria-label="譜面分頁">
+                  <button id="intervalPrevPageBtn" type="button">上一頁</button>
+                  <button id="intervalNextPageBtn" type="button">下一頁</button>
+                </div>
               </div>
               <div id="intervalStaff" class="interval-staff" role="img" aria-label="音程練習五線譜"></div>
               <div id="intervalNoteHelp" class="interval-note-help"></div>
+              <div id="intervalNextPreview" class="interval-next-preview hidden" aria-label="下一頁預覽">
+                <strong id="intervalNextPreviewTitle">下一頁預覽</strong>
+                <div id="intervalNextStaff" class="interval-staff interval-next-staff" role="img"></div>
+                <div id="intervalNextNoteHelp" class="interval-note-help interval-next-note-help"></div>
+              </div>
             </div>
 
             <div class="interval-metronome paper-card">
@@ -593,6 +601,7 @@
             </dl>
             <p id="intervalCompleteNote" class="interval-complete-note"></p>
             <div class="interval-complete-actions">
+              <button id="intervalQuickNextBtn" class="primary-btn hidden" type="button">繼續下一項每日任務</button>
               <button id="intervalAgainBtn" class="primary-btn" type="button">再練一次</button>
               <button id="intervalBackBtn" class="ghost-btn" type="button">回到練習列表</button>
             </div>
@@ -687,7 +696,6 @@
               </div>
 
               <div class="tone-card paper-card">
-                <h3 class="card-title" id="toneCardTitle">練習目標</h3>
                 <div id="waveGuide" class="long-tone-illustration" data-type="stable" aria-label="長音練習示意圖">
                   <div>
                     <span id="waveGuideTitle">平穩長音</span>
@@ -782,6 +790,7 @@
             </dl>
             <p id="longToneCompleteNote" class="interval-complete-note"></p>
             <div class="interval-complete-actions">
+              <button id="longToneQuickNextBtn" class="primary-btn hidden" type="button">繼續下一項每日任務</button>
               <button id="longToneAgainBtn" class="primary-btn" type="button">再練一次</button>
               <button id="longToneBackBtn" class="ghost-btn" type="button">回到練習列表</button>
             </div>
@@ -886,7 +895,7 @@
               <div class="settings-accordion-body">
                 <label class="sound-toggle-row">
                   <span>麥克風狀態</span>
-                  <span class="setting-toggle-status"><strong id="audioMicStatus">已開啟，尚未授權</strong><input id="microphoneEnabledToggle" type="checkbox" checked /></span>
+                  <span class="setting-toggle-status"><strong id="audioMicStatus">已開啟</strong><input id="microphoneEnabledToggle" type="checkbox" checked /></span>
                 </label>
                 <div class="setting-row action-row">
                   <span>靜音校正</span>
