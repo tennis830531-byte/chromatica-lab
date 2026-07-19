@@ -35,4 +35,5 @@ test("hole labels use low-register upper dots before the standard twelve-hole nu
   assert.match(appSource, /function renderNoteMapHoleNumber\(display\)/);
   assert.match(appSource, /第 \$\{renderNoteMapHoleNumber\(selectedDisplay\)\} 孔/);
   assert.match(css, /\.note-map-number\.has-upper-dot::before[\s\S]*?position: absolute/);
+  assert.match(css, /\.note-map-number\.has-upper-dot::before[\s\S]*?bottom: 1\.02em/);
 });
