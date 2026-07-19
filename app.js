@@ -152,6 +152,11 @@ let pendingPracticeReminderNavigation = false;
 let quickPracticeActive = false;
 let quickPracticeCurrentTaskId = "";
 let quickPracticeJustCompletedTitle = "";
+const dailyLoginBonusController = window.ChromaticaDailyLoginBonusCore.createController({
+  logger(entry) {
+    console.info("[daily-login-bonus]", entry);
+  },
+});
 
 function scheduleAccountSnapshotSave() {
   window.chromaticaAccountWorkspace?.scheduleSave?.();
@@ -1860,10 +1865,32 @@ function claimDailyBonus(key, amount) {
 }
 
 function awardDailyLoginBonusIfNeeded() {
-  const added = claimDailyBonus(gardenStorageKeys.dailyLoginBonus, DAILY_LOGIN_WATER_BONUS);
-  if (!added) return null;
+  const userId = getActiveAccountId();
+  const date = getTodayKey();
+  if (!userId) return null;
+  const marker = getDailyBonusState(gardenStorageKeys.dailyLoginBonus);
+  const result = dailyLoginBonusController.claim({
+    userId,
+    date,
+    markerDate: marker.lastClaimedDate || "",
+    waterBefore: getWaterDrops(),
+    amount: DAILY_LOGIN_WATER_BONUS,
+    reason: "authenticated-ready",
+    commit({ date: claimedDate, waterAfter }) {
+      localStorage.setItem(gardenStorageKeys.waterDrops, String(waterAfter));
+      localStorage.setItem(gardenStorageKeys.dailyLoginBonus, JSON.stringify({ lastClaimedDate: claimedDate }));
+    },
+    flush() {
+      const saved = window.chromaticaAccountWorkspace?.flushSave?.();
+      if (saved !== true) throw new Error("daily-login-local-save-failed");
+    },
+    sync() {
+      return window.chromaticaAccountWorkspace?.syncBestEffort?.();
+    },
+  });
+  if (!result.granted) return null;
   renderGarden();
-  return `今日首次進入練習室！精靈花園獲得 ${added} 滴水滴 💧`;
+  return `今日首次進入練習室！精靈花園獲得 ${result.amount} 滴水滴 💧`;
 }
 
 function awardDailyTaskBonusIfNeeded(isAllDone) {
@@ -6854,7 +6881,14 @@ window.chromaticDebug = {
 let chromaticaAppInitialized = false;
 let gardenBgmMetadataPrepared = false;
 
-function renderAuthenticatedAccountWorkspace() {
+function renderAuthenticatedAccountWorkspace({ allowDailyLoginBonus = false, initializationReason = "rerender" } = {}) {
+  const userId = getActiveAccountId();
+  dailyLoginBonusController.record("authenticated workspace initial render", {
+    userId,
+    date: getTodayKey(),
+    initializationReason,
+    remoteApply: initializationReason === "remote-apply",
+  });
   renderPracticeSettings();
   applyPracticeSettings();
   renderDailyGoals();
@@ -6862,10 +6896,27 @@ function renderAuthenticatedAccountWorkspace() {
   renderGarden();
   renderHeroGarden();
   setView("intro");
-  const dailyLoginBonusMessage = awardDailyLoginBonusIfNeeded();
-  if (dailyLoginBonusMessage) showGardenToast("每日水滴", dailyLoginBonusMessage);
+  if (allowDailyLoginBonus) {
+    const dailyLoginBonusMessage = awardDailyLoginBonusIfNeeded();
+    if (dailyLoginBonusMessage && dailyLoginBonusController.markToastDisplayed(userId, getTodayKey())) {
+      showGardenToast("每日水滴", dailyLoginBonusMessage);
+    }
+  } else {
+    dailyLoginBonusController.record("daily login claim skipped", {
+      userId,
+      date: getTodayKey(),
+      initializationReason,
+      cancellationReason: "rerender-not-authorized",
+    });
+  }
   scheduleGardenPlantHop();
   scheduleAccountSnapshotSave();
+  dailyLoginBonusController.record("account snapshot scheduled", {
+    userId,
+    date: getTodayKey(),
+    initializationReason,
+    remoteApply: initializationReason === "remote-apply",
+  });
   renderPracticeReminderSetting();
   void reconcilePracticeReminderSchedule();
   if (pendingPracticeReminderNavigation) {
@@ -6874,7 +6925,7 @@ function renderAuthenticatedAccountWorkspace() {
   }
 }
 
-function initializeAuthenticatedApp() {
+function initializeAuthenticatedApp(options = {}) {
   if (!chromaticaAppInitialized) {
     chromaticaAppInitialized = true;
     bindEvents();
@@ -6898,11 +6949,23 @@ function initializeAuthenticatedApp() {
     stopIntervalMetronome();
     stopPractice(false);
   }
-  renderAuthenticatedAccountWorkspace();
+  dailyLoginBonusController.record("authenticated workspace rerendered", {
+    userId: getActiveAccountId(),
+    date: getTodayKey(),
+    initializationReason: options.initializationReason || "rerender",
+    remoteApply: options.initializationReason === "remote-apply",
+  });
+  renderAuthenticatedAccountWorkspace(options);
 }
 
 window.chromaticaApp = {
   initializeForAuthenticatedAccount: initializeAuthenticatedApp,
+  recordDailyLoginEvent(event, details = {}) {
+    dailyLoginBonusController.record(event, { userId: getActiveAccountId(), date: getTodayKey(), ...details });
+  },
+  getDailyLoginDiagnostics() {
+    return dailyLoginBonusController.getDiagnostics();
+  },
   getAuthenticatedStartupImageUrls() {
     const heroImage = document.getElementById("heroGardenPlant");
     return heroImage?.getAttribute("src") ? [heroImage.getAttribute("src")] : [];

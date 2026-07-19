@@ -526,7 +526,10 @@ window.chromaticaAccountWorkspace = {
   scheduleSave: scheduleAccountSnapshot,
   flushSave: flushAccountSnapshot,
   syncBestEffort() {
-    return cloudSaveService?.syncNow?.("manual") || Promise.resolve(null);
+    const snapshot = saveActiveAccountSnapshot(localStorage);
+    return snapshot
+      ? cloudSaveService?.noteLocalSnapshot?.(snapshot, { immediate: true }) || Promise.resolve(null)
+      : Promise.resolve(null);
   },
 };
 
@@ -656,7 +659,10 @@ async function prepareAuthenticatedSession(session) {
             : "cloud-unavailable-no-local";
           throw cloudError;
         }
-        window.chromaticaApp?.initializeForAuthenticatedAccount?.();
+        window.chromaticaApp?.initializeForAuthenticatedAccount?.({
+          allowDailyLoginBonus: true,
+          initializationReason: "authenticated-ready",
+        });
         if (cloudResult.kind === "new-workspace") {
           void cloudSaveService.initializeNewWorkspace();
         }
@@ -985,7 +991,10 @@ async function confirmResetAccountData() {
       resetError.code = result?.code || "account-reset-failed";
       throw resetError;
     }
-    window.chromaticaApp?.initializeForAuthenticatedAccount?.();
+    window.chromaticaApp?.initializeForAuthenticatedAccount?.({
+      allowDailyLoginBonus: false,
+      initializationReason: "account-reset-rerender",
+    });
     closeResetAccountConfirmation();
     setAuthStatus("");
     showAuthToast("所有紀錄已清除");
@@ -1109,8 +1118,23 @@ async function initializeGoogleAuth() {
       onStateChange: renderCloudSyncState,
       onRemoteApplied: async (userId) => {
         if (localStorage.getItem(ACTIVE_ACCOUNT_KEY) !== userId) return;
-        window.chromaticaApp?.initializeForAuthenticatedAccount?.();
+        window.chromaticaApp?.recordDailyLoginEvent?.("onRemoteApplied called", {
+          initializationReason: "remote-apply",
+          remoteApply: true,
+        });
+        window.chromaticaApp?.recordDailyLoginEvent?.("cloud remote snapshot applied", {
+          initializationReason: "remote-apply",
+          remoteApply: true,
+        });
+        window.chromaticaApp?.initializeForAuthenticatedAccount?.({
+          allowDailyLoginBonus: false,
+          initializationReason: "remote-apply",
+        });
         scheduleAccountSnapshot();
+        window.chromaticaApp?.recordDailyLoginEvent?.("account snapshot scheduled", {
+          initializationReason: "remote-apply",
+          remoteApply: true,
+        });
       },
     });
     bindAuthUi();
