@@ -15,6 +15,7 @@ const webSourceFiles = [
   "supabase-config.js",
   "practice-reminders.js",
   "daily-login-bonus.js",
+  "daily-goal-rewards.js",
   "quick-practice.js",
   "auth-runtime.js",
 ];

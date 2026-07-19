@@ -19,9 +19,11 @@ const MAX_SELECTABLE_CYCLES = 8;
 const MAX_SINGLE_PRACTICE_WATER_REWARD = 8;
 const MAX_DAILY_PRACTICE_WATER_REWARD = 80;
 const DAILY_LOGIN_WATER_BONUS = 5;
+const DAILY_GOAL_ITEM_WATER_BONUS = 5;
 const DAILY_TASK_WATER_BONUS = 20;
 const DAILY_GOAL_REQUIRED_COMBOS = 2;
 const INTERVAL_DAILY_GOAL_STATE_KEY = "intervalUniqueCombos";
+const DAILY_GOAL_REWARDED_TASKS_KEY = "rewardedTaskIds";
 const INTERVAL_DAILY_GOAL_TASKS = [
   { id: "interval-variety-3", title: "音程組合挑戰 3 次", required: 3 },
   { id: "interval-variety-5", title: "音程組合挑戰 5 次", required: 5 },
@@ -157,6 +159,11 @@ let microphoneLastErrorMessage = "";
 const dailyLoginBonusController = window.ChromaticaDailyLoginBonusCore.createController({
   logger(entry) {
     console.info("[daily-login-bonus]", entry);
+  },
+});
+const dailyGoalRewardController = window.ChromaticaDailyGoalRewardCore.createController({
+  logger(entry) {
+    console.info("[daily-goal-reward]", entry);
   },
 });
 
@@ -2910,6 +2917,32 @@ function setDailyGoalState(state) {
   scheduleAccountSnapshotSave();
 }
 
+function claimDailyGoalItemRewards(state, newlyCompletedTaskIds) {
+  const result = dailyGoalRewardController.claim({
+    userId: getActiveAccountId(),
+    date: getTodayKey(),
+    newlyCompletedTaskIds,
+    rewardedTaskIds: state[DAILY_GOAL_REWARDED_TASKS_KEY],
+    waterBefore: getWaterDrops(),
+    amountPerTask: DAILY_GOAL_ITEM_WATER_BONUS,
+    source: quickPracticeActive ? "quick-practice" : "formal-practice",
+    commit({ rewardedTaskIds, waterAfter }) {
+      state[DAILY_GOAL_REWARDED_TASKS_KEY] = rewardedTaskIds;
+      setDailyGoalState(state);
+      setWaterDrops(waterAfter);
+    },
+    flush() {
+      const saved = window.chromaticaAccountWorkspace?.flushSave?.();
+      if (saved !== true) throw new Error("daily-goal-reward-local-save-failed");
+    },
+    sync() {
+      return window.chromaticaAccountWorkspace?.syncBestEffort?.();
+    },
+  });
+  if (!result.granted) return null;
+  return `完成 ${result.awardedTaskIds.length} 項每日任務！精靈花園獲得 ${result.amount} 滴水滴 💧`;
+}
+
 function getExerciseDailyGoalCombos(exercise) {
   if (exercise.scored) {
     return targetVolumes.map((volume) => ({
@@ -3454,10 +3487,13 @@ function markDailyGoalDone(goalId, comboId) {
   const tasks = getDailyGoalTasks();
   const nextState = getDailyGoalState();
   const nextProgress = getDailyGoalProgress(nextState, task);
+  const isNew = !previousProgress.done && nextProgress.done;
+  const taskRewardMessage = claimDailyGoalItemRewards(nextState, isNew ? [task.id] : []);
   const isAllDone = tasks.every((item) => getDailyGoalProgress(nextState, item).done);
   return {
-    isNew: !previousProgress.done && nextProgress.done,
+    isNew,
     isAllDone,
+    taskRewardMessage,
     streakResult,
     progress: {
       title: task.title,
@@ -3472,6 +3508,7 @@ function markIntervalDailyGoalsDone(keyName, intervalSize) {
   const state = getDailyGoalState();
   const comboId = `${keyName}-${intervalSize}`;
   const intervalTasks = getDailyGoalTasks().filter((task) => task.type === "interval");
+  const previousProgress = new Map(intervalTasks.map((task) => [task.id, getDailyGoalProgress(state, task)]));
   const completedCombos = new Set(getDailyGoalCompletedCombos(state, intervalTasks[0]));
   completedCombos.add(comboId);
   state[INTERVAL_DAILY_GOAL_STATE_KEY] = {
@@ -3493,7 +3530,11 @@ function markIntervalDailyGoalsDone(keyName, intervalSize) {
       done: taskProgress.done,
     };
   });
-  return { isAllDone, streakResult, progress };
+  const newlyCompletedTaskIds = intervalTasks
+    .filter((task) => !previousProgress.get(task.id)?.done && getDailyGoalProgress(nextState, task).done)
+    .map((task) => task.id);
+  const taskRewardMessage = claimDailyGoalItemRewards(nextState, newlyCompletedTaskIds);
+  return { isAllDone, streakResult, progress, taskRewardMessage };
 }
 
 function formatDailyGoalProgress(progress) {
@@ -5887,6 +5928,7 @@ function finishIntervalPractice() {
   const streakResult = goalResult.streakResult;
   const waterResult = awardGardenWaterForPractice(state.completedCycles);
   const bonusMessages = [
+    goalResult.taskRewardMessage,
     awardDailyTaskBonusIfNeeded(goalResult.isAllDone),
     ...awardStreakMilestoneBonusesIfNeeded(streakResult),
   ].filter(Boolean);
@@ -6187,6 +6229,7 @@ function stepPractice() {
       const goalResult = markDailyGoalDone(currentGoal.goalId, currentGoal.comboId);
       const waterResult = awardGardenWaterForPractice(totalCycles);
       const bonusMessages = [
+        goalResult.taskRewardMessage,
         awardDailyTaskBonusIfNeeded(goalResult.isAllDone),
         ...awardStreakMilestoneBonusesIfNeeded(goalResult.streakResult),
       ].filter(Boolean);
@@ -6403,7 +6446,7 @@ async function submitFeedbackForm(event) {
     try {
       const result = await window.chromaticaAuth?.invokeFunction?.("send-feedback", {
         category, description,
-        appVersion: "refresh-164 / Android 1.0.48 (49)",
+        appVersion: "refresh-165 / Android 1.0.49 (50)",
         platform: isNativeAndroidApp() ? "android" : "web",
         currentView, requestId,
       });
@@ -7048,6 +7091,9 @@ window.chromaticaApp = {
   },
   getDailyLoginDiagnostics() {
     return dailyLoginBonusController.getDiagnostics();
+  },
+  getDailyGoalRewardDiagnostics() {
+    return dailyGoalRewardController.getDiagnostics();
   },
   getAuthenticatedStartupImageUrls() {
     const heroImage = document.getElementById("heroGardenPlant");
