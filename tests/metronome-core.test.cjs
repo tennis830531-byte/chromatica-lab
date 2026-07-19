@@ -15,6 +15,14 @@ test("defaults normalize to 80 BPM and 4/4", () => {
   assert.equal(core.getSubdivisionCount("quarter"), 1);
 });
 test("BPM clamps at 30 and 240", () => { assert.equal(core.normalizeBpm(1), 30); assert.equal(core.normalizeBpm(999), 240); });
+test("empty BPM input restores 80", () => { assert.deepEqual({ ...core.parseMetronomeBpmInput("", 80) }, { bpm: 80, valid: false, restored: true }); });
+test("whitespace BPM input restores 96", () => { assert.deepEqual({ ...core.parseMetronomeBpmInput("   ", 96) }, { bpm: 96, valid: false, restored: true }); });
+test("NaN BPM input restores the previous value", () => { assert.deepEqual({ ...core.parseMetronomeBpmInput(Number.NaN, 104) }, { bpm: 104, valid: false, restored: true }); });
+test("invalid text BPM input restores the previous value", () => { assert.deepEqual({ ...core.parseMetronomeBpmInput("not-a-tempo", 112) }, { bpm: 112, valid: false, restored: true }); });
+test("incomplete BPM input restores the previous value", () => { assert.deepEqual({ ...core.parseMetronomeBpmInput("-", 88) }, { bpm: 88, valid: false, restored: true }); });
+test("valid BPM below range clamps to 30", () => { assert.deepEqual({ ...core.parseMetronomeBpmInput("20", 80) }, { bpm: 30, valid: true, restored: false }); });
+test("valid BPM above range clamps to 240", () => { assert.deepEqual({ ...core.parseMetronomeBpmInput("260", 80) }, { bpm: 240, valid: true, restored: false }); });
+test("valid BPM input becomes canonical", () => { assert.deepEqual({ ...core.parseMetronomeBpmInput("120", 80) }, { bpm: 120, valid: true, restored: false }); });
 test("BPM delta math supports one and five", () => { assert.equal(core.normalizeBpm(80 - 5), 75); assert.equal(core.normalizeBpm(80 + 1), 81); });
 test("tap tempo needs two taps", () => { const one = core.registerTap(core.createTapTempoState(), 1000); assert.equal(one.bpm, null); assert.equal(core.registerTap(one, 1750).bpm, 80); });
 test("tap tempo resets after timeout", () => { const one = core.registerTap(core.createTapTempoState(), 1000); const reset = core.registerTap(one, 4000); assert.equal(reset.bpm, null); assert.equal(reset.intervals.length, 0); });

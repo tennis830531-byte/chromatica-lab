@@ -18,6 +18,15 @@
     return Number.isFinite(parsed) ? Math.round(clamp(parsed, MIN_BPM, MAX_BPM)) : normalizeBpm(fallback, 80);
   }
 
+  function parseMetronomeBpmInput(rawValue, previousBpm = 80) {
+    const previous = normalizeBpm(previousBpm);
+    const text = String(rawValue ?? "").trim();
+    if (!text) return { bpm: previous, valid: false, restored: true };
+    const numeric = Number(text);
+    if (!Number.isFinite(numeric)) return { bpm: previous, valid: false, restored: true };
+    return { bpm: normalizeBpm(numeric, previous), valid: true, restored: false };
+  }
+
   function normalizeTimeSignature(signature = {}) {
     const numerator = Math.round(clamp(Number(signature.numerator) || 4, 1, 12));
     const denominator = DENOMINATORS.includes(Number(signature.denominator)) ? Number(signature.denominator) : 4;
@@ -204,7 +213,7 @@
 
   global.ChromaticaMetronomeCore = Object.freeze({
     MIN_BPM, MAX_BPM, TAP_RESET_MS, SUBDIVISIONS, DENOMINATORS, ACCENT_STATES,
-    normalizeBpm, normalizeTimeSignature, getSubdivisionCount, getTempoTerm,
+    normalizeBpm, parseMetronomeBpmInput, normalizeTimeSignature, getSubdivisionCount, getTempoTerm,
     normalizeAccentPattern, cycleAccent, createTapTempoState, registerTap,
     getSwingRatio, getStepDurationSeconds, createSchedulerState,
     applyPendingSignatureAtBar, advanceSchedulerState, getTrainerBpm,

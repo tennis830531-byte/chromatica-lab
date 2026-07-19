@@ -53,11 +53,25 @@
   function getCurrentBpm() { return core.getTrainerBpm(settings, schedulerState?.formalMeasures || 0, settings.bpm); }
   function setBpm(value, { announceChange = true } = {}) {
     const previous = settings.bpm;
-    settings.bpm = core.normalizeBpm(value, previous);
+    const next = core.normalizeBpm(value, previous);
+    if (next === previous) {
+      render();
+      return false;
+    }
+    settings.bpm = next;
     if (settings.tempoTrainer.enabled && !playing) settings.tempoTrainer.startBpm = settings.bpm;
     saveSettings(); render();
     if (playing) rescheduleFromNow();
     if (announceChange) announce(`速度已設為 ${settings.bpm} BPM`);
+    return true;
+  }
+  function commitBpmInput(rawValue, { announceChange = true } = {}) {
+    const parsed = core.parseMetronomeBpmInput(rawValue, settings.bpm);
+    if (!parsed.valid) {
+      render();
+      return false;
+    }
+    return setBpm(parsed.bpm, { announceChange });
   }
   function setSignature(signature, custom = false) {
     const next = core.normalizeTimeSignature(signature);
@@ -201,7 +215,20 @@
   function bind() {
     $("#metronomeToggle")?.addEventListener("click", () => playing ? stop() : start());
     $("#metronomeBpmRange")?.addEventListener("input", (event) => setBpm(event.target.value, { announceChange: false }));
-    $("#metronomeBpmInput")?.addEventListener("change", (event) => setBpm(event.target.value));
+    const bpmInput = $("#metronomeBpmInput");
+    bpmInput?.addEventListener("change", (event) => commitBpmInput(event.target.value));
+    bpmInput?.addEventListener("blur", (event) => commitBpmInput(event.target.value));
+    bpmInput?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commitBpmInput(event.currentTarget.value);
+        event.currentTarget.blur();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        render();
+        event.currentTarget.blur();
+      }
+    });
     $$('[data-bpm-delta]').forEach((button) => button.addEventListener("click", () => setBpm(settings.bpm + Number(button.dataset.bpmDelta))));
     $("#metronomeTap")?.addEventListener("click", () => { tapState = core.registerTap(tapState, performance.now()); $("#metronomeTapResult").textContent = tapState.bpm ? `${tapState.bpm} BPM` : "再點一下"; if (tapState.bpm) setBpm(tapState.bpm, { announceChange: false }); });
     $$('[data-time-signature]').forEach((button) => button.addEventListener("click", () => { if (button.dataset.timeSignature === "custom") { settings.customSignature = true; saveSettings(); render(); return; } const [numerator, denominator] = button.dataset.timeSignature.split("/").map(Number); setSignature({ numerator, denominator }); }));
