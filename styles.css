@@ -3264,11 +3264,11 @@ input[type="range"] {
 
 .daily-goal-copy .daily-goal-bonus-note span {
   display: block;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .daily-goal-copy .daily-goal-bonus-note {
-  font-size: 8px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
