@@ -991,8 +991,26 @@ body.simple-motion .hero-plant-action {
 }
 
 .metronome-quick-icon { object-fit: contain; }
-.metronome-page { display: grid; gap: 16px; padding-bottom: 24px; }
+.metronome-page { display: grid; gap: 16px; width: 100%; max-width: 100%; min-width: 0; padding-bottom: 24px; }
+.metronome-page > *,
+.metronome-stage,
+.metronome-controls {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
 .metronome-stage, .metronome-controls { padding: 20px; }
+.metronome-controls > *,
+.metronome-status-row > *,
+.metronome-bpm-controls > *,
+.metronome-choice-grid > *,
+.metronome-inline > *,
+.metronome-trainer-grid > *,
+.metronome-preset-list > *,
+.metronome-preset-list button {
+  min-width: 0;
+  max-width: 100%;
+}
 .metronome-stage { text-align: center; overflow: hidden; background: linear-gradient(155deg, #fffaf0, #f6e4c7); }
 .metronome-readout { display: grid; justify-items: center; color: #5f351e; }
 .metronome-readout strong { font: 900 72px/0.95 var(--font-sans); letter-spacing: -4px; }
@@ -1004,7 +1022,7 @@ body.simple-motion .hero-plant-action {
 .metronome-pendulum::before { content: ""; position: absolute; inset: 0; border-radius: 999px; background: linear-gradient(#c8933f, #744121); box-shadow: 0 0 0 2px #fff3d4; }
 .metronome-pendulum i { position: absolute; top: 22px; left: -8px; z-index: 1; width: 24px; height: 18px; border-radius: 5px; background: #f1c46f; border: 2px solid #754321; }
 .metronome-subdivision-pulse { position: absolute; left: 50%; bottom: 0; translate: -50%; color: #a8622b; font-size: 24px; }
-.metronome-status-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-family: var(--font-sans); }
+.metronome-status-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; font-family: var(--font-sans); }
 .metronome-status-row span { padding: 9px 4px; border: 1px solid #dfc39b; border-radius: 14px; background: rgba(255,255,255,.55); }
 .metronome-beat-dots { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
 .metronome-beat-dots span { width: 12px; height: 12px; border-radius: 50%; background: #d6b98c; transition: transform 80ms, background 80ms; }
@@ -1012,32 +1030,36 @@ body.simple-motion .hero-plant-action {
 .metronome-toggle { width: min(100%, 320px); min-height: 62px; font-size: 24px; }
 .metronome-controls h3 { margin: 0 0 14px; color: #5a3422; }
 .metronome-controls input[type="range"] { width: 100%; accent-color: #a86a31; }
-.metronome-bpm-controls { display: grid; grid-template-columns: repeat(2, minmax(48px,1fr)) minmax(76px,1.3fr) repeat(2,minmax(48px,1fr)); gap: 7px; margin-top: 10px; }
+.metronome-bpm-controls { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)) minmax(0,1.3fr) repeat(2,minmax(0,1fr)); gap: 7px; margin-top: 10px; }
 .metronome-bpm-controls button, .metronome-bpm-controls input, .metronome-choice-grid button, .metronome-inline button, .metronome-controls select, .metronome-controls input[type="number"], .metronome-tap-row button, #metronomeSavePreset { min-height: 44px; border: 1px solid #d8bc96; border-radius: 13px; background: #fffaf1; color: #693e25; font: 800 15px/1 var(--font-sans); }
 .metronome-bpm-controls input { min-width: 0; text-align: center; }
 .metronome-tap-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
 .metronome-tap-row button { flex: 1; background: #875126; color: white; }
 .metronome-tap-row span { flex: 1; color: #8b715f; }
-.metronome-choice-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+.metronome-choice-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
 .metronome-choice-grid button.active { background: #ad7137; color: white; border-color: #8c5527; }
-.subdivision-grid { grid-template-columns: repeat(2,1fr); margin-top: 16px; }
+.subdivision-grid { grid-template-columns: repeat(2,minmax(0,1fr)); margin-top: 16px; }
 .count-in-grid { margin-top: 14px; }
 .metronome-inline { display: flex; align-items: end; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
 .metronome-inline label, .metronome-trainer-grid label, .metronome-controls > label { display: grid; gap: 6px; flex: 1; color: #765746; font: 700 13px/1.3 var(--font-sans); }
 .metronome-range-row { display: grid; gap: 8px; margin-top: 16px; }
 .metronome-range-row.is-disabled { opacity: .45; }
-.metronome-accents { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
-.metronome-accents button { flex: 0 0 64px; min-height: 70px; border: 1px solid #d7bc97; border-radius: 50%; background: #fff9ee; color: #65402b; }
+.metronome-accents { display: grid; grid-template-columns: repeat(var(--metronome-accent-columns, 4), minmax(0, 1fr)); gap: 8px; width: 100%; max-width: 100%; min-width: 0; }
+.metronome-accents button { width: 100%; max-width: 100%; min-width: 0; min-height: 64px; padding: 8px 2px; border: 1px solid #d7bc97; border-radius: 16px; background: #fff9ee; color: #65402b; overflow-wrap: anywhere; }
 .metronome-accents button[data-state="strong"] { background: #a96c34; color: white; }
 .metronome-accents button[data-state="muted"] { opacity: .5; text-decoration: line-through; }
 .metronome-accents b, .metronome-accents span { display: block; }
-.metronome-trainer-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin: 12px 0; }
+.metronome-trainer-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin: 12px 0; }
 .metronome-toggle-row { display: flex !important; grid-template-columns: 1fr auto; align-items: center; }
 .metronome-preset-list { display: grid; gap: 8px; padding: 0; list-style: none; }
-.metronome-preset-list li { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; }
+.metronome-preset-list li { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,auto) minmax(0,auto); gap: 6px; align-items: center; }
 .metronome-preset-list button { min-height: 42px; border: 1px solid #dec7a7; border-radius: 12px; background: #fffaf3; color: #694128; }
 .metronome-preset-list button:first-child { display: grid; text-align: left; padding: 8px 12px; }
 .metronome-preset-list span { font-size: 11px; color: #907769; }
+.metronome-preset-list strong,
+.metronome-preset-list span,
+.metronome-controls label,
+.metronome-controls button { overflow-wrap: anywhere; }
 .sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
 @media (prefers-reduced-motion: reduce) {

@@ -174,7 +174,9 @@
   }
   function renderAccents() {
     const labels = { strong: "強", normal: "普通", muted: "靜音" };
-    $("#metronomeAccents").innerHTML = settings.accents.map((state, index) => `<button type="button" data-accent-index="${index}" data-state="${state}" aria-label="第 ${index + 1} 拍，${labels[state]}" aria-pressed="${state === "strong"}"><b>${index + 1}</b><span>${labels[state]}</span></button>`).join("");
+    const accents = $("#metronomeAccents");
+    accents.style.setProperty("--metronome-accent-columns", String(Math.min(4, Math.max(1, settings.accents.length))));
+    accents.innerHTML = settings.accents.map((state, index) => `<button type="button" data-accent-index="${index}" data-state="${state}" aria-label="第 ${index + 1} 拍，${labels[state]}" aria-pressed="${state === "strong"}"><b>${index + 1}</b><span>${labels[state]}</span></button>`).join("");
   }
   function renderPresets() {
     const list = $("#metronomePresetList"); if (!list) return;
