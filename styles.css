@@ -3241,7 +3241,7 @@ input[type="range"] {
   position: relative;
   display: block;
   align-items: center;
-  padding-right: clamp(82px, 20vw, 116px);
+  padding-right: clamp(98px, 24vw, 126px);
 }
 
 .section-kicker {
@@ -3267,7 +3267,7 @@ input[type="range"] {
 }
 
 .daily-goal-copy .daily-goal-bonus-note {
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.45;
 }
 
@@ -3283,7 +3283,7 @@ input[type="range"] {
   position: absolute;
   top: 50%;
   right: 0;
-  width: clamp(72px, 18vw, 104px);
+  width: clamp(88px, 22vw, 116px);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -5879,7 +5879,7 @@ body.simple-motion .plant-action-layer.is-stage-up {
   }
 
   .daily-goal-sticky {
-    width: 76px;
+    width: 92px;
     justify-content: flex-end;
     margin-top: 0;
   }
