@@ -71,6 +71,7 @@ test("practice rewards and daily-goal progress open in a separate completion dia
 });
 
 test("daily goal reward note is a fixed two-line message", () => {
+  assert.match(css, /#dailyGoalSummary\s*\{\s*font-weight: 900;/);
   assert.match(html, /class="daily-goal-bonus-note">\s*<span>每完成一項任務獲得 5 💧<\/span>\s*<span>全部完成再加 20 💧！<\/span>/);
   assert.doesNotMatch(html, /獲得 5 💧，全部完成/);
   assert.match(css, /\.daily-goal-copy \.daily-goal-bonus-note span\s*\{\s*display: block;\s*font-size: 12px;/);

@@ -3244,6 +3244,10 @@ input[type="range"] {
   padding-right: clamp(98px, 24vw, 126px);
 }
 
+#dailyGoalSummary {
+  font-weight: 900;
+}
+
 .section-kicker {
   color: var(--primary);
   font-size: 12px;
