@@ -16,5 +16,17 @@
     return snapshot?.remaining?.[0] || null;
   }
 
-  return { buildSnapshot, getNext };
+  function hasActiveTask(active, currentTaskId) {
+    return Boolean(active && currentTaskId);
+  }
+
+  function resetSession() {
+    return { active: false, currentTaskId: "", justCompletedTitle: "" };
+  }
+
+  function getCompletionMode(active, currentTaskId) {
+    return hasActiveTask(active, currentTaskId) ? "quick-practice" : "formal-practice";
+  }
+
+  return { buildSnapshot, getNext, hasActiveTask, resetSession, getCompletionMode };
 }));

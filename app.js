@@ -154,6 +154,20 @@ let pendingPracticeReminderNavigation = false;
 let quickPracticeActive = false;
 let quickPracticeCurrentTaskId = "";
 let quickPracticeJustCompletedTitle = "";
+
+function hasActiveQuickPracticeTask() {
+  return window.ChromaticaQuickPracticeCore.hasActiveTask(
+    quickPracticeActive,
+    quickPracticeCurrentTaskId,
+  );
+}
+
+function resetQuickPracticeSession() {
+  const reset = window.ChromaticaQuickPracticeCore.resetSession();
+  quickPracticeActive = reset.active;
+  quickPracticeCurrentTaskId = reset.currentTaskId;
+  quickPracticeJustCompletedTitle = reset.justCompletedTitle;
+}
 let microphoneSettingRequestBusy = false;
 let microphoneLastErrorMessage = "";
 const dailyLoginBonusController = window.ChromaticaDailyLoginBonusCore.createController({
@@ -2925,7 +2939,7 @@ function claimDailyGoalItemRewards(state, newlyCompletedTaskIds) {
     rewardedTaskIds: state[DAILY_GOAL_REWARDED_TASKS_KEY],
     waterBefore: getWaterDrops(),
     amountPerTask: DAILY_GOAL_ITEM_WATER_BONUS,
-    source: quickPracticeActive ? "quick-practice" : "formal-practice",
+    source: hasActiveQuickPracticeTask() ? "quick-practice" : "formal-practice",
     commit({ rewardedTaskIds, waterAfter }) {
       state[DAILY_GOAL_REWARDED_TASKS_KEY] = rewardedTaskIds;
       setDailyGoalState(state);
@@ -3127,8 +3141,8 @@ function startNextQuickPracticeTask() {
   launchQuickPracticeTask(window.ChromaticaQuickPracticeCore.getNext(getQuickPracticeSnapshot()));
 }
 
-function handleQuickPracticeCompletion(taskTitle) {
-  if (!quickPracticeActive || !quickPracticeCurrentTaskId) {
+function handleQuickPracticeCompletion(taskTitle, completedFromQuickPractice = hasActiveQuickPracticeTask()) {
+  if (!completedFromQuickPractice) {
     [$("#longToneQuickNextBtn"), $("#intervalQuickNextBtn")].forEach((button) => button?.classList.add("hidden"));
     return false;
   }
@@ -5682,8 +5696,8 @@ function createIntervalStaffSvg(groups, keyName, activeGroupIndex = -1, activeNo
     return `${notes}<line x1="${barX}" y1="70" x2="${barX}" y2="118" class="bar-line" />`;
   }).join("");
   return `
-    <svg viewBox="0 0 640 140" role="img" aria-labelledby="intervalStaffSvgTitle" xmlns="http://www.w3.org/2000/svg">
-      <title id="intervalStaffSvgTitle">${INTERVAL_KEYS[keyName].label}音程練習五線譜</title>
+    <svg viewBox="0 0 640 140" role="img" aria-label="${INTERVAL_KEYS[keyName].label}音程練習五線譜" xmlns="http://www.w3.org/2000/svg">
+      <title>${INTERVAL_KEYS[keyName].label}音程練習五線譜</title>
       <style>
         .staff-line,.bar-line,.ledger-line,.note-stem{stroke:#6f4b32;stroke-width:1.5}.bar-line{stroke-width:1.8}.ledger-line{stroke-width:1.4}.staff-note{fill:#543822;stroke:#543822;stroke-width:1.5;transition:fill .16s ease,stroke .16s ease,filter .16s ease}.staff-note.half-note{fill:#fffdf7;stroke-width:2}.staff-note.active-note{fill:#d34f45;stroke:#d34f45;filter:drop-shadow(0 0 5px rgba(211,79,69,.88))}.staff-note.half-note.active-note{fill:#fffdf7;stroke:#d34f45;stroke-width:2.6}.note-stem.active-note{stroke:#d34f45;stroke-width:2.4;filter:drop-shadow(0 0 3px rgba(211,79,69,.68))}.key-signature{fill:#543822;font:700 25px Georgia,serif}.treble-clef{fill:#543822;font:62px Georgia,serif}
       </style>
@@ -5741,70 +5755,40 @@ function renderIntervalNumberHelp(groups, startIndex, activeGroupIndex = -1, act
   }).join("");
 }
 
-function clampIntervalPage(page, totalPages) {
-  return Math.max(0, Math.min(Math.max(1, totalPages) - 1, Math.floor(Number(page) || 0)));
-}
-
-function changeIntervalScorePage(delta) {
-  const state = intervalPracticeState;
-  if (!state) return;
-  const totalPages = Math.ceil(state.groups.length / INTERVAL_GROUPS_PER_PAGE);
-  state.page = clampIntervalPage(state.page + delta, totalPages);
-  renderIntervalPractice();
-}
-
 function renderIntervalPractice() {
   if (!intervalPracticeState) return;
   const state = intervalPracticeState;
-  const activePage = Math.min(
-    Math.ceil(state.groups.length / INTERVAL_GROUPS_PER_PAGE) - 1,
-    Math.floor(state.groupIndex / INTERVAL_GROUPS_PER_PAGE),
-  );
-  if (state.lastActivePage !== activePage) {
-    state.page = activePage;
-    state.lastActivePage = activePage;
-  }
   const key = INTERVAL_KEYS[state.key];
   const intervalLabel = INTERVAL_LABELS[state.interval];
   const directionLabel = INTERVAL_DIRECTION_LABELS[state.direction];
-  const totalPages = Math.ceil(state.groups.length / INTERVAL_GROUPS_PER_PAGE);
-  const pageStart = state.page * INTERVAL_GROUPS_PER_PAGE;
-  const pageGroups = state.groups.slice(pageStart, pageStart + INTERVAL_GROUPS_PER_PAGE);
+  const firstLineGroups = state.groups.slice(0, INTERVAL_GROUPS_PER_PAGE);
+  const secondLineGroups = state.groups.slice(INTERVAL_GROUPS_PER_PAGE, INTERVAL_GROUPS_PER_PAGE * 2);
   const activeNoteIndex = state.phase === "play" ? state.activeNoteIndex : -1;
-  const activeGroupOnPage = state.groupIndex - pageStart;
   $("#intervalPracticeTitle").textContent = `${key.label}｜${directionLabel}${intervalLabel}`;
   $("#intervalScoreLabel").textContent = `${key.label} · ${directionLabel}${intervalLabel}`;
-  $("#intervalPageStatus").textContent = `第 ${state.groupIndex + 1} / ${state.groups.length} 組 · 第 ${state.page + 1} / ${totalPages} 頁`;
-  $("#intervalPrevPageBtn").disabled = state.page <= 0;
-  $("#intervalNextPageBtn").disabled = state.page >= totalPages - 1;
+  $("#intervalPageStatus").textContent = `第 ${state.groupIndex + 1} / ${state.groups.length} 組`;
   $("#intervalCycleProgress").textContent = `${state.completedCycles} / ${state.totalCycles}`;
   $("#intervalBpmStatus").textContent = state.bpm;
   $("#intervalMetronomeHelp").textContent = state.direction === "continuousBoth"
     ? "4 拍預備 · 連續上下行 · 每段末音二分音符"
     : "4 拍預備 · 4/4 拍 · 兩個四分音符＋一個二分音符";
   $("#intervalStaff").innerHTML = createIntervalStaffSvg(
-    pageGroups,
+    firstLineGroups,
     state.key,
-    activeGroupOnPage,
+    state.groupIndex < INTERVAL_GROUPS_PER_PAGE ? state.groupIndex : -1,
     activeNoteIndex,
   );
-  $("#intervalStaff").setAttribute("aria-label", `${key.label}${directionLabel}${intervalLabel}，${pageGroups.map((group) => group.label).join("；")}`);
-  $("#intervalNoteHelp").innerHTML = renderIntervalNumberHelp(pageGroups, pageStart, state.groupIndex, activeNoteIndex);
-
-  const nextPageStart = pageStart + INTERVAL_GROUPS_PER_PAGE;
-  const wrapsToNextCycle = nextPageStart >= state.groups.length && state.completedCycles + 1 < state.totalCycles;
-  const previewStart = wrapsToNextCycle ? 0 : nextPageStart;
-  const previewGroups = previewStart < state.groups.length
-    ? state.groups.slice(previewStart, previewStart + INTERVAL_GROUPS_PER_PAGE)
-    : [];
-  const preview = $("#intervalNextPreview");
-  preview.classList.toggle("hidden", !previewGroups.length);
-  if (previewGroups.length) {
-    $("#intervalNextPreviewTitle").textContent = wrapsToNextCycle ? "下一輪第 1 頁預覽" : `第 ${state.page + 2} 頁預覽`;
-    $("#intervalNextStaff").innerHTML = createIntervalStaffSvg(previewGroups, state.key);
-    $("#intervalNextStaff").setAttribute("aria-label", `下一段：${previewGroups.map((group) => group.label).join("；")}`);
-    $("#intervalNextNoteHelp").innerHTML = renderIntervalNumberHelp(previewGroups, previewStart);
-  }
+  $("#intervalStaff").setAttribute("aria-label", `${key.label}${directionLabel}${intervalLabel}第一行，${firstLineGroups.map((group) => group.label).join("；")}`);
+  $("#intervalNoteHelp").innerHTML = renderIntervalNumberHelp(firstLineGroups, 0, state.groupIndex, activeNoteIndex);
+  $("#intervalScoreSecondLine").classList.toggle("hidden", !secondLineGroups.length);
+  $("#intervalStaffSecond").innerHTML = createIntervalStaffSvg(
+    secondLineGroups,
+    state.key,
+    state.groupIndex >= INTERVAL_GROUPS_PER_PAGE ? state.groupIndex - INTERVAL_GROUPS_PER_PAGE : -1,
+    activeNoteIndex,
+  );
+  $("#intervalStaffSecond").setAttribute("aria-label", `${key.label}${directionLabel}${intervalLabel}第二行，${secondLineGroups.map((group) => group.label).join("；")}`);
+  $("#intervalNoteHelpSecond").innerHTML = renderIntervalNumberHelp(secondLineGroups, INTERVAL_GROUPS_PER_PAGE, state.groupIndex, activeNoteIndex);
 }
 
 function updateIntervalMetronomeUi() {
@@ -5918,8 +5902,6 @@ function beginIntervalPractice() {
   intervalPracticeState = {
     ...selection,
     groups: generateIntervalGroups(selection.key, selection.interval, selection.direction),
-    page: 0,
-    lastActivePage: 0,
     groupIndex: 0,
     completedCycles: 0,
     hasStarted: false,
@@ -5939,8 +5921,6 @@ function beginIntervalPractice() {
 function resetIntervalPractice() {
   if (!intervalPracticeState) return;
   stopIntervalMetronome();
-  intervalPracticeState.page = 0;
-  intervalPracticeState.lastActivePage = 0;
   intervalPracticeState.groupIndex = 0;
   intervalPracticeState.completedCycles = 0;
   intervalPracticeState.hasStarted = false;
@@ -5963,6 +5943,7 @@ function saveIntervalPracticeRecord(record) {
 function finishIntervalPractice() {
   const state = intervalPracticeState;
   if (!state) return;
+  const completedFromQuickPractice = hasActiveQuickPracticeTask();
   stopIntervalMetronome();
   const goalResult = markIntervalDailyGoalsDone(state.key, state.interval);
   const streakResult = goalResult.streakResult;
@@ -5994,10 +5975,8 @@ function finishIntervalPractice() {
   $("#intervalCompleteCycles").textContent = `${state.completedCycles} / ${state.totalCycles}`;
   playSound("practiceComplete");
   scrollToSection("intervalComplete");
-  if (!quickPracticeActive) {
-    showPracticeCompletionRewardDialog("音程練習", waterResult, goalResult, bonusMessages);
-  }
-  handleQuickPracticeCompletion("音程練習");
+  showPracticeCompletionRewardDialog("音程練習", waterResult, goalResult, bonusMessages);
+  handleQuickPracticeCompletion("音程練習", completedFromQuickPractice);
 }
 
 function setLongToneCompletionVisible(visible) {
@@ -6013,16 +5992,15 @@ function getLongToneCompletionSetting(exercise) {
 }
 
 function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessages }) {
+  const completedFromQuickPractice = hasActiveQuickPracticeTask();
   $("#longToneCompleteExercise").textContent = exercise.title;
   $("#longToneCompleteSetting").textContent = getLongToneCompletionSetting(exercise);
   $("#longToneCompleteCycles").textContent = `${totalCycles} / ${totalCycles}`;
   setLongToneCompletionVisible(true);
   playSound("practiceComplete");
   scrollToSection("longToneComplete");
-  if (!quickPracticeActive) {
-    showPracticeCompletionRewardDialog(exercise.title, waterResult, goalResult, bonusMessages);
-  }
-  handleQuickPracticeCompletion(exercise.title);
+  showPracticeCompletionRewardDialog(exercise.title, waterResult, goalResult, bonusMessages);
+  handleQuickPracticeCompletion(exercise.title, completedFromQuickPractice);
 }
 
 function returnToLongTonePractice() {
@@ -6474,7 +6452,7 @@ async function submitFeedbackForm(event) {
     try {
       const result = await window.chromaticaAuth?.invokeFunction?.("send-feedback", {
         category, description,
-        appVersion: "refresh-166 / Android 1.0.50 (51)",
+        appVersion: "refresh-167 / Android 1.0.51 (52)",
         platform: isNativeAndroidApp() ? "android" : "web",
         currentView, requestId,
       });
@@ -6500,6 +6478,7 @@ function bindEvents() {
     if (button.id === "headerSettingsBtn") return;
     button.addEventListener("click", () => {
       if (button.dataset.view === "tuner" && !requireMicrophoneEnabled()) return;
+      resetQuickPracticeSession();
       setView(button.dataset.view, {
         activeTarget: button.dataset.navTarget || "",
         scrollTarget: button.dataset.scrollTarget || "",
@@ -6515,6 +6494,7 @@ function bindEvents() {
       });
       return;
     }
+    resetQuickPracticeSession();
     setView("audio");
   });
   $("#appExitBtn")?.addEventListener("click", () => setAppExitModalOpen(true));
@@ -6530,30 +6510,39 @@ function bindEvents() {
     setView("quickpractice");
   });
   $("#quickPracticeBackBtn")?.addEventListener("click", () => {
-    quickPracticeActive = false;
-    quickPracticeCurrentTaskId = "";
-    quickPracticeJustCompletedTitle = "";
+    resetQuickPracticeSession();
     setView("practicehub");
   });
   $("#quickPracticePrimaryBtn")?.addEventListener("click", (event) => {
-    if (event.currentTarget.dataset.action === "daily") setView("daily");
+    if (event.currentTarget.dataset.action === "daily") {
+      resetQuickPracticeSession();
+      setView("daily");
+    }
     else startNextQuickPracticeTask();
   });
   $("#quickPracticeLaterBtn")?.addEventListener("click", () => {
-    quickPracticeActive = false;
-    quickPracticeJustCompletedTitle = "";
+    resetQuickPracticeSession();
     setView("practicehub");
   });
-  $("#quickPracticeResultsBtn")?.addEventListener("click", () => setView("daily"));
-  $("#quickPracticeHomeBtn")?.addEventListener("click", () => setView("intro"));
+  $("#quickPracticeResultsBtn")?.addEventListener("click", () => {
+    resetQuickPracticeSession();
+    setView("daily");
+  });
+  $("#quickPracticeHomeBtn")?.addEventListener("click", () => {
+    resetQuickPracticeSession();
+    setView("intro");
+  });
 
   $$("[data-jump]").forEach((button) => {
     button.addEventListener("click", () => {
       const view = button.dataset.jump;
-      const navigate = () => setView(view, {
-        activeTarget: button.dataset.scrollTarget || "",
-        scrollTarget: button.dataset.scrollTarget || "",
-      });
+      const navigate = () => {
+        resetQuickPracticeSession();
+        setView(view, {
+          activeTarget: button.dataset.scrollTarget || "",
+          scrollTarget: button.dataset.scrollTarget || "",
+        });
+      };
       if (button.dataset.startPracticeLaunch === "true") {
         launchStartPracticeButton(button, navigate);
         return;
@@ -6618,8 +6607,6 @@ function bindEvents() {
   $("#intervalStartPauseBtn")?.addEventListener("click", toggleIntervalPractice);
   $("#intervalRestartBtn")?.addEventListener("click", resetIntervalPractice);
   $("#intervalSettingsBtn")?.addEventListener("click", editIntervalPracticeSettings);
-  $("#intervalPrevPageBtn")?.addEventListener("click", () => changeIntervalScorePage(-1));
-  $("#intervalNextPageBtn")?.addEventListener("click", () => changeIntervalScorePage(1));
   $("#intervalAgainBtn")?.addEventListener("click", beginIntervalPractice);
   $("#intervalBackBtn")?.addEventListener("click", () => {
     showIntervalSetup();
@@ -6738,6 +6725,7 @@ function bindEvents() {
   $("#dailyGoalList").addEventListener("click", (event) => {
     const button = event.target.closest(".goal-chip");
     if (!button) return;
+    resetQuickPracticeSession();
     if (button.dataset.goalType === "interval") {
       setView("interval");
       showIntervalSetup();
