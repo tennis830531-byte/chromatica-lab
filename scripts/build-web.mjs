@@ -3,6 +3,7 @@ import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises
 import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
+import { assertLocalRuntimeScripts } from "./web-runtime-validation.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputRoot = path.join(projectRoot, "www");
@@ -13,6 +14,8 @@ const webSourceFiles = [
   "manifest.webmanifest",
   "supabase-config.js",
   "practice-reminders.js",
+  "daily-login-bonus.js",
+  "quick-practice.js",
   "auth-runtime.js",
 ];
 const assetReferencePattern = /\.\/public\/assets\/[^\s"'`()<>$]+/g;
@@ -127,4 +130,12 @@ for (const assetPath of [...requiredAssets].sort()) {
   await copyRelativeFile(assetPath);
 }
 
-console.log(`Built Capacitor web bundle with ${requiredAssets.size} runtime assets.`);
+const localRuntimeScripts = await assertLocalRuntimeScripts({
+  indexHtml: sourceContents.get("index.html"),
+  trackedSourceFiles,
+  outputRoot,
+});
+
+console.log(
+  `Built Capacitor web bundle with ${requiredAssets.size} runtime assets and ${localRuntimeScripts.length} verified local scripts.`,
+);
