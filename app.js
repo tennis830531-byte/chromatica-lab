@@ -138,6 +138,7 @@ const starterPlantDescriptions = {
 const PRACTICE_SETTINGS_KEY = "chromatica.settings.practice";
 const SOUND_SETTINGS_KEY = "chromatica.settings.sound";
 const DISPLAY_SETTINGS_KEY = "chromatica.settings.display";
+const MICROPHONE_ENABLED_KEY = "chromatica.settings.microphoneEnabled";
 const LOCAL_NOTIFICATION_PREFS_PREFIX = "chromatica.localNotificationPrefs.";
 const PRACTICE_REMINDER_CHANNEL_ID = "practice-reminders";
 const PRACTICE_REMINDER_NAMESPACE = "chromatica-practice-reminder";
@@ -148,14 +149,74 @@ let practiceReminderListenerRegistered = false;
 let practiceReminderUiMessage = "";
 let practiceReminderUiKind = "";
 let pendingPracticeReminderNavigation = false;
+let quickPracticeActive = false;
+let quickPracticeCurrentTaskId = "";
+let quickPracticeJustCompletedTitle = "";
+const dailyLoginBonusController = window.ChromaticaDailyLoginBonusCore.createController({
+  logger(entry) {
+    console.info("[daily-login-bonus]", entry);
+  },
+});
 
 function scheduleAccountSnapshotSave() {
   window.chromaticaAccountWorkspace?.scheduleSave?.();
 }
 
+function isMicrophoneEnabled() {
+  return localStorage.getItem(MICROPHONE_ENABLED_KEY) !== "false";
+}
+
+function saveMicrophoneEnabled(enabled) {
+  localStorage.setItem(MICROPHONE_ENABLED_KEY, String(Boolean(enabled)));
+}
+
 function isNativeAndroidApp() {
   const capacitor = window.Capacitor;
   return Boolean(capacitor?.isNativePlatform?.() && capacitor.getPlatform?.() === "android");
+}
+
+function renderAppExitControl() {
+  $("#appExitBtn")?.classList.toggle("hidden", !isNativeAndroidApp());
+}
+
+let appExitBusy = false;
+
+function setAppExitModalOpen(open) {
+  $("#appExitModal")?.classList.toggle("hidden", !open);
+  document.body.classList.toggle("modal-open", open);
+  if (open) $("#appExitStatus").textContent = "";
+}
+
+async function confirmAppExit() {
+  if (appExitBusy || !isNativeAndroidApp()) return;
+  const confirmButton = $("#appExitConfirmBtn");
+  const status = $("#appExitStatus");
+  appExitBusy = true;
+  confirmButton.disabled = true;
+  confirmButton.textContent = "保存中…";
+  try {
+    const saved = window.chromaticaAccountWorkspace?.flushSave?.();
+    if (saved !== true) throw new Error("local-save-failed");
+  } catch {
+    status.textContent = "無法保存目前資料，請稍後再試。";
+    appExitBusy = false;
+    confirmButton.disabled = false;
+    confirmButton.textContent = "確定退出";
+    return;
+  }
+  try {
+    await Promise.race([
+      Promise.resolve(window.chromaticaAccountWorkspace?.syncBestEffort?.()),
+      new Promise((resolve) => window.setTimeout(resolve, 1500)),
+    ]);
+  } catch {
+    // Local snapshot is authoritative while offline; cloud sync retries next launch.
+  }
+  const App = window.Capacitor?.Plugins?.App;
+  if (typeof App?.exitApp === "function") await App.exitApp();
+  appExitBusy = false;
+  confirmButton.disabled = false;
+  confirmButton.textContent = "確定退出";
 }
 
 function getLocalNotificationsPlugin() {
@@ -685,7 +746,7 @@ let settingsReturnView = "intro";
 let settingsReturnTarget = "";
 let settingsReturnScrollY = 0;
 let selectedHoles = 16;
-let selectedMapHole = null;
+let selectedMapHole = 1;
 let selectedExercise = 0;
 let bpm = exercises[0].bpm;
 let steadyDurationSeconds = DEFAULT_PRACTICE_SETTINGS.steadyDurationSeconds;
@@ -1804,10 +1865,32 @@ function claimDailyBonus(key, amount) {
 }
 
 function awardDailyLoginBonusIfNeeded() {
-  const added = claimDailyBonus(gardenStorageKeys.dailyLoginBonus, DAILY_LOGIN_WATER_BONUS);
-  if (!added) return null;
+  const userId = getActiveAccountId();
+  const date = getTodayKey();
+  if (!userId) return null;
+  const marker = getDailyBonusState(gardenStorageKeys.dailyLoginBonus);
+  const result = dailyLoginBonusController.claim({
+    userId,
+    date,
+    markerDate: marker.lastClaimedDate || "",
+    waterBefore: getWaterDrops(),
+    amount: DAILY_LOGIN_WATER_BONUS,
+    reason: "authenticated-ready",
+    commit({ date: claimedDate, waterAfter }) {
+      localStorage.setItem(gardenStorageKeys.waterDrops, String(waterAfter));
+      localStorage.setItem(gardenStorageKeys.dailyLoginBonus, JSON.stringify({ lastClaimedDate: claimedDate }));
+    },
+    flush() {
+      const saved = window.chromaticaAccountWorkspace?.flushSave?.();
+      if (saved !== true) throw new Error("daily-login-local-save-failed");
+    },
+    sync() {
+      return window.chromaticaAccountWorkspace?.syncBestEffort?.();
+    },
+  });
+  if (!result.granted) return null;
   renderGarden();
-  return `今日首次進入練習室！精靈花園獲得 ${added} 滴水滴 💧`;
+  return `今日首次進入練習室！精靈花園獲得 ${result.amount} 滴水滴 💧`;
 }
 
 function awardDailyTaskBonusIfNeeded(isAllDone) {
@@ -2917,6 +3000,107 @@ function getDailyGoalTasks() {
   return [...longToneTasks, ...intervalTasks];
 }
 
+function getQuickPracticeSnapshot() {
+  const state = getDailyGoalState();
+  return window.ChromaticaQuickPracticeCore.buildSnapshot(
+    getDailyGoalTasks(),
+    (task) => getDailyGoalProgress(state, task),
+  );
+}
+
+function getQuickPracticeTaskDetail(task, progress) {
+  if (task.type === "interval") return `不重複音程組合 ${progress.completedCount} / ${progress.required}`;
+  const combo = getNextDailyGoalCombo(task);
+  return `${combo?.label || "既有設定"} · ${progress.completedCount} / ${progress.required}`;
+}
+
+function renderQuickPractice() {
+  const snapshot = getQuickPracticeSnapshot();
+  const title = $("#quickPracticeStateTitle");
+  const text = $("#quickPracticeStateText");
+  const list = $("#quickPracticeTaskList");
+  const primary = $("#quickPracticePrimaryBtn");
+  const later = $("#quickPracticeLaterBtn");
+  const results = $("#quickPracticeResultsBtn");
+  const home = $("#quickPracticeHomeBtn");
+  $("#quickPracticeSummary").textContent = `已完成 ${snapshot.done}／${snapshot.total}，尚有 ${snapshot.remaining.length} 項`;
+  list.innerHTML = snapshot.remaining.map(({ task, progress }, index) => `
+    <li><span>${index + 1}</span><div><strong>${task.title}</strong><small>${getQuickPracticeTaskDetail(task, progress)}</small></div><em>尚未完成</em></li>
+  `).join("");
+  [later, results, home].forEach((button) => button.classList.add("hidden"));
+  primary.classList.remove("hidden");
+  if (!snapshot.total) {
+    title.textContent = "尚未設定每日目標。";
+    text.textContent = "請先前往每日目標設定。";
+    primary.textContent = "前往每日目標設定";
+    primary.dataset.action = "daily";
+    return;
+  }
+  if (!snapshot.remaining.length) {
+    title.textContent = "今日目標全部完成！";
+    text.textContent = `今天共完成 ${snapshot.total} 項每日目標。`;
+    list.innerHTML = "";
+    primary.classList.add("hidden");
+    results.classList.remove("hidden");
+    home.classList.remove("hidden");
+    quickPracticeCurrentTaskId = "";
+    return;
+  }
+  if (quickPracticeJustCompletedTitle) {
+    title.textContent = "本項完成！";
+    text.textContent = `已完成「${quickPracticeJustCompletedTitle}」。下一項：${snapshot.remaining[0].task.title}`;
+    primary.textContent = "繼續下一項";
+    later.classList.remove("hidden");
+  } else {
+    title.textContent = "今天的任務";
+    text.textContent = "準備好後，再由你開始第一項練習。";
+    primary.textContent = "開始第一項";
+  }
+  primary.dataset.action = "start";
+}
+
+function launchQuickPracticeTask(item) {
+  if (!item) return;
+  const { task } = item;
+  quickPracticeActive = true;
+  quickPracticeCurrentTaskId = task.id;
+  quickPracticeJustCompletedTitle = "";
+  if (task.type === "interval") {
+    setView("interval");
+    showIntervalSetup();
+    return;
+  }
+  if (task.type === "longtone") {
+    if (!requireMicrophoneEnabled()) return;
+    const combo = getNextDailyGoalCombo(task);
+    selectedExercise = task.exerciseIndex;
+    const exercise = exercises[selectedExercise];
+    if (exercise.scored && combo?.volume) selectedTargetVolume = combo.volume;
+    if (exercise.variants?.length && combo?.variantIndex !== null && combo?.variantIndex !== undefined) selectedVariants[exercise.id] = Number(combo.variantIndex);
+    setLongToneCompletionVisible(false);
+    stopPractice(false);
+    setView("longtone");
+    renderExercise();
+    resetMicStats();
+    updateBeatDisplay();
+    return;
+  }
+  $("#quickPracticeStateText").textContent = `任務類型「${task.type}」暫時無法從快速練習啟動，請由原入口完成。`;
+}
+
+function startNextQuickPracticeTask() {
+  launchQuickPracticeTask(window.ChromaticaQuickPracticeCore.getNext(getQuickPracticeSnapshot()));
+}
+
+function handleQuickPracticeCompletion(taskTitle) {
+  if (!quickPracticeActive || !quickPracticeCurrentTaskId) return false;
+  quickPracticeJustCompletedTitle = taskTitle;
+  quickPracticeCurrentTaskId = "";
+  renderQuickPractice();
+  setView("quickpractice");
+  return true;
+}
+
 function getCurrentDailyGoalCompletion() {
   const exercise = exercises[selectedExercise];
   if (exercise.scored) return { goalId: exercise.id, comboId: `volume-${selectedTargetVolume}` };
@@ -2940,34 +3124,38 @@ function makeLayout(holeCount) {
 
 function renderNoteMap() {
   const map = $("#noteMap");
+  const holes = $("#noteMapHoles");
   const harmonicaImage = $("#mapHarmonicaImage");
-  const startIndex = selectedHoles === 16 ? 0 : selectedHoles === 14 ? 2 : 4;
-  const layout = makeLayout(16).slice(startIndex);
+  const layout = makeLayout(selectedHoles);
+  if (!Number.isInteger(selectedMapHole) || selectedMapHole < 1 || selectedMapHole > layout.length) {
+    selectedMapHole = 1;
+  }
+  const note = layout[selectedMapHole - 1];
 
   if (harmonicaImage) {
     harmonicaImage.src = mapHarmonicaImages[selectedHoles] || mapHarmonicaImages[16];
     harmonicaImage.dataset.holes = String(selectedHoles);
   }
 
-  map.style.setProperty("--holes", selectedHoles);
-  map.innerHTML = layout
-    .map((note, index) => `
-      <article class="hole-card">
-        <strong>第 ${index + 1} 孔</strong>
-        <div><span>吹</span><b>${note.blow}</b></div>
-        <div><span>吸</span><b>${note.draw}</b></div>
-        <div><span>按鍵吹</span><b>${note.buttonBlow}</b></div>
-        <div><span>按鍵吸</span><b>${note.buttonDraw}</b></div>
-      </article>
-    `)
-    .join("");
+  holes.style.setProperty("--holes", selectedHoles);
+  holes.innerHTML = layout.map(({ hole }) => `
+    <button class="note-map-hole ${hole === selectedMapHole ? "active" : ""}" data-map-hole="${hole}"
+      type="button" aria-label="第 ${hole} 孔" aria-pressed="${hole === selectedMapHole}">${hole}</button>
+  `).join("");
+  map.innerHTML = `
+    <strong>第 ${selectedMapHole} 孔</strong>
+    <div><span>吹氣</span><b>${note.blow}</b></div>
+    <div><span>吸氣</span><b>${note.draw}</b></div>
+    <div><span>按鍵吹氣</span><b>${note.buttonBlow}</b></div>
+    <div><span>按鍵吸氣</span><b>${note.buttonDraw}</b></div>
+  `;
 }
 
 function activateViewButton(view, target = "") {
   $$("[data-view]").forEach((item) => {
     const itemTarget = item.dataset.navTarget || "";
     const isPracticeNav = item.dataset.view === "practicehub";
-    const matches = (item.dataset.view === view && itemTarget === target) || (isPracticeNav && ["longtone", "interval"].includes(view));
+    const matches = (item.dataset.view === view && itemTarget === target) || (isPracticeNav && ["longtone", "interval", "quickpractice"].includes(view));
     if (item.classList.contains("nav-item") || item.classList.contains("bottom-nav-item") || item.classList.contains("icon-btn")) {
       item.classList.toggle("active", matches);
     }
@@ -3006,6 +3194,53 @@ function setPracticeSettingsOpen(isOpen) {
 function updateAudioStatus(text) {
   const status = $("#audioMicStatus");
   if (status) status.textContent = text;
+}
+
+function renderMicrophoneSetting() {
+  const enabled = isMicrophoneEnabled();
+  const toggle = $("#microphoneEnabledToggle");
+  if (toggle) toggle.checked = enabled;
+  updateAudioStatus(enabled ? (micAnalyser ? "已開啟" : "已開啟，尚未授權") : "已關閉");
+}
+
+function stopMicrophoneResources() {
+  if (micFrame) cancelAnimationFrame(micFrame);
+  micFrame = null;
+  micStream?.getTracks?.().forEach((track) => track.stop());
+  micStream = null;
+  micAnalyser = null;
+  micData = null;
+  micFloatTimeData = null;
+  micFrequencyData = null;
+  micFloatFrequencyData = null;
+  resetPitchTracker();
+}
+
+function setMicDisabledModalOpen(open) {
+  $("#micDisabledModal")?.classList.toggle("hidden", !open);
+  document.body.classList.toggle("modal-open", open);
+}
+
+function setMicDisabledMessage(message = "請先在設定的收音設定中開啟麥克風。") {
+  const text = $("#micDisabledMessage");
+  if (text) text.textContent = message;
+}
+
+function openMicrophoneSetting() {
+  setMicDisabledModalOpen(false);
+  setView("audio");
+  requestAnimationFrame(() => {
+    const toggle = $("#microphoneEnabledToggle");
+    toggle?.closest("details")?.setAttribute("open", "");
+    toggle?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}
+
+function requireMicrophoneEnabled() {
+  if (isMicrophoneEnabled()) return true;
+  setMicDisabledMessage();
+  setMicDisabledModalOpen(true);
+  return false;
 }
 
 function modelRangeClass(hole) {
@@ -5072,6 +5307,10 @@ function updateMicMonitor() {
 }
 
 async function startMic() {
+  if (!isMicrophoneEnabled()) {
+    renderMicrophoneSetting();
+    return false;
+  }
   if (micAnalyser) return true;
   try {
     updateAudioStatus("開啟中");
@@ -5607,6 +5846,7 @@ function finishIntervalPractice() {
   $("#intervalCompleteNote").textContent = notes.join("\n");
   playSound("practiceComplete");
   scrollToSection("intervalComplete");
+  handleQuickPracticeCompletion("音程練習");
 }
 
 function setLongToneCompletionVisible(visible) {
@@ -5638,6 +5878,7 @@ function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessag
   setLongToneCompletionVisible(true);
   playSound("practiceComplete");
   scrollToSection("longToneComplete");
+  handleQuickPracticeCompletion(exercise.title);
 }
 
 function returnToLongTonePractice() {
@@ -5680,6 +5921,7 @@ function setView(view, options = {}) {
     renderGarden();
     if (!showStarterPlantSelectionIfNeeded()) checkGardenRainEvent();
   }
+  if (view === "quickpractice") renderQuickPractice();
   syncGardenBgmWithView();
   const headerSettingsButton = $("#headerSettingsBtn");
   if (headerSettingsButton) {
@@ -5892,6 +6134,7 @@ function stepPractice() {
 }
 
 function startPractice() {
+  if (!requireMicrophoneEnabled()) return;
   const exercise = exercises[selectedExercise];
   let shouldScrollAfterStart = false;
   setLongToneCompletionVisible(false);
@@ -5945,6 +6188,38 @@ function stopPractice(done = false) {
     resetMicStats();
   }
   updateBeatDisplay();
+}
+
+function cleanupPracticeForReturn(type) {
+  if (type === "interval") {
+    stopIntervalMetronome();
+    intervalPracticeState = null;
+    showIntervalSetup();
+  } else {
+    setPracticeSettingsOpen(false);
+    setLongToneCompletionVisible(false);
+    stopPractice(false);
+    stopMicrophoneResources();
+  }
+}
+
+let pendingPracticeExitType = "";
+
+function returnToPracticeHub(type) {
+  const running = type === "interval"
+    ? Boolean(intervalPracticeState?.hasStarted && $("#intervalComplete")?.classList.contains("hidden"))
+    : Boolean(timer || steadyProgressTimer || !["idle", "done"].includes(phase));
+  const completeVisible = type === "interval"
+    ? !$("#intervalComplete")?.classList.contains("hidden")
+    : !$("#longToneComplete")?.classList.contains("hidden");
+  if (running && !completeVisible) {
+    pendingPracticeExitType = type;
+    $("#practiceExitModal")?.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    return;
+  }
+  cleanupPracticeForReturn(type);
+  setView(quickPracticeActive ? "quickpractice" : "practicehub");
 }
 
 function pauseLongToneForAppBackground() {
@@ -6051,7 +6326,7 @@ async function submitFeedbackForm(event) {
     try {
       const result = await window.chromaticaAuth?.invokeFunction?.("send-feedback", {
         category, description,
-        appVersion: "refresh-162 / Android 1.0.46 (47)",
+        appVersion: "refresh-163 / Android 1.0.47 (48)",
         platform: isNativeAndroidApp() ? "android" : "web",
         currentView, requestId,
       });
@@ -6076,6 +6351,7 @@ function bindEvents() {
   $$("[data-view]").forEach((button) => {
     if (button.id === "headerSettingsBtn") return;
     button.addEventListener("click", () => {
+      if (button.dataset.view === "tuner" && !requireMicrophoneEnabled()) return;
       setView(button.dataset.view, {
         activeTarget: button.dataset.navTarget || "",
         scrollTarget: button.dataset.scrollTarget || "",
@@ -6093,6 +6369,35 @@ function bindEvents() {
     }
     setView("audio");
   });
+  $("#appExitBtn")?.addEventListener("click", () => setAppExitModalOpen(true));
+  $("#appExitCancelBtn")?.addEventListener("click", () => {
+    if (!appExitBusy) setAppExitModalOpen(false);
+  });
+  $("#appExitConfirmBtn")?.addEventListener("click", confirmAppExit);
+
+  $("#quickPracticeOpenBtn")?.addEventListener("click", () => {
+    quickPracticeActive = true;
+    quickPracticeCurrentTaskId = "";
+    quickPracticeJustCompletedTitle = "";
+    setView("quickpractice");
+  });
+  $("#quickPracticeBackBtn")?.addEventListener("click", () => {
+    quickPracticeActive = false;
+    quickPracticeCurrentTaskId = "";
+    quickPracticeJustCompletedTitle = "";
+    setView("practicehub");
+  });
+  $("#quickPracticePrimaryBtn")?.addEventListener("click", (event) => {
+    if (event.currentTarget.dataset.action === "daily") setView("daily");
+    else startNextQuickPracticeTask();
+  });
+  $("#quickPracticeLaterBtn")?.addEventListener("click", () => {
+    quickPracticeActive = false;
+    quickPracticeJustCompletedTitle = "";
+    setView("practicehub");
+  });
+  $("#quickPracticeResultsBtn")?.addEventListener("click", () => setView("daily"));
+  $("#quickPracticeHomeBtn")?.addEventListener("click", () => setView("intro"));
 
   $$("[data-jump]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -6120,7 +6425,43 @@ function bindEvents() {
   });
 
   $$("[data-longtone-intro]").forEach((button) => {
-    button.addEventListener("click", () => setLongToneIntroOpen(true));
+    button.addEventListener("click", () => {
+      if (requireMicrophoneEnabled()) setLongToneIntroOpen(true);
+    });
+  });
+
+  $$("[data-practice-back]").forEach((button) => {
+    button.addEventListener("click", () => returnToPracticeHub(button.dataset.practiceBack));
+  });
+  $("#practiceExitContinueBtn")?.addEventListener("click", () => {
+    pendingPracticeExitType = "";
+    $("#practiceExitModal")?.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+  });
+  $("#practiceExitConfirmBtn")?.addEventListener("click", () => {
+    const type = pendingPracticeExitType;
+    pendingPracticeExitType = "";
+    $("#practiceExitModal")?.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    cleanupPracticeForReturn(type);
+    setView(quickPracticeActive ? "quickpractice" : "practicehub");
+  });
+  $("#micDisabledBackBtn")?.addEventListener("click", () => setMicDisabledModalOpen(false));
+  $("#micDisabledSettingsBtn")?.addEventListener("click", openMicrophoneSetting);
+  $("#microphoneEnabledToggle")?.addEventListener("change", (event) => {
+    const enabled = event.target.checked;
+    saveMicrophoneEnabled(enabled);
+    if (!enabled) {
+      const longToneWasRunning = Boolean(timer || steadyProgressTimer || !["idle", "done"].includes(phase));
+      stopPractice(false);
+      stopMicrophoneResources();
+      if (longToneWasRunning && currentView === "longtone") {
+        setMicDisabledMessage("麥克風已關閉，本次練習已停止。");
+        setMicDisabledModalOpen(true);
+      }
+    }
+    renderMicrophoneSetting();
+    renderAppExitControl();
   });
 
   $("#intervalStartBtn")?.addEventListener("click", beginIntervalPractice);
@@ -6170,9 +6511,17 @@ function bindEvents() {
   $$(".map-model").forEach((button) => {
     button.addEventListener("click", () => {
       selectedHoles = Number(button.dataset.modelHoles);
+      if (selectedMapHole > selectedHoles) selectedMapHole = 1;
       $$(".map-model").forEach((item) => item.classList.toggle("active", item === button));
       renderNoteMap();
     });
+  });
+
+  $("#noteMapHoles")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-map-hole]");
+    if (!button) return;
+    selectedMapHole = Number(button.dataset.mapHole);
+    renderNoteMap();
   });
 
   $("#exerciseList").addEventListener("click", (event) => {
@@ -6532,7 +6881,14 @@ window.chromaticDebug = {
 let chromaticaAppInitialized = false;
 let gardenBgmMetadataPrepared = false;
 
-function renderAuthenticatedAccountWorkspace() {
+function renderAuthenticatedAccountWorkspace({ allowDailyLoginBonus = false, initializationReason = "rerender" } = {}) {
+  const userId = getActiveAccountId();
+  dailyLoginBonusController.record("authenticated workspace initial render", {
+    userId,
+    date: getTodayKey(),
+    initializationReason,
+    remoteApply: initializationReason === "remote-apply",
+  });
   renderPracticeSettings();
   applyPracticeSettings();
   renderDailyGoals();
@@ -6540,10 +6896,27 @@ function renderAuthenticatedAccountWorkspace() {
   renderGarden();
   renderHeroGarden();
   setView("intro");
-  const dailyLoginBonusMessage = awardDailyLoginBonusIfNeeded();
-  if (dailyLoginBonusMessage) showGardenToast("每日水滴", dailyLoginBonusMessage);
+  if (allowDailyLoginBonus) {
+    const dailyLoginBonusMessage = awardDailyLoginBonusIfNeeded();
+    if (dailyLoginBonusMessage && dailyLoginBonusController.markToastDisplayed(userId, getTodayKey())) {
+      showGardenToast("每日水滴", dailyLoginBonusMessage);
+    }
+  } else {
+    dailyLoginBonusController.record("daily login claim skipped", {
+      userId,
+      date: getTodayKey(),
+      initializationReason,
+      cancellationReason: "rerender-not-authorized",
+    });
+  }
   scheduleGardenPlantHop();
   scheduleAccountSnapshotSave();
+  dailyLoginBonusController.record("account snapshot scheduled", {
+    userId,
+    date: getTodayKey(),
+    initializationReason,
+    remoteApply: initializationReason === "remote-apply",
+  });
   renderPracticeReminderSetting();
   void reconcilePracticeReminderSchedule();
   if (pendingPracticeReminderNavigation) {
@@ -6552,7 +6925,7 @@ function renderAuthenticatedAccountWorkspace() {
   }
 }
 
-function initializeAuthenticatedApp() {
+function initializeAuthenticatedApp(options = {}) {
   if (!chromaticaAppInitialized) {
     chromaticaAppInitialized = true;
     bindEvents();
@@ -6563,6 +6936,7 @@ function initializeAuthenticatedApp() {
     registerPracticeReminderListener();
     renderSoundSettings();
     renderDisplaySettings();
+    renderMicrophoneSetting();
     applyDisplaySettings();
     registerServiceWorker();
     refreshAllowedNotes();
@@ -6575,11 +6949,23 @@ function initializeAuthenticatedApp() {
     stopIntervalMetronome();
     stopPractice(false);
   }
-  renderAuthenticatedAccountWorkspace();
+  dailyLoginBonusController.record("authenticated workspace rerendered", {
+    userId: getActiveAccountId(),
+    date: getTodayKey(),
+    initializationReason: options.initializationReason || "rerender",
+    remoteApply: options.initializationReason === "remote-apply",
+  });
+  renderAuthenticatedAccountWorkspace(options);
 }
 
 window.chromaticaApp = {
   initializeForAuthenticatedAccount: initializeAuthenticatedApp,
+  recordDailyLoginEvent(event, details = {}) {
+    dailyLoginBonusController.record(event, { userId: getActiveAccountId(), date: getTodayKey(), ...details });
+  },
+  getDailyLoginDiagnostics() {
+    return dailyLoginBonusController.getDiagnostics();
+  },
   getAuthenticatedStartupImageUrls() {
     const heroImage = document.getElementById("heroGardenPlant");
     return heroImage?.getAttribute("src") ? [heroImage.getAttribute("src")] : [];

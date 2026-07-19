@@ -2224,6 +2224,67 @@ body.hide-featured-spirit .hero-plant-slot {
   margin-top: 10px;
 }
 
+.practice-view-back {
+  float: right;
+  min-height: 40px;
+  margin: 0 0 8px 12px;
+  padding: 0 14px;
+  border: 1px solid rgba(122, 78, 45, 0.3);
+  border-radius: 14px;
+  color: var(--primary);
+  background: rgba(255, 253, 249, 0.86);
+  font-weight: 800;
+}
+
+.quick-practice-card {
+  grid-column: 1 / -1;
+  border-color: rgba(176, 112, 48, 0.42);
+  background: linear-gradient(135deg, rgba(255, 247, 226, 0.96), rgba(249, 235, 207, 0.82));
+}
+
+.quick-practice-panel { clear: both; padding: 20px; }
+.quick-practice-list { display: grid; gap: 10px; margin: 16px 0; padding: 0; list-style: none; }
+.quick-practice-list li {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: rgba(255, 253, 249, 0.72);
+}
+.quick-practice-list li > span {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #fffaf2;
+  background: #a96f38;
+  font-weight: 800;
+}
+.quick-practice-list div, .quick-practice-list strong, .quick-practice-list small { display: block; }
+.quick-practice-list small { margin-top: 3px; color: var(--text-muted); }
+.quick-practice-list em { color: var(--text-muted); font-size: 12px; font-style: normal; }
+.quick-practice-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.setting-toggle-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-exit-btn {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid rgba(122, 78, 45, 0.35);
+  border-radius: 16px;
+  color: #704224;
+  background: rgba(255, 250, 242, 0.9);
+  font-weight: 800;
+}
+
 .map-toolbar {
   padding: 10px;
   box-shadow: var(--shadow-soft);
@@ -2262,20 +2323,35 @@ body.hide-featured-spirit .hero-plant-slot {
   min-width: 0;
 }
 
-.note-map {
+.note-map-holes {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(236px, 78%);
-  gap: 12px;
+  grid-template-columns: repeat(var(--holes), minmax(0, 1fr));
+  gap: 3px;
   width: 100%;
   min-width: 0;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scroll-snap-type: x mandatory;
+  overflow: hidden;
+}
+
+.note-map-hole {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid rgba(122, 78, 45, 0.24);
+  border-radius: 9px;
+  color: var(--text-muted);
+  background: rgba(255, 253, 249, 0.78);
+  font-size: clamp(9px, 2.5vw, 13px);
+  font-weight: 800;
+}
+
+.note-map-hole.active {
+  border-color: #9a6434;
+  color: #fffaf2;
+  background: #a96f38;
+  box-shadow: inset 0 -2px 0 rgba(91, 50, 22, 0.18);
 }
 
 .hole-card {
-  scroll-snap-align: start;
   display: grid;
   gap: 10px;
   padding: 16px;
@@ -2284,6 +2360,10 @@ body.hide-featured-spirit .hero-plant-slot {
   background:
     linear-gradient(180deg, rgba(255, 253, 249, 0.92), rgba(252, 247, 239, 0.94)),
     var(--card);
+}
+
+.selected-hole-card {
+  margin-top: 14px;
 }
 
 .hole-card strong {
