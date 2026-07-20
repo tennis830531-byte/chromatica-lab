@@ -229,6 +229,31 @@
       </div>
     </div>
 
+    <div id="intervalIntroModal" class="longtone-intro-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="intervalIntroTitle">
+      <div class="longtone-intro-sheet">
+        <div class="longtone-intro-head">
+          <h2 id="intervalIntroTitle">音程練習注意事項</h2>
+        </div>
+        <div class="longtone-intro-hero media-box" aria-hidden="true">
+          <img src="./public/assets/chromatic-refresh/feature/teacher_bird_notice.png" alt="" />
+        </div>
+        <div class="longtone-intro-body">
+          <section class="longtone-intro-block">
+            <div class="intro-tip-grid interval-intro-tip-grid">
+              <article><span>先看清楚</span><p>先確認調性、音程與方向，再依照畫面中的樂譜逐組練習。</p></article>
+              <article><span>自行聆聽</span><p>音程練習不使用麥克風判斷，請自行聆聽音準、按鍵與移琴是否正確。</p></article>
+              <article><span>放慢速度</span><p>建議先用較慢速度開始，保持氣息平穩，再逐步提高 BPM。</p></article>
+              <article><span>完成紀錄</span><p>中途離開或結束時，尚未完成的進度不會記錄。</p></article>
+            </div>
+          </section>
+        </div>
+        <div class="longtone-intro-actions interval-intro-actions">
+          <button id="intervalIntroBack" class="ghost-btn" type="button">返回</button>
+          <button id="intervalIntroConfirm" class="primary-btn" type="button">我知道了，開始練習</button>
+        </div>
+      </div>
+    </div>
+
     <div id="gardenSpiritModal" class="garden-spirit-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="gardenSpiritModalTitle">
       <div class="garden-spirit-modal">
         <div class="garden-spirit-modal-head">
@@ -493,7 +518,7 @@
                   <h4>音程練習室</h4>
                   <p>從二度到八度，跟著五線譜練習不同調性的音程移動。</p>
                 </div>
-                <button class="room-action" data-view="interval" type="button">開始音程練習</button>
+                <button class="room-action" data-view="interval" data-interval-intro="true" type="button">開始音程練習</button>
               </article>
               <article class="practice-room-card">
                 <span class="room-badge">準備中</span>

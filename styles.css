@@ -3711,6 +3711,13 @@ input[type="range"] {
   padding: 12px 2px 2px;
   background: linear-gradient(180deg, rgba(252, 247, 239, 0), #fcf7ef 24%);
 }
+.interval-intro-actions {
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.4fr);
+}
+.interval-intro-tip-grid article { min-height: 0; }
+@media (max-width: 360px) {
+  .interval-intro-actions { grid-template-columns: 1fr; }
+}
 
 .calendar-summary {
   display: grid;

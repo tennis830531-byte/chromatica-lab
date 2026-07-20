@@ -807,6 +807,7 @@ let intervalMetronomeTimer = null;
 let intervalMetronomeBeat = 0;
 let intervalMetronomePlaying = false;
 let intervalPracticeState = null;
+let intervalIntroReturnFocus = null;
 let audioContext = null;
 let micStream = null;
 let micAnalyser = null;
@@ -3846,6 +3847,27 @@ function setLongToneIntroOpen(isOpen) {
   document.body.classList.toggle("modal-open", isOpen);
 }
 
+function setIntervalIntroOpen(isOpen, { restoreFocus = true } = {}) {
+  const modal = $("#intervalIntroModal");
+  if (!modal) return;
+  modal.classList.toggle("hidden", !isOpen);
+  document.body.classList.toggle("modal-open", isOpen);
+  if (isOpen) {
+    intervalIntroReturnFocus = document.activeElement;
+    requestAnimationFrame(() => $("#intervalIntroBack")?.focus());
+  } else if (restoreFocus) {
+    requestAnimationFrame(() => intervalIntroReturnFocus?.focus?.());
+    intervalIntroReturnFocus = null;
+  }
+}
+
+function confirmIntervalIntro() {
+  setIntervalIntroOpen(false, { restoreFocus: false });
+  setView("interval");
+  showIntervalSetup();
+  scrollToSection("intervalSetup");
+}
+
 function setLeaderboardModalOpen(isOpen) {
   const modal = $("#leaderboardModal");
   if (!modal) return;
@@ -6573,6 +6595,11 @@ function registerAndroidAppLifecycle() {
     console.warn("Unable to register Android app lifecycle listener.", error);
   });
   App.addListener("backButton", ({ canGoBack }) => {
+    if (!$("#intervalIntroModal")?.classList.contains("hidden")) {
+      void window.ChromaticaHaptics?.close?.();
+      setIntervalIntroOpen(false);
+      return;
+    }
     if (currentView === "metronome") {
       window.ChromaticaMetronome?.stop?.();
       setView("intro");
@@ -6664,6 +6691,11 @@ function bindEvents() {
     if (button.id === "headerSettingsBtn") return;
     button.addEventListener("click", () => {
       if (button.dataset.view === "tuner" && !requireMicrophoneEnabled()) return;
+      if (button.dataset.intervalIntro === "true") {
+        resetQuickPracticeSession();
+        setIntervalIntroOpen(true);
+        return;
+      }
       resetQuickPracticeSession();
       setView(button.dataset.view, {
         activeTarget: button.dataset.navTarget || "",
@@ -7012,6 +7044,14 @@ function bindEvents() {
   $("#longToneIntroModal").addEventListener("click", (event) => {
     if (event.target.id === "longToneIntroModal") {
       setLongToneIntroOpen(false);
+    }
+  });
+  $("#intervalIntroBack")?.addEventListener("click", () => setIntervalIntroOpen(false));
+  $("#intervalIntroConfirm")?.addEventListener("click", confirmIntervalIntro);
+  $("#intervalIntroModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "intervalIntroModal") {
+      void window.ChromaticaHaptics?.close?.();
+      setIntervalIntroOpen(false);
     }
   });
   $("#leaderboardModalClose")?.addEventListener("click", () => setLeaderboardModalOpen(false));
@@ -7387,6 +7427,7 @@ window.chromaticaApp = {
       "feedbackModal",
       "calendarModal",
       "longToneIntroModal",
+      "intervalIntroModal",
       "gardenSpiritModal",
       "gardenRenameModal",
       "starterPlantModal",
