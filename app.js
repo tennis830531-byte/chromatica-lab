@@ -1060,7 +1060,6 @@ function setSoundSettings(patch) {
 function isSoundAllowed(soundId) {
   const settings = getSoundSettings();
   if (!settings.appSound) return false;
-  if (soundId === "uiTap" || soundId === "close") return settings.cueSound !== false;
   if (soundId === "practiceComplete") return settings.completionSound !== false;
   if (soundId === "watering") return settings.wateringSound !== false;
   if (soundId === "evolveStart" || soundId === "evolveComplete") return settings.evolutionSound !== false;
@@ -1187,21 +1186,7 @@ function bindSoundSettings() {
   });
 }
 
-function getInteractionSoundId(event) {
-  const target = event.target.closest("button, select, input[type='checkbox']");
-  if (!target || target.disabled || target.id === "gardenPrimaryAction") return "";
-  const closeIds = new Set([
-    "goalToastClose",
-    "calendarCloseBtn",
-    "gardenSpiritModalClose",
-    "longToneIntroClose",
-    "practiceSettingsClose",
-    "micGateSkip",
-  ]);
-  return closeIds.has(target.id) ? "close" : "uiTap";
-}
-
-function bindSoundFeedback() {
+function bindHapticFeedback() {
   if (soundFeedbackBound) return;
   soundFeedbackBound = true;
   document.addEventListener(
@@ -1212,14 +1197,7 @@ function bindSoundFeedback() {
     },
     { once: true }
   );
-  document.addEventListener(
-    "click",
-    (event) => {
-      const soundId = getInteractionSoundId(event);
-      if (soundId) playSound(soundId);
-    },
-    true
-  );
+  window.ChromaticaHaptics?.bindGlobalFeedback?.();
 }
 
 function getDisplaySettings() {
@@ -2236,7 +2214,6 @@ function showStarterPlantSelectionIfNeeded() {
 function selectStarterPlant(speciesId) {
   if (!getStarterPlantOptions().some((species) => species.species === speciesId)) return;
   selectedStarterSpeciesId = speciesId;
-  playSound("uiTap");
   renderStarterPlantChoices();
 }
 
@@ -2549,9 +2526,10 @@ function waterCurrentPlant() {
   const stageChanged = plant.stage > previousStage || becameMature;
   playSound("watering");
   if (stageChanged) {
+    void window.ChromaticaHaptics?.long?.();
     playSound("evolveStart");
     window.setTimeout(() => playSound("evolveComplete"), 1650);
-  }
+  } else void window.ChromaticaHaptics?.tap?.();
   playWateringAnimation(stageChanged);
   if (plant.waterProgress >= PLANT_WATER_REQUIRED) {
     showGardenToastAfterAnimation(`${getPlantDisplayName(plant, 3)}成熟了！`, "可以採收這株植物了。", GARDEN_EVOLUTION_NOTICE_DELAY_MS);
@@ -6877,7 +6855,6 @@ function bindEvents() {
   $("#calendarCloseBtn").addEventListener("click", () => setCalendarModalOpen(false));
   $("#calendarModal").addEventListener("click", (event) => {
     if (event.target.id === "calendarModal") {
-      playSound("close");
       setCalendarModalOpen(false);
     }
   });
@@ -6906,7 +6883,6 @@ function bindEvents() {
   $("#gardenSpiritModalClose").addEventListener("click", closeGardenSpiritModal);
   $("#gardenSpiritModal").addEventListener("click", (event) => {
     if (event.target.id === "gardenSpiritModal") {
-      playSound("close");
       closeGardenSpiritModal();
     }
   });
@@ -6919,17 +6895,14 @@ function bindEvents() {
   $("#gardenSpiritEditName").addEventListener("click", editGardenSpiritName);
   $("#gardenSpiritSetFeatured").addEventListener("click", setSelectedGardenSpiritFeatured);
   $("#gardenRenameClose").addEventListener("click", () => {
-    playSound("close");
     closeGardenRenameModal();
   });
   $("#gardenRenameCancel").addEventListener("click", () => {
-    playSound("close");
     closeGardenRenameModal();
   });
   $("#gardenRenameSave").addEventListener("click", saveGardenSpiritName);
   $("#gardenRenameModal").addEventListener("click", (event) => {
     if (event.target.id === "gardenRenameModal") {
-      playSound("close");
       closeGardenRenameModal();
     }
   });
@@ -6939,7 +6912,6 @@ function bindEvents() {
       saveGardenSpiritName();
     }
     if (event.key === "Escape") {
-      playSound("close");
       closeGardenRenameModal();
     }
   });
@@ -6948,14 +6920,12 @@ function bindEvents() {
   $("#longToneIntroConfirm").addEventListener("click", confirmLongToneIntro);
   $("#longToneIntroModal").addEventListener("click", (event) => {
     if (event.target.id === "longToneIntroModal") {
-      playSound("close");
       setLongToneIntroOpen(false);
     }
   });
   $("#leaderboardModalClose")?.addEventListener("click", () => setLeaderboardModalOpen(false));
   $("#leaderboardModal")?.addEventListener("click", (event) => {
     if (event.target.id === "leaderboardModal") {
-      playSound("close");
       setLeaderboardModalOpen(false);
     }
   });
@@ -7214,7 +7184,7 @@ function initializeAuthenticatedApp(options = {}) {
     chromaticaAppInitialized = true;
     bindEvents();
     bindSoundSettings();
-    bindSoundFeedback();
+    bindHapticFeedback();
     bindDisplaySettings();
     registerAndroidAppLifecycle();
     registerPracticeReminderListener();
@@ -7244,9 +7214,10 @@ function initializeAuthenticatedApp(options = {}) {
       playGardenEffect: (evolved) => {
         playSound("watering");
         if (evolved) {
+          void window.ChromaticaHaptics?.long?.();
           playSound("evolveStart");
           window.setTimeout(() => playSound("evolveComplete"), 600);
-        }
+        } else void window.ChromaticaHaptics?.tap?.();
       },
     });
   } else {

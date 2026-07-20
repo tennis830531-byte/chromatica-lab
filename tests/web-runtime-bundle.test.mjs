@@ -22,7 +22,7 @@ test("every local index script is tracked and exists in www", async () => {
   assert.deepEqual(verified, localScripts);
 });
 
-for (const script of ["daily-login-bonus.js", "daily-goal-rewards.js", "quick-practice.js", "metronome-core.js", "metronome.js", "garden-qa.js", "app.js", "auth-runtime.js"]) {
+for (const script of ["haptic-feedback.js", "daily-login-bonus.js", "daily-goal-rewards.js", "quick-practice.js", "metronome-core.js", "metronome.js", "garden-qa.js", "app.js", "auth-runtime.js"]) {
   test(`${script} exists in the web bundle`, () => {
     assert.ok(localScripts.includes(script));
     assert.ok(trackedSourceFiles.has(script));

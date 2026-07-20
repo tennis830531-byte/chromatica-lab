@@ -4,6 +4,7 @@ const APP_SHELL = [
   "./index.html",
   "./styles.css?v=refresh-169",
   "./supabase-config.js?v=refresh-169",
+  "./haptic-feedback.js?v=refresh-169",
   "./practice-reminders.js?v=refresh-169",
   "./daily-login-bonus.js?v=refresh-169",
   "./daily-goal-rewards.js?v=refresh-169",

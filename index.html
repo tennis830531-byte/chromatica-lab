@@ -317,7 +317,7 @@
           <div class="home-hero paper-card">
             <div class="hero-top">
               <div class="hero-copy">
-                <h2 id="homeHeroQaTitle">半音階口琴練習室</h2>
+                <h2 id="homeHeroQaTitle" data-haptic="none">半音階口琴練習室</h2>
                 <p>透過孔位地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p>
               </div>
             </div>
@@ -913,7 +913,7 @@
                 <div class="water-balance"><img src="./public/assets/garden/icons/water-drop.png" alt="" /><span><b id="waterDropCount">0</b> 滴</span></div>
               </div>
               <div class="garden-plant-scene">
-                <button id="gardenPrimaryAction" class="watering-can-button" type="button" aria-label="澆水">
+                <button id="gardenPrimaryAction" class="watering-can-button" data-haptic="manual" type="button" aria-label="澆水">
                   <img id="gardenWateringCan" class="watering-can" src="./public/assets/garden/icons/watering-can.png" alt="" aria-hidden="true" />
                 </button>
                 <div id="gardenFxLayer" class="garden-fx-layer" aria-hidden="true"></div>
@@ -958,7 +958,7 @@
                 </div>
               </div>
               <div class="garden-progress"><div class="garden-progress-row"><span>階段進度</span><b id="gardenQaProgress">0 / 100</b></div><div class="garden-progress-track"><i id="gardenQaProgressBar"></i></div></div>
-              <div class="garden-qa-toolbar" aria-label="植物測試工具"><button data-qa-action="water" type="button">澆水</button><button data-qa-action="fill" type="button">本階段補滿</button><button data-qa-action="mature" type="button">直接成熟</button><button data-qa-action="harvest" type="button">採收</button><button data-qa-action="reset" type="button">重置目前植物</button><button id="gardenQaResetAll" type="button">重置測試花園</button><button data-qa-leave type="button">離開測試模式</button></div>
+              <div class="garden-qa-toolbar" aria-label="植物測試工具"><button data-qa-action="water" data-haptic="manual" type="button">澆水</button><button data-qa-action="fill" data-haptic="manual" type="button">本階段補滿</button><button data-qa-action="mature" data-haptic="manual" type="button">直接成熟</button><button data-qa-action="harvest" type="button">採收</button><button data-qa-action="reset" type="button">重置目前植物</button><button id="gardenQaResetAll" type="button">重置測試花園</button><button data-qa-leave type="button">離開測試模式</button></div>
             </section>
             <section class="garden-card paper-card garden-collection-card"><h3>QA 植物精靈圖鑑</h3><div id="gardenQaCollection" class="garden-qa-collection"></div><p class="garden-hint">點擊已採收精靈可改名並設為 QA 首頁展示。</p></section>
           </div>
@@ -1151,6 +1151,7 @@
 
 
     <script src="./supabase-config.js?v=refresh-169"></script>
+    <script src="./haptic-feedback.js?v=refresh-169"></script>
     <script src="./practice-reminders.js?v=refresh-169"></script>
     <script src="./daily-login-bonus.js?v=refresh-169"></script>
     <script src="./daily-goal-rewards.js?v=refresh-169"></script>
