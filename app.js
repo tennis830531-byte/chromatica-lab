@@ -6225,7 +6225,10 @@ function setView(view, options = {}) {
   activateViewButton(view, currentViewTarget);
   if (view !== "longtone") stopPractice(false);
   if (view !== "interval") stopIntervalMetronome();
-  if (view !== "metronome") window.ChromaticaMetronome?.stop?.();
+  if (view !== "metronome") {
+    window.ChromaticaMetronome?.closeTopPanel?.({ restoreFocus: false });
+    window.ChromaticaMetronome?.stop?.();
+  }
   if (view === "garden") {
     const suppressGardenPersistence = suppressNextGardenPersistence;
     renderGarden({ persistNormalizedState: !suppressGardenPersistence });
@@ -6603,6 +6606,9 @@ function registerAndroidAppLifecycle() {
     if (!$("#intervalIntroModal")?.classList.contains("hidden")) {
       void window.ChromaticaHaptics?.close?.();
       setIntervalIntroOpen(false);
+      return;
+    }
+    if (currentView === "metronome" && window.ChromaticaMetronome?.closeTopPanel?.({ haptic: true })) {
       return;
     }
     if (currentView === "metronome") {

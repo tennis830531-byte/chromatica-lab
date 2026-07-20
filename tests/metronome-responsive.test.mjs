@@ -46,8 +46,8 @@ test("rendering caps beat columns at four", () => {
   assert.match(ui, /--metronome-beat-columns[\s\S]*Math\.min\(4, Math\.max\(1, settings\.accents\.length\)\)/);
 });
 
-test("status, select, BPM and trainer grids use zero-minimum tracks", () => {
-  for (const selector of ["metronome-status-row", "metronome-bpm-controls", "metronome-select-grid", "metronome-trainer-grid"]) {
+test("stage selectors, BPM and trainer grids use zero-minimum tracks", () => {
+  for (const selector of ["metronome-stage-selectors", "metronome-bpm-controls", "metronome-trainer-grid"]) {
     const rule = css.match(new RegExp(`\\.${selector}\\s*\\{([^}]*)\\}`))?.[1] || "";
     assert.match(rule, /minmax\(0,/);
   }

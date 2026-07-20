@@ -22,6 +22,18 @@
       subdivision: { frequency: 640, type: "sine", level: 0.18, duration: 0.12 },
     },
   };
+  const BASIC_RHYTHM_OPTIONS = Object.freeze([
+    { id: "quarter", name: "四分音符", preview: "♪", ariaLabel: "四分音符" },
+    { id: "eighth", name: "八分音符", preview: "♫", ariaLabel: "八分音符" },
+    { id: "triplet", name: "三連音", preview: "♪♪♪", ariaLabel: "三連音" },
+    { id: "sixteenth", name: "十六分音符", preview: "♬♬", ariaLabel: "十六分音符" },
+  ]);
+  const PANEL_IDS = Object.freeze({
+    trainer: "metronomeTrainerDialog",
+    autoStop: "metronomeAutoStopDialog",
+    signature: "metronomeSignatureDialog",
+    rhythm: "metronomeRhythmDialog",
+  });
   const defaultSettings = {
     bpm: 80,
     signature: { numerator: 4, denominator: 4 },
@@ -52,6 +64,11 @@
   let lastPresentedMainBeatIndex = -1;
   const visualDiagnostics = [];
   let trainerRuntime = { baselineMeasure: 0, nextIncreaseMeasure: null, lastAppliedBpm: null };
+  let activePanel = null;
+  let panelReturnFocus = null;
+  let trainerDraft = null;
+  let autoStopDraft = null;
+  let signatureDraft = null;
 
   function $(selector) { return document.querySelector(selector); }
   function $$(selector) { return [...document.querySelectorAll(selector)]; }
@@ -71,6 +88,156 @@
   function announce(message) { const node = $("#metronomeLive"); if (node) node.textContent = message; }
   function getAudioContext() { return dependencies.getAudioContext?.() || null; }
   function signatureValue(signature = settings.signature) { return `${signature.numerator}/${signature.denominator}`; }
+  function cloneValue(value) { return JSON.parse(JSON.stringify(value)); }
+  function toolbarButtonForPanel(name) {
+    return name === "trainer" ? $("#metronomeTrainerOpen")
+      : name === "autoStop" ? $("#metronomeAutoStopOpen")
+        : name === "signature" ? $("#metronomeSignatureOpen")
+          : name === "rhythm" ? $("#metronomeRhythmOpen") : null;
+  }
+  function closeTopPanel({ haptic = false, restoreFocus = true } = {}) {
+    if (!activePanel) return false;
+    const name = activePanel;
+    const panel = $(`#${PANEL_IDS[name]}`);
+    panel?.classList.add("hidden");
+    toolbarButtonForPanel(name)?.setAttribute("aria-expanded", "false");
+    activePanel = null;
+    document.body.classList.remove("modal-open");
+    if (haptic) void global.ChromaticaHaptics?.close?.();
+    const focusTarget = panelReturnFocus;
+    panelReturnFocus = null;
+    if (restoreFocus) requestAnimationFrame(() => focusTarget?.focus?.());
+    return true;
+  }
+  function openPanel(name) {
+    if (!PANEL_IDS[name]) return;
+    if (activePanel) closeTopPanel({ restoreFocus: false });
+    activePanel = name;
+    panelReturnFocus = document.activeElement;
+    const panel = $(`#${PANEL_IDS[name]}`);
+    panel?.classList.remove("hidden");
+    toolbarButtonForPanel(name)?.setAttribute("aria-expanded", "true");
+    document.body.classList.add("modal-open");
+    requestAnimationFrame(() => panel?.querySelector("button, input, select")?.focus?.());
+  }
+  function formatAutoStopSummary(autoStop = settings.autoStop) {
+    if (autoStop?.mode === "measures") return `自動停止 · ${Math.max(1, Number(autoStop.value) || 1)}小節`;
+    if (autoStop?.mode === "minutes") return `自動停止 · ${Math.max(1, Number(autoStop.value) || 1)}分鐘`;
+    return "自動停止";
+  }
+  function renderStageToolbar() {
+    const trainerButton = $("#metronomeTrainerOpen");
+    if (trainerButton) {
+      trainerButton.textContent = settings.tempoTrainer.enabled ? "速度訓練 · 開" : "速度訓練";
+      trainerButton.classList.toggle("is-active", settings.tempoTrainer.enabled);
+    }
+    const autoStopButton = $("#metronomeAutoStopOpen");
+    if (autoStopButton) {
+      autoStopButton.textContent = formatAutoStopSummary();
+      autoStopButton.classList.toggle("is-active", settings.autoStop?.mode !== "off");
+    }
+  }
+  function renderTrainerDraft() {
+    if (!trainerDraft) return;
+    const enabled = Boolean(trainerDraft.enabled);
+    $("#tempoTrainerEnabled").checked = enabled;
+    $("#tempoTrainerEnabled").setAttribute("aria-expanded", String(enabled));
+    $("#tempoTrainerSettings").classList.toggle("hidden", !enabled);
+    $("#tempoTrainerStart").value = String(trainerDraft.startBpm);
+    $("#tempoTrainerTarget").value = String(trainerDraft.targetBpm);
+    $("#tempoTrainerIncrement").value = String(trainerDraft.increment);
+    $("#tempoTrainerEvery").value = String(trainerDraft.everyMeasures);
+    $("#tempoTrainerKeep").value = trainerDraft.keepCurrent ? "keep" : "reset";
+    $("#tempoTrainerStatus").textContent = `目前 ${settings.bpm} BPM／目標 ${trainerDraft.targetBpm} BPM`;
+  }
+  function openTrainerPanel() {
+    trainerDraft = cloneValue(settings.tempoTrainer);
+    renderTrainerDraft();
+    openPanel("trainer");
+  }
+  function readTrainerDraft() {
+    return core.normalizeTempoTrainer({
+      enabled: $("#tempoTrainerEnabled").checked,
+      startBpm: $("#tempoTrainerStart").value,
+      targetBpm: $("#tempoTrainerTarget").value,
+      increment: $("#tempoTrainerIncrement").value,
+      everyMeasures: $("#tempoTrainerEvery").value,
+      keepCurrent: $("#tempoTrainerKeep").value === "keep",
+    }, settings.bpm);
+  }
+  function applyTrainerDraft() {
+    const previousEnabled = settings.tempoTrainer.enabled;
+    settings.tempoTrainer = readTrainerDraft();
+    if (settings.tempoTrainer.enabled) {
+      const atBarStart = playing && schedulerState?.beatIndex === 0 && schedulerState?.subdivisionIndex === 0;
+      const baseline = playing ? schedulerState.formalMeasures + (atBarStart ? 0 : 1) : 0;
+      resetTrainerRuntime(baseline);
+    } else if (previousEnabled) {
+      resetTrainerRuntime(0);
+    }
+    saveSettings();
+    render();
+    closeTopPanel();
+    announce(settings.tempoTrainer.enabled ? "速度訓練設定已套用" : "速度訓練已關閉");
+  }
+  function renderAutoStopDraft() {
+    if (!autoStopDraft) return;
+    const selectValue = autoStopDraft.mode === "measures" ? "measures:1" : `${autoStopDraft.mode}:${autoStopDraft.value || 0}`;
+    $("#metronomeAutoStop").value = selectValue;
+    $("#metronomeCustomMeasures").value = String(autoStopDraft.value || 1);
+    $("#metronomeCustomMeasures").classList.toggle("hidden", autoStopDraft.mode !== "measures");
+  }
+  function openAutoStopPanel() {
+    autoStopDraft = cloneValue(settings.autoStop || { mode: "off", value: 0 });
+    renderAutoStopDraft();
+    openPanel("autoStop");
+  }
+  function applyAutoStopDraft() {
+    const [mode, selectedValue] = $("#metronomeAutoStop").value.split(":");
+    const rawValue = mode === "measures" ? $("#metronomeCustomMeasures").value : selectedValue;
+    settings.autoStop = {
+      mode,
+      value: mode === "measures" ? Math.max(1, Math.min(999, Number(rawValue) || 1)) : Number(rawValue) || 0,
+    };
+    saveSettings();
+    render();
+    closeTopPanel();
+    announce("自動停止設定已套用");
+  }
+  function renderSignatureDraft() {
+    if (!signatureDraft) return;
+    const value = `${signatureDraft.signature.numerator}/${signatureDraft.signature.denominator}`;
+    $$("#metronomeSignatureOptions [data-signature-option]").forEach((button) => {
+      const active = signatureDraft.custom ? button.dataset.signatureOption === "custom" : button.dataset.signatureOption === value;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+    });
+    $("#customTimeSignature").classList.toggle("hidden", !signatureDraft.custom);
+    $("#customNumerator").value = String(signatureDraft.signature.numerator);
+    $("#customDenominator").value = String(signatureDraft.signature.denominator);
+  }
+  function openSignaturePanel() {
+    signatureDraft = { signature: cloneValue(settings.signature), custom: Boolean(settings.customSignature || !BUILT_IN_SIGNATURES.has(signatureValue())) };
+    renderSignatureDraft();
+    openPanel("signature");
+  }
+  function basicRhythmOption(id = settings.subdivision) {
+    return BASIC_RHYTHM_OPTIONS.find((option) => option.id === id) || BASIC_RHYTHM_OPTIONS[0];
+  }
+  function renderRhythmOptions() {
+    const list = $("#metronomeRhythmOptions");
+    if (!list) return;
+    list.innerHTML = BASIC_RHYTHM_OPTIONS.map((option) => `<button class="metronome-rhythm-option${option.id === settings.subdivision ? " active" : ""}" data-rhythm-option="${option.id}" type="button" role="option" aria-selected="${option.id === settings.subdivision}" aria-label="${option.ariaLabel}"><strong aria-hidden="true">${option.preview}</strong><span>${option.name}</span></button>`).join("");
+  }
+  function setSubdivision(subdivision) {
+    const next = BASIC_RHYTHM_OPTIONS.some((option) => option.id === subdivision) ? subdivision : "quarter";
+    if (settings.subdivision === next) return;
+    settings.subdivision = next;
+    saveSettings();
+    render();
+    announce("細分音符已更新");
+    if (playing) rescheduleFromNow();
+  }
   function resetTrainerRuntime(baselineMeasure = 0) {
     const interval = [1, 2, 4, 8].includes(Number(settings.tempoTrainer.everyMeasures)) ? Number(settings.tempoTrainer.everyMeasures) : 1;
     trainerRuntime = {
@@ -272,9 +439,6 @@
     $("#metronomeSubdivisionPulse").textContent = event.subdivisionIndex ? "·" : "●";
     if (event.subdivisionIndex !== 0) return;
     lastPresentedMainBeatIndex = event.beatIndex;
-    const beat = event.beatIndex + 1;
-    $("#metronomeCurrentBeat").textContent = String(beat);
-    $("#metronomeMeasureCount").textContent = String(event.formalMeasures + 1);
     $$("#metronomeBeatDots [data-beat-index]").forEach((dot, index) => {
       const current = index === event.beatIndex;
       dot.classList.toggle("active", current);
@@ -299,7 +463,13 @@
   }
   function render() {
     renderBpmReadout();
+    renderStageToolbar();
     if ($("#metronomeSignatureDisplay")) $("#metronomeSignatureDisplay").textContent = `${settings.signature.numerator}/${settings.signature.denominator}`;
+    const rhythm = basicRhythmOption();
+    if ($("#metronomeRhythmPreview")) {
+      $("#metronomeRhythmPreview").textContent = rhythm.preview;
+      $("#metronomeRhythmPreview").setAttribute("aria-label", rhythm.ariaLabel);
+    }
     if ($("#metronomeToggle")) $("#metronomeToggle").textContent = playing ? "停止" : "開始";
     if ($("#metronomeVolume")) $("#metronomeVolume").value = String(settings.volume);
     if ($("#metronomeSound")) $("#metronomeSound").value = settings.sound;
@@ -307,24 +477,8 @@
     if ($("#metronomeSwingRow")) $("#metronomeSwingRow").classList.toggle("hidden", settings.subdivision !== "eighth");
     if ($("#metronomeSwing")) { $("#metronomeSwing").disabled = settings.subdivision !== "eighth"; $("#metronomeSwing").value = String(settings.swingPercent); }
     if ($("#metronomeSwingValue")) $("#metronomeSwingValue").textContent = `${settings.swingPercent}%`;
-    if ($("#customNumerator")) $("#customNumerator").value = String(settings.signature.numerator);
-    if ($("#customDenominator")) $("#customDenominator").value = String(settings.signature.denominator);
-    if ($("#tempoTrainerEnabled")) $("#tempoTrainerEnabled").checked = Boolean(settings.tempoTrainer.enabled);
-    if ($("#tempoTrainerEnabled")) $("#tempoTrainerEnabled").setAttribute("aria-expanded", String(Boolean(settings.tempoTrainer.enabled)));
-    if ($("#tempoTrainerSettings")) $("#tempoTrainerSettings").classList.toggle("hidden", !settings.tempoTrainer.enabled);
-    if ($("#tempoTrainerStart")) $("#tempoTrainerStart").value = String(settings.tempoTrainer.startBpm);
-    if ($("#tempoTrainerTarget")) $("#tempoTrainerTarget").value = String(settings.tempoTrainer.targetBpm);
-    if ($("#tempoTrainerIncrement")) $("#tempoTrainerIncrement").value = String(settings.tempoTrainer.increment);
-    if ($("#tempoTrainerEvery")) $("#tempoTrainerEvery").value = String(settings.tempoTrainer.everyMeasures);
-    if ($("#tempoTrainerKeep")) $("#tempoTrainerKeep").value = settings.tempoTrainer.keepCurrent ? "keep" : "reset";
-    if ($("#metronomeAutoStop")) $("#metronomeAutoStop").value = settings.autoStop.mode === "measures" ? "measures:1" : `${settings.autoStop.mode}:${settings.autoStop.value || 0}`;
-    if ($("#metronomeCustomMeasures")) { $("#metronomeCustomMeasures").value = String(settings.autoStop.value || 1); $("#metronomeCustomMeasures").classList.toggle("hidden", settings.autoStop.mode !== "measures"); }
-    const signatureSelect = $("#metronomeTimeSignatureSelect");
-    if (signatureSelect) signatureSelect.value = settings.customSignature || !BUILT_IN_SIGNATURES.has(signatureValue()) ? "custom" : signatureValue();
-    if ($("#metronomeSubdivisionSelect")) $("#metronomeSubdivisionSelect").value = settings.subdivision;
     $$("[data-count-in]").forEach((button) => button.classList.toggle("active", Number(button.dataset.countIn) === settings.countInMeasures));
-    $("#customTimeSignature").classList.toggle("hidden", !settings.customSignature);
-    renderBeatDots(); renderPresets();
+    renderBeatDots(); renderRhythmOptions(); renderPresets();
   }
   function currentPreset(name) { return core.normalizePreset({ ...settings, name }); }
   function bind() {
@@ -346,50 +500,76 @@
     });
     $$('[data-bpm-delta]').forEach((button) => button.addEventListener("click", () => setBpm(settings.bpm + Number(button.dataset.bpmDelta))));
     $("#metronomeTap")?.addEventListener("click", () => { tapState = core.registerTap(tapState, performance.now()); $("#metronomeTapResult").textContent = tapState.bpm ? `${tapState.bpm} BPM` : "再點一下"; if (tapState.bpm) setBpm(tapState.bpm, { announceChange: false }); });
-    $("#metronomeTimeSignatureSelect")?.addEventListener("change", (event) => { if (event.target.value === "custom") { settings.customSignature = true; saveSettings(); render(); return; } const [numerator, denominator] = event.target.value.split("/").map(Number); setSignature({ numerator, denominator }); });
-    $("#customNumerator")?.addEventListener("change", () => setSignature({ numerator: $("#customNumerator").value, denominator: $("#customDenominator").value }, true));
-    $("#customDenominator")?.addEventListener("change", () => setSignature({ numerator: $("#customNumerator").value, denominator: $("#customDenominator").value }, true));
-    $("#metronomeSubdivisionSelect")?.addEventListener("change", (event) => { settings.subdivision = event.target.value; saveSettings(); render(); announce("細分音符已更新"); if (playing) rescheduleFromNow(); });
+    $("#metronomeTrainerOpen")?.addEventListener("click", openTrainerPanel);
+    $("#metronomeAutoStopOpen")?.addEventListener("click", openAutoStopPanel);
+    $("#metronomeSignatureOpen")?.addEventListener("click", openSignaturePanel);
+    $("#metronomeRhythmOpen")?.addEventListener("click", () => { renderRhythmOptions(); openPanel("rhythm"); });
+    $("#metronomeTrainerCancel")?.addEventListener("click", () => closeTopPanel());
+    $("#metronomeTrainerApply")?.addEventListener("click", applyTrainerDraft);
+    $("#metronomeAutoStopCancel")?.addEventListener("click", () => closeTopPanel());
+    $("#metronomeAutoStopApply")?.addEventListener("click", applyAutoStopDraft);
+    $("#metronomeSignatureCancel")?.addEventListener("click", () => closeTopPanel());
+    $("#metronomeRhythmCancel")?.addEventListener("click", () => closeTopPanel());
+    Object.values(PANEL_IDS).forEach((id) => $(`#${id}`)?.addEventListener("click", (event) => {
+      if (event.target.id === id) closeTopPanel({ haptic: true });
+    }));
+    $("#tempoTrainerEnabled")?.addEventListener("change", (event) => {
+      const wasEnabled = Boolean(trainerDraft?.enabled);
+      trainerDraft = readTrainerDraft();
+      trainerDraft.enabled = event.target.checked;
+      if (trainerDraft.enabled && !wasEnabled) {
+        trainerDraft.startBpm = Math.min(239, settings.bpm);
+        if (trainerDraft.targetBpm <= settings.bpm) trainerDraft.targetBpm = Math.min(240, settings.bpm + 1);
+      }
+      renderTrainerDraft();
+    });
+    $("#metronomeAutoStop")?.addEventListener("change", (event) => {
+      const [mode, value] = event.target.value.split(":");
+      autoStopDraft = { mode, value: mode === "measures" ? Number($("#metronomeCustomMeasures").value) || 1 : Number(value) || 0 };
+      renderAutoStopDraft();
+    });
+    $("#metronomeSignatureOptions")?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-signature-option]");
+      if (!button) return;
+      if (button.dataset.signatureOption === "custom") {
+        signatureDraft = { signature: cloneValue(settings.signature), custom: true };
+        renderSignatureDraft();
+        return;
+      }
+      const [numerator, denominator] = button.dataset.signatureOption.split("/").map(Number);
+      setSignature({ numerator, denominator });
+      closeTopPanel();
+    });
+    $("#metronomeSignatureApply")?.addEventListener("click", () => {
+      setSignature({ numerator: $("#customNumerator").value, denominator: $("#customDenominator").value }, true);
+      closeTopPanel();
+    });
+    $("#metronomeRhythmOptions")?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-rhythm-option]");
+      if (!button) return;
+      setSubdivision(button.dataset.rhythmOption);
+      closeTopPanel();
+    });
     $("#metronomeSwing")?.addEventListener("input", (event) => { settings.swingPercent = Number(event.target.value); saveSettings(); $("#metronomeSwingValue").textContent = `${settings.swingPercent}%`; if (playing) rescheduleFromNow(); });
     $("#metronomeBeatDots")?.addEventListener("click", (event) => { const button = event.target.closest("[data-beat-index]"); if (!button) return; const index = Number(button.dataset.beatIndex); settings.accents[index] = core.cycleAccent(settings.accents[index]); saveSettings(); renderBeatDots(); });
     $("#metronomeSound")?.addEventListener("change", (event) => { settings.sound = event.target.value; saveSettings(); });
     $("#metronomeVolume")?.addEventListener("input", (event) => { settings.volume = Number(event.target.value); if (settings.volume) settings.previousVolume = settings.volume; settings.muted = settings.volume === 0; saveSettings(); render(); });
     $("#metronomeMute")?.addEventListener("click", () => { settings.muted = !settings.muted; if (!settings.muted && settings.volume === 0) settings.volume = settings.previousVolume || 70; saveSettings(); render(); });
     $$('[data-count-in]').forEach((button) => button.addEventListener("click", () => { settings.countInMeasures = Number(button.dataset.countIn); saveSettings(); render(); }));
-    $("#tempoTrainerEnabled")?.addEventListener("change", (event) => {
-      const enabled = event.target.checked;
-      settings.tempoTrainer.enabled = enabled;
-      if (enabled) {
-        settings.tempoTrainer = core.normalizeTempoTrainer({ ...settings.tempoTrainer, enabled: true, startBpm: Math.min(239, settings.bpm), targetBpm: settings.tempoTrainer.targetBpm <= settings.bpm ? Math.min(240, settings.bpm + 1) : settings.tempoTrainer.targetBpm }, settings.bpm);
-        const atBarStart = playing && schedulerState?.beatIndex === 0 && schedulerState?.subdivisionIndex === 0;
-        const baseline = playing ? schedulerState.formalMeasures + (atBarStart ? 0 : 1) : 0;
-        resetTrainerRuntime(baseline);
-      } else {
-        resetTrainerRuntime(0);
-      }
-      saveSettings(); render();
-    });
-    const trainerFields = { Start: "startBpm", Target: "targetBpm", Increment: "increment", Every: "everyMeasures" };
-    Object.entries(trainerFields).forEach(([suffix, key]) => $("#tempoTrainer" + suffix)?.addEventListener("change", (event) => {
-      settings.tempoTrainer[key] = Number(event.target.value);
-      settings.tempoTrainer = core.normalizeTempoTrainer(settings.tempoTrainer, settings.bpm);
-      if (key === "everyMeasures" && playing && schedulerState) resetTrainerRuntime(schedulerState.formalMeasures);
-      saveSettings(); render();
-    }));
-    $("#tempoTrainerKeep")?.addEventListener("change", (event) => { settings.tempoTrainer.keepCurrent = event.target.value === "keep"; saveSettings(); render(); });
-    $("#metronomeAutoStop")?.addEventListener("change", (event) => { const [mode, value] = event.target.value.split(":"); settings.autoStop = { mode, value: Number(value) || 0 }; $("#metronomeCustomMeasures").classList.toggle("hidden", mode !== "measures"); saveSettings(); });
-    $("#metronomeCustomMeasures")?.addEventListener("change", (event) => { settings.autoStop = { mode: "measures", value: Math.max(1, Math.min(999, Number(event.target.value) || 1)) }; saveSettings(); });
     $("#metronomeSavePreset")?.addEventListener("click", () => { if (settings.presets.length >= 5) return announce("最多只能儲存 5 組預設"); const name = prompt("預設名稱", `預設 ${settings.presets.length + 1}`); if (!name) return; settings.presets = core.savePresetList(settings.presets, currentPreset(name)); saveSettings(); render(); });
     $("#metronomePresetList")?.addEventListener("click", (event) => { const apply = event.target.closest("[data-preset-apply]"); const rename = event.target.closest("[data-preset-rename]"); const remove = event.target.closest("[data-preset-delete]"); if (apply) { settings = { ...settings, ...core.normalizePreset(settings.presets[Number(apply.dataset.presetApply)]), presets: settings.presets }; settings.customSignature = !BUILT_IN_SIGNATURES.has(signatureValue()); resetTrainerRuntime(playing && schedulerState ? schedulerState.formalMeasures : 0); saveSettings(); render(); if (playing) rescheduleFromNow(); } if (rename) { const index = Number(rename.dataset.presetRename); const name = prompt("重新命名", settings.presets[index].name); if (name) { settings.presets[index].name = name.slice(0, 20); saveSettings(); render(); } } if (remove) { settings.presets.splice(Number(remove.dataset.presetDelete), 1); saveSettings(); render(); } });
     $("#metronomeCompleteClose")?.addEventListener("click", () => $("#metronomeComplete")?.classList.add("hidden"));
-    document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); });
-    window.addEventListener("pagehide", () => stop());
+    document.addEventListener("keydown", (event) => { if (event.key === "Escape" && closeTopPanel({ haptic: true })) event.preventDefault(); });
+    document.addEventListener("visibilitychange", () => { if (document.hidden) { closeTopPanel({ restoreFocus: false }); stop(); } });
+    window.addEventListener("pagehide", () => { closeTopPanel({ restoreFocus: false }); stop(); });
   }
   function init(options = {}) { dependencies = options; bind(); render(); }
   global.ChromaticaMetronome = Object.freeze({
     init,
     start,
     stop,
+    closeTopPanel,
+    hasOpenPanel: () => Boolean(activePanel),
     isPlaying: () => playing,
     getSettings: () => structuredClone(settings),
     getRuntimeDiagnostics: () => ({

@@ -8,22 +8,22 @@ const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const source = fs.readFileSync(path.join(root, "metronome.js"), "utf8");
 const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 
-test("time signature is a single native select with all built-in choices", () => {
-  const select = html.match(/<select id="metronomeTimeSignatureSelect">([\s\S]*?)<\/select>/)?.[1] || "";
-  for (const value of ["2/4", "3/4", "4/4", "5/4", "6/8", "7/8", "9/8", "12/8", "custom"]) assert.match(select, new RegExp(`value="${value.replace("/", "\\/")}"`));
-  assert.doesNotMatch(html, /data-time-signature/);
+test("time signature uses a stage button and modal choices", () => {
+  assert.match(html, /id="metronomeSignatureOpen"[^>]*aria-haspopup="dialog"/);
+  const options = html.match(/id="metronomeSignatureOptions"([\s\S]*?)<\/div>/)?.[1] || "";
+  for (const value of ["2/4", "3/4", "4/4", "5/4", "6/8", "7/8", "9/8", "12/8", "custom"]) assert.match(options, new RegExp(`data-signature-option="${value.replace("/", "\\/")}"`));
 });
 
-test("subdivision is a single native select and old buttons are gone", () => {
-  const select = html.match(/<select id="metronomeSubdivisionSelect">([\s\S]*?)<\/select>/)?.[1] || "";
-  for (const value of ["quarter", "eighth", "triplet", "sixteenth"]) assert.match(select, new RegExp(`value="${value}"`));
-  assert.doesNotMatch(html, /data-subdivision/);
+test("subdivision uses a stage preview and picker panel", () => {
+  assert.match(html, /id="metronomeRhythmOpen"[^>]*aria-haspopup="dialog"/);
+  assert.match(html, /id="metronomeRhythmPreview"/);
+  for (const value of ["quarter", "eighth", "triplet", "sixteenth"]) assert.match(source, new RegExp(`id: "${value}"`));
 });
 
-test("custom signature controls are shown only for custom selection", () => {
-  assert.match(source, /metronomeTimeSignatureSelect[\s\S]*event\.target\.value === "custom"/);
-  assert.match(source, /customTimeSignature[^\n]*classList\.toggle\("hidden", !settings\.customSignature\)/);
-  assert.match(source, /!BUILT_IN_SIGNATURES\.has\(signatureValue\(\)\) \? "custom"/);
+test("custom signature is drafted in the panel and applied explicitly", () => {
+  assert.match(source, /button\.dataset\.signatureOption === "custom"/);
+  assert.match(source, /customTimeSignature[^\n]*classList\.toggle\("hidden", !signatureDraft\.custom\)/);
+  assert.match(source, /metronomeSignatureApply[\s\S]*setSignature/);
 });
 
 test("swing UI is available only for eighth-note subdivision", () => {
@@ -50,12 +50,12 @@ test("beat state is not color-only and current playback remains independent", ()
 test("trainer settings are hidden until the switch is enabled", () => {
   assert.match(html, /id="tempoTrainerEnabled"[^>]*aria-controls="tempoTrainerSettings"[^>]*aria-expanded="false"/);
   assert.match(html, /id="tempoTrainerSettings" class="hidden"/);
-  assert.match(source, /tempoTrainerSettings[^\n]*classList\.toggle\("hidden", !settings\.tempoTrainer\.enabled\)/);
+  assert.match(source, /tempoTrainerSettings[^\n]*classList\.toggle\("hidden", !enabled\)/);
   assert.match(source, /tempoTrainerEnabled[^\n]*setAttribute\("aria-expanded"/);
 });
 
 test("enabling trainer starts from current BPM with a fresh measure baseline", () => {
-  assert.match(source, /startBpm: Math\.min\(239, settings\.bpm\)/);
+  assert.match(source, /trainerDraft\.startBpm = Math\.min\(239, settings\.bpm\)/);
   assert.match(source, /schedulerState\.formalMeasures \+ \(atBarStart \? 0 : 1\)/);
   assert.match(source, /resetTrainerRuntime\(baseline\)/);
 });
@@ -75,13 +75,13 @@ test("trainer reaches a target without adding a second scheduler", () => {
 });
 
 test("disabling trainer stops later increases but retains current BPM", () => {
-  assert.match(source, /settings\.tempoTrainer\.enabled = enabled/);
-  assert.match(source, /else \{\s*resetTrainerRuntime\(0\)/);
+  assert.match(source, /settings\.tempoTrainer = readTrainerDraft\(\)/);
+  assert.match(source, /else if \(previousEnabled\)[\s\S]*resetTrainerRuntime\(0\)/);
   assert.doesNotMatch(source, /else \{\s*settings\.bpm = settings\.tempoTrainer\.startBpm/);
 });
 
-test("responsive controls use two columns and collapse at 340px", () => {
-  assert.match(css, /\.metronome-select-grid[^}]*repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(css, /@media \(max-width: 340px\)[\s\S]*\.metronome-select-grid, \.metronome-trainer-grid[^}]*minmax\(0, 1fr\)/);
+test("responsive stage selectors keep two columns at 320px", () => {
+  assert.match(css, /\.metronome-stage-selectors[^}]*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /@media \(max-width: 300px\)[\s\S]*\.metronome-stage-selectors[^}]*minmax\(0, 1fr\)/);
   assert.match(css, /\.metronome-beat-dots[^}]*repeat\(var\(--metronome-beat-columns, 4\), minmax\(0, 1fr\)\)/);
 });
