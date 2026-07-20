@@ -178,6 +178,25 @@
     return Math.min(target, start + increases * increment, MAX_BPM);
   }
 
+  function normalizeTempoTrainer(raw = {}, fallbackBpm = 80) {
+    const startBpm = Math.min(239, normalizeBpm(raw.startBpm, fallbackBpm));
+    const targetBpm = Math.max(startBpm + 1, normalizeBpm(raw.targetBpm, Math.min(240, startBpm + 20)));
+    return {
+      enabled: Boolean(raw.enabled),
+      startBpm,
+      targetBpm: Math.min(240, targetBpm),
+      increment: [1, 2, 5].includes(Number(raw.increment)) ? Number(raw.increment) : 1,
+      everyMeasures: [1, 2, 4, 8].includes(Number(raw.everyMeasures)) ? Number(raw.everyMeasures) : 1,
+      keepCurrent: Boolean(raw.keepCurrent),
+    };
+  }
+
+  function increaseTrainerBpm(currentBpm, trainer = {}) {
+    const current = normalizeBpm(currentBpm);
+    const normalized = normalizeTempoTrainer(trainer, current);
+    return Math.min(current + normalized.increment, normalized.targetBpm, MAX_BPM);
+  }
+
   function shouldAutoStop(settings, state, elapsedFormalMs) {
     const stop = settings.autoStop || { mode: "off" };
     if (stop.mode === "minutes") return elapsedFormalMs >= clamp(Number(stop.value) || 1, 1, 10) * 60000;
@@ -198,7 +217,7 @@
       sound: ["wood", "mechanical", "soft"].includes(raw.sound) ? raw.sound : "wood",
       volume: Number.isFinite(Number(raw.volume)) ? clamp(Number(raw.volume), 0, 100) : 70,
       countInMeasures: clamp(Number(raw.countInMeasures) || 0, 0, 2),
-      tempoTrainer: { ...(raw.tempoTrainer || {}) },
+      tempoTrainer: normalizeTempoTrainer(raw.tempoTrainer, raw.bpm),
       autoStop: { ...(raw.autoStop || { mode: "off" }) },
     };
   }
@@ -216,7 +235,7 @@
     normalizeBpm, parseMetronomeBpmInput, normalizeTimeSignature, getSubdivisionCount, getTempoTerm,
     normalizeAccentPattern, cycleAccent, createTapTempoState, registerTap,
     getSwingRatio, getStepDurationSeconds, createSchedulerState,
-    applyPendingSignatureAtBar, advanceSchedulerState, getTrainerBpm,
+    applyPendingSignatureAtBar, advanceSchedulerState, getTrainerBpm, normalizeTempoTrainer, increaseTrainerBpm,
     shouldAutoStop, normalizePreset, savePresetList,
   });
 })(typeof window !== "undefined" ? window : globalThis);

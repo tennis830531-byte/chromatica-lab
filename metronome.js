@@ -4,6 +4,7 @@
   const STORAGE_KEY = "chromatica.settings.metronome";
   const LOOKAHEAD_SECONDS = 0.1;
   const SCHEDULER_TICK_MS = 25;
+  const BUILT_IN_SIGNATURES = new Set(["2/4", "3/4", "4/4", "5/4", "6/8", "7/8", "9/8", "12/8"]);
   const SOUND_PROFILES = {
     wood: { strong: [1100, "triangle"], normal: [760, "triangle"], subdivision: [520, "sine"] },
     mechanical: { strong: [1450, "square"], normal: [980, "square"], subdivision: [660, "square"] },
@@ -34,6 +35,7 @@
   let playing = false;
   let formalStartedAt = 0;
   let lastVisualSequence = -1;
+  let trainerRuntime = { baselineMeasure: 0, nextIncreaseMeasure: null, lastAppliedBpm: null };
 
   function $(selector) { return document.querySelector(selector); }
   function $$(selector) { return [...document.querySelectorAll(selector)]; }
@@ -42,7 +44,9 @@
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
       const base = { ...defaultSettings, ...(stored || {}) };
       base.signature = core.normalizeTimeSignature(base.signature);
+      base.customSignature = Boolean(base.customSignature || !BUILT_IN_SIGNATURES.has(`${base.signature.numerator}/${base.signature.denominator}`));
       base.accents = core.normalizeAccentPattern(base.accents, base.signature.numerator);
+      base.tempoTrainer = core.normalizeTempoTrainer(base.tempoTrainer, base.bpm);
       base.presets = Array.isArray(base.presets) ? base.presets.slice(0, 5).map(core.normalizePreset) : [];
       return base;
     } catch { return structuredClone(defaultSettings); }
@@ -50,7 +54,43 @@
   function saveSettings() { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); }
   function announce(message) { const node = $("#metronomeLive"); if (node) node.textContent = message; }
   function getAudioContext() { return dependencies.getAudioContext?.() || null; }
-  function getCurrentBpm() { return core.getTrainerBpm(settings, schedulerState?.formalMeasures || 0, settings.bpm); }
+  function signatureValue(signature = settings.signature) { return `${signature.numerator}/${signature.denominator}`; }
+  function resetTrainerRuntime(baselineMeasure = 0) {
+    const interval = [1, 2, 4, 8].includes(Number(settings.tempoTrainer.everyMeasures)) ? Number(settings.tempoTrainer.everyMeasures) : 1;
+    trainerRuntime = {
+      baselineMeasure,
+      nextIncreaseMeasure: settings.tempoTrainer.enabled ? baselineMeasure + interval : null,
+      lastAppliedBpm: settings.bpm,
+    };
+  }
+  function renderBpmReadout() {
+    const bpm = settings.bpm;
+    if ($("#metronomeBpm")) $("#metronomeBpm").textContent = String(bpm);
+    if ($("#metronomeBpmRange")) $("#metronomeBpmRange").value = String(bpm);
+    if ($("#metronomeBpmInput")) $("#metronomeBpmInput").value = String(bpm);
+    if ($("#metronomeTempoTerm")) $("#metronomeTempoTerm").textContent = core.getTempoTerm(bpm);
+    const trainerStatus = $("#tempoTrainerStatus");
+    if (trainerStatus) {
+      const target = core.normalizeBpm(settings.tempoTrainer.targetBpm);
+      trainerStatus.textContent = bpm >= target ? `已達目標 ${target} BPM` : `目前 ${bpm} BPM／目標 ${target} BPM`;
+    }
+  }
+  function applyTempoTrainerAtBar() {
+    if (!settings.tempoTrainer.enabled || !schedulerState || schedulerState.countInMeasuresRemaining > 0) return settings.bpm;
+    if (schedulerState.beatIndex !== 0 || schedulerState.subdivisionIndex !== 0) return settings.bpm;
+    if (trainerRuntime.nextIncreaseMeasure == null) resetTrainerRuntime(schedulerState.formalMeasures);
+    if (schedulerState.formalMeasures < trainerRuntime.nextIncreaseMeasure) return settings.bpm;
+    const target = Math.min(240, core.normalizeBpm(settings.tempoTrainer.targetBpm));
+    const nextBpm = core.increaseTrainerBpm(settings.bpm, settings.tempoTrainer);
+    const interval = [1, 2, 4, 8].includes(Number(settings.tempoTrainer.everyMeasures)) ? Number(settings.tempoTrainer.everyMeasures) : 1;
+    trainerRuntime.nextIncreaseMeasure += interval;
+    if (nextBpm === settings.bpm) return settings.bpm;
+    settings.bpm = nextBpm;
+    trainerRuntime.lastAppliedBpm = nextBpm;
+    saveSettings();
+    renderBpmReadout();
+    return nextBpm;
+  }
   function setBpm(value, { announceChange = true } = {}) {
     const previous = settings.bpm;
     const next = core.normalizeBpm(value, previous);
@@ -119,8 +159,7 @@
     while (schedulerState.nextNoteTime < context.currentTime + LOOKAHEAD_SECONDS) {
       const applied = core.applyPendingSignatureAtBar(schedulerState, settings.accents);
       schedulerState = applied.state; settings.accents = applied.accentPattern;
-      const nextTrainerBpm = core.getTrainerBpm(settings, schedulerState.formalMeasures, settings.bpm);
-      if (settings.tempoTrainer.enabled) settings.bpm = nextTrainerBpm;
+      const nextTrainerBpm = applyTempoTrainerAtBar();
       scheduleOne(schedulerState);
       schedulerState = core.advanceSchedulerState(schedulerState, { ...settings, bpm: nextTrainerBpm });
       const elapsed = formalStartedAt ? Date.now() - formalStartedAt : 0;
@@ -145,8 +184,10 @@
     if (playing) return;
     const context = getAudioContext(); if (!context) return;
     if (context.state === "suspended") await context.resume();
+    if (settings.tempoTrainer.enabled) settings.bpm = core.normalizeBpm(settings.tempoTrainer.startBpm, settings.bpm);
     playing = true; formalStartedAt = 0;
     schedulerState = core.createSchedulerState(settings, context.currentTime + 0.08);
+    resetTrainerRuntime(0);
     lastVisualSequence = -1;
     schedulerTimer = window.setInterval(schedulerTick, SCHEDULER_TICK_MS);
     schedulerTick(); animationFrame = requestAnimationFrame(visualTick);
@@ -159,6 +200,7 @@
     schedulerTimer = null; animationFrame = null; playing = false;
     cancelScheduledNodes();
     if (settings.tempoTrainer.enabled && !settings.tempoTrainer.keepCurrent) settings.bpm = core.normalizeBpm(settings.tempoTrainer.startBpm);
+    resetTrainerRuntime(0);
     saveSettings(); render();
     announce(completed ? "節拍器練習完成" : "節拍器已停止");
     if (completed) $("#metronomeComplete")?.classList.remove("hidden");
@@ -169,36 +211,43 @@
     $("#metronomeCurrentBeat").textContent = String(beat);
     $("#metronomeMeasureCount").textContent = String(schedulerState.formalMeasures + 1);
     $("#metronomeSubdivisionPulse").textContent = schedulerState.subdivisionIndex ? "·" : "●";
-    $$("#metronomeBeatDots span").forEach((dot, index) => dot.classList.toggle("active", index === schedulerState.beatIndex));
+    $$("#metronomeBeatDots [data-beat-index]").forEach((dot, index) => {
+      const current = index === schedulerState.beatIndex;
+      dot.classList.toggle("active", current);
+      if (current) dot.setAttribute("aria-current", "true");
+      else dot.removeAttribute("aria-current");
+    });
     $("#metronomePendulum")?.classList.toggle("swing-right", schedulerState.sequence % 2 === 0);
   }
-  function renderAccents() {
-    const labels = { strong: "強", normal: "普通", muted: "靜音" };
-    const accents = $("#metronomeAccents");
-    accents.style.setProperty("--metronome-accent-columns", String(Math.min(4, Math.max(1, settings.accents.length))));
-    accents.innerHTML = settings.accents.map((state, index) => `<button type="button" data-accent-index="${index}" data-state="${state}" aria-label="第 ${index + 1} 拍，${labels[state]}" aria-pressed="${state === "strong"}"><b>${index + 1}</b><span>${labels[state]}</span></button>`).join("");
+  function renderBeatDots() {
+    const labels = { strong: "強音", normal: "普通", muted: "靜音" };
+    const dots = $("#metronomeBeatDots");
+    if (!dots) return;
+    dots.style.setProperty("--metronome-beat-columns", String(Math.min(4, Math.max(1, settings.accents.length))));
+    dots.innerHTML = settings.accents.map((state, index) => {
+      const current = Boolean(playing && schedulerState && schedulerState.beatIndex === index);
+      return `<button type="button" data-beat-index="${index}" data-accent-state="${state}" aria-label="第 ${index + 1} 拍，${labels[state]}" aria-pressed="${state === "strong"}"${current ? ' aria-current="true" class="active"' : ""}><span>${index + 1}</span>${state === "muted" ? '<i aria-hidden="true">×</i>' : ""}</button>`;
+    }).join("");
   }
   function renderPresets() {
     const list = $("#metronomePresetList"); if (!list) return;
     list.innerHTML = settings.presets.map((preset, index) => `<li><button type="button" data-preset-apply="${index}"><strong>${preset.name}</strong><span>${preset.bpm} BPM · ${preset.signature.numerator}/${preset.signature.denominator}</span></button><button type="button" data-preset-rename="${index}">改名</button><button type="button" data-preset-delete="${index}">刪除</button></li>`).join("") || "<li class=\"empty\">尚未儲存預設組合</li>";
   }
   function render() {
-    const bpm = settings.bpm;
-    if ($("#metronomeBpm")) $("#metronomeBpm").textContent = String(bpm);
-    if ($("#metronomeBpmRange")) $("#metronomeBpmRange").value = String(bpm);
-    if ($("#metronomeBpmInput")) $("#metronomeBpmInput").value = String(bpm);
-    if ($("#metronomeTempoTerm")) $("#metronomeTempoTerm").textContent = core.getTempoTerm(bpm);
+    renderBpmReadout();
     if ($("#metronomeSignatureDisplay")) $("#metronomeSignatureDisplay").textContent = `${settings.signature.numerator}/${settings.signature.denominator}`;
     if ($("#metronomeToggle")) $("#metronomeToggle").textContent = playing ? "停止" : "開始";
     if ($("#metronomeVolume")) $("#metronomeVolume").value = String(settings.volume);
     if ($("#metronomeSound")) $("#metronomeSound").value = settings.sound;
     if ($("#metronomeMute")) $("#metronomeMute").textContent = settings.muted ? "解除靜音" : "靜音";
-    if ($("#metronomeSwingRow")) $("#metronomeSwingRow").classList.toggle("is-disabled", settings.subdivision !== "eighth");
+    if ($("#metronomeSwingRow")) $("#metronomeSwingRow").classList.toggle("hidden", settings.subdivision !== "eighth");
     if ($("#metronomeSwing")) { $("#metronomeSwing").disabled = settings.subdivision !== "eighth"; $("#metronomeSwing").value = String(settings.swingPercent); }
     if ($("#metronomeSwingValue")) $("#metronomeSwingValue").textContent = `${settings.swingPercent}%`;
     if ($("#customNumerator")) $("#customNumerator").value = String(settings.signature.numerator);
     if ($("#customDenominator")) $("#customDenominator").value = String(settings.signature.denominator);
     if ($("#tempoTrainerEnabled")) $("#tempoTrainerEnabled").checked = Boolean(settings.tempoTrainer.enabled);
+    if ($("#tempoTrainerEnabled")) $("#tempoTrainerEnabled").setAttribute("aria-expanded", String(Boolean(settings.tempoTrainer.enabled)));
+    if ($("#tempoTrainerSettings")) $("#tempoTrainerSettings").classList.toggle("hidden", !settings.tempoTrainer.enabled);
     if ($("#tempoTrainerStart")) $("#tempoTrainerStart").value = String(settings.tempoTrainer.startBpm);
     if ($("#tempoTrainerTarget")) $("#tempoTrainerTarget").value = String(settings.tempoTrainer.targetBpm);
     if ($("#tempoTrainerIncrement")) $("#tempoTrainerIncrement").value = String(settings.tempoTrainer.increment);
@@ -206,12 +255,12 @@
     if ($("#tempoTrainerKeep")) $("#tempoTrainerKeep").value = settings.tempoTrainer.keepCurrent ? "keep" : "reset";
     if ($("#metronomeAutoStop")) $("#metronomeAutoStop").value = settings.autoStop.mode === "measures" ? "measures:1" : `${settings.autoStop.mode}:${settings.autoStop.value || 0}`;
     if ($("#metronomeCustomMeasures")) { $("#metronomeCustomMeasures").value = String(settings.autoStop.value || 1); $("#metronomeCustomMeasures").classList.toggle("hidden", settings.autoStop.mode !== "measures"); }
-    $$("[data-time-signature]").forEach((button) => button.classList.toggle("active", settings.customSignature ? button.dataset.timeSignature === "custom" : button.dataset.timeSignature === `${settings.signature.numerator}/${settings.signature.denominator}`));
-    $$("[data-subdivision]").forEach((button) => button.classList.toggle("active", button.dataset.subdivision === settings.subdivision));
+    const signatureSelect = $("#metronomeTimeSignatureSelect");
+    if (signatureSelect) signatureSelect.value = settings.customSignature || !BUILT_IN_SIGNATURES.has(signatureValue()) ? "custom" : signatureValue();
+    if ($("#metronomeSubdivisionSelect")) $("#metronomeSubdivisionSelect").value = settings.subdivision;
     $$("[data-count-in]").forEach((button) => button.classList.toggle("active", Number(button.dataset.countIn) === settings.countInMeasures));
-    $("#metronomeBeatDots").innerHTML = settings.accents.map(() => "<span></span>").join("");
     $("#customTimeSignature").classList.toggle("hidden", !settings.customSignature);
-    renderAccents(); renderPresets();
+    renderBeatDots(); renderPresets();
   }
   function currentPreset(name) { return core.normalizePreset({ ...settings, name }); }
   function bind() {
@@ -233,28 +282,45 @@
     });
     $$('[data-bpm-delta]').forEach((button) => button.addEventListener("click", () => setBpm(settings.bpm + Number(button.dataset.bpmDelta))));
     $("#metronomeTap")?.addEventListener("click", () => { tapState = core.registerTap(tapState, performance.now()); $("#metronomeTapResult").textContent = tapState.bpm ? `${tapState.bpm} BPM` : "再點一下"; if (tapState.bpm) setBpm(tapState.bpm, { announceChange: false }); });
-    $$('[data-time-signature]').forEach((button) => button.addEventListener("click", () => { if (button.dataset.timeSignature === "custom") { settings.customSignature = true; saveSettings(); render(); return; } const [numerator, denominator] = button.dataset.timeSignature.split("/").map(Number); setSignature({ numerator, denominator }); }));
+    $("#metronomeTimeSignatureSelect")?.addEventListener("change", (event) => { if (event.target.value === "custom") { settings.customSignature = true; saveSettings(); render(); return; } const [numerator, denominator] = event.target.value.split("/").map(Number); setSignature({ numerator, denominator }); });
     $("#customNumerator")?.addEventListener("change", () => setSignature({ numerator: $("#customNumerator").value, denominator: $("#customDenominator").value }, true));
     $("#customDenominator")?.addEventListener("change", () => setSignature({ numerator: $("#customNumerator").value, denominator: $("#customDenominator").value }, true));
-    $$('[data-subdivision]').forEach((button) => button.addEventListener("click", () => { settings.subdivision = button.dataset.subdivision; saveSettings(); render(); announce("細分音符已更新"); if (playing) rescheduleFromNow(); }));
+    $("#metronomeSubdivisionSelect")?.addEventListener("change", (event) => { settings.subdivision = event.target.value; saveSettings(); render(); announce("細分音符已更新"); if (playing) rescheduleFromNow(); });
     $("#metronomeSwing")?.addEventListener("input", (event) => { settings.swingPercent = Number(event.target.value); saveSettings(); $("#metronomeSwingValue").textContent = `${settings.swingPercent}%`; if (playing) rescheduleFromNow(); });
-    $("#metronomeAccents")?.addEventListener("click", (event) => { const button = event.target.closest("[data-accent-index]"); if (!button) return; const index = Number(button.dataset.accentIndex); settings.accents[index] = core.cycleAccent(settings.accents[index]); saveSettings(); render(); });
+    $("#metronomeBeatDots")?.addEventListener("click", (event) => { const button = event.target.closest("[data-beat-index]"); if (!button) return; const index = Number(button.dataset.beatIndex); settings.accents[index] = core.cycleAccent(settings.accents[index]); saveSettings(); renderBeatDots(); });
     $("#metronomeSound")?.addEventListener("change", (event) => { settings.sound = event.target.value; saveSettings(); });
     $("#metronomeVolume")?.addEventListener("input", (event) => { settings.volume = Number(event.target.value); if (settings.volume) settings.previousVolume = settings.volume; settings.muted = settings.volume === 0; saveSettings(); render(); });
     $("#metronomeMute")?.addEventListener("click", () => { settings.muted = !settings.muted; if (!settings.muted && settings.volume === 0) settings.volume = settings.previousVolume || 70; saveSettings(); render(); });
     $$('[data-count-in]').forEach((button) => button.addEventListener("click", () => { settings.countInMeasures = Number(button.dataset.countIn); saveSettings(); render(); }));
-    $("#tempoTrainerEnabled")?.addEventListener("change", (event) => { settings.tempoTrainer.enabled = event.target.checked; saveSettings(); });
+    $("#tempoTrainerEnabled")?.addEventListener("change", (event) => {
+      const enabled = event.target.checked;
+      settings.tempoTrainer.enabled = enabled;
+      if (enabled) {
+        settings.tempoTrainer = core.normalizeTempoTrainer({ ...settings.tempoTrainer, enabled: true, startBpm: Math.min(239, settings.bpm), targetBpm: settings.tempoTrainer.targetBpm <= settings.bpm ? Math.min(240, settings.bpm + 1) : settings.tempoTrainer.targetBpm }, settings.bpm);
+        const atBarStart = playing && schedulerState?.beatIndex === 0 && schedulerState?.subdivisionIndex === 0;
+        const baseline = playing ? schedulerState.formalMeasures + (atBarStart ? 0 : 1) : 0;
+        resetTrainerRuntime(baseline);
+      } else {
+        resetTrainerRuntime(0);
+      }
+      saveSettings(); render();
+    });
     const trainerFields = { Start: "startBpm", Target: "targetBpm", Increment: "increment", Every: "everyMeasures" };
-    Object.entries(trainerFields).forEach(([suffix, key]) => $("#tempoTrainer" + suffix)?.addEventListener("change", (event) => { settings.tempoTrainer[key] = Number(event.target.value); if (settings.tempoTrainer.targetBpm <= settings.tempoTrainer.startBpm) settings.tempoTrainer.targetBpm = core.normalizeBpm(settings.tempoTrainer.startBpm + 1); saveSettings(); render(); }));
-    $("#tempoTrainerKeep")?.addEventListener("change", (event) => { settings.tempoTrainer.keepCurrent = event.target.value === "keep"; saveSettings(); });
+    Object.entries(trainerFields).forEach(([suffix, key]) => $("#tempoTrainer" + suffix)?.addEventListener("change", (event) => {
+      settings.tempoTrainer[key] = Number(event.target.value);
+      settings.tempoTrainer = core.normalizeTempoTrainer(settings.tempoTrainer, settings.bpm);
+      if (key === "everyMeasures" && playing && schedulerState) resetTrainerRuntime(schedulerState.formalMeasures);
+      saveSettings(); render();
+    }));
+    $("#tempoTrainerKeep")?.addEventListener("change", (event) => { settings.tempoTrainer.keepCurrent = event.target.value === "keep"; saveSettings(); render(); });
     $("#metronomeAutoStop")?.addEventListener("change", (event) => { const [mode, value] = event.target.value.split(":"); settings.autoStop = { mode, value: Number(value) || 0 }; $("#metronomeCustomMeasures").classList.toggle("hidden", mode !== "measures"); saveSettings(); });
     $("#metronomeCustomMeasures")?.addEventListener("change", (event) => { settings.autoStop = { mode: "measures", value: Math.max(1, Math.min(999, Number(event.target.value) || 1)) }; saveSettings(); });
     $("#metronomeSavePreset")?.addEventListener("click", () => { if (settings.presets.length >= 5) return announce("最多只能儲存 5 組預設"); const name = prompt("預設名稱", `預設 ${settings.presets.length + 1}`); if (!name) return; settings.presets = core.savePresetList(settings.presets, currentPreset(name)); saveSettings(); render(); });
-    $("#metronomePresetList")?.addEventListener("click", (event) => { const apply = event.target.closest("[data-preset-apply]"); const rename = event.target.closest("[data-preset-rename]"); const remove = event.target.closest("[data-preset-delete]"); if (apply) { settings = { ...settings, ...core.normalizePreset(settings.presets[Number(apply.dataset.presetApply)]), presets: settings.presets }; saveSettings(); render(); if (playing) rescheduleFromNow(); } if (rename) { const index = Number(rename.dataset.presetRename); const name = prompt("重新命名", settings.presets[index].name); if (name) { settings.presets[index].name = name.slice(0, 20); saveSettings(); render(); } } if (remove) { settings.presets.splice(Number(remove.dataset.presetDelete), 1); saveSettings(); render(); } });
+    $("#metronomePresetList")?.addEventListener("click", (event) => { const apply = event.target.closest("[data-preset-apply]"); const rename = event.target.closest("[data-preset-rename]"); const remove = event.target.closest("[data-preset-delete]"); if (apply) { settings = { ...settings, ...core.normalizePreset(settings.presets[Number(apply.dataset.presetApply)]), presets: settings.presets }; settings.customSignature = !BUILT_IN_SIGNATURES.has(signatureValue()); resetTrainerRuntime(playing && schedulerState ? schedulerState.formalMeasures : 0); saveSettings(); render(); if (playing) rescheduleFromNow(); } if (rename) { const index = Number(rename.dataset.presetRename); const name = prompt("重新命名", settings.presets[index].name); if (name) { settings.presets[index].name = name.slice(0, 20); saveSettings(); render(); } } if (remove) { settings.presets.splice(Number(remove.dataset.presetDelete), 1); saveSettings(); render(); } });
     $("#metronomeCompleteClose")?.addEventListener("click", () => $("#metronomeComplete")?.classList.add("hidden"));
     document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); });
     window.addEventListener("pagehide", () => stop());
   }
   function init(options = {}) { dependencies = options; bind(); render(); }
-  global.ChromaticaMetronome = Object.freeze({ init, start, stop, isPlaying: () => playing, getSettings: () => structuredClone(settings), storageKey: STORAGE_KEY });
+  global.ChromaticaMetronome = Object.freeze({ init, start, stop, isPlaying: () => playing, getSettings: () => structuredClone(settings), getRuntimeDiagnostics: () => ({ schedulerTimers: schedulerTimer ? 1 : 0, scheduledNodes: scheduledNodes.size, animationFrames: animationFrame ? 1 : 0, trainerRuntime: { ...trainerRuntime } }), storageKey: STORAGE_KEY });
 })(typeof window !== "undefined" ? window : globalThis);

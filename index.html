@@ -417,7 +417,7 @@
               <div class="metronome-readout"><strong id="metronomeBpm">80</strong><span>BPM</span><em id="metronomeTempoTerm">Andante</em></div>
               <div class="metronome-visual" aria-hidden="true"><div id="metronomePendulum" class="metronome-pendulum"><i></i></div><div id="metronomeSubdivisionPulse" class="metronome-subdivision-pulse">●</div></div>
               <div class="metronome-status-row"><span>拍號 <b id="metronomeSignatureDisplay">4/4</b></span><span>小節 <b id="metronomeMeasureCount">1</b></span><span>第 <b id="metronomeCurrentBeat">1</b> 拍</span></div>
-              <div id="metronomeBeatDots" class="metronome-beat-dots" aria-hidden="true"></div>
+              <div id="metronomeBeatDots" class="metronome-beat-dots" role="group" aria-label="每拍重音設定"></div>
               <button id="metronomeToggle" class="primary-btn metronome-toggle" type="button">開始</button>
               <div id="metronomeLive" class="sr-only" aria-live="polite"></div>
             </section>
@@ -431,15 +431,14 @@
 
             <section class="metronome-controls paper-card">
               <h3>拍號與細分</h3>
-              <div class="metronome-choice-grid" aria-label="拍號">
-                <button data-time-signature="2/4" type="button">2/4</button><button data-time-signature="3/4" type="button">3/4</button><button data-time-signature="4/4" class="active" type="button">4/4</button><button data-time-signature="5/4" type="button">5/4</button><button data-time-signature="6/8" type="button">6/8</button><button data-time-signature="7/8" type="button">7/8</button><button data-time-signature="9/8" type="button">9/8</button><button data-time-signature="12/8" type="button">12/8</button><button data-time-signature="custom" type="button">自訂</button>
+              <div class="metronome-select-grid">
+                <label>拍號<select id="metronomeTimeSignatureSelect"><option value="2/4">2/4</option><option value="3/4">3/4</option><option value="4/4" selected>4/4</option><option value="5/4">5/4</option><option value="6/8">6/8</option><option value="7/8">7/8</option><option value="9/8">9/8</option><option value="12/8">12/8</option><option value="custom">自訂</option></select></label>
+                <label>細分<select id="metronomeSubdivisionSelect"><option value="quarter" selected>四分音符</option><option value="eighth">八分音符</option><option value="triplet">三連音</option><option value="sixteenth">十六分音符</option></select></label>
               </div>
               <div id="customTimeSignature" class="metronome-inline hidden"><label>分子<input id="customNumerator" type="number" min="1" max="12" value="4" /></label><label>分母<select id="customDenominator"><option>2</option><option selected>4</option><option>8</option><option>16</option></select></label></div>
-              <div class="metronome-choice-grid subdivision-grid" aria-label="細分音符"><button data-subdivision="quarter" class="active" type="button">四分音符</button><button data-subdivision="eighth" type="button">八分音符</button><button data-subdivision="triplet" type="button">三連音</button><button data-subdivision="sixteenth" type="button">十六分音符</button></div>
-              <label id="metronomeSwingRow" class="metronome-range-row is-disabled"><span>Swing <b id="metronomeSwingValue">50%</b></span><input id="metronomeSwing" type="range" min="50" max="75" step="1" value="50" disabled /></label>
+              <label id="metronomeSwingRow" class="metronome-range-row hidden"><span>Swing <b id="metronomeSwingValue">50%</b></span><input id="metronomeSwing" type="range" min="50" max="75" step="1" value="50" disabled /></label>
             </section>
 
-            <section class="metronome-controls paper-card"><h3>每拍重音</h3><div id="metronomeAccents" class="metronome-accents"></div></section>
             <section class="metronome-controls paper-card">
               <h3>聲音與預備拍</h3>
               <div class="metronome-inline"><label>音色<select id="metronomeSound"><option value="wood">木質</option><option value="mechanical">經典機械</option><option value="soft">柔和</option></select></label><label>音量<input id="metronomeVolume" type="range" min="0" max="100" value="70" /></label><button id="metronomeMute" type="button">靜音</button></div>
@@ -447,9 +446,12 @@
             </section>
             <section class="metronome-controls paper-card">
               <h3>速度訓練</h3>
-              <label class="metronome-toggle-row"><span>速度訓練</span><input id="tempoTrainerEnabled" type="checkbox" /></label>
-              <div class="metronome-trainer-grid"><label>起始 BPM<input id="tempoTrainerStart" type="number" min="30" max="239" value="80" /></label><label>目標 BPM<input id="tempoTrainerTarget" type="number" min="31" max="240" value="100" /></label><label>每次增加<select id="tempoTrainerIncrement"><option>1</option><option>2</option><option>5</option></select></label><label>每隔小節<select id="tempoTrainerEvery"><option>1</option><option>2</option><option>4</option><option>8</option></select></label></div>
-              <label>停止後<select id="tempoTrainerKeep"><option value="reset">回到起始 BPM</option><option value="keep">保留目前 BPM</option></select></label>
+              <label class="metronome-toggle-row"><span>速度訓練</span><input id="tempoTrainerEnabled" type="checkbox" aria-controls="tempoTrainerSettings" aria-expanded="false" /></label>
+              <div id="tempoTrainerSettings" class="hidden">
+                <div class="metronome-trainer-grid"><label>起始 BPM<input id="tempoTrainerStart" type="number" min="30" max="239" value="80" /></label><label>目標 BPM<input id="tempoTrainerTarget" type="number" min="31" max="240" value="100" /></label><label>每次增加<select id="tempoTrainerIncrement"><option value="1">1 BPM</option><option value="2">2 BPM</option><option value="5">5 BPM</option></select></label><label>每隔<select id="tempoTrainerEvery"><option value="1">1 小節</option><option value="2">2 小節</option><option value="4">4 小節</option><option value="8">8 小節</option></select></label></div>
+                <label>停止後<select id="tempoTrainerKeep"><option value="reset">回到起始 BPM</option><option value="keep">保留目前 BPM</option></select></label>
+                <p id="tempoTrainerStatus" class="metronome-trainer-status">目前 80 BPM／目標 100 BPM</p>
+              </div>
             </section>
             <section class="metronome-controls paper-card"><h3>自動停止</h3><select id="metronomeAutoStop"><option value="off:0">關閉</option><option value="minutes:1">1 分鐘</option><option value="minutes:3">3 分鐘</option><option value="minutes:5">5 分鐘</option><option value="minutes:10">10 分鐘</option><option value="measures:1">自訂小節數</option></select><input id="metronomeCustomMeasures" class="hidden" type="number" min="1" max="999" value="1" aria-label="自訂停止小節數" /></section>
             <section class="metronome-controls paper-card"><div class="card-row-head"><h3>預設組合</h3><button id="metronomeSavePreset" type="button">儲存目前設定</button></div><ul id="metronomePresetList" class="metronome-preset-list"></ul></section>
