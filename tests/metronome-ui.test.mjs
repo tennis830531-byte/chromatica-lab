@@ -23,6 +23,12 @@ test("metronome reuses injected application AudioContext", () => { assert.match(
 test("leaving view, background, pagehide and logout stop metronome", () => { assert.match(app, /view !== "metronome".*ChromaticaMetronome\?\.stop/s); assert.match(app, /pauseAudioForAppBackground[\s\S]*ChromaticaMetronome\?\.stop/); assert.match(ui, /visibilitychange/); assert.match(ui, /pagehide/); assert.match(app, /prepareForSignedOutAccount[\s\S]*ChromaticaMetronome\?\.stop/); });
 test("metronome does not touch microphone, practice history, rewards or streak", () => { assert.doesNotMatch(ui, /getUserMedia|micStream|practiceHistory|waterDrop|DailyGoal|streak|award|scheduleAccountSnapshotSave/); });
 test("muting preserves visual scheduler", () => { assert.match(ui, /if \(settings\.muted \|\| settings\.volume <= 0\) return/); assert.match(ui, /animationFrame = requestAnimationFrame\(visualTick\)/); });
+test("wood and soft subdivisions remain audible on phone speakers", () => {
+  assert.match(ui, /wood:[\s\S]*subdivision: \{ frequency: 700, type: "triangle", level: 0\.17/);
+  assert.match(ui, /soft:[\s\S]*subdivision: \{ frequency: 640, type: "sine", level: 0\.18/);
+  assert.match(ui, /const level = base \* tone\.level/);
+  assert.match(ui, /time \+ tone\.duration/);
+});
 test("device preset storage is outside account workspace", () => { assert.match(ui, /chromatica\.settings\.metronome/); assert.doesNotMatch(fs.readFileSync(path.join(root,"account-workspace.js"),"utf8"), /settings\.metronome/); });
 test("runtime build explicitly includes all metronome and QA scripts", () => { for (const script of ["metronome-core.js","metronome.js","garden-qa.js"]) assert.match(build, new RegExp(`"${script.replace(".","\\.")}"`)); });
 test("reduced motion disables pendulum travel but retains beat indicators", () => { const css=fs.readFileSync(path.join(root,"styles.css"),"utf8"); assert.match(css, /prefers-reduced-motion[\s\S]*metronome-pendulum/); assert.match(html, /id="metronomeBeatDots"/); });

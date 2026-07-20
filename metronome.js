@@ -6,9 +6,21 @@
   const SCHEDULER_TICK_MS = 25;
   const BUILT_IN_SIGNATURES = new Set(["2/4", "3/4", "4/4", "5/4", "6/8", "7/8", "9/8", "12/8"]);
   const SOUND_PROFILES = {
-    wood: { strong: [1100, "triangle"], normal: [760, "triangle"], subdivision: [520, "sine"] },
-    mechanical: { strong: [1450, "square"], normal: [980, "square"], subdivision: [660, "square"] },
-    soft: { strong: [820, "sine"], normal: [620, "sine"], subdivision: [440, "sine"] },
+    wood: {
+      strong: { frequency: 1100, type: "triangle", level: 0.28, duration: 0.065 },
+      normal: { frequency: 760, type: "triangle", level: 0.19, duration: 0.065 },
+      subdivision: { frequency: 700, type: "triangle", level: 0.17, duration: 0.075 },
+    },
+    mechanical: {
+      strong: { frequency: 1450, type: "square", level: 0.28, duration: 0.055 },
+      normal: { frequency: 980, type: "square", level: 0.19, duration: 0.055 },
+      subdivision: { frequency: 660, type: "square", level: 0.1, duration: 0.055 },
+    },
+    soft: {
+      strong: { frequency: 820, type: "sine", level: 0.28, duration: 0.11 },
+      normal: { frequency: 620, type: "sine", level: 0.19, duration: 0.11 },
+      subdivision: { frequency: 640, type: "sine", level: 0.18, duration: 0.12 },
+    },
   };
   const defaultSettings = {
     bpm: 80,
@@ -153,18 +165,18 @@
     const context = getAudioContext();
     if (!context) return;
     const profile = SOUND_PROFILES[settings.sound] || SOUND_PROFILES.wood;
-    const [frequency, type] = profile[kind] || profile.normal;
+    const tone = profile[kind] || profile.normal;
     const oscillator = context.createOscillator();
     const gain = context.createGain();
-    oscillator.type = type;
-    oscillator.frequency.setValueAtTime(countIn ? frequency * 0.78 : frequency, time);
+    oscillator.type = tone.type;
+    oscillator.frequency.setValueAtTime(countIn ? tone.frequency * 0.78 : tone.frequency, time);
     const base = settings.volume / 100;
-    const level = base * (kind === "strong" ? 0.28 : kind === "normal" ? 0.19 : 0.1) * (countIn ? 0.62 : 1);
+    const level = base * tone.level * (countIn ? 0.62 : 1);
     gain.gain.setValueAtTime(0.0001, time);
     gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, level), time + 0.006);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + (settings.sound === "soft" ? 0.11 : 0.065));
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + tone.duration);
     oscillator.connect(gain).connect(context.destination);
-    oscillator.start(time); oscillator.stop(time + 0.13);
+    oscillator.start(time); oscillator.stop(time + tone.duration + 0.02);
     scheduledNodes.add(oscillator);
     oscillator.onended = () => { scheduledNodes.delete(oscillator); try { oscillator.disconnect(); gain.disconnect(); } catch {} };
   }
