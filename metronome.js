@@ -27,6 +27,7 @@
     autoStop: "metronomeAutoStopDialog",
     signature: "metronomeSignatureDialog",
     rhythm: "metronomeRhythmDialog",
+    preset: "metronomePresetDialog",
   });
   const defaultSettings = {
     bpm: 80,
@@ -64,6 +65,7 @@
   let trainerDraft = null;
   let autoStopDraft = null;
   let signatureDraft = null;
+  let presetDraftIndex = null;
 
   function $(selector) { return document.querySelector(selector); }
   function $$(selector) { return [...document.querySelectorAll(selector)]; }
@@ -92,7 +94,8 @@
     return name === "trainer" ? $("#metronomeTrainerOpen")
       : name === "autoStop" ? $("#metronomeAutoStopOpen")
         : name === "signature" ? $("#metronomeSignatureOpen")
-          : name === "rhythm" ? $("#metronomeRhythmOpen") : null;
+          : name === "rhythm" ? $("#metronomeRhythmOpen")
+            : name === "preset" && panelReturnFocus?.id === "metronomeSavePreset" ? $("#metronomeSavePreset") : null;
   }
   function closeTopPanel({ haptic = false, restoreFocus = true } = {}) {
     if (!activePanel) return false;
@@ -103,6 +106,7 @@
     activePanel = null;
     document.body.classList.remove("modal-open");
     if (haptic) void global.ChromaticaHaptics?.close?.();
+    if (name === "preset") presetDraftIndex = null;
     const focusTarget = panelReturnFocus;
     panelReturnFocus = null;
     if (restoreFocus) requestAnimationFrame(() => focusTarget?.focus?.());
@@ -487,9 +491,47 @@
       return `<button type="button" data-beat-index="${index}" data-accent-state="${state}" aria-label="第 ${index + 1} 拍，${labels[state]}" aria-pressed="${state === "strong"}"${current ? ' aria-current="true" class="active"' : ""}><span>${index + 1}</span>${state === "muted" ? '<i aria-hidden="true">×</i>' : ""}</button>`;
     }).join("");
   }
+  function showPresetNotice(message = "") {
+    const notice = $("#metronomePresetNotice");
+    if (!notice) return;
+    notice.textContent = message;
+    notice.classList.toggle("hidden", !message);
+  }
   function renderPresets() {
     const list = $("#metronomePresetList"); if (!list) return;
-    list.innerHTML = settings.presets.map((preset, index) => `<li><button type="button" data-preset-apply="${index}"><strong>${preset.name}</strong><span>${preset.bpm} BPM · ${preset.signature.numerator}/${preset.signature.denominator}</span></button><button type="button" data-preset-rename="${index}">改名</button><button type="button" data-preset-delete="${index}">刪除</button></li>`).join("") || "<li class=\"empty\">尚未儲存預設組合</li>";
+    list.replaceChildren();
+    if (!settings.presets.length) {
+      const empty = document.createElement("li");
+      empty.className = "empty";
+      empty.textContent = "尚未儲存預設組合";
+      list.append(empty);
+    } else settings.presets.forEach((preset, index) => {
+      const item = document.createElement("li");
+      const applyButton = document.createElement("button");
+      applyButton.type = "button";
+      applyButton.dataset.presetApply = String(index);
+      const name = document.createElement("strong");
+      name.textContent = preset.name;
+      const summary = document.createElement("span");
+      summary.textContent = `${preset.bpm} BPM · ${preset.signature.numerator}/${preset.signature.denominator}`;
+      applyButton.append(name, summary);
+      const renameButton = document.createElement("button");
+      renameButton.type = "button";
+      renameButton.dataset.presetRename = String(index);
+      renameButton.textContent = "改名";
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.dataset.presetDelete = String(index);
+      deleteButton.textContent = "刪除";
+      item.append(applyButton, renameButton, deleteButton);
+      list.append(item);
+    });
+    const saveButton = $("#metronomeSavePreset");
+    if (saveButton) {
+      const full = settings.presets.length >= 5;
+      saveButton.title = full ? "最多只能儲存 5 組預設" : "";
+      if (!full) showPresetNotice();
+    }
   }
   function render() {
     renderBpmReadout();
@@ -513,6 +555,44 @@
     renderBeatDots(); renderSubdivisionProgress(matchingVisualEvent); renderRhythmOptions(); renderPresets();
   }
   function currentPreset(name) { return core.normalizePreset({ ...settings, name }); }
+  function openPresetPanel(index = null) {
+    if (index === null && settings.presets.length >= 5) {
+      const message = "最多只能儲存 5 組預設，請先刪除一組再新增。";
+      showPresetNotice(message);
+      announce(message);
+      return;
+    }
+    presetDraftIndex = Number.isInteger(index) && settings.presets[index] ? index : null;
+    $("#metronomePresetTitle").textContent = presetDraftIndex === null ? "儲存預設組合" : "重新命名預設";
+    $("#metronomePresetName").value = presetDraftIndex === null ? `預設 ${settings.presets.length + 1}` : settings.presets[presetDraftIndex].name;
+    $("#metronomePresetError").textContent = "請輸入預設名稱。";
+    $("#metronomePresetError").classList.add("hidden");
+    showPresetNotice();
+    openPanel("preset");
+    requestAnimationFrame(() => $("#metronomePresetName")?.select?.());
+  }
+  function savePresetDraft() {
+    const name = core.normalizePresetName($("#metronomePresetName")?.value);
+    if (!name) {
+      $("#metronomePresetError").textContent = "請輸入預設名稱。";
+      $("#metronomePresetError")?.classList.remove("hidden");
+      $("#metronomePresetName")?.focus();
+      return;
+    }
+    if (!core.isPresetNameAvailable(settings.presets, name, presetDraftIndex)) {
+      $("#metronomePresetError").textContent = "已有相同名稱的預設組合。";
+      $("#metronomePresetError")?.classList.remove("hidden");
+      $("#metronomePresetName")?.focus();
+      return;
+    }
+    const renamed = presetDraftIndex !== null;
+    settings.presets = core.savePresetList(settings.presets, currentPreset(name), presetDraftIndex);
+    saveSettings();
+    render();
+    closeTopPanel();
+    void global.ChromaticaHaptics?.success?.();
+    announce(renamed ? "預設名稱已更新" : "預設組合已儲存");
+  }
   function bind() {
     $("#metronomeToggle")?.addEventListener("click", () => playing ? stop() : start());
     $("#metronomeBpmRange")?.addEventListener("input", (event) => setBpm(event.target.value, { announceChange: false }));
@@ -588,8 +668,12 @@
     $("#metronomeVolume")?.addEventListener("input", (event) => { settings.volume = Number(event.target.value); if (settings.volume) settings.previousVolume = settings.volume; settings.muted = settings.volume === 0; saveSettings(); render(); });
     $("#metronomeMute")?.addEventListener("click", () => { settings.muted = !settings.muted; if (!settings.muted && settings.volume === 0) settings.volume = settings.previousVolume || 70; saveSettings(); render(); });
     $$('[data-count-in]').forEach((button) => button.addEventListener("click", () => { settings.countInMeasures = Number(button.dataset.countIn); saveSettings(); render(); }));
-    $("#metronomeSavePreset")?.addEventListener("click", () => { if (settings.presets.length >= 5) return announce("最多只能儲存 5 組預設"); const name = prompt("預設名稱", `預設 ${settings.presets.length + 1}`); if (!name) return; settings.presets = core.savePresetList(settings.presets, currentPreset(name)); saveSettings(); render(); });
-    $("#metronomePresetList")?.addEventListener("click", (event) => { const apply = event.target.closest("[data-preset-apply]"); const rename = event.target.closest("[data-preset-rename]"); const remove = event.target.closest("[data-preset-delete]"); if (apply) { settings = { ...settings, ...core.normalizePreset(settings.presets[Number(apply.dataset.presetApply)]), presets: settings.presets }; settings.customSignature = !BUILT_IN_SIGNATURES.has(signatureValue()); resetTrainerRuntime(playing && schedulerState ? schedulerState.formalMeasures : 0); saveSettings(); render(); if (playing) rescheduleFromNow(); } if (rename) { const index = Number(rename.dataset.presetRename); const name = prompt("重新命名", settings.presets[index].name); if (name) { settings.presets[index].name = name.slice(0, 20); saveSettings(); render(); } } if (remove) { settings.presets.splice(Number(remove.dataset.presetDelete), 1); saveSettings(); render(); } });
+    $("#metronomeSavePreset")?.addEventListener("click", () => openPresetPanel());
+    $("#metronomePresetCancel")?.addEventListener("click", () => closeTopPanel());
+    $("#metronomePresetClose")?.addEventListener("click", () => closeTopPanel());
+    $("#metronomePresetName")?.addEventListener("input", () => $("#metronomePresetError")?.classList.add("hidden"));
+    $("#metronomePresetForm")?.addEventListener("submit", (event) => { event.preventDefault(); savePresetDraft(); });
+    $("#metronomePresetList")?.addEventListener("click", (event) => { const apply = event.target.closest("[data-preset-apply]"); const rename = event.target.closest("[data-preset-rename]"); const remove = event.target.closest("[data-preset-delete]"); if (apply) { settings = { ...settings, ...core.normalizePreset(settings.presets[Number(apply.dataset.presetApply)]), presets: settings.presets }; settings.customSignature = !BUILT_IN_SIGNATURES.has(signatureValue()); resetTrainerRuntime(playing && schedulerState ? schedulerState.formalMeasures : 0); saveSettings(); render(); if (playing) rescheduleFromNow(); } if (rename) openPresetPanel(Number(rename.dataset.presetRename)); if (remove) { settings.presets.splice(Number(remove.dataset.presetDelete), 1); saveSettings(); render(); } });
     $("#metronomeCompleteClose")?.addEventListener("click", () => $("#metronomeComplete")?.classList.add("hidden"));
     document.addEventListener("keydown", (event) => { if (event.key === "Escape" && closeTopPanel({ haptic: true })) event.preventDefault(); });
     document.addEventListener("visibilitychange", () => { if (document.hidden) { closeTopPanel({ restoreFocus: false }); stop(); } });

@@ -471,7 +471,11 @@
               <div class="metronome-inline"><label>音色<select id="metronomeSound"><option value="wood">木質</option><option value="mechanical">經典機械</option><option value="soft">柔和</option></select></label><label>音量<input id="metronomeVolume" type="range" min="0" max="100" value="70" /></label><button id="metronomeMute" type="button">靜音</button></div>
               <div class="metronome-choice-grid count-in-grid"><button data-count-in="0" class="active" type="button">預備拍關閉</button><button data-count-in="1" type="button">1 小節</button><button data-count-in="2" type="button">2 小節</button></div>
             </section>
-            <section class="metronome-controls paper-card"><div class="card-row-head"><h3>預設組合</h3><button id="metronomeSavePreset" type="button">儲存目前設定</button></div><ul id="metronomePresetList" class="metronome-preset-list"></ul></section>
+            <section class="metronome-controls paper-card">
+              <div class="card-row-head"><h3>預設組合</h3><button id="metronomeSavePreset" type="button" aria-haspopup="dialog" aria-expanded="false">儲存目前設定</button></div>
+              <p id="metronomePresetNotice" class="metronome-preset-notice hidden" role="status" aria-live="polite"></p>
+              <ul id="metronomePresetList" class="metronome-preset-list"></ul>
+            </section>
           </div>
 
           <div id="metronomeTrainerDialog" class="metronome-panel-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="metronomeTrainerTitle">
@@ -514,6 +518,17 @@
               <div class="metronome-panel-body"><div id="metronomeRhythmOptions" class="metronome-rhythm-options" role="listbox" aria-label="細分節奏"></div><label id="metronomeSwingRow" class="metronome-range-row hidden"><span>Swing <b id="metronomeSwingValue">50%</b></span><input id="metronomeSwing" type="range" min="50" max="75" step="1" value="50" disabled /></label></div>
               <footer><button id="metronomeRhythmCancel" type="button">取消</button></footer>
             </section>
+          </div>
+
+          <div id="metronomePresetDialog" class="metronome-panel-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="metronomePresetTitle">
+            <form id="metronomePresetForm" class="metronome-panel-sheet">
+              <header class="metronome-panel-header"><h3 id="metronomePresetTitle">儲存預設組合</h3><button id="metronomePresetClose" class="metronome-panel-close" type="button" aria-label="關閉命名視窗">×</button></header>
+              <div class="metronome-panel-body">
+                <label>預設名稱<input id="metronomePresetName" type="text" maxlength="20" autocomplete="off" required /></label>
+                <p id="metronomePresetError" class="metronome-form-error hidden" role="alert">請輸入預設名稱。</p>
+              </div>
+              <footer><button id="metronomePresetCancel" type="button">取消</button><button class="primary-btn" type="submit" data-haptic="manual">儲存</button></footer>
+            </form>
           </div>
         </section>
 
