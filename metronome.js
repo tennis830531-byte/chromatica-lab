@@ -35,6 +35,10 @@
   let playing = false;
   let formalStartedAt = 0;
   let lastVisualSequence = -1;
+  let scheduledVisualEvents = [];
+  let presentedVisualEvent = null;
+  let lastPresentedMainBeatIndex = -1;
+  const visualDiagnostics = [];
   let trainerRuntime = { baselineMeasure: 0, nextIncreaseMeasure: null, lastAppliedBpm: null };
 
   function $(selector) { return document.querySelector(selector); }
@@ -126,6 +130,24 @@
     scheduledNodes.forEach((node) => { try { node.stop(); } catch {} try { node.disconnect(); } catch {} });
     scheduledNodes.clear();
   }
+  function clearScheduledVisualEvents() {
+    scheduledVisualEvents = [];
+  }
+  function getPresentedAudioTime(context) {
+    return core.getPresentedAudioTime(context);
+  }
+  function queueVisualEvent(state, accentState) {
+    scheduledVisualEvents.push({
+      audioTime: state.nextNoteTime,
+      sequence: state.sequence,
+      beatIndex: state.beatIndex,
+      subdivisionIndex: state.subdivisionIndex,
+      formalMeasures: state.formalMeasures,
+      accentState,
+      countIn: state.countInMeasuresRemaining > 0,
+      schedulerState: { ...state, signature: { ...state.signature }, pendingSignature: state.pendingSignature ? { ...state.pendingSignature } : null },
+    });
+  }
   function scheduleTone(time, kind, countIn = false) {
     if (settings.muted || settings.volume <= 0) return;
     const context = getAudioContext();
@@ -149,6 +171,7 @@
   function scheduleOne(state) {
     const isMain = state.subdivisionIndex === 0;
     const accent = settings.accents[state.beatIndex] || "normal";
+    queueVisualEvent(state, accent);
     if (isMain && accent !== "muted") scheduleTone(state.nextNoteTime, accent === "strong" ? "strong" : "normal", state.countInMeasuresRemaining > 0);
     else if (!isMain) scheduleTone(state.nextNoteTime, "subdivision", state.countInMeasuresRemaining > 0);
   }
@@ -171,14 +194,35 @@
   }
   function visualTick() {
     if (!playing || !schedulerState) return;
-    if (schedulerState.sequence !== lastVisualSequence) { lastVisualSequence = schedulerState.sequence; renderBeat(); }
+    const context = getAudioContext();
+    if (!context) return;
+    const presentedAudioTime = getPresentedAudioTime(context);
+    const consumed = core.consumeDueVisualEvents(scheduledVisualEvents, presentedAudioTime);
+    const { latestDue } = consumed;
+    scheduledVisualEvents = consumed.remaining;
+    if (latestDue && latestDue.sequence !== lastVisualSequence) {
+      lastVisualSequence = latestDue.sequence;
+      presentedVisualEvent = latestDue;
+      const deltaMs = (presentedAudioTime - latestDue.audioTime) * 1000;
+      visualDiagnostics.push({
+        scheduledAudioTime: latestDue.audioTime,
+        presentedVisualTime: presentedAudioTime,
+        deltaMs,
+        beatIndex: latestDue.beatIndex,
+        subdivisionIndex: latestDue.subdivisionIndex,
+      });
+      if (visualDiagnostics.length > 160) visualDiagnostics.splice(0, visualDiagnostics.length - 160);
+      renderBeat(latestDue);
+    }
     animationFrame = requestAnimationFrame(visualTick);
   }
   function rescheduleFromNow() {
     if (!playing) return;
     const context = getAudioContext(); if (!context) return;
+    const resumeState = scheduledVisualEvents[0]?.schedulerState || schedulerState;
     cancelScheduledNodes();
-    schedulerState.nextNoteTime = context.currentTime + 0.05;
+    clearScheduledVisualEvents();
+    schedulerState = { ...resumeState, signature: { ...resumeState.signature }, pendingSignature: resumeState.pendingSignature ? { ...resumeState.pendingSignature } : null, nextNoteTime: context.currentTime + 0.05 };
   }
   async function start() {
     if (playing) return;
@@ -189,6 +233,9 @@
     schedulerState = core.createSchedulerState(settings, context.currentTime + 0.08);
     resetTrainerRuntime(0);
     lastVisualSequence = -1;
+    presentedVisualEvent = null;
+    lastPresentedMainBeatIndex = -1;
+    clearScheduledVisualEvents();
     schedulerTimer = window.setInterval(schedulerTick, SCHEDULER_TICK_MS);
     schedulerTick(); animationFrame = requestAnimationFrame(visualTick);
     render(); announce("節拍器已開始");
@@ -199,25 +246,30 @@
     if (animationFrame) cancelAnimationFrame(animationFrame);
     schedulerTimer = null; animationFrame = null; playing = false;
     cancelScheduledNodes();
+    clearScheduledVisualEvents();
+    presentedVisualEvent = null;
+    lastPresentedMainBeatIndex = -1;
     if (settings.tempoTrainer.enabled && !settings.tempoTrainer.keepCurrent) settings.bpm = core.normalizeBpm(settings.tempoTrainer.startBpm);
     resetTrainerRuntime(0);
     saveSettings(); render();
     announce(completed ? "節拍器練習完成" : "節拍器已停止");
     if (completed) $("#metronomeComplete")?.classList.remove("hidden");
   }
-  function renderBeat() {
-    if (!schedulerState) return;
-    const beat = schedulerState.beatIndex + 1;
+  function renderBeat(event) {
+    if (!event) return;
+    $("#metronomeSubdivisionPulse").textContent = event.subdivisionIndex ? "·" : "●";
+    if (event.subdivisionIndex !== 0) return;
+    lastPresentedMainBeatIndex = event.beatIndex;
+    const beat = event.beatIndex + 1;
     $("#metronomeCurrentBeat").textContent = String(beat);
-    $("#metronomeMeasureCount").textContent = String(schedulerState.formalMeasures + 1);
-    $("#metronomeSubdivisionPulse").textContent = schedulerState.subdivisionIndex ? "·" : "●";
+    $("#metronomeMeasureCount").textContent = String(event.formalMeasures + 1);
     $$("#metronomeBeatDots [data-beat-index]").forEach((dot, index) => {
-      const current = index === schedulerState.beatIndex;
+      const current = index === event.beatIndex;
       dot.classList.toggle("active", current);
       if (current) dot.setAttribute("aria-current", "true");
       else dot.removeAttribute("aria-current");
     });
-    $("#metronomePendulum")?.classList.toggle("swing-right", schedulerState.sequence % 2 === 0);
+    $("#metronomePendulum")?.classList.toggle("swing-right", event.sequence % 2 === 0);
   }
   function renderBeatDots() {
     const labels = { strong: "強音", normal: "普通", muted: "靜音" };
@@ -225,7 +277,7 @@
     if (!dots) return;
     dots.style.setProperty("--metronome-beat-columns", String(Math.min(4, Math.max(1, settings.accents.length))));
     dots.innerHTML = settings.accents.map((state, index) => {
-      const current = Boolean(playing && schedulerState && schedulerState.beatIndex === index);
+      const current = Boolean(playing && lastPresentedMainBeatIndex === index);
       return `<button type="button" data-beat-index="${index}" data-accent-state="${state}" aria-label="第 ${index + 1} 拍，${labels[state]}" aria-pressed="${state === "strong"}"${current ? ' aria-current="true" class="active"' : ""}><span>${index + 1}</span>${state === "muted" ? '<i aria-hidden="true">×</i>' : ""}</button>`;
     }).join("");
   }
@@ -322,5 +374,21 @@
     window.addEventListener("pagehide", () => stop());
   }
   function init(options = {}) { dependencies = options; bind(); render(); }
-  global.ChromaticaMetronome = Object.freeze({ init, start, stop, isPlaying: () => playing, getSettings: () => structuredClone(settings), getRuntimeDiagnostics: () => ({ schedulerTimers: schedulerTimer ? 1 : 0, scheduledNodes: scheduledNodes.size, animationFrames: animationFrame ? 1 : 0, trainerRuntime: { ...trainerRuntime } }), storageKey: STORAGE_KEY });
+  global.ChromaticaMetronome = Object.freeze({
+    init,
+    start,
+    stop,
+    isPlaying: () => playing,
+    getSettings: () => structuredClone(settings),
+    getRuntimeDiagnostics: () => ({
+      schedulerTimers: schedulerTimer ? 1 : 0,
+      scheduledNodes: scheduledNodes.size,
+      animationFrames: animationFrame ? 1 : 0,
+      visualQueue: scheduledVisualEvents.length,
+      presentedVisualEvent: presentedVisualEvent ? { ...presentedVisualEvent, schedulerState: undefined } : null,
+      visualDiagnostics: visualDiagnostics.slice(-40),
+      trainerRuntime: { ...trainerRuntime },
+    }),
+    storageKey: STORAGE_KEY,
+  });
 })(typeof window !== "undefined" ? window : globalThis);

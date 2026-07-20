@@ -197,6 +197,27 @@
     return Math.min(current + normalized.increment, normalized.targetBpm, MAX_BPM);
   }
 
+  function getPresentedAudioTime(audioClock = {}) {
+    try {
+      const timestamp = audioClock.getOutputTimestamp?.();
+      if (Number.isFinite(timestamp?.contextTime)) return Math.max(0, timestamp.contextTime);
+    } catch {}
+    const outputLatency = Number.isFinite(audioClock.outputLatency) ? Math.max(0, audioClock.outputLatency) : null;
+    const baseLatency = Number.isFinite(audioClock.baseLatency) ? Math.max(0, audioClock.baseLatency) : 0;
+    return Math.max(0, (Number(audioClock.currentTime) || 0) - (outputLatency ?? baseLatency));
+  }
+
+  function consumeDueVisualEvents(events = [], presentedAudioTime = 0) {
+    let dueCount = 0;
+    let latestDue = null;
+    for (const event of events) {
+      if (event.audioTime > presentedAudioTime) break;
+      latestDue = event;
+      dueCount += 1;
+    }
+    return { latestDue, remaining: events.slice(dueCount), dueCount };
+  }
+
   function shouldAutoStop(settings, state, elapsedFormalMs) {
     const stop = settings.autoStop || { mode: "off" };
     if (stop.mode === "minutes") return elapsedFormalMs >= clamp(Number(stop.value) || 1, 1, 10) * 60000;
@@ -236,6 +257,6 @@
     normalizeAccentPattern, cycleAccent, createTapTempoState, registerTap,
     getSwingRatio, getStepDurationSeconds, createSchedulerState,
     applyPendingSignatureAtBar, advanceSchedulerState, getTrainerBpm, normalizeTempoTrainer, increaseTrainerBpm,
-    shouldAutoStop, normalizePreset, savePresetList,
+    getPresentedAudioTime, consumeDueVisualEvents, shouldAutoStop, normalizePreset, savePresetList,
   });
 })(typeof window !== "undefined" ? window : globalThis);
