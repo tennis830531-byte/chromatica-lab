@@ -22,12 +22,6 @@
       subdivision: { frequency: 640, type: "sine", level: 0.18, duration: 0.12 },
     },
   };
-  const BASIC_RHYTHM_OPTIONS = Object.freeze([
-    { id: "quarter", name: "四分音符", preview: "♪", ariaLabel: "四分音符" },
-    { id: "eighth", name: "八分音符", preview: "♫", ariaLabel: "八分音符" },
-    { id: "triplet", name: "三連音", preview: "♪♪♪", ariaLabel: "三連音" },
-    { id: "sixteenth", name: "十六分音符", preview: "♬♬", ariaLabel: "十六分音符" },
-  ]);
   const PANEL_IDS = Object.freeze({
     trainer: "metronomeTrainerDialog",
     autoStop: "metronomeAutoStopDialog",
@@ -38,6 +32,7 @@
     bpm: 80,
     signature: { numerator: 4, denominator: 4 },
     subdivision: "quarter",
+    rhythmPatternId: "quarter",
     swingPercent: 50,
     accents: ["strong", "normal", "normal", "normal"],
     sound: "wood",
@@ -78,6 +73,10 @@
       const base = { ...defaultSettings, ...(stored || {}) };
       base.signature = core.normalizeTimeSignature(base.signature);
       base.customSignature = Boolean(base.customSignature || !BUILT_IN_SIGNATURES.has(`${base.signature.numerator}/${base.signature.denominator}`));
+      // An older saved object has no rhythmPatternId. Do not let the default
+      // value mask its legacy subdivision while migrating it.
+      base.rhythmPatternId = core.normalizeRhythmPatternId(stored?.rhythmPatternId, base.subdivision);
+      base.subdivision = core.getLegacySubdivision(base.rhythmPatternId);
       base.accents = core.normalizeAccentPattern(base.accents, base.signature.numerator);
       base.tempoTrainer = core.normalizeTempoTrainer(base.tempoTrainer, base.bpm);
       base.presets = Array.isArray(base.presets) ? base.presets.slice(0, 5).map(core.normalizePreset) : [];
@@ -221,21 +220,42 @@
     renderSignatureDraft();
     openPanel("signature");
   }
-  function basicRhythmOption(id = settings.subdivision) {
-    return BASIC_RHYTHM_OPTIONS.find((option) => option.id === id) || BASIC_RHYTHM_OPTIONS[0];
+  function selectedRhythmPattern() {
+    return core.getRhythmPattern(settings.rhythmPatternId, settings.subdivision);
+  }
+  function rhythmNotationSvg(pattern, { compact = false } = {}) {
+    const width = compact ? 88 : 120;
+    const left = compact ? 16 : 18;
+    const right = width - left;
+    const stepGap = pattern.stepCount > 1 ? (right - left) / (pattern.stepCount - 1) : 0;
+    const positions = Array.from({ length: pattern.stepCount }, (_, index) => left + stepGap * index);
+    const noteY = compact ? 29 : 32;
+    const stemTop = compact ? 12 : 13;
+    const notes = positions.map((x, index) => pattern.hits[index]
+      ? `<g class="rhythm-note"><ellipse cx="${x}" cy="${noteY}" rx="5" ry="3.8" transform="rotate(-18 ${x} ${noteY})"></ellipse><path d="M ${x + 4} ${noteY - 1} V ${stemTop}"></path></g>`
+      : `<g class="rhythm-rest"><path d="M ${x - 3} ${stemTop + 4} l 6 5 -6 5 6 5 -5 7"></path></g>`).join("");
+    const hitPositions = positions.filter((_, index) => pattern.hits[index]);
+    const beamCount = pattern.group === "sixteenth" ? 2 : pattern.stepCount > 1 ? 1 : 0;
+    const beams = beamCount && hitPositions.length > 1
+      ? Array.from({ length: beamCount }, (_, index) => `<path class="rhythm-beam" d="M ${hitPositions[0] + 4} ${stemTop + index * 5} H ${hitPositions[hitPositions.length - 1] + 4}"></path>`).join("")
+      : "";
+    const triplet = pattern.group === "triplet" ? `<path class="rhythm-tuplet" d="M ${left - 3} 7 H ${right + 5}"></path><text x="${width / 2}" y="8">3</text>` : "";
+    return `<svg class="rhythm-notation${compact ? " compact" : ""}" viewBox="0 0 ${width} 44" aria-hidden="true" focusable="false">${triplet}${beams}${notes}</svg>`;
   }
   function renderRhythmOptions() {
     const list = $("#metronomeRhythmOptions");
     if (!list) return;
-    list.innerHTML = BASIC_RHYTHM_OPTIONS.map((option) => `<button class="metronome-rhythm-option${option.id === settings.subdivision ? " active" : ""}" data-rhythm-option="${option.id}" type="button" role="option" aria-selected="${option.id === settings.subdivision}" aria-label="${option.ariaLabel}"><strong aria-hidden="true">${option.preview}</strong><span>${option.name}</span></button>`).join("");
+    const selectedId = selectedRhythmPattern().id;
+    list.innerHTML = Object.values(core.RHYTHM_PATTERNS).map((pattern) => `<button class="metronome-rhythm-option${pattern.id === selectedId ? " active" : ""}" data-rhythm-option="${pattern.id}" type="button" role="option" aria-selected="${pattern.id === selectedId}" aria-label="${pattern.ariaLabel}">${rhythmNotationSvg(pattern)}<span>${pattern.name}</span></button>`).join("");
   }
-  function setSubdivision(subdivision) {
-    const next = BASIC_RHYTHM_OPTIONS.some((option) => option.id === subdivision) ? subdivision : "quarter";
-    if (settings.subdivision === next) return;
-    settings.subdivision = next;
+  function setRhythmPattern(rhythmPatternId) {
+    const next = core.normalizeRhythmPatternId(rhythmPatternId, settings.subdivision);
+    if (settings.rhythmPatternId === next) return;
+    settings.rhythmPatternId = next;
+    settings.subdivision = core.getLegacySubdivision(next);
     saveSettings();
     render();
-    announce("細分音符已更新");
+    announce(`細分節奏已設為${selectedRhythmPattern().name}`);
     if (playing) rescheduleFromNow();
   }
   function resetTrainerRuntime(baselineMeasure = 0) {
@@ -315,7 +335,7 @@
   function getPresentedAudioTime(context) {
     return core.getPresentedAudioTime(context);
   }
-  function queueVisualEvent(state, accentState) {
+  function queueVisualEvent(state, accentState, rhythmPattern, isHit, toneKind) {
     scheduledVisualEvents.push({
       audioTime: state.nextNoteTime,
       sequence: state.sequence,
@@ -323,6 +343,9 @@
       subdivisionIndex: state.subdivisionIndex,
       formalMeasures: state.formalMeasures,
       accentState,
+      rhythmPatternId: rhythmPattern.id,
+      isHit,
+      toneKind,
       countIn: state.countInMeasuresRemaining > 0,
       schedulerState: { ...state, signature: { ...state.signature }, pendingSignature: state.pendingSignature ? { ...state.pendingSignature } : null },
     });
@@ -348,11 +371,12 @@
     oscillator.onended = () => { scheduledNodes.delete(oscillator); try { oscillator.disconnect(); gain.disconnect(); } catch {} };
   }
   function scheduleOne(state) {
-    const isMain = state.subdivisionIndex === 0;
     const accent = settings.accents[state.beatIndex] || "normal";
-    queueVisualEvent(state, accent);
-    if (isMain && accent !== "muted") scheduleTone(state.nextNoteTime, accent === "strong" ? "strong" : "normal", state.countInMeasuresRemaining > 0);
-    else if (!isMain) scheduleTone(state.nextNoteTime, "subdivision", state.countInMeasuresRemaining > 0);
+    const rhythmPattern = selectedRhythmPattern();
+    const isHit = core.isRhythmHit(rhythmPattern.id, state.subdivisionIndex);
+    const toneKind = core.getRhythmStepSound({ rhythmPatternId: rhythmPattern.id, subdivisionIndex: state.subdivisionIndex, accentState: accent });
+    queueVisualEvent(state, accent, rhythmPattern, isHit, toneKind);
+    if (toneKind) scheduleTone(state.nextNoteTime, toneKind, state.countInMeasuresRemaining > 0);
   }
   function schedulerTick() {
     if (!playing || !schedulerState) return;
@@ -434,9 +458,16 @@
     announce(completed ? "節拍器練習完成" : "節拍器已停止");
     if (completed) $("#metronomeComplete")?.classList.remove("hidden");
   }
+  function renderSubdivisionProgress(event = null) {
+    const node = $("#metronomeSubdivisionPulse");
+    if (!node) return;
+    const pattern = core.getRhythmPattern(event?.rhythmPatternId || settings.rhythmPatternId, settings.subdivision);
+    const currentIndex = event ? event.subdivisionIndex : -1;
+    node.innerHTML = pattern.hits.map((hit, index) => `<i class="${hit ? "hit" : "rest"}${index === currentIndex ? " current" : ""}" data-rhythm-step="${index}"></i>`).join("");
+  }
   function renderBeat(event) {
     if (!event) return;
-    $("#metronomeSubdivisionPulse").textContent = event.subdivisionIndex ? "·" : "●";
+    renderSubdivisionProgress(event);
     if (event.subdivisionIndex !== 0) return;
     lastPresentedMainBeatIndex = event.beatIndex;
     $$("#metronomeBeatDots [data-beat-index]").forEach((dot, index) => {
@@ -465,20 +496,22 @@
     renderBpmReadout();
     renderStageToolbar();
     if ($("#metronomeSignatureDisplay")) $("#metronomeSignatureDisplay").textContent = `${settings.signature.numerator}/${settings.signature.denominator}`;
-    const rhythm = basicRhythmOption();
+    const rhythm = selectedRhythmPattern();
     if ($("#metronomeRhythmPreview")) {
-      $("#metronomeRhythmPreview").textContent = rhythm.preview;
+      $("#metronomeRhythmPreview").innerHTML = rhythmNotationSvg(rhythm, { compact: true });
       $("#metronomeRhythmPreview").setAttribute("aria-label", rhythm.ariaLabel);
     }
     if ($("#metronomeToggle")) $("#metronomeToggle").textContent = playing ? "停止" : "開始";
     if ($("#metronomeVolume")) $("#metronomeVolume").value = String(settings.volume);
     if ($("#metronomeSound")) $("#metronomeSound").value = settings.sound;
     if ($("#metronomeMute")) $("#metronomeMute").textContent = settings.muted ? "解除靜音" : "靜音";
-    if ($("#metronomeSwingRow")) $("#metronomeSwingRow").classList.toggle("hidden", settings.subdivision !== "eighth");
-    if ($("#metronomeSwing")) { $("#metronomeSwing").disabled = settings.subdivision !== "eighth"; $("#metronomeSwing").value = String(settings.swingPercent); }
+    const swingAvailable = core.supportsSwing(settings.rhythmPatternId, settings.subdivision);
+    if ($("#metronomeSwingRow")) $("#metronomeSwingRow").classList.toggle("hidden", !swingAvailable);
+    if ($("#metronomeSwing")) { $("#metronomeSwing").disabled = !swingAvailable; $("#metronomeSwing").value = String(settings.swingPercent); }
     if ($("#metronomeSwingValue")) $("#metronomeSwingValue").textContent = `${settings.swingPercent}%`;
     $$("[data-count-in]").forEach((button) => button.classList.toggle("active", Number(button.dataset.countIn) === settings.countInMeasures));
-    renderBeatDots(); renderRhythmOptions(); renderPresets();
+    const matchingVisualEvent = presentedVisualEvent?.rhythmPatternId === rhythm.id ? presentedVisualEvent : null;
+    renderBeatDots(); renderSubdivisionProgress(matchingVisualEvent); renderRhythmOptions(); renderPresets();
   }
   function currentPreset(name) { return core.normalizePreset({ ...settings, name }); }
   function bind() {
@@ -547,7 +580,7 @@
     $("#metronomeRhythmOptions")?.addEventListener("click", (event) => {
       const button = event.target.closest("[data-rhythm-option]");
       if (!button) return;
-      setSubdivision(button.dataset.rhythmOption);
+      setRhythmPattern(button.dataset.rhythmOption);
       closeTopPanel();
     });
     $("#metronomeSwing")?.addEventListener("input", (event) => { settings.swingPercent = Number(event.target.value); saveSettings(); $("#metronomeSwingValue").textContent = `${settings.swingPercent}%`; if (playing) rescheduleFromNow(); });

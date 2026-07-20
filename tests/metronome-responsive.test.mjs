@@ -53,6 +53,39 @@ test("stage selectors, BPM and trainer grids use zero-minimum tracks", () => {
   }
 });
 
+test("rhythm picker stays in two bounded columns on supported phone widths", () => {
+  const rule = css.match(/\.metronome-rhythm-options\s*\{([^}]*)\}/)?.[1] || "";
+  assert.match(rule, /display:\s*grid/);
+  assert.match(rule, /repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+  assert.doesNotMatch(rule, /overflow-x|white-space:\s*nowrap/);
+  for (const viewport of viewports) {
+    const sheetWidth = viewport - 24;
+    const bodyWidth = sheetWidth - 40;
+    const cardWidth = (bodyWidth - 10) / 2;
+    assert.ok(cardWidth > 0, `${viewport}px must leave positive rhythm-card width`);
+    assert.ok(cardWidth * 2 + 10 <= bodyWidth, `${viewport}px rhythm grid must not overflow`);
+  }
+});
+
+test("long rhythm list scrolls vertically inside the bottom sheet", () => {
+  const bodyRule = css.match(/\.metronome-panel-body\s*\{([^}]*)\}/)?.[1] || "";
+  const sheetRule = css.match(/\.metronome-panel-sheet\s*\{([^}]*)\}/)?.[1] || "";
+  assert.match(bodyRule, /min-width:\s*0/);
+  assert.match(bodyRule, /overflow-y:\s*auto/);
+  assert.match(sheetRule, /max-height:\s*min\(82dvh,\s*720px\)/);
+  assert.match(sheetRule, /overflow:\s*hidden/);
+});
+
+test("rhythm cards and inline notation shrink without external assets", () => {
+  const cardRule = css.match(/\.metronome-rhythm-option\s*\{([^}]*)\}/)?.[1] || "";
+  const notationRule = css.match(/\.rhythm-notation\s*\{([^}]*)\}/)?.[1] || "";
+  assert.match(cardRule, /min-width:\s*0/);
+  assert.match(cardRule, /padding:\s*10px/);
+  assert.match(notationRule, /width:\s*min\(100%,\s*120px\)/);
+  assert.match(ui, /<svg class="rhythm-notation/);
+  assert.doesNotMatch(ui, /rhythm[^"']*\.(?:png|jpe?g|webp|gif)/i);
+});
+
 test("preset rows and long labels can shrink and wrap", () => {
   assert.match(css, /\.metronome-preset-list li[^}]*grid-template-columns:\s*minmax\(0,1fr\)/);
   assert.match(css, /\.metronome-controls button\s*\{\s*overflow-wrap:\s*anywhere/);

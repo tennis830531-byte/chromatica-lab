@@ -6,6 +6,7 @@ const path = require("node:path");
 const root = path.join(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const source = fs.readFileSync(path.join(root, "metronome.js"), "utf8");
+const coreSource = fs.readFileSync(path.join(root, "metronome-core.js"), "utf8");
 const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 
 test("time signature uses a stage button and modal choices", () => {
@@ -17,7 +18,7 @@ test("time signature uses a stage button and modal choices", () => {
 test("subdivision uses a stage preview and picker panel", () => {
   assert.match(html, /id="metronomeRhythmOpen"[^>]*aria-haspopup="dialog"/);
   assert.match(html, /id="metronomeRhythmPreview"/);
-  for (const value of ["quarter", "eighth", "triplet", "sixteenth"]) assert.match(source, new RegExp(`id: "${value}"`));
+  for (const value of ["quarter", "eighth", "triplet", "sixteenth"]) assert.match(coreSource, new RegExp(`id: "${value}"`));
 });
 
 test("custom signature is drafted in the panel and applied explicitly", () => {
@@ -27,8 +28,9 @@ test("custom signature is drafted in the panel and applied explicitly", () => {
 });
 
 test("swing UI is available only for eighth-note subdivision", () => {
-  assert.match(source, /metronomeSwingRow[^\n]*classList\.toggle\("hidden", settings\.subdivision !== "eighth"\)/);
-  assert.match(source, /metronomeSwing[^\n]*disabled = settings\.subdivision !== "eighth"/);
+  assert.match(source, /swingAvailable = core\.supportsSwing/);
+  assert.match(source, /metronomeSwingRow[^\n]*classList\.toggle\("hidden", !swingAvailable\)/);
+  assert.match(source, /metronomeSwing[^\n]*disabled = !swingAvailable/);
 });
 
 test("beat dots own accent interaction and old accent card is absent", () => {

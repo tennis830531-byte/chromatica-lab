@@ -5,6 +5,19 @@
   const MAX_BPM = 240;
   const TAP_RESET_MS = 2500;
   const MAX_TAP_INTERVALS = 6;
+  const RHYTHM_PATTERNS = Object.freeze({
+    quarter: Object.freeze({ id: "quarter", stepCount: 1, hits: Object.freeze([1]), group: "basic", name: "四分音符", ariaLabel: "四分音符" }),
+    eighth: Object.freeze({ id: "eighth", stepCount: 2, hits: Object.freeze([1, 1]), group: "eighth", name: "八分音符", ariaLabel: "八分音符" }),
+    "eighth-offbeat": Object.freeze({ id: "eighth-offbeat", stepCount: 2, hits: Object.freeze([0, 1]), group: "eighth", name: "八分反拍", ariaLabel: "八分音符，第一拍休止，反拍發聲" }),
+    triplet: Object.freeze({ id: "triplet", stepCount: 3, hits: Object.freeze([1, 1, 1]), group: "triplet", name: "三連音", ariaLabel: "三連音" }),
+    "triplet-middle-rest": Object.freeze({ id: "triplet-middle-rest", stepCount: 3, hits: Object.freeze([1, 0, 1]), group: "triplet", name: "三連音中間空拍", ariaLabel: "三連音，中間一拍休止" }),
+    "triplet-last-rest": Object.freeze({ id: "triplet-last-rest", stepCount: 3, hits: Object.freeze([1, 1, 0]), group: "triplet", name: "三連音尾拍空拍", ariaLabel: "三連音，最後一拍休止" }),
+    sixteenth: Object.freeze({ id: "sixteenth", stepCount: 4, hits: Object.freeze([1, 1, 1, 1]), group: "sixteenth", name: "十六分音符", ariaLabel: "十六分音符" }),
+    "sixteenth-alternating": Object.freeze({ id: "sixteenth-alternating", stepCount: 4, hits: Object.freeze([1, 0, 1, 0]), group: "sixteenth", name: "十六分交替", ariaLabel: "十六分音符，第二與第四拍休止" }),
+    "sixteenth-middle-rests": Object.freeze({ id: "sixteenth-middle-rests", stepCount: 4, hits: Object.freeze([1, 0, 0, 1]), group: "sixteenth", name: "十六分首尾", ariaLabel: "十六分音符，中間兩拍休止" }),
+    "sixteenth-syncopated": Object.freeze({ id: "sixteenth-syncopated", stepCount: 4, hits: Object.freeze([1, 0, 1, 1]), group: "sixteenth", name: "十六分切分", ariaLabel: "十六分音符，第二拍休止" }),
+  });
+  const LEGACY_SUBDIVISIONS = Object.freeze({ quarter: "quarter", eighth: "eighth", triplet: "triplet", sixteenth: "sixteenth" });
   const SUBDIVISIONS = Object.freeze({ quarter: 1, eighth: 2, triplet: 3, sixteenth: 4 });
   const DENOMINATORS = Object.freeze([2, 4, 8, 16]);
   const ACCENT_STATES = Object.freeze(["normal", "strong", "muted"]);
@@ -33,8 +46,46 @@
     return { numerator, denominator };
   }
 
-  function getSubdivisionCount(subdivision) {
-    return SUBDIVISIONS[subdivision] || SUBDIVISIONS.quarter;
+  function normalizeRhythmPatternId(rhythmPatternId, legacySubdivision = "quarter") {
+    if (typeof rhythmPatternId === "string" && RHYTHM_PATTERNS[rhythmPatternId]) return rhythmPatternId;
+    if (typeof legacySubdivision === "string" && LEGACY_SUBDIVISIONS[legacySubdivision]) return LEGACY_SUBDIVISIONS[legacySubdivision];
+    return "quarter";
+  }
+
+  function getRhythmPattern(rhythmPatternId, legacySubdivision = rhythmPatternId) {
+    return RHYTHM_PATTERNS[normalizeRhythmPatternId(rhythmPatternId, legacySubdivision)];
+  }
+
+  function getLegacySubdivision(rhythmPatternId) {
+    const pattern = getRhythmPattern(rhythmPatternId);
+    if (pattern.group === "triplet") return "triplet";
+    if (pattern.group === "sixteenth") return "sixteenth";
+    if (pattern.group === "eighth") return "eighth";
+    return "quarter";
+  }
+
+  function getSubdivisionCount(subdivisionOrPatternId) {
+    return getRhythmPattern(subdivisionOrPatternId).stepCount;
+  }
+
+  function isRhythmHit(rhythmPatternId, subdivisionIndex, legacySubdivision = rhythmPatternId) {
+    const pattern = getRhythmPattern(rhythmPatternId, legacySubdivision);
+    const index = Math.max(0, Math.min(pattern.stepCount - 1, Number(subdivisionIndex) || 0));
+    return pattern.hits[index] === 1;
+  }
+
+  function getRhythmStepSound({ rhythmPatternId, subdivision, subdivisionIndex = 0, accentState = "normal" } = {}) {
+    const patternId = normalizeRhythmPatternId(rhythmPatternId, subdivision);
+    if (!isRhythmHit(patternId, subdivisionIndex)) return null;
+    if (Number(subdivisionIndex) === 0) {
+      if (accentState === "muted") return null;
+      return accentState === "strong" ? "strong" : "normal";
+    }
+    return "subdivision";
+  }
+
+  function supportsSwing(rhythmPatternId, legacySubdivision = rhythmPatternId) {
+    return normalizeRhythmPatternId(rhythmPatternId, legacySubdivision) === "eighth";
   }
 
   function getTempoTerm(bpm) {
@@ -87,18 +138,19 @@
     return { lastTapAt: now, intervals, bpm };
   }
 
-  function getSwingRatio(subdivision, swingPercent) {
-    if (subdivision !== "eighth") return 0.5;
+  function getSwingRatio(rhythmPatternId, swingPercent) {
+    if (!supportsSwing(rhythmPatternId)) return 0.5;
     return clamp(Number(swingPercent) || 50, 50, 75) / 100;
   }
 
-  function getStepDurationSeconds({ bpm, signature, subdivision, swingPercent = 50, subdivisionIndex = 0 }) {
+  function getStepDurationSeconds({ bpm, signature, subdivision, rhythmPatternId, swingPercent = 50, subdivisionIndex = 0 }) {
     const normalizedSignature = normalizeTimeSignature(signature);
     const quarterSeconds = 60 / normalizeBpm(bpm);
     const beatSeconds = quarterSeconds * (4 / normalizedSignature.denominator);
-    const count = getSubdivisionCount(subdivision);
-    if (subdivision === "eighth") {
-      const ratio = getSwingRatio(subdivision, swingPercent);
+    const patternId = normalizeRhythmPatternId(rhythmPatternId, subdivision);
+    const count = getSubdivisionCount(patternId);
+    if (supportsSwing(patternId)) {
+      const ratio = getSwingRatio(patternId, swingPercent);
       return beatSeconds * (subdivisionIndex % 2 === 0 ? ratio : 1 - ratio);
     }
     return beatSeconds / count;
@@ -131,11 +183,13 @@
   }
 
   function advanceSchedulerState(state, settings) {
-    const subdivisionCount = getSubdivisionCount(settings.subdivision);
+    const rhythmPatternId = normalizeRhythmPatternId(settings.rhythmPatternId, settings.subdivision);
+    const subdivisionCount = getSubdivisionCount(rhythmPatternId);
     const duration = getStepDurationSeconds({
       bpm: settings.bpm,
       signature: state.signature,
       subdivision: settings.subdivision,
+      rhythmPatternId,
       swingPercent: settings.swingPercent,
       subdivisionIndex: state.subdivisionIndex,
     });
@@ -227,12 +281,14 @@
 
   function normalizePreset(raw = {}) {
     const signature = normalizeTimeSignature(raw.signature);
-    const subdivision = SUBDIVISIONS[raw.subdivision] ? raw.subdivision : "quarter";
+    const rhythmPatternId = normalizeRhythmPatternId(raw.rhythmPatternId, raw.subdivision);
+    const subdivision = getLegacySubdivision(rhythmPatternId);
     return {
       name: String(raw.name || "節拍器設定").trim().slice(0, 20) || "節拍器設定",
       bpm: normalizeBpm(raw.bpm),
       signature,
       subdivision,
+      rhythmPatternId,
       swingPercent: clamp(Number(raw.swingPercent) || 50, 50, 75),
       accents: normalizeAccentPattern(raw.accents, signature.numerator),
       sound: ["wood", "mechanical", "soft"].includes(raw.sound) ? raw.sound : "wood",
@@ -252,8 +308,9 @@
   }
 
   global.ChromaticaMetronomeCore = Object.freeze({
-    MIN_BPM, MAX_BPM, TAP_RESET_MS, SUBDIVISIONS, DENOMINATORS, ACCENT_STATES,
-    normalizeBpm, parseMetronomeBpmInput, normalizeTimeSignature, getSubdivisionCount, getTempoTerm,
+    MIN_BPM, MAX_BPM, TAP_RESET_MS, SUBDIVISIONS, RHYTHM_PATTERNS, DENOMINATORS, ACCENT_STATES,
+    normalizeBpm, parseMetronomeBpmInput, normalizeTimeSignature,
+    normalizeRhythmPatternId, getRhythmPattern, getLegacySubdivision, getSubdivisionCount, isRhythmHit, getRhythmStepSound, supportsSwing, getTempoTerm,
     normalizeAccentPattern, cycleAccent, createTapTempoState, registerTap,
     getSwingRatio, getStepDurationSeconds, createSchedulerState,
     applyPendingSignatureAtBar, advanceSchedulerState, getTrainerBpm, normalizeTempoTrainer, increaseTrainerBpm,

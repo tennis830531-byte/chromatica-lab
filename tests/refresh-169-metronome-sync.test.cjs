@@ -42,7 +42,7 @@ test("overdue events collapse to latest and subdivisions do not move the main do
 });
 
 test("scheduler captures advance-before state and clears both queues on reschedule", () => {
-  assert.match(ui, /queueVisualEvent\(state, accent\)[\s\S]*scheduleTone[\s\S]*advanceSchedulerState/);
+  assert.match(ui, /queueVisualEvent\(state, accent, rhythmPattern, isHit, toneKind\)[\s\S]*scheduleTone[\s\S]*advanceSchedulerState/);
   assert.match(ui, /beatIndex: state\.beatIndex/);
   assert.match(ui, /const resumeState = scheduledVisualEvents\[0\]\?\.schedulerState \|\| schedulerState/);
   assert.match(ui, /cancelScheduledNodes\(\);\s*clearScheduledVisualEvents\(\)/);
