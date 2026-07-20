@@ -113,6 +113,9 @@ const availableGardenSpeciesIds = new Set([
   "mushroom-spirit",
   "flower-spirit",
 ]);
+const availableGardenSpecies = gardenSpecies.filter((species) => (
+  availableGardenSpeciesIds.has(species.species)
+));
 
 const gardenStorageKeys = {
   waterDrops: "chromatica.waterDrops",
@@ -1573,10 +1576,7 @@ function getCollectedSpeciesSet(collection = getGardenCollection()) {
 
 function getUncollectedGardenSpecies(collection = getGardenCollection()) {
   const collectedSpecies = getCollectedSpeciesSet(collection);
-  return gardenSpecies.filter((species) => (
-    availableGardenSpeciesIds.has(species.species)
-    && !collectedSpecies.has(species.species)
-  ));
+  return availableGardenSpecies.filter((species) => !collectedSpecies.has(species.species));
 }
 
 function getGardenSpecies(speciesId) {
@@ -2196,7 +2196,7 @@ function setStarterPlantModalOpen(open) {
 }
 
 function getStarterPlantOptions() {
-  return gardenSpecies.filter((species) => availableGardenSpeciesIds.has(species.species));
+  return availableGardenSpecies;
 }
 
 function renderStarterPlantChoices() {
@@ -2569,8 +2569,9 @@ function harvestCurrentPlant() {
   const collection = getGardenCollection();
   const harvestedName = getPlantDisplayName(plant, 3);
   const alreadyCollected = getCollectedSpeciesSet(collection).has(plant.species);
+  const canAddToCollection = availableGardenSpeciesIds.has(plant.species);
   let harvested = null;
-  if (!alreadyCollected) {
+  if (!alreadyCollected && canAddToCollection) {
     harvested = {
       ...plant,
       id: `spirit-${Date.now()}-${collection.length + 1}`,
@@ -2590,16 +2591,22 @@ function harvestCurrentPlant() {
   playSound("harvest");
   if (!getCurrentPlant(false)) {
     showGardenToast(
-      alreadyCollected ? "採收完成" : "圖鑑全收集！",
-      alreadyCollected
-        ? `「${harvestedName}」已採收過，不會重複加入圖鑑。水滴會先累積。`
-        : `「${harvestedName}」已加入圖鑑。目前植物都採收完了，水滴會先累積。`,
+      alreadyCollected || !canAddToCollection ? "採收完成" : "圖鑑全收集！",
+      !canAddToCollection
+        ? `「${harvestedName}」目前尚未開放取得，不會加入圖鑑。`
+        : alreadyCollected
+          ? `「${harvestedName}」已採收過，不會重複加入圖鑑。水滴會先累積。`
+          : `「${harvestedName}」已加入圖鑑。目前植物都採收完了，水滴會先累積。`,
     );
     return;
   }
   showGardenToast(
-    alreadyCollected ? "採收完成" : "採收成功！",
-    alreadyCollected ? `「${harvestedName}」已採收過，不會重複加入圖鑑。` : `「${harvestedName}」已加入圖鑑。`,
+    alreadyCollected || !canAddToCollection ? "採收完成" : "採收成功！",
+    !canAddToCollection
+      ? `「${harvestedName}」目前尚未開放取得，不會加入圖鑑。`
+      : alreadyCollected
+        ? `「${harvestedName}」已採收過，不會重複加入圖鑑。`
+        : `「${harvestedName}」已加入圖鑑。`,
   );
 }
 
@@ -7142,7 +7149,7 @@ function initializeAuthenticatedApp(options = {}) {
     renderMicCurve();
     window.ChromaticaMetronome?.init?.({ getAudioContext: getSharedAudioContext });
     window.ChromaticaGardenQA?.init?.({
-      species: gardenSpecies,
+      species: availableGardenSpecies,
       stageRequirements: PLANT_STAGE_WATER_REQUIREMENTS,
       getCurrentView: () => currentView,
       navigate: (view, routeOptions = {}) => setView(view, routeOptions),

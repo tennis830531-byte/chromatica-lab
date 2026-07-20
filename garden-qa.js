@@ -45,10 +45,34 @@
     return { id: `qa-plant-${Date.now()}`, species: species.species, name: species.name, customName: false, stage: 1, waterProgress: 0 };
   }
   function getSpecies(id) { return options.species?.find((item) => item.species === id) || options.species?.[0] || { species: "", name: "測試植物", stageNames: ["幼苗", "成長", "成熟"], images: [] }; }
+  function sanitizeState(rawState) {
+    const allowedIds = new Set((options.species || []).map((species) => species.species));
+    const state = rawState?.schemaVersion === 1 ? { ...rawState } : defaultState();
+    state.collection = Array.isArray(state.collection)
+      ? state.collection.filter((spirit) => allowedIds.has(spirit?.species))
+      : [];
+    const collectedSpecies = new Set(state.collection.map((spirit) => spirit.species));
+    if (!allowedIds.has(state.currentPlant?.species)) {
+      const nextSpecies = options.species?.find((species) => !collectedSpecies.has(species.species));
+      state.currentPlant = nextSpecies ? createPlant(nextSpecies.species) : null;
+    }
+    if (!state.collection.some((spirit) => spirit.id === state.featuredSpiritId)) {
+      state.featuredSpiritId = "";
+      state.featuredSpiritStage = 3;
+    }
+    state.schemaVersion = 1;
+    state.starterPlantSelected = Boolean(state.currentPlant || state.collection.length);
+    state.unlimitedWater = true;
+    return state;
+  }
   function loadState() {
     try {
-      const state = JSON.parse(sessionStorage.getItem(SANDBOX_KEY));
-      return state?.schemaVersion === 1 ? state : defaultState();
+      const stored = sessionStorage.getItem(SANDBOX_KEY);
+      const parsed = stored ? JSON.parse(stored) : defaultState();
+      const state = sanitizeState(parsed);
+      const serialized = JSON.stringify(state);
+      if (serialized !== stored) sessionStorage.setItem(SANDBOX_KEY, serialized);
+      return state;
     } catch { return defaultState(); }
   }
   function saveState(state) { sessionStorage.setItem(SANDBOX_KEY, JSON.stringify(state)); }
@@ -215,6 +239,7 @@
     resumeGardenQaSession,
     onViewChanged,
     render,
+    sanitizeState,
     sha256,
     qaResumeRequested,
     constants: Object.freeze({ ACTIVE_KEY, SANDBOX_KEY, EXPECTED_HASH, REQUIRED_CLICKS }),
