@@ -62,12 +62,12 @@ test("interval score renders all eight groups as two synchronized rows", () => {
 test("practice rewards and daily-goal progress open in a separate completion dialog", () => {
   assert.doesNotMatch(html, /id="intervalCompleteWater"|id="longToneCompleteWater"/);
   assert.doesNotMatch(html, /id="intervalCompleteNote"|id="longToneCompleteNote"/);
-  assert.match(app, /function showPracticeCompletionRewardDialog\(practiceName, waterResult, goalResult, bonusMessages = \[\]\)/);
+  assert.match(app, /function showPracticeCompletionRewardDialog\(practiceName, waterResult, goalResult, bonusMessages = \[\], totalWaterGranted = 0\)/);
   assert.match(app, /setGoalToastEyebrow\("練習獎勵"\)/);
   assert.match(app, /本次練習獲得 \$\{waterResult\.water\} 滴 💧/);
   assert.equal((app.match(/const completedFromQuickPractice = hasActiveQuickPracticeTask\(\);/g) || []).length, 2);
-  assert.match(app, /showPracticeCompletionRewardDialog\("音程練習", waterResult, goalResult, bonusMessages\);\s*handleQuickPracticeCompletion\("音程練習", completedFromQuickPractice\)/);
-  assert.match(app, /showPracticeCompletionRewardDialog\(exercise\.title, waterResult, goalResult, bonusMessages\);\s*handleQuickPracticeCompletion\(exercise\.title, completedFromQuickPractice\)/);
+  assert.match(app, /showPracticeCompletionRewardDialog\("音程練習", waterResult, goalResult, bonusMessages, totalWaterGranted\);\s*handleQuickPracticeCompletion\("音程練習", completedFromQuickPractice\)/);
+  assert.match(app, /showPracticeCompletionRewardDialog\(exercise\.title, waterResult, goalResult, bonusMessages, totalWaterGranted\);\s*handleQuickPracticeCompletion\(exercise\.title, completedFromQuickPractice\)/);
 });
 
 test("daily goal reward note is a fixed two-line message", () => {
@@ -85,12 +85,12 @@ test("today recommendation badge uses the quick-practice green treatment", () =>
   assert.match(css, /\.quick-practice-card \.room-badge\.open\s*\{\s*background: #7fa45f;/);
 });
 
-test("refresh-168 web and Android release metadata stay aligned", () => {
-  assert.match(html, /version-number">refresh-168</);
+test("refresh-169 web and Android release metadata stay aligned", () => {
+  assert.match(html, /version-number">refresh-169</);
   assert.doesNotMatch(html, /refresh-166/);
-  assert.match(serviceWorker, /CACHE_NAME = "chromatica-lab-refresh-168"/);
+  assert.match(serviceWorker, /CACHE_NAME = "chromatica-lab-refresh-169"/);
   assert.doesNotMatch(serviceWorker, /refresh-166/);
-  assert.match(app, /appVersion: "refresh-168 \/ Android 1\.0\.52 \(53\)"/);
-  assert.match(androidBuild, /versionCode 53/);
-  assert.match(androidBuild, /versionName "1\.0\.52"/);
+  assert.match(app, /appVersion: "refresh-169 \/ Android 1\.0\.53 \(54\)"/);
+  assert.match(androidBuild, /versionCode 54/);
+  assert.match(androidBuild, /versionName "1\.0\.53"/);
 });

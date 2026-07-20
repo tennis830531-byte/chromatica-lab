@@ -13,6 +13,7 @@ const webSourceFiles = [
   "styles.css",
   "manifest.webmanifest",
   "supabase-config.js",
+  "haptic-feedback.js",
   "practice-reminders.js",
   "daily-login-bonus.js",
   "daily-goal-rewards.js",

@@ -20,7 +20,7 @@
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
     <link rel="stylesheet" href="./public/assets/fonts/noto-sans-tc/noto-sans-tc-variable.css" />
     <link rel="stylesheet" href="./public/assets/fonts/lxgw-wenkai-tc/lxgw-wenkai-tc-bold.css" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-168" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-169" />
   </head>
   <body class="auth-checking">
     <div id="authGate" class="auth-gate" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
@@ -122,6 +122,10 @@
       <div class="goal-toast-card">
         <p id="goalToastEyebrow" class="eyebrow">每日目標</p>
         <h2 id="goalToastTitle">恭喜完成</h2>
+        <div id="practiceRewardWaterAnimation" class="practice-reward-water-animation hidden" aria-hidden="true">
+          <span id="practiceRewardWaterNumber">+0</span><span aria-hidden="true">💧</span>
+        </div>
+        <p id="practiceRewardWaterAnnouncement" class="sr-only" role="status" aria-live="polite"></p>
         <p id="goalToastText">你已完成今日目標。</p>
         <button id="goalToastClose" class="primary-btn" type="button">知道了</button>
       </div>
@@ -219,8 +223,34 @@
           </section>
           <p class="longtone-intro-reminder">先不用追求大聲，先讓每一個音穩定、乾淨、自然。</p>
         </div>
-        <div class="longtone-intro-actions">
+        <div class="longtone-intro-actions interval-intro-actions">
+          <button id="longToneIntroBack" class="ghost-btn" type="button">返回</button>
           <button id="longToneIntroConfirm" class="primary-btn" type="button">我知道了，開始練習</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="intervalIntroModal" class="longtone-intro-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="intervalIntroTitle">
+      <div class="longtone-intro-sheet">
+        <div class="longtone-intro-head">
+          <h2 id="intervalIntroTitle">音程練習注意事項</h2>
+        </div>
+        <div class="longtone-intro-hero media-box" aria-hidden="true">
+          <img src="./public/assets/chromatic-refresh/feature/teacher_bird_notice.png" alt="" />
+        </div>
+        <div class="longtone-intro-body">
+          <section class="longtone-intro-block">
+            <div class="intro-tip-grid interval-intro-tip-grid">
+              <article><span>先看清楚</span><p>先確認調性、音程與方向，再依照畫面中的樂譜逐組練習。</p></article>
+              <article><span>自行聆聽</span><p>音程練習不使用麥克風判斷，請自行聆聽音準、按鍵與移琴是否正確。</p></article>
+              <article><span>放慢速度</span><p>建議先用較慢速度開始，保持氣息平穩，再逐步提高 BPM。</p></article>
+              <article><span>完成紀錄</span><p>中途離開或結束時，尚未完成的進度不會記錄。</p></article>
+            </div>
+          </section>
+        </div>
+        <div class="longtone-intro-actions interval-intro-actions">
+          <button id="intervalIntroBack" class="ghost-btn" type="button">返回</button>
+          <button id="intervalIntroConfirm" class="primary-btn" type="button">我知道了，開始練習</button>
         </div>
       </div>
     </div>
@@ -313,8 +343,8 @@
           <div class="home-hero paper-card">
             <div class="hero-top">
               <div class="hero-copy">
-                <h2 id="homeHeroQaTitle">半音階口琴練習室</h2>
-                <p>透過音符地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p>
+                <h2 id="homeHeroQaTitle" data-haptic="none">半音階口琴練習室</h2>
+                <p>透過孔位地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p>
               </div>
             </div>
             <div class="hero-actions">
@@ -347,8 +377,8 @@
               <p>今天想練什麼？</p>
             </div>
             <div class="quick-grid">
-              <button class="quick-card" data-jump="map" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/note_map_explorer.png" alt="" /></span><strong>音符地圖</strong></button>
-              <button class="quick-card" data-jump="tuner" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/tuner_badge.png" alt="" /></span><strong>全音域調音器</strong></button>
+              <button class="quick-card" data-jump="map" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/note_map_explorer.png" alt="" /></span><strong>孔位地圖</strong></button>
+              <button class="quick-card" data-jump="tuner" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/tuner_badge.png" alt="" /></span><strong>調音器</strong></button>
               <button class="quick-card" data-jump="metronome" type="button"><span class="quick-card-icon"><img class="ui-quick-icon metronome-quick-icon" src="./public/assets/chromatic-refresh/feature/metronome-bird.png" alt="" /></span><strong>節拍器</strong></button>
               <button class="quick-card" data-jump="practicehub" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/practice_record_icon.png" alt="" /></span><strong>開始練習</strong></button>
               <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" /></span><strong>每日目標</strong></button>
@@ -414,10 +444,17 @@
           </div>
           <div class="metronome-page">
             <section class="metronome-stage paper-card">
+              <div id="metronomeStageToolbar" class="metronome-stage-toolbar">
+                <button id="metronomeTrainerOpen" type="button" aria-haspopup="dialog" aria-expanded="false">速度訓練</button>
+                <button id="metronomeAutoStopOpen" type="button" aria-haspopup="dialog" aria-expanded="false">自動停止</button>
+              </div>
               <div class="metronome-readout"><strong id="metronomeBpm">80</strong><span>BPM</span><em id="metronomeTempoTerm">Andante</em></div>
-              <div class="metronome-visual" aria-hidden="true"><div id="metronomePendulum" class="metronome-pendulum"><i></i></div><div id="metronomeSubdivisionPulse" class="metronome-subdivision-pulse">●</div></div>
-              <div class="metronome-status-row"><span>拍號 <b id="metronomeSignatureDisplay">4/4</b></span><span>小節 <b id="metronomeMeasureCount">1</b></span><span>第 <b id="metronomeCurrentBeat">1</b> 拍</span></div>
-              <div id="metronomeBeatDots" class="metronome-beat-dots" aria-hidden="true"></div>
+              <div class="metronome-stage-selectors">
+                <button id="metronomeSignatureOpen" type="button" aria-haspopup="dialog" aria-expanded="false"><span>拍號</span><strong id="metronomeSignatureDisplay">4/4</strong><i aria-hidden="true">⌄</i></button>
+                <button id="metronomeRhythmOpen" type="button" aria-haspopup="dialog" aria-expanded="false"><span>細分</span><strong id="metronomeRhythmPreview" aria-label="四分音符">♪</strong><i aria-hidden="true">⌄</i></button>
+              </div>
+              <div id="metronomeSubdivisionPulse" class="metronome-subdivision-pulse" aria-hidden="true">●</div>
+              <div id="metronomeBeatDots" class="metronome-beat-dots" role="group" aria-label="每拍重音設定"></div>
               <button id="metronomeToggle" class="primary-btn metronome-toggle" type="button">開始</button>
               <div id="metronomeLive" class="sr-only" aria-live="polite"></div>
             </section>
@@ -430,29 +467,53 @@
             </section>
 
             <section class="metronome-controls paper-card">
-              <h3>拍號與細分</h3>
-              <div class="metronome-choice-grid" aria-label="拍號">
-                <button data-time-signature="2/4" type="button">2/4</button><button data-time-signature="3/4" type="button">3/4</button><button data-time-signature="4/4" class="active" type="button">4/4</button><button data-time-signature="5/4" type="button">5/4</button><button data-time-signature="6/8" type="button">6/8</button><button data-time-signature="7/8" type="button">7/8</button><button data-time-signature="9/8" type="button">9/8</button><button data-time-signature="12/8" type="button">12/8</button><button data-time-signature="custom" type="button">自訂</button>
-              </div>
-              <div id="customTimeSignature" class="metronome-inline hidden"><label>分子<input id="customNumerator" type="number" min="1" max="12" value="4" /></label><label>分母<select id="customDenominator"><option>2</option><option selected>4</option><option>8</option><option>16</option></select></label></div>
-              <div class="metronome-choice-grid subdivision-grid" aria-label="細分音符"><button data-subdivision="quarter" class="active" type="button">四分音符</button><button data-subdivision="eighth" type="button">八分音符</button><button data-subdivision="triplet" type="button">三連音</button><button data-subdivision="sixteenth" type="button">十六分音符</button></div>
-              <label id="metronomeSwingRow" class="metronome-range-row is-disabled"><span>Swing <b id="metronomeSwingValue">50%</b></span><input id="metronomeSwing" type="range" min="50" max="75" step="1" value="50" disabled /></label>
-            </section>
-
-            <section class="metronome-controls paper-card"><h3>每拍重音</h3><div id="metronomeAccents" class="metronome-accents"></div></section>
-            <section class="metronome-controls paper-card">
               <h3>聲音與預備拍</h3>
               <div class="metronome-inline"><label>音色<select id="metronomeSound"><option value="wood">木質</option><option value="mechanical">經典機械</option><option value="soft">柔和</option></select></label><label>音量<input id="metronomeVolume" type="range" min="0" max="100" value="70" /></label><button id="metronomeMute" type="button">靜音</button></div>
               <div class="metronome-choice-grid count-in-grid"><button data-count-in="0" class="active" type="button">預備拍關閉</button><button data-count-in="1" type="button">1 小節</button><button data-count-in="2" type="button">2 小節</button></div>
             </section>
-            <section class="metronome-controls paper-card">
-              <h3>速度訓練</h3>
-              <label class="metronome-toggle-row"><span>速度訓練</span><input id="tempoTrainerEnabled" type="checkbox" /></label>
-              <div class="metronome-trainer-grid"><label>起始 BPM<input id="tempoTrainerStart" type="number" min="30" max="239" value="80" /></label><label>目標 BPM<input id="tempoTrainerTarget" type="number" min="31" max="240" value="100" /></label><label>每次增加<select id="tempoTrainerIncrement"><option>1</option><option>2</option><option>5</option></select></label><label>每隔小節<select id="tempoTrainerEvery"><option>1</option><option>2</option><option>4</option><option>8</option></select></label></div>
-              <label>停止後<select id="tempoTrainerKeep"><option value="reset">回到起始 BPM</option><option value="keep">保留目前 BPM</option></select></label>
-            </section>
-            <section class="metronome-controls paper-card"><h3>自動停止</h3><select id="metronomeAutoStop"><option value="off:0">關閉</option><option value="minutes:1">1 分鐘</option><option value="minutes:3">3 分鐘</option><option value="minutes:5">5 分鐘</option><option value="minutes:10">10 分鐘</option><option value="measures:1">自訂小節數</option></select><input id="metronomeCustomMeasures" class="hidden" type="number" min="1" max="999" value="1" aria-label="自訂停止小節數" /></section>
             <section class="metronome-controls paper-card"><div class="card-row-head"><h3>預設組合</h3><button id="metronomeSavePreset" type="button">儲存目前設定</button></div><ul id="metronomePresetList" class="metronome-preset-list"></ul></section>
+          </div>
+
+          <div id="metronomeTrainerDialog" class="metronome-panel-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="metronomeTrainerTitle">
+            <section class="metronome-panel-sheet">
+              <header><h3 id="metronomeTrainerTitle">速度訓練</h3></header>
+              <div class="metronome-panel-body">
+                <label class="metronome-toggle-row"><span>啟用速度訓練</span><input id="tempoTrainerEnabled" type="checkbox" aria-controls="tempoTrainerSettings" aria-expanded="false" /></label>
+                <div id="tempoTrainerSettings" class="hidden">
+                  <div class="metronome-trainer-grid"><label>起始 BPM<input id="tempoTrainerStart" type="number" min="30" max="239" value="80" /></label><label>目標 BPM<input id="tempoTrainerTarget" type="number" min="31" max="240" value="100" /></label><label>每次增加<select id="tempoTrainerIncrement"><option value="1">1 BPM</option><option value="2">2 BPM</option><option value="5">5 BPM</option></select></label><label>每隔<select id="tempoTrainerEvery"><option value="1">1 小節</option><option value="2">2 小節</option><option value="4">4 小節</option><option value="8">8 小節</option></select></label></div>
+                  <label>停止後<select id="tempoTrainerKeep"><option value="reset">回到起始 BPM</option><option value="keep">保留目前 BPM</option></select></label>
+                  <p id="tempoTrainerStatus" class="metronome-trainer-status">目前 80 BPM／目標 100 BPM</p>
+                </div>
+              </div>
+              <footer><button id="metronomeTrainerCancel" type="button">取消</button><button id="metronomeTrainerApply" class="primary-btn" type="button">套用</button></footer>
+            </section>
+          </div>
+
+          <div id="metronomeAutoStopDialog" class="metronome-panel-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="metronomeAutoStopTitle">
+            <section class="metronome-panel-sheet">
+              <header><h3 id="metronomeAutoStopTitle">自動停止</h3></header>
+              <div class="metronome-panel-body"><label>停止條件<select id="metronomeAutoStop"><option value="off:0">關閉</option><option value="minutes:1">1 分鐘</option><option value="minutes:3">3 分鐘</option><option value="minutes:5">5 分鐘</option><option value="minutes:10">10 分鐘</option><option value="measures:1">自訂小節數</option></select></label><input id="metronomeCustomMeasures" class="hidden" type="number" min="1" max="999" value="1" aria-label="自訂停止小節數" /></div>
+              <footer><button id="metronomeAutoStopCancel" type="button">取消</button><button id="metronomeAutoStopApply" class="primary-btn" type="button">套用</button></footer>
+            </section>
+          </div>
+
+          <div id="metronomeSignatureDialog" class="metronome-panel-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="metronomeSignatureTitle">
+            <section class="metronome-panel-sheet">
+              <header><h3 id="metronomeSignatureTitle">選擇拍號</h3></header>
+              <div class="metronome-panel-body">
+                <div id="metronomeSignatureOptions" class="metronome-signature-options" role="listbox" aria-label="常用拍號"><button data-signature-option="2/4" type="button">2/4</button><button data-signature-option="3/4" type="button">3/4</button><button data-signature-option="4/4" type="button">4/4</button><button data-signature-option="5/4" type="button">5/4</button><button data-signature-option="6/8" type="button">6/8</button><button data-signature-option="7/8" type="button">7/8</button><button data-signature-option="9/8" type="button">9/8</button><button data-signature-option="12/8" type="button">12/8</button><button data-signature-option="custom" type="button">自訂</button></div>
+                <div id="customTimeSignature" class="metronome-inline hidden"><label>分子<input id="customNumerator" type="number" min="1" max="12" value="4" /></label><label>分母<select id="customDenominator"><option>2</option><option selected>4</option><option>8</option><option>16</option></select></label><button id="metronomeSignatureApply" type="button">套用自訂拍號</button></div>
+              </div>
+              <footer><button id="metronomeSignatureCancel" type="button">取消</button></footer>
+            </section>
+          </div>
+
+          <div id="metronomeRhythmDialog" class="metronome-panel-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="metronomeRhythmTitle">
+            <section class="metronome-panel-sheet metronome-rhythm-sheet">
+              <header><h3 id="metronomeRhythmTitle">選擇細分節奏</h3></header>
+              <div class="metronome-panel-body"><div id="metronomeRhythmOptions" class="metronome-rhythm-options" role="listbox" aria-label="細分節奏"></div><label id="metronomeSwingRow" class="metronome-range-row hidden"><span>Swing <b id="metronomeSwingValue">50%</b></span><input id="metronomeSwing" type="range" min="50" max="75" step="1" value="50" disabled /></label></div>
+              <footer><button id="metronomeRhythmCancel" type="button">取消</button></footer>
+            </section>
           </div>
         </section>
 
@@ -487,7 +548,7 @@
                   <h4>音程練習室</h4>
                   <p>從二度到八度，跟著五線譜練習不同調性的音程移動。</p>
                 </div>
-                <button class="room-action" data-view="interval" type="button">開始音程練習</button>
+                <button class="room-action" data-view="interval" data-interval-intro="true" type="button">開始音程練習</button>
               </article>
               <article class="practice-room-card">
                 <span class="room-badge">準備中</span>
@@ -665,7 +726,7 @@
           <div class="section-head">
             <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/note_map_explorer.png" alt="" aria-hidden="true" />
             <div>
-              <h2>音符地圖</h2>
+              <h2>孔位地圖</h2>
               <p>選擇琴型與孔位，查看吹音、吸音與按鍵音。</p>
             </div>
           </div>
@@ -907,7 +968,7 @@
                 <div class="water-balance"><img src="./public/assets/garden/icons/water-drop.png" alt="" /><span><b id="waterDropCount">0</b> 滴</span></div>
               </div>
               <div class="garden-plant-scene">
-                <button id="gardenPrimaryAction" class="watering-can-button" type="button" aria-label="澆水">
+                <button id="gardenPrimaryAction" class="watering-can-button" data-haptic="manual" type="button" aria-label="澆水">
                   <img id="gardenWateringCan" class="watering-can" src="./public/assets/garden/icons/watering-can.png" alt="" aria-hidden="true" />
                 </button>
                 <div id="gardenFxLayer" class="garden-fx-layer" aria-hidden="true"></div>
@@ -952,7 +1013,7 @@
                 </div>
               </div>
               <div class="garden-progress"><div class="garden-progress-row"><span>階段進度</span><b id="gardenQaProgress">0 / 100</b></div><div class="garden-progress-track"><i id="gardenQaProgressBar"></i></div></div>
-              <div class="garden-qa-toolbar" aria-label="植物測試工具"><button data-qa-action="water" type="button">澆水</button><button data-qa-action="fill" type="button">本階段補滿</button><button data-qa-action="mature" type="button">直接成熟</button><button data-qa-action="harvest" type="button">採收</button><button data-qa-action="reset" type="button">重置目前植物</button><button id="gardenQaResetAll" type="button">重置測試花園</button><button data-qa-leave type="button">離開測試模式</button></div>
+              <div class="garden-qa-toolbar" aria-label="植物測試工具"><button data-qa-action="water" data-haptic="manual" type="button">澆水</button><button data-qa-action="fill" data-haptic="manual" type="button">本階段補滿</button><button data-qa-action="mature" data-haptic="manual" type="button">直接成熟</button><button data-qa-action="harvest" type="button">採收</button><button data-qa-action="reset" type="button">重置目前植物</button><button id="gardenQaResetAll" type="button">重置測試花園</button><button data-qa-leave type="button">離開測試模式</button></div>
             </section>
             <section class="garden-card paper-card garden-collection-card"><h3>QA 植物精靈圖鑑</h3><div id="gardenQaCollection" class="garden-qa-collection"></div><p class="garden-hint">點擊已採收精靈可改名並設為 QA 首頁展示。</p></section>
           </div>
@@ -1114,7 +1175,7 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-168</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-169</span></strong>
                 </div>
                 <button id="feedbackOpenBtn" class="setting-row settings-action-row" type="button">
                   <span>問題回報</span>
@@ -1129,7 +1190,7 @@
       </main>
       <nav class="bottom-nav" aria-label="手機底部導覽">
         <button class="bottom-nav-item active" data-view="intro" type="button"><span>⌂</span>首頁</button>
-        <button class="bottom-nav-item" data-view="map" type="button"><span>♪</span>音符</button>
+        <button class="bottom-nav-item" data-view="metronome" type="button"><span>♪</span>節拍</button>
         <button class="bottom-nav-item" data-view="tuner" type="button"><span>⌁</span>調音</button>
         <button class="bottom-nav-item" data-view="practicehub" type="button"><span class="nav-practice-mark">●</span>練習</button>
         <button class="bottom-nav-item" data-view="daily" type="button"><span>✓</span>目標</button>
@@ -1144,15 +1205,16 @@
     </div>
 
 
-    <script src="./supabase-config.js?v=refresh-168"></script>
-    <script src="./practice-reminders.js?v=refresh-168"></script>
-    <script src="./daily-login-bonus.js?v=refresh-168"></script>
-    <script src="./daily-goal-rewards.js?v=refresh-168"></script>
-    <script src="./quick-practice.js?v=refresh-168"></script>
-    <script src="./metronome-core.js?v=refresh-168"></script>
-    <script src="./metronome.js?v=refresh-168"></script>
-    <script src="./garden-qa.js?v=refresh-168"></script>
-    <script src="./app.js?v=refresh-168"></script>
-    <script src="./auth-runtime.js?v=refresh-168"></script>
+    <script src="./supabase-config.js?v=refresh-169"></script>
+    <script src="./haptic-feedback.js?v=refresh-169"></script>
+    <script src="./practice-reminders.js?v=refresh-169"></script>
+    <script src="./daily-login-bonus.js?v=refresh-169"></script>
+    <script src="./daily-goal-rewards.js?v=refresh-169"></script>
+    <script src="./quick-practice.js?v=refresh-169"></script>
+    <script src="./metronome-core.js?v=refresh-169"></script>
+    <script src="./metronome.js?v=refresh-169"></script>
+    <script src="./garden-qa.js?v=refresh-169"></script>
+    <script src="./app.js?v=refresh-169"></script>
+    <script src="./auth-runtime.js?v=refresh-169"></script>
   </body>
 </html>

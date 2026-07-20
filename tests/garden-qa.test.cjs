@@ -17,7 +17,7 @@ test("stores only the expected password hash", () => {
   assert.equal(crypto.createHash("sha256").update("90947822").digest("hex"), "c8797332d85b5f34680d5df15de8f6ab3ec5045e469c7f5cf5043b22d3deb23b");
 });
 test("49 title clicks stay hidden and click 50 opens", () => { assert.match(source, /REQUIRED_CLICKS = 50/); assert.match(source, /titleClicks < REQUIRED_CLICKS/); assert.match(source, /setModal\(true\)/); });
-test("only the visible hero title owns the hidden listener", () => { assert.match(html, /id="homeHeroQaTitle">半音階口琴練習室/); assert.match(source, /#homeHeroQaTitle.*addEventListener\("click"/); });
+test("only the visible hero title owns the hidden listener", () => { assert.match(html, /id="homeHeroQaTitle"[^>]*>半音階口琴練習室/); assert.match(source, /#homeHeroQaTitle.*addEventListener\("click"/); });
 test("hero image has no QA click target", () => { assert.doesNotMatch(source, /home-hero|hero-copy|homeHeroQaImage|heroPlantSlot/); });
 test("container blank clicks have no QA listener", () => { assert.doesNotMatch(source, /\.home-hero.*addEventListener|\.hero-copy.*addEventListener/); });
 test("password field is numeric, private and not saved", () => { assert.match(html, /id="gardenQaPassword" type="password" inputmode="numeric" maxlength="8" autocomplete="off"/); assert.doesNotMatch(source, /localStorage/); });
@@ -32,7 +32,7 @@ test("formal garden keys are absent from QA module", () => { for (const key of [
 test("leaving disables QA before resuming formal workspace", () => { assert.match(source, /setActive\(false\);[\s\S]*resumeFormalWorkspace\?\.\(\{ reason: "qa-exit" \}\)/); });
 test("reset confirmation clears sandbox state only", () => { assert.match(source, /確定重置測試花園嗎/); assert.match(source, /sessionStorage\.removeItem\(SANDBOX_KEY\)/); });
 test("reload resumes active QA without copying formal snapshot", () => { assert.match(source, /resumeGardenQaSession[\s\S]*render\(\);[\s\S]*resolveInitialView\(\{ qaActive: true \}\)/); assert.doesNotMatch(source, /getWaterDrops|getGardenCollection|getCurrentPlant/); });
-test("app integrates shared species rules without exporting QA keys", () => { assert.match(app, /species: gardenSpecies/); assert.match(app, /stageRequirements: PLANT_STAGE_WATER_REQUIREMENTS/); assert.doesNotMatch(account, /chromatica\.qaGarden/); });
+test("app integrates the available species rules without exporting QA keys", () => { assert.match(app, /species: availableGardenSpecies/); assert.match(app, /availableGardenSpeciesIds\.has\(species\.species\)/); assert.match(app, /stageRequirements: PLANT_STAGE_WATER_REQUIREMENTS/); assert.doesNotMatch(account, /chromatica\.qaGarden/); });
 test("QA banner and exit controls are confined to QA view", () => { const section = html.match(/<section id="gardenqa"[\s\S]*?<\/section>/)?.[0] || ""; assert.match(section, /植物測試模式｜不影響正式進度/); assert.match(section, /data-qa-leave/); assert.doesNotMatch(html.match(/<section id="garden"[\s\S]*?<\/section>/)?.[0] || "", /data-qa-leave/); });
 test("QA session activity check is a synchronous storage-only read", () => { const body = source.match(/function isGardenQaSessionActive\(\) \{([\s\S]*?)\n  \}/)?.[1] || ""; assert.match(body, /sessionStorage\.getItem\(ACTIVE_KEY\)/); assert.doesNotMatch(body, /setItem|render|navigate|options\./); });
 test("active QA always wins initial view resolution", () => { assert.match(source, /return qaActive \? "gardenqa" : \(savedView \|\| defaultView\)/); });

@@ -113,6 +113,9 @@ const availableGardenSpeciesIds = new Set([
   "mushroom-spirit",
   "flower-spirit",
 ]);
+const availableGardenSpecies = gardenSpecies.filter((species) => (
+  availableGardenSpeciesIds.has(species.species)
+));
 
 const gardenStorageKeys = {
   waterDrops: "chromatica.waterDrops",
@@ -804,6 +807,7 @@ let intervalMetronomeTimer = null;
 let intervalMetronomeBeat = 0;
 let intervalMetronomePlaying = false;
 let intervalPracticeState = null;
+let intervalIntroReturnFocus = null;
 let audioContext = null;
 let micStream = null;
 let micAnalyser = null;
@@ -812,6 +816,10 @@ let micFloatTimeData = null;
 let micFrequencyData = null;
 let micFloatFrequencyData = null;
 let micFrame = null;
+let practiceRewardAnimationFrame = null;
+let practiceRewardSlotTimeout = null;
+const practiceRewardTimeouts = new Set();
+const practiceRewardAudioNodes = new Set();
 let micSensitivity = 3.2;
 let tuningA4 = 440;
 let micSilentRms = 0;
@@ -1055,7 +1063,6 @@ function setSoundSettings(patch) {
 function isSoundAllowed(soundId) {
   const settings = getSoundSettings();
   if (!settings.appSound) return false;
-  if (soundId === "uiTap" || soundId === "close") return settings.cueSound !== false;
   if (soundId === "practiceComplete") return settings.completionSound !== false;
   if (soundId === "watering") return settings.wateringSound !== false;
   if (soundId === "evolveStart" || soundId === "evolveComplete") return settings.evolutionSound !== false;
@@ -1182,21 +1189,7 @@ function bindSoundSettings() {
   });
 }
 
-function getInteractionSoundId(event) {
-  const target = event.target.closest("button, select, input[type='checkbox']");
-  if (!target || target.disabled || target.id === "gardenPrimaryAction") return "";
-  const closeIds = new Set([
-    "goalToastClose",
-    "calendarCloseBtn",
-    "gardenSpiritModalClose",
-    "longToneIntroClose",
-    "practiceSettingsClose",
-    "micGateSkip",
-  ]);
-  return closeIds.has(target.id) ? "close" : "uiTap";
-}
-
-function bindSoundFeedback() {
+function bindHapticFeedback() {
   if (soundFeedbackBound) return;
   soundFeedbackBound = true;
   document.addEventListener(
@@ -1207,14 +1200,7 @@ function bindSoundFeedback() {
     },
     { once: true }
   );
-  document.addEventListener(
-    "click",
-    (event) => {
-      const soundId = getInteractionSoundId(event);
-      if (soundId) playSound(soundId);
-    },
-    true
-  );
+  window.ChromaticaHaptics?.bindGlobalFeedback?.();
 }
 
 function getDisplaySettings() {
@@ -1573,10 +1559,7 @@ function getCollectedSpeciesSet(collection = getGardenCollection()) {
 
 function getUncollectedGardenSpecies(collection = getGardenCollection()) {
   const collectedSpecies = getCollectedSpeciesSet(collection);
-  return gardenSpecies.filter((species) => (
-    availableGardenSpeciesIds.has(species.species)
-    && !collectedSpecies.has(species.species)
-  ));
+  return availableGardenSpecies.filter((species) => !collectedSpecies.has(species.species));
 }
 
 function getGardenSpecies(speciesId) {
@@ -2196,7 +2179,7 @@ function setStarterPlantModalOpen(open) {
 }
 
 function getStarterPlantOptions() {
-  return gardenSpecies.filter((species) => availableGardenSpeciesIds.has(species.species));
+  return availableGardenSpecies;
 }
 
 function renderStarterPlantChoices() {
@@ -2234,7 +2217,6 @@ function showStarterPlantSelectionIfNeeded() {
 function selectStarterPlant(speciesId) {
   if (!getStarterPlantOptions().some((species) => species.species === speciesId)) return;
   selectedStarterSpeciesId = speciesId;
-  playSound("uiTap");
   renderStarterPlantChoices();
 }
 
@@ -2547,9 +2529,10 @@ function waterCurrentPlant() {
   const stageChanged = plant.stage > previousStage || becameMature;
   playSound("watering");
   if (stageChanged) {
+    void window.ChromaticaHaptics?.long?.();
     playSound("evolveStart");
     window.setTimeout(() => playSound("evolveComplete"), 1650);
-  }
+  } else void window.ChromaticaHaptics?.tap?.();
   playWateringAnimation(stageChanged);
   if (plant.waterProgress >= PLANT_WATER_REQUIRED) {
     showGardenToastAfterAnimation(`${getPlantDisplayName(plant, 3)}成熟了！`, "可以採收這株植物了。", GARDEN_EVOLUTION_NOTICE_DELAY_MS);
@@ -2569,8 +2552,9 @@ function harvestCurrentPlant() {
   const collection = getGardenCollection();
   const harvestedName = getPlantDisplayName(plant, 3);
   const alreadyCollected = getCollectedSpeciesSet(collection).has(plant.species);
+  const canAddToCollection = availableGardenSpeciesIds.has(plant.species);
   let harvested = null;
-  if (!alreadyCollected) {
+  if (!alreadyCollected && canAddToCollection) {
     harvested = {
       ...plant,
       id: `spirit-${Date.now()}-${collection.length + 1}`,
@@ -2590,22 +2574,185 @@ function harvestCurrentPlant() {
   playSound("harvest");
   if (!getCurrentPlant(false)) {
     showGardenToast(
-      alreadyCollected ? "採收完成" : "圖鑑全收集！",
-      alreadyCollected
-        ? `「${harvestedName}」已採收過，不會重複加入圖鑑。水滴會先累積。`
-        : `「${harvestedName}」已加入圖鑑。目前植物都採收完了，水滴會先累積。`,
+      alreadyCollected || !canAddToCollection ? "採收完成" : "圖鑑全收集！",
+      !canAddToCollection
+        ? `「${harvestedName}」目前尚未開放取得，不會加入圖鑑。`
+        : alreadyCollected
+          ? `「${harvestedName}」已採收過，不會重複加入圖鑑。水滴會先累積。`
+          : `「${harvestedName}」已加入圖鑑。目前植物都採收完了，水滴會先累積。`,
     );
     return;
   }
   showGardenToast(
-    alreadyCollected ? "採收完成" : "採收成功！",
-    alreadyCollected ? `「${harvestedName}」已採收過，不會重複加入圖鑑。` : `「${harvestedName}」已加入圖鑑。`,
+    alreadyCollected || !canAddToCollection ? "採收完成" : "採收成功！",
+    !canAddToCollection
+      ? `「${harvestedName}」目前尚未開放取得，不會加入圖鑑。`
+      : alreadyCollected
+        ? `「${harvestedName}」已採收過，不會重複加入圖鑑。`
+        : `「${harvestedName}」已加入圖鑑。`,
   );
 }
 
 function setGoalToastEyebrow(label = "每日目標") {
   const eyebrow = $("#goalToastEyebrow");
   if (eyebrow) eyebrow.textContent = label;
+  if (label !== "練習獎勵") hidePracticeRewardWaterAnimation();
+}
+
+function cancelPracticeRewardWaterAnimation() {
+  if (practiceRewardAnimationFrame != null) cancelAnimationFrame(practiceRewardAnimationFrame);
+  if (practiceRewardSlotTimeout != null) window.clearTimeout(practiceRewardSlotTimeout);
+  practiceRewardTimeouts.forEach((timeout) => window.clearTimeout(timeout));
+  practiceRewardTimeouts.clear();
+  practiceRewardAudioNodes.forEach(({ oscillator, gain }) => {
+    try { oscillator.stop(); } catch {}
+    try { oscillator.disconnect(); gain.disconnect(); } catch {}
+  });
+  practiceRewardAudioNodes.clear();
+  $("#practiceRewardWaterAnimation")?.querySelectorAll("[data-reward-particle]").forEach((particle) => particle.remove());
+  practiceRewardAnimationFrame = null;
+  practiceRewardSlotTimeout = null;
+}
+
+function schedulePracticeRewardTimeout(callback, delay) {
+  const timeout = window.setTimeout(() => {
+    practiceRewardTimeouts.delete(timeout);
+    callback();
+  }, delay);
+  practiceRewardTimeouts.add(timeout);
+  return timeout;
+}
+
+function isPracticeRewardSoundAllowed() {
+  const settings = getSoundSettings();
+  return settings.appSound !== false && settings.completionSound !== false;
+}
+
+function schedulePracticeRewardTone(delayMs, frequencies, duration = 0.12) {
+  if (!isPracticeRewardSoundAllowed()) return;
+  try {
+    const context = getSharedAudioContext();
+    if (!context) return;
+    void context.resume?.();
+    frequencies.forEach((frequency, index) => {
+      const start = context.currentTime + Math.max(0, delayMs) / 1000 + index * 0.085;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.075, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      oscillator.connect(gain).connect(context.destination);
+      const record = { oscillator, gain };
+      practiceRewardAudioNodes.add(record);
+      oscillator.onended = () => {
+        practiceRewardAudioNodes.delete(record);
+        try { oscillator.disconnect(); gain.disconnect(); } catch {}
+      };
+      oscillator.start(start);
+      oscillator.stop(start + duration + 0.02);
+    });
+  } catch (error) {
+    console.warn("Unable to schedule practice reward sound.", error);
+  }
+}
+
+function createPracticeRewardParticles(animation, count = 8) {
+  for (let index = 0; index < count; index += 1) {
+    const particle = document.createElement("i");
+    particle.dataset.rewardParticle = "true";
+    particle.style.setProperty("--particle-angle", `${index * (360 / count)}deg`);
+    particle.style.setProperty("--particle-delay", `${index * 28}ms`);
+    animation.appendChild(particle);
+  }
+}
+
+function hidePracticeRewardWaterAnimation() {
+  cancelPracticeRewardWaterAnimation();
+  const animation = $("#practiceRewardWaterAnimation");
+  const number = $("#practiceRewardWaterNumber");
+  const announcement = $("#practiceRewardWaterAnnouncement");
+  animation?.classList.add("hidden");
+  animation?.classList.remove("is-entering", "is-spinning", "is-counting", "is-revealed");
+  if (number) number.textContent = "+0";
+  if (announcement) announcement.textContent = "";
+}
+
+function animatePracticeRewardWater(totalWaterGranted) {
+  cancelPracticeRewardWaterAnimation();
+  const total = Math.max(0, Math.floor(Number(totalWaterGranted) || 0));
+  const animation = $("#practiceRewardWaterAnimation");
+  const number = $("#practiceRewardWaterNumber");
+  const announcement = $("#practiceRewardWaterAnnouncement");
+  if (!animation || !number) return;
+  animation.classList.remove("hidden");
+  animation.classList.remove("is-spinning", "is-counting", "is-revealed");
+  animation.classList.add("is-entering");
+  number.textContent = "+0";
+  if (announcement) announcement.textContent = "";
+  const finish = () => {
+    number.textContent = `+${total}`;
+    animation.classList.remove("is-spinning", "is-counting");
+    animation.classList.add("is-revealed");
+    schedulePracticeRewardTone(0, [660, 830, 1040], 0.34);
+    void window.ChromaticaHaptics?.success?.();
+    if (announcement) announcement.textContent = `本次共獲得 ${total} 滴水滴`;
+    practiceRewardAnimationFrame = null;
+    practiceRewardSlotTimeout = null;
+  };
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
+    finish();
+    return;
+  }
+  createPracticeRewardParticles(animation);
+  const slotStartedAt = performance.now();
+  const runCounter = () => {
+    animation.classList.remove("is-spinning");
+    animation.classList.add("is-counting");
+    const countStartedAt = performance.now();
+    const countDuration = 900;
+    const step = (now) => {
+      const progress = Math.min(1, (now - countStartedAt) / countDuration);
+      const eased = 1 - ((1 - progress) ** 4);
+      number.textContent = `+${Math.round(total * eased)}`;
+      if (progress < 1) practiceRewardAnimationFrame = requestAnimationFrame(step);
+      else finish();
+    };
+    number.textContent = "+0";
+    practiceRewardAnimationFrame = requestAnimationFrame(step);
+  };
+  const spin = () => {
+    if (performance.now() - slotStartedAt >= 900) {
+      practiceRewardSlotTimeout = null;
+      runCounter();
+      return;
+    }
+    const visualCeiling = Math.max(9, total + 7);
+    number.textContent = `+${Math.floor(Math.random() * (visualCeiling + 1))}`;
+    practiceRewardSlotTimeout = schedulePracticeRewardTimeout(spin, 80);
+  };
+  schedulePracticeRewardTone(250, [420, 470, 530, 590, 650, 710], 0.075);
+  schedulePracticeRewardTone(1320, [540, 650, 760], 0.1);
+  practiceRewardSlotTimeout = schedulePracticeRewardTimeout(() => {
+    animation.classList.remove("is-entering");
+    animation.classList.add("is-spinning");
+    spin();
+  }, 250);
+}
+
+function getPracticeRewardEffectDiagnostics() {
+  return {
+    activeRaf: practiceRewardAnimationFrame == null ? 0 : 1,
+    pendingTimeouts: practiceRewardTimeouts.size,
+    rewardAudioNodes: practiceRewardAudioNodes.size,
+    particles: $("#practiceRewardWaterAnimation")?.querySelectorAll("[data-reward-particle]").length || 0,
+  };
+}
+
+function closeGoalToast() {
+  hidePracticeRewardWaterAnimation();
+  $("#goalToast")?.classList.add("hidden");
 }
 
 function showGardenToast(title, text) {
@@ -3613,6 +3760,10 @@ function formatBonusMessages(messages = []) {
   return messages.filter(Boolean).map((message) => `特殊事件：${message}`).join("\n");
 }
 
+function getPracticeCompletionWaterDelta(waterBeforeCompletion) {
+  return Math.max(0, getWaterDrops() - Math.max(0, Number(waterBeforeCompletion) || 0));
+}
+
 function setGoalToastTextLines(lines = []) {
   $("#goalToastText").textContent = lines.filter(Boolean).join("\n");
 }
@@ -3665,7 +3816,7 @@ function showPracticeCompletedToast(practiceName, waterResult = null, bonusMessa
   playSound("practiceComplete");
 }
 
-function showPracticeCompletionRewardDialog(practiceName, waterResult, goalResult, bonusMessages = []) {
+function showPracticeCompletionRewardDialog(practiceName, waterResult, goalResult, bonusMessages = [], totalWaterGranted = 0) {
   const lines = [];
   if (waterResult?.water > 0) lines.push(`本次練習獲得 ${waterResult.water} 滴 💧。`);
   if (waterResult?.capped) lines.push("今日練習獎勵已達上限，完成紀錄仍已保存。");
@@ -3679,6 +3830,7 @@ function showPracticeCompletionRewardDialog(practiceName, waterResult, goalResul
   $("#goalToastTitle").textContent = `完成「${practiceName}」`;
   setGoalToastTextLines(lines);
   $("#goalToast").classList.remove("hidden");
+  animatePracticeRewardWater(totalWaterGranted);
 }
 
 function setCalendarModalOpen(isOpen) {
@@ -3693,6 +3845,27 @@ function setLongToneIntroOpen(isOpen) {
   if (!modal) return;
   modal.classList.toggle("hidden", !isOpen);
   document.body.classList.toggle("modal-open", isOpen);
+}
+
+function setIntervalIntroOpen(isOpen, { restoreFocus = true } = {}) {
+  const modal = $("#intervalIntroModal");
+  if (!modal) return;
+  modal.classList.toggle("hidden", !isOpen);
+  document.body.classList.toggle("modal-open", isOpen);
+  if (isOpen) {
+    intervalIntroReturnFocus = document.activeElement;
+    requestAnimationFrame(() => $("#intervalIntroBack")?.focus());
+  } else if (restoreFocus) {
+    requestAnimationFrame(() => intervalIntroReturnFocus?.focus?.());
+    intervalIntroReturnFocus = null;
+  }
+}
+
+function confirmIntervalIntro() {
+  setIntervalIntroOpen(false, { restoreFocus: false });
+  setView("interval");
+  showIntervalSetup();
+  scrollToSection("intervalSetup");
 }
 
 function setLeaderboardModalOpen(isOpen) {
@@ -5955,6 +6128,7 @@ function finishIntervalPractice() {
   if (!state) return;
   const completedFromQuickPractice = hasActiveQuickPracticeTask();
   stopIntervalMetronome();
+  const waterBeforeCompletion = getWaterDrops();
   const goalResult = markIntervalDailyGoalsDone(state.key, state.interval);
   const streakResult = goalResult.streakResult;
   const waterResult = awardGardenWaterForPractice(state.completedCycles);
@@ -5963,6 +6137,7 @@ function finishIntervalPractice() {
     awardDailyTaskBonusIfNeeded(goalResult.isAllDone),
     ...awardStreakMilestoneBonusesIfNeeded(streakResult),
   ].filter(Boolean);
+  const totalWaterGranted = getPracticeCompletionWaterDelta(waterBeforeCompletion);
   if (bonusMessages.length) renderGarden();
   saveIntervalPracticeRecord({
     date: getTodayKey(),
@@ -5985,7 +6160,7 @@ function finishIntervalPractice() {
   $("#intervalCompleteCycles").textContent = `${state.completedCycles} / ${state.totalCycles}`;
   playSound("practiceComplete");
   scrollToSection("intervalComplete");
-  showPracticeCompletionRewardDialog("音程練習", waterResult, goalResult, bonusMessages);
+  showPracticeCompletionRewardDialog("音程練習", waterResult, goalResult, bonusMessages, totalWaterGranted);
   handleQuickPracticeCompletion("音程練習", completedFromQuickPractice);
 }
 
@@ -6001,7 +6176,7 @@ function getLongToneCompletionSetting(exercise) {
   return `${exercise.playBeats} 拍`;
 }
 
-function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessages }) {
+function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessages, totalWaterGranted }) {
   const completedFromQuickPractice = hasActiveQuickPracticeTask();
   $("#longToneCompleteExercise").textContent = exercise.title;
   $("#longToneCompleteSetting").textContent = getLongToneCompletionSetting(exercise);
@@ -6009,7 +6184,7 @@ function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessag
   setLongToneCompletionVisible(true);
   playSound("practiceComplete");
   scrollToSection("longToneComplete");
-  showPracticeCompletionRewardDialog(exercise.title, waterResult, goalResult, bonusMessages);
+  showPracticeCompletionRewardDialog(exercise.title, waterResult, goalResult, bonusMessages, totalWaterGranted);
   handleQuickPracticeCompletion(exercise.title, completedFromQuickPractice);
 }
 
@@ -6038,6 +6213,7 @@ function editIntervalPracticeSettings() {
 function setView(view, options = {}) {
   const target = options.activeTarget || options.scrollTarget || "";
   const changedView = currentView !== view || currentViewTarget !== target;
+  if (changedView) cancelPracticeRewardWaterAnimation();
   if (view === "audio" && currentView !== "audio") {
     settingsReturnView = currentView;
     settingsReturnTarget = currentViewTarget;
@@ -6049,7 +6225,10 @@ function setView(view, options = {}) {
   activateViewButton(view, currentViewTarget);
   if (view !== "longtone") stopPractice(false);
   if (view !== "interval") stopIntervalMetronome();
-  if (view !== "metronome") window.ChromaticaMetronome?.stop?.();
+  if (view !== "metronome") {
+    window.ChromaticaMetronome?.closeTopPanel?.({ restoreFocus: false });
+    window.ChromaticaMetronome?.stop?.();
+  }
   if (view === "garden") {
     const suppressGardenPersistence = suppressNextGardenPersistence;
     renderGarden({ persistNormalizedState: !suppressGardenPersistence });
@@ -6251,6 +6430,7 @@ function stepPractice() {
         showAverageScore();
       }
       const averageScore = getAverageCycleScore();
+      const waterBeforeCompletion = getWaterDrops();
       const currentGoal = getCurrentDailyGoalCompletion();
       const goalResult = markDailyGoalDone(currentGoal.goalId, currentGoal.comboId);
       const waterResult = awardGardenWaterForPractice(totalCycles);
@@ -6259,9 +6439,10 @@ function stepPractice() {
         awardDailyTaskBonusIfNeeded(goalResult.isAllDone),
         ...awardStreakMilestoneBonusesIfNeeded(goalResult.streakResult),
       ].filter(Boolean);
+      const totalWaterGranted = getPracticeCompletionWaterDelta(waterBeforeCompletion);
       if (bonusMessages.length) renderGarden();
       stopPractice(true);
-      showLongToneCompletion({ exercise, averageScore, waterResult, goalResult, bonusMessages });
+      showLongToneCompletion({ exercise, averageScore, waterResult, goalResult, bonusMessages, totalWaterGranted });
       return;
     }
     cycle += 1;
@@ -6392,6 +6573,7 @@ function pauseAudioForAppBackground() {
   stopIntervalMetronome();
   pauseLongToneForAppBackground();
   window.ChromaticaMetronome?.stop?.();
+  cancelPracticeRewardWaterAnimation();
 }
 
 function registerAndroidAppLifecycle() {
@@ -6416,6 +6598,19 @@ function registerAndroidAppLifecycle() {
     console.warn("Unable to register Android app lifecycle listener.", error);
   });
   App.addListener("backButton", ({ canGoBack }) => {
+    if (!$("#longToneIntroModal")?.classList.contains("hidden")) {
+      void window.ChromaticaHaptics?.close?.();
+      setLongToneIntroOpen(false);
+      return;
+    }
+    if (!$("#intervalIntroModal")?.classList.contains("hidden")) {
+      void window.ChromaticaHaptics?.close?.();
+      setIntervalIntroOpen(false);
+      return;
+    }
+    if (currentView === "metronome" && window.ChromaticaMetronome?.closeTopPanel?.({ haptic: true })) {
+      return;
+    }
     if (currentView === "metronome") {
       window.ChromaticaMetronome?.stop?.();
       setView("intro");
@@ -6481,7 +6676,7 @@ async function submitFeedbackForm(event) {
     try {
       const result = await window.chromaticaAuth?.invokeFunction?.("send-feedback", {
         category, description,
-        appVersion: "refresh-168 / Android 1.0.52 (53)",
+        appVersion: "refresh-169 / Android 1.0.53 (54)",
         platform: isNativeAndroidApp() ? "android" : "web",
         currentView, requestId,
       });
@@ -6507,6 +6702,11 @@ function bindEvents() {
     if (button.id === "headerSettingsBtn") return;
     button.addEventListener("click", () => {
       if (button.dataset.view === "tuner" && !requireMicrophoneEnabled()) return;
+      if (button.dataset.intervalIntro === "true") {
+        resetQuickPracticeSession();
+        setIntervalIntroOpen(true);
+        return;
+      }
       resetQuickPracticeSession();
       setView(button.dataset.view, {
         activeTarget: button.dataset.navTarget || "",
@@ -6789,7 +6989,6 @@ function bindEvents() {
   $("#calendarCloseBtn").addEventListener("click", () => setCalendarModalOpen(false));
   $("#calendarModal").addEventListener("click", (event) => {
     if (event.target.id === "calendarModal") {
-      playSound("close");
       setCalendarModalOpen(false);
     }
   });
@@ -6818,7 +7017,6 @@ function bindEvents() {
   $("#gardenSpiritModalClose").addEventListener("click", closeGardenSpiritModal);
   $("#gardenSpiritModal").addEventListener("click", (event) => {
     if (event.target.id === "gardenSpiritModal") {
-      playSound("close");
       closeGardenSpiritModal();
     }
   });
@@ -6831,17 +7029,14 @@ function bindEvents() {
   $("#gardenSpiritEditName").addEventListener("click", editGardenSpiritName);
   $("#gardenSpiritSetFeatured").addEventListener("click", setSelectedGardenSpiritFeatured);
   $("#gardenRenameClose").addEventListener("click", () => {
-    playSound("close");
     closeGardenRenameModal();
   });
   $("#gardenRenameCancel").addEventListener("click", () => {
-    playSound("close");
     closeGardenRenameModal();
   });
   $("#gardenRenameSave").addEventListener("click", saveGardenSpiritName);
   $("#gardenRenameModal").addEventListener("click", (event) => {
     if (event.target.id === "gardenRenameModal") {
-      playSound("close");
       closeGardenRenameModal();
     }
   });
@@ -6851,23 +7046,29 @@ function bindEvents() {
       saveGardenSpiritName();
     }
     if (event.key === "Escape") {
-      playSound("close");
       closeGardenRenameModal();
     }
   });
 
   $("#longToneIntroClose").addEventListener("click", () => setLongToneIntroOpen(false));
+  $("#longToneIntroBack").addEventListener("click", () => setLongToneIntroOpen(false));
   $("#longToneIntroConfirm").addEventListener("click", confirmLongToneIntro);
   $("#longToneIntroModal").addEventListener("click", (event) => {
     if (event.target.id === "longToneIntroModal") {
-      playSound("close");
       setLongToneIntroOpen(false);
+    }
+  });
+  $("#intervalIntroBack")?.addEventListener("click", () => setIntervalIntroOpen(false));
+  $("#intervalIntroConfirm")?.addEventListener("click", confirmIntervalIntro);
+  $("#intervalIntroModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "intervalIntroModal") {
+      void window.ChromaticaHaptics?.close?.();
+      setIntervalIntroOpen(false);
     }
   });
   $("#leaderboardModalClose")?.addEventListener("click", () => setLeaderboardModalOpen(false));
   $("#leaderboardModal")?.addEventListener("click", (event) => {
     if (event.target.id === "leaderboardModal") {
-      playSound("close");
       setLeaderboardModalOpen(false);
     }
   });
@@ -6898,11 +7099,11 @@ function bindEvents() {
     });
   });
   $("#goalToastClose").addEventListener("click", () => {
-    $("#goalToast").classList.add("hidden");
+    closeGoalToast();
   });
   $("#goalToast").addEventListener("click", (event) => {
     if (event.target.id === "goalToast") {
-      $("#goalToast").classList.add("hidden");
+      closeGoalToast();
     }
   });
 
@@ -6942,6 +7143,7 @@ async function requestMicOnEntry() {
 }
 
 window.chromaticDebug = {
+  getPracticeRewardEffectDiagnostics,
   get pitch() {
     return pitchDebugLog[pitchDebugLog.length - 1] || null;
   },
@@ -7126,7 +7328,7 @@ function initializeAuthenticatedApp(options = {}) {
     chromaticaAppInitialized = true;
     bindEvents();
     bindSoundSettings();
-    bindSoundFeedback();
+    bindHapticFeedback();
     bindDisplaySettings();
     registerAndroidAppLifecycle();
     registerPracticeReminderListener();
@@ -7142,7 +7344,7 @@ function initializeAuthenticatedApp(options = {}) {
     renderMicCurve();
     window.ChromaticaMetronome?.init?.({ getAudioContext: getSharedAudioContext });
     window.ChromaticaGardenQA?.init?.({
-      species: gardenSpecies,
+      species: availableGardenSpecies,
       stageRequirements: PLANT_STAGE_WATER_REQUIREMENTS,
       getCurrentView: () => currentView,
       navigate: (view, routeOptions = {}) => setView(view, routeOptions),
@@ -7156,9 +7358,10 @@ function initializeAuthenticatedApp(options = {}) {
       playGardenEffect: (evolved) => {
         playSound("watering");
         if (evolved) {
+          void window.ChromaticaHaptics?.long?.();
           playSound("evolveStart");
           window.setTimeout(() => playSound("evolveComplete"), 600);
-        }
+        } else void window.ChromaticaHaptics?.tap?.();
       },
     });
   } else {
@@ -7229,12 +7432,14 @@ window.chromaticaApp = {
     stopIntervalMetronome();
     stopPractice(false);
     window.ChromaticaMetronome?.stop?.();
+    cancelPracticeRewardWaterAnimation();
     document.body.classList.remove("modal-open");
     [
       "goalToast",
       "feedbackModal",
       "calendarModal",
       "longToneIntroModal",
+      "intervalIntroModal",
       "gardenSpiritModal",
       "gardenRenameModal",
       "starterPlantModal",

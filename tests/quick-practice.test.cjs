@@ -84,7 +84,8 @@ test("reward dialog appears once per formal or quick completion and closing has 
   const app = fs.readFileSync(require.resolve("../app.js"), "utf8");
   assert.equal((app.match(/showPracticeCompletionRewardDialog\(/g) || []).length, 3, "definition plus two completion calls");
   const closeHandler = app.match(/goalToastClose"\)\.addEventListener\("click",[\s\S]*?\n  \}\);/)?.[0] || "";
-  assert.match(closeHandler, /classList\.add\("hidden"\)/);
+  assert.match(closeHandler, /closeGoalToast\(\)/);
+  assert.match(app, /function closeGoalToast\(\)[\s\S]*classList\.add\("hidden"\)/);
   assert.doesNotMatch(closeHandler, /setWaterDrops|saveIntervalPracticeRecord|markDailyGoalDone|showPracticeCompletionRewardDialog/);
   for (const renderer of ["renderDailyGoals", "renderQuickPractice", "applyRemoteSnapshot"]) {
     const block = app.match(new RegExp(`function ${renderer}\\([^)]*\\) \\{[\\s\\S]*?\\n\\}`))?.[0] || "";
