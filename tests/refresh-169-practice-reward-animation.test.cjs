@@ -39,11 +39,11 @@ test("formal and quick long-tone and interval flows share the same animation dia
   assert.equal((app.match(/animatePracticeRewardWater\(totalWaterGranted\)/g) || []).length, 2, "definition plus the single shared dialog call");
 });
 
-test("slot phase uses one timeout chain and count-up uses requestAnimationFrame", () => {
+test("extended slot phase uses one timeout chain and count-up uses requestAnimationFrame", () => {
   const block = app.match(/function animatePracticeRewardWater\(totalWaterGranted\) \{([\s\S]*?)\n\}/)?.[1] || "";
-  assert.match(block, /performance\.now\(\) - slotStartedAt >= 600/);
-  assert.match(block, /window\.setTimeout\(spin, 55\)/);
-  assert.match(block, /countDuration = 650/);
+  assert.match(block, /performance\.now\(\) - slotStartedAt >= 900/);
+  assert.match(block, /schedulePracticeRewardTimeout\(spin, 80\)/);
+  assert.match(block, /countDuration = 900/);
   assert.match(block, /requestAnimationFrame\(step\)/);
   assert.doesNotMatch(block, /setInterval/);
 });
@@ -57,6 +57,20 @@ test("closing or replacing the dialog cancels all pending animation work", () =>
   assert.match(app, /function cancelPracticeRewardWaterAnimation\(\)[\s\S]*cancelAnimationFrame[\s\S]*clearTimeout/);
   assert.match(app, /function closeGoalToast\(\)[\s\S]*hidePracticeRewardWaterAnimation/);
   assert.match(app, /if \(label !== "練習獎勵"\) hidePracticeRewardWaterAnimation\(\)/);
+});
+
+test("reward roll and final reveal use shared audio context and success haptic", () => {
+  assert.match(app, /function schedulePracticeRewardTone[\s\S]*getSharedAudioContext\(\)/);
+  assert.match(app, /schedulePracticeRewardTone\(250, \[420, 470, 530, 590, 650, 710\]/);
+  assert.match(app, /schedulePracticeRewardTone\(0, \[660, 830, 1040\]/);
+  assert.match(app, /ChromaticaHaptics\?\.success/);
+  assert.match(app, /settings\.appSound !== false && settings\.completionSound !== false/);
+});
+
+test("reward diagnostics prove effects are removed after close", () => {
+  for (const token of ["activeRaf", "pendingTimeouts", "rewardAudioNodes", "particles"]) assert.match(app, new RegExp(token));
+  assert.match(app, /practiceRewardAudioNodes\.clear\(\)/);
+  assert.match(app, /querySelectorAll\("\[data-reward-particle\]"\)[\s\S]*particle\.remove\(\)/);
 });
 
 test("animation never mutates rewards storage or replays completion audio", () => {

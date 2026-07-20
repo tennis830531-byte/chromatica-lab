@@ -817,6 +817,8 @@ let micFloatFrequencyData = null;
 let micFrame = null;
 let practiceRewardAnimationFrame = null;
 let practiceRewardSlotTimeout = null;
+const practiceRewardTimeouts = new Set();
+const practiceRewardAudioNodes = new Set();
 let micSensitivity = 3.2;
 let tuningA4 = 440;
 let micSilentRms = 0;
@@ -2599,8 +2601,70 @@ function setGoalToastEyebrow(label = "每日目標") {
 function cancelPracticeRewardWaterAnimation() {
   if (practiceRewardAnimationFrame != null) cancelAnimationFrame(practiceRewardAnimationFrame);
   if (practiceRewardSlotTimeout != null) window.clearTimeout(practiceRewardSlotTimeout);
+  practiceRewardTimeouts.forEach((timeout) => window.clearTimeout(timeout));
+  practiceRewardTimeouts.clear();
+  practiceRewardAudioNodes.forEach(({ oscillator, gain }) => {
+    try { oscillator.stop(); } catch {}
+    try { oscillator.disconnect(); gain.disconnect(); } catch {}
+  });
+  practiceRewardAudioNodes.clear();
+  $("#practiceRewardWaterAnimation")?.querySelectorAll("[data-reward-particle]").forEach((particle) => particle.remove());
   practiceRewardAnimationFrame = null;
   practiceRewardSlotTimeout = null;
+}
+
+function schedulePracticeRewardTimeout(callback, delay) {
+  const timeout = window.setTimeout(() => {
+    practiceRewardTimeouts.delete(timeout);
+    callback();
+  }, delay);
+  practiceRewardTimeouts.add(timeout);
+  return timeout;
+}
+
+function isPracticeRewardSoundAllowed() {
+  const settings = getSoundSettings();
+  return settings.appSound !== false && settings.completionSound !== false;
+}
+
+function schedulePracticeRewardTone(delayMs, frequencies, duration = 0.12) {
+  if (!isPracticeRewardSoundAllowed()) return;
+  try {
+    const context = getSharedAudioContext();
+    if (!context) return;
+    void context.resume?.();
+    frequencies.forEach((frequency, index) => {
+      const start = context.currentTime + Math.max(0, delayMs) / 1000 + index * 0.085;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.075, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      oscillator.connect(gain).connect(context.destination);
+      const record = { oscillator, gain };
+      practiceRewardAudioNodes.add(record);
+      oscillator.onended = () => {
+        practiceRewardAudioNodes.delete(record);
+        try { oscillator.disconnect(); gain.disconnect(); } catch {}
+      };
+      oscillator.start(start);
+      oscillator.stop(start + duration + 0.02);
+    });
+  } catch (error) {
+    console.warn("Unable to schedule practice reward sound.", error);
+  }
+}
+
+function createPracticeRewardParticles(animation, count = 8) {
+  for (let index = 0; index < count; index += 1) {
+    const particle = document.createElement("i");
+    particle.dataset.rewardParticle = "true";
+    particle.style.setProperty("--particle-angle", `${index * (360 / count)}deg`);
+    particle.style.setProperty("--particle-delay", `${index * 28}ms`);
+    animation.appendChild(particle);
+  }
 }
 
 function hidePracticeRewardWaterAnimation() {
@@ -2609,6 +2673,7 @@ function hidePracticeRewardWaterAnimation() {
   const number = $("#practiceRewardWaterNumber");
   const announcement = $("#practiceRewardWaterAnnouncement");
   animation?.classList.add("hidden");
+  animation?.classList.remove("is-entering", "is-spinning", "is-counting", "is-revealed");
   if (number) number.textContent = "+0";
   if (announcement) announcement.textContent = "";
 }
@@ -2621,10 +2686,16 @@ function animatePracticeRewardWater(totalWaterGranted) {
   const announcement = $("#practiceRewardWaterAnnouncement");
   if (!animation || !number) return;
   animation.classList.remove("hidden");
+  animation.classList.remove("is-spinning", "is-counting", "is-revealed");
+  animation.classList.add("is-entering");
   number.textContent = "+0";
   if (announcement) announcement.textContent = "";
   const finish = () => {
     number.textContent = `+${total}`;
+    animation.classList.remove("is-spinning", "is-counting");
+    animation.classList.add("is-revealed");
+    schedulePracticeRewardTone(0, [660, 830, 1040], 0.34);
+    void window.ChromaticaHaptics?.success?.();
     if (announcement) announcement.textContent = `本次共獲得 ${total} 滴水滴`;
     practiceRewardAnimationFrame = null;
     practiceRewardSlotTimeout = null;
@@ -2633,13 +2704,16 @@ function animatePracticeRewardWater(totalWaterGranted) {
     finish();
     return;
   }
+  createPracticeRewardParticles(animation);
   const slotStartedAt = performance.now();
   const runCounter = () => {
+    animation.classList.remove("is-spinning");
+    animation.classList.add("is-counting");
     const countStartedAt = performance.now();
-    const countDuration = 650;
+    const countDuration = 900;
     const step = (now) => {
       const progress = Math.min(1, (now - countStartedAt) / countDuration);
-      const eased = 1 - ((1 - progress) ** 3);
+      const eased = 1 - ((1 - progress) ** 4);
       number.textContent = `+${Math.round(total * eased)}`;
       if (progress < 1) practiceRewardAnimationFrame = requestAnimationFrame(step);
       else finish();
@@ -2648,16 +2722,31 @@ function animatePracticeRewardWater(totalWaterGranted) {
     practiceRewardAnimationFrame = requestAnimationFrame(step);
   };
   const spin = () => {
-    if (performance.now() - slotStartedAt >= 600) {
+    if (performance.now() - slotStartedAt >= 900) {
       practiceRewardSlotTimeout = null;
       runCounter();
       return;
     }
     const visualCeiling = Math.max(9, total + 7);
     number.textContent = `+${Math.floor(Math.random() * (visualCeiling + 1))}`;
-    practiceRewardSlotTimeout = window.setTimeout(spin, 55);
+    practiceRewardSlotTimeout = schedulePracticeRewardTimeout(spin, 80);
   };
-  practiceRewardSlotTimeout = window.setTimeout(spin, 55);
+  schedulePracticeRewardTone(250, [420, 470, 530, 590, 650, 710], 0.075);
+  schedulePracticeRewardTone(1320, [540, 650, 760], 0.1);
+  practiceRewardSlotTimeout = schedulePracticeRewardTimeout(() => {
+    animation.classList.remove("is-entering");
+    animation.classList.add("is-spinning");
+    spin();
+  }, 250);
+}
+
+function getPracticeRewardEffectDiagnostics() {
+  return {
+    activeRaf: practiceRewardAnimationFrame == null ? 0 : 1,
+    pendingTimeouts: practiceRewardTimeouts.size,
+    rewardAudioNodes: practiceRewardAudioNodes.size,
+    particles: $("#practiceRewardWaterAnimation")?.querySelectorAll("[data-reward-particle]").length || 0,
+  };
 }
 
 function closeGoalToast() {
@@ -6102,6 +6191,7 @@ function editIntervalPracticeSettings() {
 function setView(view, options = {}) {
   const target = options.activeTarget || options.scrollTarget || "";
   const changedView = currentView !== view || currentViewTarget !== target;
+  if (changedView) cancelPracticeRewardWaterAnimation();
   if (view === "audio" && currentView !== "audio") {
     settingsReturnView = currentView;
     settingsReturnTarget = currentViewTarget;
@@ -6458,6 +6548,7 @@ function pauseAudioForAppBackground() {
   stopIntervalMetronome();
   pauseLongToneForAppBackground();
   window.ChromaticaMetronome?.stop?.();
+  cancelPracticeRewardWaterAnimation();
 }
 
 function registerAndroidAppLifecycle() {
@@ -7000,6 +7091,7 @@ async function requestMicOnEntry() {
 }
 
 window.chromaticDebug = {
+  getPracticeRewardEffectDiagnostics,
   get pitch() {
     return pitchDebugLog[pitchDebugLog.length - 1] || null;
   },
@@ -7288,6 +7380,7 @@ window.chromaticaApp = {
     stopIntervalMetronome();
     stopPractice(false);
     window.ChromaticaMetronome?.stop?.();
+    cancelPracticeRewardWaterAnimation();
     document.body.classList.remove("modal-open");
     [
       "goalToast",
