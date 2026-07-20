@@ -14,6 +14,13 @@ test("interval precautions use long-tone modal style and required content", () =
   assert.match(modal, /class="longtone-intro-backdrop hidden"/);
 });
 
+test("long-tone precautions provide a visible back action", () => {
+  const start = html.indexOf('id="longToneIntroModal"');
+  const modal = html.slice(start, html.indexOf('id="intervalIntroModal"', start));
+  assert.match(modal, /id="longToneIntroBack"[^>]*>返回<\/button>/);
+  assert.match(app, /longToneIntroBack[^\n]*setLongToneIntroOpen\(false\)/);
+});
+
 test("only practice-list interval button requests precautions", () => {
   assert.equal((html.match(/data-interval-intro="true"/g) || []).length, 1);
   assert.match(html, /data-view="interval" data-interval-intro="true"[^>]*>開始音程練習/);
@@ -31,6 +38,7 @@ test("confirm enters setup while cancel and backdrop stay on practice list", () 
 
 test("Android back closes precautions before navigating or exiting", () => {
   const back = app.match(/App\.addListener\("backButton"[\s\S]*?\n  \}\)/)?.[0] || "";
+  assert.ok(back.indexOf("longToneIntroModal") < back.indexOf("intervalIntroModal"));
   assert.ok(back.indexOf("intervalIntroModal") < back.indexOf('currentView === "metronome"'));
   assert.match(back, /ChromaticaHaptics\?\.close/);
 });

@@ -6595,6 +6595,11 @@ function registerAndroidAppLifecycle() {
     console.warn("Unable to register Android app lifecycle listener.", error);
   });
   App.addListener("backButton", ({ canGoBack }) => {
+    if (!$("#longToneIntroModal")?.classList.contains("hidden")) {
+      void window.ChromaticaHaptics?.close?.();
+      setLongToneIntroOpen(false);
+      return;
+    }
     if (!$("#intervalIntroModal")?.classList.contains("hidden")) {
       void window.ChromaticaHaptics?.close?.();
       setIntervalIntroOpen(false);
@@ -7040,6 +7045,7 @@ function bindEvents() {
   });
 
   $("#longToneIntroClose").addEventListener("click", () => setLongToneIntroOpen(false));
+  $("#longToneIntroBack").addEventListener("click", () => setLongToneIntroOpen(false));
   $("#longToneIntroConfirm").addEventListener("click", confirmLongToneIntro);
   $("#longToneIntroModal").addEventListener("click", (event) => {
     if (event.target.id === "longToneIntroModal") {
