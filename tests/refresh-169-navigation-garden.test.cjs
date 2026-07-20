@@ -54,7 +54,7 @@ test("quick cards use the short tuner name and keep map route available", () => 
   assert.match(html, /data-jump="tuner"[\s\S]*?<strong>調音器<\/strong>/);
   assert.match(html, /data-jump="map"[\s\S]*?<strong>孔位地圖<\/strong>/);
   assert.match(html, /<section id="map" class="view">/);
-  assert.match(html, /<section id="tuner"[\s\S]*?<h2>全音域調音器<\/h2>/);
+  assert.match(html, /<section id="tuner"[\s\S]*?<h2>調音器<\/h2>/);
 });
 
 test("all user-visible note-map wording is renamed without changing internal identifiers", () => {
