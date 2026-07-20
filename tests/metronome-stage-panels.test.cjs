@@ -25,11 +25,12 @@ test("stage toolbar exposes trainer and auto-stop dialogs without absolute posit
   assert.doesNotMatch(rule, /position:\s*absolute/);
 });
 
-test("signature and rhythm selectors live between pendulum and beat dots", () => {
-  const visual = stage.indexOf("metronomePendulum");
+test("signature rhythm and subdivision progress lead into the beat dots", () => {
+  const readout = stage.indexOf("metronome-readout");
   const selectors = stage.indexOf("metronome-stage-selectors");
+  const progress = stage.indexOf("metronomeSubdivisionPulse");
   const dots = stage.indexOf("metronomeBeatDots");
-  assert.ok(visual < selectors && selectors < dots);
+  assert.ok(readout < selectors && selectors < progress && progress < dots);
   assert.match(stage, /id="metronomeSignatureDisplay"/);
   assert.match(stage, /id="metronomeRhythmPreview"/);
 });

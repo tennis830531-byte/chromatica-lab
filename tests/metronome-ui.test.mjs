@@ -31,4 +31,4 @@ test("wood and soft subdivisions remain audible on phone speakers", () => {
 });
 test("device preset storage is outside account workspace", () => { assert.match(ui, /chromatica\.settings\.metronome/); assert.doesNotMatch(fs.readFileSync(path.join(root,"account-workspace.js"),"utf8"), /settings\.metronome/); });
 test("runtime build explicitly includes all metronome and QA scripts", () => { for (const script of ["metronome-core.js","metronome.js","garden-qa.js"]) assert.match(build, new RegExp(`"${script.replace(".","\\.")}"`)); });
-test("reduced motion disables pendulum travel but retains beat indicators", () => { const css=fs.readFileSync(path.join(root,"styles.css"),"utf8"); assert.match(css, /prefers-reduced-motion[\s\S]*metronome-pendulum/); assert.match(html, /id="metronomeBeatDots"/); });
+test("reduced motion retains beat and subdivision indicators without a pendulum rule", () => { const css=fs.readFileSync(path.join(root,"styles.css"),"utf8"); assert.doesNotMatch(css, /metronome-pendulum|swing-right/); assert.match(html, /id="metronomeBeatDots"/); assert.match(html, /id="metronomeSubdivisionPulse"/); });

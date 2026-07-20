@@ -476,7 +476,6 @@
       if (current) dot.setAttribute("aria-current", "true");
       else dot.removeAttribute("aria-current");
     });
-    $("#metronomePendulum")?.classList.toggle("swing-right", event.sequence % 2 === 0);
   }
   function renderBeatDots() {
     const labels = { strong: "強音", normal: "普通", muted: "靜音" };
