@@ -815,6 +815,8 @@ let micFloatTimeData = null;
 let micFrequencyData = null;
 let micFloatFrequencyData = null;
 let micFrame = null;
+let practiceRewardAnimationFrame = null;
+let practiceRewardSlotTimeout = null;
 let micSensitivity = 3.2;
 let tuningA4 = 440;
 let micSilentRms = 0;
@@ -2613,6 +2615,76 @@ function harvestCurrentPlant() {
 function setGoalToastEyebrow(label = "每日目標") {
   const eyebrow = $("#goalToastEyebrow");
   if (eyebrow) eyebrow.textContent = label;
+  if (label !== "練習獎勵") hidePracticeRewardWaterAnimation();
+}
+
+function cancelPracticeRewardWaterAnimation() {
+  if (practiceRewardAnimationFrame != null) cancelAnimationFrame(practiceRewardAnimationFrame);
+  if (practiceRewardSlotTimeout != null) window.clearTimeout(practiceRewardSlotTimeout);
+  practiceRewardAnimationFrame = null;
+  practiceRewardSlotTimeout = null;
+}
+
+function hidePracticeRewardWaterAnimation() {
+  cancelPracticeRewardWaterAnimation();
+  const animation = $("#practiceRewardWaterAnimation");
+  const number = $("#practiceRewardWaterNumber");
+  const announcement = $("#practiceRewardWaterAnnouncement");
+  animation?.classList.add("hidden");
+  if (number) number.textContent = "+0";
+  if (announcement) announcement.textContent = "";
+}
+
+function animatePracticeRewardWater(totalWaterGranted) {
+  cancelPracticeRewardWaterAnimation();
+  const total = Math.max(0, Math.floor(Number(totalWaterGranted) || 0));
+  const animation = $("#practiceRewardWaterAnimation");
+  const number = $("#practiceRewardWaterNumber");
+  const announcement = $("#practiceRewardWaterAnnouncement");
+  if (!animation || !number) return;
+  animation.classList.remove("hidden");
+  number.textContent = "+0";
+  if (announcement) announcement.textContent = "";
+  const finish = () => {
+    number.textContent = `+${total}`;
+    if (announcement) announcement.textContent = `本次共獲得 ${total} 滴水滴`;
+    practiceRewardAnimationFrame = null;
+    practiceRewardSlotTimeout = null;
+  };
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
+    finish();
+    return;
+  }
+  const slotStartedAt = performance.now();
+  const runCounter = () => {
+    const countStartedAt = performance.now();
+    const countDuration = 650;
+    const step = (now) => {
+      const progress = Math.min(1, (now - countStartedAt) / countDuration);
+      const eased = 1 - ((1 - progress) ** 3);
+      number.textContent = `+${Math.round(total * eased)}`;
+      if (progress < 1) practiceRewardAnimationFrame = requestAnimationFrame(step);
+      else finish();
+    };
+    number.textContent = "+0";
+    practiceRewardAnimationFrame = requestAnimationFrame(step);
+  };
+  const spin = () => {
+    if (performance.now() - slotStartedAt >= 600) {
+      practiceRewardSlotTimeout = null;
+      runCounter();
+      return;
+    }
+    const visualCeiling = Math.max(9, total + 7);
+    number.textContent = `+${Math.floor(Math.random() * (visualCeiling + 1))}`;
+    practiceRewardSlotTimeout = window.setTimeout(spin, 55);
+  };
+  practiceRewardSlotTimeout = window.setTimeout(spin, 55);
+}
+
+function closeGoalToast() {
+  hidePracticeRewardWaterAnimation();
+  $("#goalToast")?.classList.add("hidden");
 }
 
 function showGardenToast(title, text) {
@@ -3620,6 +3692,10 @@ function formatBonusMessages(messages = []) {
   return messages.filter(Boolean).map((message) => `特殊事件：${message}`).join("\n");
 }
 
+function getPracticeCompletionWaterDelta(waterBeforeCompletion) {
+  return Math.max(0, getWaterDrops() - Math.max(0, Number(waterBeforeCompletion) || 0));
+}
+
 function setGoalToastTextLines(lines = []) {
   $("#goalToastText").textContent = lines.filter(Boolean).join("\n");
 }
@@ -3672,7 +3748,7 @@ function showPracticeCompletedToast(practiceName, waterResult = null, bonusMessa
   playSound("practiceComplete");
 }
 
-function showPracticeCompletionRewardDialog(practiceName, waterResult, goalResult, bonusMessages = []) {
+function showPracticeCompletionRewardDialog(practiceName, waterResult, goalResult, bonusMessages = [], totalWaterGranted = 0) {
   const lines = [];
   if (waterResult?.water > 0) lines.push(`本次練習獲得 ${waterResult.water} 滴 💧。`);
   if (waterResult?.capped) lines.push("今日練習獎勵已達上限，完成紀錄仍已保存。");
@@ -3686,6 +3762,7 @@ function showPracticeCompletionRewardDialog(practiceName, waterResult, goalResul
   $("#goalToastTitle").textContent = `完成「${practiceName}」`;
   setGoalToastTextLines(lines);
   $("#goalToast").classList.remove("hidden");
+  animatePracticeRewardWater(totalWaterGranted);
 }
 
 function setCalendarModalOpen(isOpen) {
@@ -5962,6 +6039,7 @@ function finishIntervalPractice() {
   if (!state) return;
   const completedFromQuickPractice = hasActiveQuickPracticeTask();
   stopIntervalMetronome();
+  const waterBeforeCompletion = getWaterDrops();
   const goalResult = markIntervalDailyGoalsDone(state.key, state.interval);
   const streakResult = goalResult.streakResult;
   const waterResult = awardGardenWaterForPractice(state.completedCycles);
@@ -5970,6 +6048,7 @@ function finishIntervalPractice() {
     awardDailyTaskBonusIfNeeded(goalResult.isAllDone),
     ...awardStreakMilestoneBonusesIfNeeded(streakResult),
   ].filter(Boolean);
+  const totalWaterGranted = getPracticeCompletionWaterDelta(waterBeforeCompletion);
   if (bonusMessages.length) renderGarden();
   saveIntervalPracticeRecord({
     date: getTodayKey(),
@@ -5992,7 +6071,7 @@ function finishIntervalPractice() {
   $("#intervalCompleteCycles").textContent = `${state.completedCycles} / ${state.totalCycles}`;
   playSound("practiceComplete");
   scrollToSection("intervalComplete");
-  showPracticeCompletionRewardDialog("音程練習", waterResult, goalResult, bonusMessages);
+  showPracticeCompletionRewardDialog("音程練習", waterResult, goalResult, bonusMessages, totalWaterGranted);
   handleQuickPracticeCompletion("音程練習", completedFromQuickPractice);
 }
 
@@ -6008,7 +6087,7 @@ function getLongToneCompletionSetting(exercise) {
   return `${exercise.playBeats} 拍`;
 }
 
-function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessages }) {
+function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessages, totalWaterGranted }) {
   const completedFromQuickPractice = hasActiveQuickPracticeTask();
   $("#longToneCompleteExercise").textContent = exercise.title;
   $("#longToneCompleteSetting").textContent = getLongToneCompletionSetting(exercise);
@@ -6016,7 +6095,7 @@ function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessag
   setLongToneCompletionVisible(true);
   playSound("practiceComplete");
   scrollToSection("longToneComplete");
-  showPracticeCompletionRewardDialog(exercise.title, waterResult, goalResult, bonusMessages);
+  showPracticeCompletionRewardDialog(exercise.title, waterResult, goalResult, bonusMessages, totalWaterGranted);
   handleQuickPracticeCompletion(exercise.title, completedFromQuickPractice);
 }
 
@@ -6258,6 +6337,7 @@ function stepPractice() {
         showAverageScore();
       }
       const averageScore = getAverageCycleScore();
+      const waterBeforeCompletion = getWaterDrops();
       const currentGoal = getCurrentDailyGoalCompletion();
       const goalResult = markDailyGoalDone(currentGoal.goalId, currentGoal.comboId);
       const waterResult = awardGardenWaterForPractice(totalCycles);
@@ -6266,9 +6346,10 @@ function stepPractice() {
         awardDailyTaskBonusIfNeeded(goalResult.isAllDone),
         ...awardStreakMilestoneBonusesIfNeeded(goalResult.streakResult),
       ].filter(Boolean);
+      const totalWaterGranted = getPracticeCompletionWaterDelta(waterBeforeCompletion);
       if (bonusMessages.length) renderGarden();
       stopPractice(true);
-      showLongToneCompletion({ exercise, averageScore, waterResult, goalResult, bonusMessages });
+      showLongToneCompletion({ exercise, averageScore, waterResult, goalResult, bonusMessages, totalWaterGranted });
       return;
     }
     cycle += 1;
@@ -6905,11 +6986,11 @@ function bindEvents() {
     });
   });
   $("#goalToastClose").addEventListener("click", () => {
-    $("#goalToast").classList.add("hidden");
+    closeGoalToast();
   });
   $("#goalToast").addEventListener("click", (event) => {
     if (event.target.id === "goalToast") {
-      $("#goalToast").classList.add("hidden");
+      closeGoalToast();
     }
   });
 

@@ -1066,6 +1066,7 @@ body.simple-motion .hero-plant-action {
 @media (prefers-reduced-motion: reduce) {
   .metronome-pendulum, .metronome-pendulum.swing-right { transform: translateX(-50%) rotate(0); transition: none; }
   .metronome-beat-dots button, .metronome-beat-dots button.active, .metronome-beat-dots button[data-accent-state="strong"].active { transition: none; transform: none; }
+  .practice-reward-water-animation { transition: none; }
 }
 
 @media (max-width: 340px) {
@@ -5778,12 +5779,33 @@ body.simple-motion .plant-action-layer.is-stage-up {
 
 .goal-toast-card {
   width: min(100%, 390px);
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
   padding: 22px;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--card);
   box-shadow: var(--shadow-card);
 }
+
+.practice-reward-water-animation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 88px;
+  margin: 14px 0;
+  border: 1px solid rgba(186, 126, 51, .35);
+  border-radius: 22px;
+  background: radial-gradient(circle at 50% 20%, #fff7cd, #f4d08d 72%, #e3b667);
+  color: #70401f;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.75), 0 8px 20px rgba(111, 67, 28, .12);
+  font: 900 42px/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.practice-reward-water-animation > span:last-child { font-size: 32px; }
+.practice-reward-water-animation.hidden { display: none; }
 
 .feedback-modal-backdrop {
   position: fixed;
