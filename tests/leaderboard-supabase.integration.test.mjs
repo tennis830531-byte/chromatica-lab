@@ -20,9 +20,10 @@ const users = [];
 const clients = [];
 const uploadedPaths = [];
 const bucket = "leaderboard-avatars";
-const validWebp = Buffer.from("524946461000000057454250565038200400000000000000", "hex");
-const validJpeg = Buffer.from("ffd8ffe000104a4649460001ffd9", "hex");
-const validPng = Buffer.from("89504e470d0a1a0a0000000049454e44ae426082", "hex");
+const validPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+const validJpeg = Buffer.from("/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABBQJ//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwF//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQAGPwJ//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPyF//9oADAMBAAIAAwAAABD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/EH//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/EH//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAE/EH//2Q==", "base64");
+let validWebp = Buffer.alloc(0);
+let lastUploadMetadata = null;
 
 function localDate(offset = 0) {
   const now = new Date();
@@ -54,10 +55,16 @@ async function expectFailure(action, pattern) {
   assert.match(message, pattern);
 }
 
-async function upload(client, index, body = validWebp, contentType = "image/webp") {
+async function upload(client, index, body = validPng, contentType = "image/png") {
+  const form = new FormData();
+  form.append("file", new File([body], `fixture-${index}`, { type: contentType }));
+  form.append("display_name", `測試玩家${index + 1}`);
+  form.append("consent", "true");
+  form.append("featured_spirit_species", "melody-sprout");
+  form.append("featured_spirit_name", `芽芽${index + 1}`);
+  form.append("featured_spirit_stage", "2");
   const { data, error } = await client.functions.invoke("upload-leaderboard-avatar", {
-    body: new Blob([body], { type: contentType }),
-    headers: { "Content-Type": contentType },
+    body: form,
   });
   if (error) {
     const status = Number(error?.context?.status || 0);
@@ -70,6 +77,7 @@ async function upload(client, index, body = validWebp, contentType = "image/webp
   }
   const path = String(data?.path || "");
   assert.match(path, /^[a-f0-9]{32}\/avatar-[a-f0-9-]+\.webp$/i);
+  lastUploadMetadata = data;
   uploadedPaths.push(path);
   return path;
 }
@@ -130,6 +138,13 @@ before(async () => {
     if (signedIn.error) throw signedIn.error;
     clients.push(client);
   }
+  const generatedPath = await upload(clients[19], 19, validPng, "image/png");
+  const generated = await admin.storage.from(bucket).download(generatedPath);
+  assert.ifError(generated.error);
+  validWebp = Buffer.from(await generated.data.arrayBuffer());
+  assert.equal(validWebp.subarray(0, 4).toString("ascii"), "RIFF");
+  assert.equal(validWebp.subarray(8, 12).toString("ascii"), "WEBP");
+  assert.ok(validWebp.length > 0 && validWebp.length <= 300 * 1024);
 });
 
 after(async () => {
@@ -158,6 +173,17 @@ test("name avatar and explicit consent are all mandatory", async () => {
     p_display_name: "測試玩家", p_custom_avatar_path: "", p_consent: true,
     p_featured_spirit_species: "", p_featured_spirit_name: "", p_featured_spirit_stage: 1,
   }), /avatar required/i);
+});
+
+test("Edge Function decodes JPEG PNG and WebP inputs", async () => {
+  await upload(clients[1], 1, validJpeg, "image/jpeg");
+  await upload(clients[2], 2, validPng, "image/png");
+  await upload(clients[3], 3, validWebp, "image/webp");
+  assert.equal(lastUploadMetadata?.mime, "image/webp");
+  assert.ok(Number(lastUploadMetadata?.width) > 0);
+  assert.equal(lastUploadMetadata?.width, lastUploadMetadata?.height);
+  assert.ok(Number(lastUploadMetadata?.width) <= 512);
+  assert.ok(Number(lastUploadMetadata?.bytes) <= 300 * 1024);
 });
 
 test("twenty complete public profiles contain no Google or provider identity fields", async () => {
@@ -273,7 +299,7 @@ test("RLS blocks anon writes, direct score changes, other paths and storage list
   assert.deepEqual(listing.data, []);
 });
 
-test("Storage accepts bounded JPEG PNG WebP and rejects SVG GIF and files over 2MB", async () => {
+test("Function and Storage accept bounded images and reject SVG GIF fake MIME corruption and oversize", async () => {
   const accepted = [
     ["jpg", validJpeg, "image/jpeg"], ["png", validPng, "image/png"], ["webp", validWebp, "image/webp"],
   ];
@@ -283,6 +309,12 @@ test("Storage accepts bounded JPEG PNG WebP and rejects SVG GIF and files over 2
   }
   await expectFailure(() => upload(clients[2], 2, Buffer.from("not-a-webp"), "image/webp"), /invalid|non-2xx|upload/i);
   await expectFailure(() => upload(clients[2], 2, validWebp, "image/png"), /non-2xx|upload/i);
+  await expectFailure(() => upload(clients[2], 2, Buffer.from("<svg xmlns='http://www.w3.org/2000/svg'/>") , "image/svg+xml"), /non-2xx|upload/i);
+  await expectFailure(() => upload(clients[2], 2, Buffer.from("GIF89a", "ascii"), "image/gif"), /non-2xx|upload/i);
+  await expectFailure(() => upload(clients[2], 2, Buffer.from("89504e470d0a1a0a00010203", "hex"), "image/png"), /non-2xx|upload/i);
+  const oversizedPng = Buffer.alloc(2 * 1024 * 1024 + 1);
+  validPng.copy(oversizedPng, 0, 0, 8);
+  await expectFailure(() => upload(clients[2], 2, oversizedPng, "image/png"), /non-2xx|upload/i);
   for (const [extension, mime] of [["svg", "image/svg+xml"], ["gif", "image/gif"]]) {
     const result = await adminBucketUpload(clients[2], extension, Buffer.from("not-an-image"), mime);
     assert.ok(result.error);

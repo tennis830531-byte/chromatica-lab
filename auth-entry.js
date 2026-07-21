@@ -1304,18 +1304,25 @@ window.chromaticaAuth = {
     const publicUrl = supabaseClient.storage.from("leaderboard-avatars").getPublicUrl(path).data?.publicUrl || "";
     return publicUrl ? `${publicUrl}${publicUrl.includes("?") ? "&" : "?"}v=${encodeURIComponent(String(version || 0))}` : "";
   },
-  async uploadLeaderboardAvatar(file) {
+  async uploadLeaderboardAvatar(file, options = {}) {
     if (!supabaseClient || !currentAuthUser) throw new Error("auth-required");
-    const prepared = await prepareLeaderboardAvatar(file);
+    const actualMime = await detectLeaderboardAvatarMime(file);
+    if (!actualMime || file.size <= 0 || file.size > LEADERBOARD_AVATAR_INPUT_LIMIT) throw new Error("avatar-file-invalid");
+    const form = new FormData();
+    form.append("file", file, file.name || "avatar");
+    form.append("display_name", String(options.displayName || ""));
+    form.append("consent", options.consent === true ? "true" : "false");
+    form.append("featured_spirit_species", String(options.featuredSpiritSpecies || ""));
+    form.append("featured_spirit_name", String(options.featuredSpiritName || ""));
+    form.append("featured_spirit_stage", String(options.featuredSpiritStage || 1));
     const { data, error } = await supabaseClient.functions.invoke("upload-leaderboard-avatar", {
-      body: prepared,
-      headers: { "Content-Type": "image/webp" },
+      body: form,
     });
     if (error) throw error;
     const path = String(data?.path || "");
     if (!/^[a-f0-9]{32}\/avatar-[a-f0-9-]+\.webp$/i.test(path)) throw new Error("avatar-upload-invalid-response");
     const publicUrl = supabaseClient.storage.from("leaderboard-avatars").getPublicUrl(path).data?.publicUrl || "";
-    return { path, publicUrl, bytes: prepared.size, mime: prepared.type, maxEdge: LEADERBOARD_AVATAR_MAX_EDGE };
+    return { path, publicUrl, bytes: Number(data?.bytes || 0), mime: String(data?.mime || ""), maxEdge: LEADERBOARD_AVATAR_MAX_EDGE, profile: data?.profile || null };
   },
   async deleteLeaderboardAvatar(path) {
     if (!supabaseClient || !currentAuthUser || !path) return false;

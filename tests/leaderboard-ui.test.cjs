@@ -79,10 +79,11 @@ test("an unavailable backend shows one friendly status instead of opening public
 });
 
 test("profile is activated only after processed avatar upload succeeds", () => {
-  const uploadIndex = runtime.indexOf('uploadLeaderboardAvatar?.(pendingAvatarFile)');
-  const joinIndex = runtime.indexOf('rpc("join_global_leaderboard"');
-  assert.ok(uploadIndex >= 0 && joinIndex > uploadIndex);
-  assert.match(runtime, /if \(uploaded\?\.path\) void authApi\(\)\?\.deleteLeaderboardAvatar/);
+  const uploadIndex = runtime.indexOf('uploadLeaderboardAvatar?.(pendingAvatarFile,');
+  const profileIndex = runtime.indexOf("if (uploaded?.profile)");
+  assert.ok(uploadIndex >= 0 && profileIndex > uploadIndex);
+  assert.match(avatarFunction, /const profileUpdate = await userClient\.rpc\(rpcName, rpcArgs\)/);
+  assert.match(avatarFunction, /if \(profileUpdate\.error\)[\s\S]*remove\(\[path\]\)/);
   assert.match(migration, /valid uploaded avatar required/);
 });
 
@@ -101,7 +102,9 @@ test("avatar bytes are uploaded through the validating edge function instead of 
   assert.match(auth, /functions\.invoke\("upload-leaderboard-avatar"/);
   assert.doesNotMatch(auth, /storage\.from\("leaderboard-avatars"\)\.upload/);
   assert.match(avatarFunction, /request\.headers\.get\("Content-Type"\)/);
-  assert.match(avatarFunction, /bytes\.byteLength >= 300 \* 1024/);
+  assert.match(avatarFunction, /INPUT_LIMIT = 2 \* 1024 \* 1024/);
+  assert.match(avatarFunction, /OUTPUT_LIMIT = 300 \* 1024/);
+  assert.match(avatarFunction, /ImageMagick\.readCollection/);
   assert.match(avatarFunction, /RIFF[\s\S]*WEBP/);
   assert.match(avatarFunction, /serviceRoleKey/);
   assert.doesNotMatch(migration, /on storage\.objects for (insert|update) to authenticated/);

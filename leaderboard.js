@@ -365,11 +365,22 @@
     try {
       let customAvatarPath = oldAvatarPath;
       if (pendingAvatarFile) {
-        uploaded = await authApi()?.uploadLeaderboardAvatar?.(pendingAvatarFile);
+        const spirit = publicProfileParams();
+        uploaded = await authApi()?.uploadLeaderboardAvatar?.(pendingAvatarFile, {
+          displayName: name,
+          consent: true,
+          featuredSpiritSpecies: spirit.p_featured_spirit_species,
+          featuredSpiritName: spirit.p_featured_spirit_name,
+          featuredSpiritStage: spirit.p_featured_spirit_stage,
+        });
         if (!uploaded?.path) throw new Error("avatar-upload-failed");
         customAvatarPath = uploaded.path;
       }
-      if (profileOnboarding) {
+      if (uploaded?.profile) {
+        profile = uploaded.profile;
+        joined = profile?.joined === true;
+        if (!joined) throw new Error("leaderboard-profile-incomplete");
+      } else if (profileOnboarding) {
         profile = unwrapSingle(await rpc("join_global_leaderboard", {
           p_display_name: name,
           p_custom_avatar_path: customAvatarPath,
@@ -384,9 +395,7 @@
           p_custom_avatar_path: customAvatarPath,
         }));
       }
-      if (uploaded?.path && oldAvatarPath && oldAvatarPath !== uploaded.path) {
-        void authApi()?.deleteLeaderboardAvatar?.(oldAvatarPath);
-      } else if (resetCustomAvatar && oldAvatarPath) {
+      if (!uploaded?.path && resetCustomAvatar && oldAvatarPath) {
         void authApi()?.deleteLeaderboardAvatar?.(oldAvatarPath);
       }
       invalidateCache();
@@ -397,7 +406,6 @@
       updateModalOpenClass();
       await loadLeaderboard(activeMetric, { force: true });
     } catch (error) {
-      if (uploaded?.path) void authApi()?.deleteLeaderboardAvatar?.(uploaded.path);
       showProfileError(profileOnboarding ? "公開資料尚未建立；請確認圖片與網路後再試。" : "公開資料儲存失敗，原本資料已保留；請確認網路後再試。");
       console.warn("Leaderboard profile update failed.", error?.message || error);
     } finally {
