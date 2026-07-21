@@ -25,6 +25,7 @@ const APP_SHELL = [
   "./public/assets/chromatic-refresh/feature/tuner_badge.png",
   "./public/assets/chromatic-refresh/feature/metronome-bird.png",
   "./public/assets/chromatic-refresh/feature/tuner-card-bg.png",
+  "./public/assets/chromatic-refresh/feature/metronome-stage-blue.png",
   "./public/assets/chromatic-refresh/feature/start_practice_button_with_bird.png",
   "./public/assets/chromatic-refresh/feature/global_leaderboard_icon.png?v=transparent-1",
   "./public/assets/garden/icons/spirit-garden-icon.png",

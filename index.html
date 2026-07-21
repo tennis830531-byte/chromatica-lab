@@ -449,13 +449,12 @@
                 <button id="metronomeAutoStopOpen" type="button" aria-haspopup="dialog" aria-expanded="false">自動停止</button>
               </div>
               <div class="metronome-readout"><strong id="metronomeBpm">80</strong><span>BPM</span><em id="metronomeTempoTerm">Andante</em></div>
+              <div id="metronomeSubdivisionPulse" class="metronome-subdivision-pulse" aria-hidden="true">●</div>
+              <div id="metronomeBeatDots" class="metronome-beat-dots" role="group" aria-label="每拍重音設定"></div>
               <div class="metronome-stage-selectors">
                 <button id="metronomeSignatureOpen" type="button" aria-haspopup="dialog" aria-expanded="false"><span>拍號</span><strong id="metronomeSignatureDisplay">4/4</strong><i aria-hidden="true">⌄</i></button>
                 <button id="metronomeRhythmOpen" type="button" aria-haspopup="dialog" aria-expanded="false"><span>細分</span><strong id="metronomeRhythmPreview" aria-label="四分音符">♪</strong><i aria-hidden="true">⌄</i></button>
               </div>
-              <div id="metronomeSubdivisionPulse" class="metronome-subdivision-pulse" aria-hidden="true">●</div>
-              <div id="metronomeBeatDots" class="metronome-beat-dots" role="group" aria-label="每拍重音設定"></div>
-              <button id="metronomeToggle" class="primary-btn metronome-toggle" type="button">開始</button>
               <div id="metronomeLive" class="sr-only" aria-live="polite"></div>
             </section>
 
@@ -463,7 +462,7 @@
               <h3>速度</h3>
               <input id="metronomeBpmRange" type="range" min="30" max="240" value="80" aria-label="BPM 滑桿" />
               <div class="metronome-bpm-controls"><button data-bpm-delta="-5" type="button">−5</button><button data-bpm-delta="-1" type="button">−1</button><input id="metronomeBpmInput" type="number" min="30" max="240" value="80" inputmode="numeric" aria-label="BPM 數字" /><button data-bpm-delta="1" type="button">+1</button><button data-bpm-delta="5" type="button">+5</button></div>
-              <div class="metronome-tap-row"><button id="metronomeTap" type="button">Tap Tempo</button><span id="metronomeTapResult">至少點兩下</span></div>
+              <div class="metronome-tap-row"><button id="metronomeTap" type="button">Tap Tempo</button><button id="metronomeToggle" class="primary-btn metronome-toggle" type="button">開始</button><span id="metronomeTapResult" class="sr-only" aria-live="polite"></span></div>
             </section>
 
             <section class="metronome-controls paper-card">

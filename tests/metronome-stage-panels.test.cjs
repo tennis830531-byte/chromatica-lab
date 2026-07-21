@@ -25,12 +25,12 @@ test("stage toolbar exposes trainer and auto-stop dialogs without absolute posit
   assert.doesNotMatch(rule, /position:\s*absolute/);
 });
 
-test("signature rhythm and subdivision progress lead into the beat dots", () => {
+test("subdivision progress and beat dots lead into the relocated signature controls", () => {
   const readout = stage.indexOf("metronome-readout");
   const selectors = stage.indexOf("metronome-stage-selectors");
   const progress = stage.indexOf("metronomeSubdivisionPulse");
   const dots = stage.indexOf("metronomeBeatDots");
-  assert.ok(readout < selectors && selectors < progress && progress < dots);
+  assert.ok(readout < progress && progress < dots && dots < selectors);
   assert.match(stage, /id="metronomeSignatureDisplay"/);
   assert.match(stage, /id="metronomeRhythmPreview"/);
 });

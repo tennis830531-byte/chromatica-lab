@@ -23,15 +23,14 @@ test("pendulum and swing direction CSS are completely removed", () => {
   assert.doesNotMatch(css, /\.metronome-pendulum|\.metronome-visual|swing-right/);
 });
 
-test("compact stage retains every required control in order", () => {
+test("compact stage retains readout progress beats and relocated selectors in order", () => {
   const ids = [
     "metronomeStageToolbar",
     "metronomeBpm",
-    "metronomeSignatureOpen",
-    "metronomeRhythmOpen",
     "metronomeSubdivisionPulse",
     "metronomeBeatDots",
-    "metronomeToggle",
+    "metronomeSignatureOpen",
+    "metronomeRhythmOpen",
   ];
   let previous = -1;
   for (const id of ids) {
@@ -39,6 +38,8 @@ test("compact stage retains every required control in order", () => {
     assert.ok(index > previous, `${id} must appear after the previous stage control`);
     previous = index;
   }
+  assert.match(html, /class="metronome-tap-row"[\s\S]*id="metronomeTap"[\s\S]*id="metronomeToggle"/);
+  assert.doesNotMatch(stage, /id="metronomeToggle"/);
 });
 
 test("subdivision progress is a normal-flow compact row without reserved pointer height", () => {
