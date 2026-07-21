@@ -35,7 +35,7 @@ function corsHeaders(origin: string | null) {
   return origin && ALLOWED_ORIGINS.has(origin) ? {
     "Access-Control-Allow-Origin": origin,
     "Vary": "Origin",
-    "Access-Control-Allow-Headers": "authorization, content-type, x-client-info",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   } : {};
 }

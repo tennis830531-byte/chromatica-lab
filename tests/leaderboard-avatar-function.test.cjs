@@ -10,6 +10,9 @@ const config = fs.readFileSync(path.join(root, "supabase/config.toml"), "utf8");
 const has = (pattern) => () => assert.match(source, pattern);
 const originSetSource = source.match(/const ALLOWED_ORIGINS = new Set\(\[([\s\S]*?)\]\);/)?.[1] || "";
 const allowedOrigins = new Set(Array.from(originSetSource.matchAll(/"([^"]+)"/g), (match) => match[1]));
+const allowHeadersSource = source.match(/"Access-Control-Allow-Headers": "([^"]+)"/)?.[1] || "";
+const allowedRequestHeaders = new Set(allowHeadersSource.split(",").map((header) => header.trim().toLowerCase()).filter(Boolean));
+const preflightAllows = (headers) => headers.split(",").every((header) => allowedRequestHeaders.has(header.trim().toLowerCase()));
 
 test("pins magick-wasm", () => assert.match(deno, /magick-wasm@0\.0\.41/));
 test("pins supabase-js", () => assert.match(deno, /supabase-js@2\.56\.1/));
@@ -48,6 +51,17 @@ test("allows the exact Android Capacitor origin", () => assert.equal(allowedOrig
 test("allows the existing local web origin", () => assert.equal(allowedOrigins.has("http://localhost"), true));
 test("returns the exact allowed origin in CORS headers", has(/"Access-Control-Allow-Origin": origin/));
 test("allows POST in CORS headers", has(/"Access-Control-Allow-Methods": "POST, OPTIONS"/));
+test("allows exactly the Supabase client request headers", () => assert.deepEqual(
+  [...allowedRequestHeaders].sort(),
+  ["apikey", "authorization", "content-type", "x-client-info"],
+));
+test("allows every required Supabase client request header", () => {
+  for (const header of ["authorization", "apikey", "x-client-info", "content-type"]) assert.equal(allowedRequestHeaders.has(header), true);
+});
+test("allows required headers in any order", () => assert.equal(preflightAllows("content-type, x-client-info, authorization, apikey"), true));
+test("matches requested header names case-insensitively", () => assert.equal(preflightAllows("Authorization, APIKEY, X-Client-Info, Content-Type"), true));
+test("allows the required subset without x-client-info", () => assert.equal(preflightAllows("authorization, apikey, content-type"), true));
+test("does not authorize unknown request headers", () => assert.equal(preflightAllows("authorization, apikey, x-evil-header"), false));
 test("returns 204 for allowed OPTIONS before the POST JWT gate", has(/request\.method === "OPTIONS"[\s\S]*status: 204[\s\S]*request\.method !== "POST"[\s\S]*authorization\.startsWith/));
 test("lets an allowed Android POST continue to the JWT gate", () => {
   assert.equal(allowedOrigins.has("https://localhost"), true);
@@ -75,5 +89,6 @@ test("rejects origins before OPTIONS, JWT, image, Storage, or RPC processing", (
 });
 test("uses no wildcard or fuzzy GitHub origin matching", () => {
   assert.equal(allowedOrigins.has("*"), false);
+  assert.equal(allowedRequestHeaders.has("*"), false);
   assert.doesNotMatch(source, /(?:endsWith|includes)\(["']github\.io/);
 });
