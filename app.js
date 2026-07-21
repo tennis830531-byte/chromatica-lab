@@ -1754,6 +1754,28 @@ function getCollectedSpiritById(id) {
   return getGardenCollection().find((item) => item.id === id) || null;
 }
 
+function getLeaderboardFeaturedSpirit() {
+  const featured = getCollectedSpiritById(getFeaturedSpiritId());
+  const plant = featured || getCurrentPlant(false);
+  if (!plant) return { species: "", name: "", stage: 1, imageUrl: "" };
+  const stage = featured
+    ? getFeaturedSpiritStage()
+    : Math.max(1, Math.min(3, Number(plant.stage || getPlantStage(plant.waterProgress || 0)) || 1));
+  return {
+    species: plant.species || "",
+    name: getPlantDisplayName(plant, stage),
+    stage,
+    imageUrl: getPlantImage({ ...plant, stage }),
+  };
+}
+
+function resolveLeaderboardSpiritImage(speciesId, stage = 1) {
+  if (!speciesId || !availableGardenSpeciesIds.has(speciesId)) return "";
+  const species = getGardenSpecies(speciesId);
+  const resolvedStage = Math.max(1, Math.min(3, Math.floor(Number(stage) || 1)));
+  return species.images?.[resolvedStage - 1] || "";
+}
+
 function updateCollectedSpirit(id, updater) {
   const collection = getGardenCollection();
   const nextCollection = collection.map((item) => (
@@ -2858,6 +2880,20 @@ function calculateCurrentStreak(history) {
   return count;
 }
 
+function getCanonicalLeaderboardStreakEvidence() {
+  const history = getPracticeHistory();
+  const practiceDate = getTodayKey();
+  const protectedDates = [];
+  let cursor = new Date();
+  while (protectedDates.length < 3660) {
+    const dateKey = getDateKey(cursor);
+    if (!isPracticeProtected(history, dateKey)) break;
+    protectedDates.push(dateKey);
+    cursor = addDays(cursor, -1);
+  }
+  return { practiceDate, protectedDates };
+}
+
 function calculateMonthCompletedDays(history) {
   const prefix = getDateKey().slice(0, 8);
   return Object.entries(history).filter(([dateKey, entry]) => dateKey.startsWith(prefix) && getHistoryStatus(entry) === "completed").length;
@@ -3866,13 +3902,6 @@ function confirmIntervalIntro() {
   setView("interval");
   showIntervalSetup();
   scrollToSection("intervalSetup");
-}
-
-function setLeaderboardModalOpen(isOpen) {
-  const modal = $("#leaderboardModal");
-  if (!modal) return;
-  modal.classList.toggle("hidden", !isOpen);
-  document.body.classList.toggle("modal-open", isOpen);
 }
 
 function confirmLongToneIntro() {
@@ -6151,6 +6180,10 @@ function finishIntervalPractice() {
     cyclesCompleted: state.completedCycles,
     waterEarned: waterResult.water,
   });
+  window.ChromaticaLeaderboard?.recordPracticeCompletion?.({
+    completedCycles: state.completedCycles,
+    ...getCanonicalLeaderboardStreakEvidence(),
+  });
   renderStreakSummary();
   $("#intervalPlayer").classList.add("hidden");
   $("#intervalComplete").classList.remove("hidden");
@@ -6441,6 +6474,10 @@ function stepPractice() {
       ].filter(Boolean);
       const totalWaterGranted = getPracticeCompletionWaterDelta(waterBeforeCompletion);
       if (bonusMessages.length) renderGarden();
+      window.ChromaticaLeaderboard?.recordPracticeCompletion?.({
+        completedCycles: totalCycles,
+        ...getCanonicalLeaderboardStreakEvidence(),
+      });
       stopPractice(true);
       showLongToneCompletion({ exercise, averageScore, waterResult, goalResult, bonusMessages, totalWaterGranted });
       return;
@@ -6598,6 +6635,10 @@ function registerAndroidAppLifecycle() {
     console.warn("Unable to register Android app lifecycle listener.", error);
   });
   App.addListener("backButton", ({ canGoBack }) => {
+    if (window.ChromaticaLeaderboard?.close?.()) {
+      void window.ChromaticaHaptics?.close?.();
+      return;
+    }
     if (!$("#longToneIntroModal")?.classList.contains("hidden")) {
       void window.ChromaticaHaptics?.close?.();
       setLongToneIntroOpen(false);
@@ -6676,7 +6717,7 @@ async function submitFeedbackForm(event) {
     try {
       const result = await window.chromaticaAuth?.invokeFunction?.("send-feedback", {
         category, description,
-        appVersion: "refresh-169 / Android 1.0.53 (54)",
+        appVersion: "refresh-170 / Android 1.0.54 (55)",
         platform: isNativeAndroidApp() ? "android" : "web",
         currentView, requestId,
       });
@@ -6860,7 +6901,7 @@ function bindEvents() {
   });
 
   $$("[data-leaderboard-open]").forEach((button) => {
-    button.addEventListener("click", () => setLeaderboardModalOpen(true));
+    button.addEventListener("click", () => void window.ChromaticaLeaderboard?.open?.());
   });
 
   $("#starterPlantChoices")?.addEventListener("click", (event) => {
@@ -7066,13 +7107,6 @@ function bindEvents() {
       setIntervalIntroOpen(false);
     }
   });
-  $("#leaderboardModalClose")?.addEventListener("click", () => setLeaderboardModalOpen(false));
-  $("#leaderboardModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "leaderboardModal") {
-      setLeaderboardModalOpen(false);
-    }
-  });
-
   $("#tuningSelect").addEventListener("change", (event) => {
     tuningA4 = Number(event.target.value);
     refreshAllowedNotes();
@@ -7343,6 +7377,12 @@ function initializeAuthenticatedApp(options = {}) {
     updateBeatDisplay();
     renderMicCurve();
     window.ChromaticaMetronome?.init?.({ getAudioContext: getSharedAudioContext });
+    window.ChromaticaLeaderboard?.init?.({
+      getCurrentStreak: () => calculateCurrentStreak(getPracticeHistory()),
+      getFeaturedSpirit: getLeaderboardFeaturedSpirit,
+      resolveSpiritImage: resolveLeaderboardSpiritImage,
+      isQaActive: isGardenQaSessionActive,
+    });
     window.ChromaticaGardenQA?.init?.({
       species: availableGardenSpecies,
       stageRequirements: PLANT_STAGE_WATER_REQUIREMENTS,
@@ -7432,6 +7472,7 @@ window.chromaticaApp = {
     stopIntervalMetronome();
     stopPractice(false);
     window.ChromaticaMetronome?.stop?.();
+    window.ChromaticaLeaderboard?.resetForSignedOutAccount?.();
     cancelPracticeRewardWaterAnimation();
     document.body.classList.remove("modal-open");
     [
@@ -7443,7 +7484,6 @@ window.chromaticaApp = {
       "gardenSpiritModal",
       "gardenRenameModal",
       "starterPlantModal",
-      "leaderboardModal",
     ].forEach((id) => document.getElementById(id)?.classList.add("hidden"));
   },
   async cancelPracticeRemindersForAccount(userId) {

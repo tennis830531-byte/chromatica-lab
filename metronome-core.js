@@ -279,12 +279,24 @@
     return false;
   }
 
+  function normalizePresetName(value, fallback = "") {
+    const normalized = Array.from(String(value ?? "").trim()).slice(0, 20).join("");
+    return normalized || fallback;
+  }
+
+  function isPresetNameAvailable(existing, name, index = null) {
+    const normalized = normalizePresetName(name);
+    if (!normalized) return false;
+    const list = Array.isArray(existing) ? existing : [];
+    return !list.some((preset, presetIndex) => presetIndex !== index && normalizePresetName(preset?.name) === normalized);
+  }
+
   function normalizePreset(raw = {}) {
     const signature = normalizeTimeSignature(raw.signature);
     const rhythmPatternId = normalizeRhythmPatternId(raw.rhythmPatternId, raw.subdivision);
     const subdivision = getLegacySubdivision(rhythmPatternId);
     return {
-      name: String(raw.name || "節拍器設定").trim().slice(0, 20) || "節拍器設定",
+      name: normalizePresetName(raw.name, "節拍器設定"),
       bpm: normalizeBpm(raw.bpm),
       signature,
       subdivision,
@@ -301,8 +313,11 @@
 
   function savePresetList(existing, preset, index = null) {
     const list = Array.isArray(existing) ? existing.slice(0, 5).map(normalizePreset) : [];
-    const normalized = normalizePreset(preset);
-    if (Number.isInteger(index) && index >= 0 && index < list.length) list[index] = normalized;
+    const targetIndex = Number.isInteger(index) && index >= 0 && index < list.length ? index : null;
+    const name = normalizePresetName(preset?.name);
+    if (!isPresetNameAvailable(list, name, targetIndex)) return list;
+    const normalized = normalizePreset({ ...preset, name });
+    if (targetIndex !== null) list[targetIndex] = normalized;
     else if (list.length < 5) list.push(normalized);
     return list;
   }
@@ -314,6 +329,6 @@
     normalizeAccentPattern, cycleAccent, createTapTempoState, registerTap,
     getSwingRatio, getStepDurationSeconds, createSchedulerState,
     applyPendingSignatureAtBar, advanceSchedulerState, getTrainerBpm, normalizeTempoTrainer, increaseTrainerBpm,
-    getPresentedAudioTime, consumeDueVisualEvents, shouldAutoStop, normalizePreset, savePresetList,
+    getPresentedAudioTime, consumeDueVisualEvents, shouldAutoStop, normalizePresetName, isPresetNameAvailable, normalizePreset, savePresetList,
   });
 })(typeof window !== "undefined" ? window : globalThis);

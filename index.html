@@ -20,7 +20,7 @@
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
     <link rel="stylesheet" href="./public/assets/fonts/noto-sans-tc/noto-sans-tc-variable.css" />
     <link rel="stylesheet" href="./public/assets/fonts/lxgw-wenkai-tc/lxgw-wenkai-tc-bold.css" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-169" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-170" />
   </head>
   <body class="auth-checking">
     <div id="authGate" class="auth-gate" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
@@ -314,17 +314,75 @@
     </div>
 
     <div id="leaderboardModal" class="leaderboard-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="leaderboardModalTitle">
-      <div class="leaderboard-modal paper-card">
+      <section class="leaderboard-modal paper-card">
         <div class="leaderboard-modal-head">
           <div>
+            <p class="eyebrow">世界各地的練習夥伴</p>
             <h2 id="leaderboardModalTitle">全球排行榜</h2>
           </div>
           <button id="leaderboardModalClose" class="calendar-close" type="button" aria-label="關閉全球排行榜">×</button>
         </div>
-        <div class="leaderboard-preview">
-          <strong>練習王尚未公開</strong>
+        <p id="leaderboardLoginPrompt" class="leaderboard-consent-note hidden">請先登入，登入後再設定獨立的排行榜名字與頭像。</p>
+        <section id="leaderboardOwnProfile" class="leaderboard-own-profile hidden" aria-label="我的排行榜公開資料">
+          <img id="leaderboardOwnAvatar" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="" />
+          <div>
+            <span>我的公開資料</span>
+            <strong id="leaderboardOwnName">練習者</strong>
+            <small id="leaderboardOwnSpirit">尚未設定展示精靈</small>
+          </div>
+          <button id="leaderboardProfileEdit" type="button" aria-haspopup="dialog">編輯</button>
+        </section>
+        <div class="leaderboard-tabs" role="tablist" aria-label="排行榜類型">
+          <button id="leaderboardPracticeTab" class="active" data-leaderboard-metric="practice" type="button" role="tab" aria-selected="true" aria-controls="leaderboardList">練習王</button>
+          <button id="leaderboardStreakTab" data-leaderboard-metric="streak" type="button" role="tab" aria-selected="false" aria-controls="leaderboardList">連續學習王</button>
         </div>
-      </div>
+        <p id="leaderboardPracticePeriod" class="leaderboard-period-note">練習王成績自 refresh-170 起累積。</p>
+        <p id="leaderboardStatus" class="leaderboard-status" role="status" aria-live="polite">正在載入排行榜…</p>
+        <ol id="leaderboardList" class="leaderboard-list" aria-label="全球排行榜名次"></ol>
+        <p class="leaderboard-refresh-note">開啟時更新，之後最長每 10 分鐘重新整理。</p>
+      </section>
+    </div>
+
+    <div id="leaderboardProfileModal" class="leaderboard-profile-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="leaderboardProfileTitle">
+      <form id="leaderboardProfileForm" class="leaderboard-profile-modal paper-card">
+        <header>
+          <div>
+            <p class="eyebrow">排行榜公開資料</p>
+            <h2 id="leaderboardProfileTitle">編輯名字與頭像</h2>
+          </div>
+          <button id="leaderboardProfileClose" class="calendar-close" type="button" aria-label="關閉公開資料編輯">×</button>
+        </header>
+        <div class="leaderboard-profile-avatar-editor">
+          <img id="leaderboardProfileAvatarPreview" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="頭像預覽" />
+          <div>
+            <label class="leaderboard-avatar-upload">選擇頭像<input id="leaderboardProfileAvatarInput" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+            <small>必須自行選擇 JPG、PNG 或 WebP；原始檔最大 2 MB，上傳前會裁成正方形並壓縮。</small>
+          </div>
+        </div>
+        <label class="leaderboard-name-field">排行榜名字<input id="leaderboardProfileName" type="text" minlength="2" maxlength="20" autocomplete="nickname" placeholder="例如：口琴小芽" required /></label>
+        <label id="leaderboardConsentWrap" class="leaderboard-consent-check hidden">
+          <input id="leaderboardProfileConsent" type="checkbox" />
+          <span>你的排行榜名字、頭像、展示精靈與排行成績，將公開顯示給其他排行榜使用者。</span>
+        </label>
+        <p class="leaderboard-fair-play-note">排行榜是友善競賽；系統會防止重送並限制異常頻率，但修改版客戶端仍可能使用不同事件編號灌榜，無法宣稱完全防作弊。</p>
+        <p id="leaderboardProfileError" class="leaderboard-profile-error hidden" role="alert"></p>
+        <button id="leaderboardLeaveButton" class="leaderboard-leave-button" type="button">退出排行榜</button>
+        <footer>
+          <button id="leaderboardProfileCancel" type="button">取消</button>
+          <button id="leaderboardProfileSubmit" class="primary-btn" type="submit">儲存公開資料</button>
+        </footer>
+      </form>
+    </div>
+
+    <div id="leaderboardLeaveModal" class="leaderboard-profile-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="leaderboardLeaveTitle">
+      <section class="leaderboard-leave-modal paper-card">
+        <h2 id="leaderboardLeaveTitle">退出全球排行榜？</h2>
+        <p>退出後會停止提交成績並隱藏公開名字、頭像與展示精靈；正式練習與帳號存檔不受影響。</p>
+        <div>
+          <button id="leaderboardLeaveCancel" type="button">保留排行榜</button>
+          <button id="leaderboardLeaveConfirm" class="danger-btn" type="button">確認退出</button>
+        </div>
+      </section>
     </div>
 
     <div class="app-shell">
@@ -383,7 +441,7 @@
               <button class="quick-card" data-jump="practicehub" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/practice_record_icon.png" alt="" /></span><strong>開始練習</strong></button>
               <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" /></span><strong>每日目標</strong></button>
               <button class="quick-card" data-jump="garden" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/garden/icons/spirit-garden-icon.png" alt="" /></span><strong>精靈花園</strong></button>
-              <button class="quick-card leaderboard-card" data-leaderboard-open type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/global_leaderboard_icon.png?v=transparent-1" alt="" /></span><strong>全球排行榜</strong><em>尚未公開</em></button>
+              <button class="quick-card leaderboard-card" data-leaderboard-open type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/global_leaderboard_icon.png?v=transparent-1" alt="" /></span><strong>全球排行榜</strong><em>練習王・連續學習王</em></button>
               <button class="quick-card" data-jump="audio" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/mic_settings_icon.png" alt="" /></span><strong>設定</strong></button>
             </div>
           </section>
@@ -393,7 +451,7 @@
         <section id="tuner" class="view">
           <div class="section-head compact no-eyebrow">
             <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/tuner_badge.png" alt="" aria-hidden="true" />
-            <h2>全音域調音器</h2>
+            <h2>調音器</h2>
             <p>吹奏時會顯示最接近的音名與 cents 誤差。</p>
           </div>
 
@@ -439,7 +497,7 @@
         <section id="metronome" class="view">
           <div class="section-head compact no-eyebrow">
             <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/metronome-bird.png" alt="" aria-hidden="true" />
-            <h2>專用節拍器</h2>
+            <h2>節拍器</h2>
             <p>穩定拍點，專心練習。</p>
           </div>
           <div class="metronome-page">
@@ -449,13 +507,12 @@
                 <button id="metronomeAutoStopOpen" type="button" aria-haspopup="dialog" aria-expanded="false">自動停止</button>
               </div>
               <div class="metronome-readout"><strong id="metronomeBpm">80</strong><span>BPM</span><em id="metronomeTempoTerm">Andante</em></div>
+              <div id="metronomeSubdivisionPulse" class="metronome-subdivision-pulse" aria-hidden="true">●</div>
+              <div id="metronomeBeatDots" class="metronome-beat-dots" role="group" aria-label="每拍重音設定"></div>
               <div class="metronome-stage-selectors">
                 <button id="metronomeSignatureOpen" type="button" aria-haspopup="dialog" aria-expanded="false"><span>拍號</span><strong id="metronomeSignatureDisplay">4/4</strong><i aria-hidden="true">⌄</i></button>
                 <button id="metronomeRhythmOpen" type="button" aria-haspopup="dialog" aria-expanded="false"><span>細分</span><strong id="metronomeRhythmPreview" aria-label="四分音符">♪</strong><i aria-hidden="true">⌄</i></button>
               </div>
-              <div id="metronomeSubdivisionPulse" class="metronome-subdivision-pulse" aria-hidden="true">●</div>
-              <div id="metronomeBeatDots" class="metronome-beat-dots" role="group" aria-label="每拍重音設定"></div>
-              <button id="metronomeToggle" class="primary-btn metronome-toggle" type="button">開始</button>
               <div id="metronomeLive" class="sr-only" aria-live="polite"></div>
             </section>
 
@@ -463,7 +520,7 @@
               <h3>速度</h3>
               <input id="metronomeBpmRange" type="range" min="30" max="240" value="80" aria-label="BPM 滑桿" />
               <div class="metronome-bpm-controls"><button data-bpm-delta="-5" type="button">−5</button><button data-bpm-delta="-1" type="button">−1</button><input id="metronomeBpmInput" type="number" min="30" max="240" value="80" inputmode="numeric" aria-label="BPM 數字" /><button data-bpm-delta="1" type="button">+1</button><button data-bpm-delta="5" type="button">+5</button></div>
-              <div class="metronome-tap-row"><button id="metronomeTap" type="button">Tap Tempo</button><span id="metronomeTapResult">至少點兩下</span></div>
+              <div class="metronome-tap-row"><button id="metronomeTap" type="button">Tap Tempo</button><button id="metronomeToggle" class="primary-btn metronome-toggle" type="button">開始</button><span id="metronomeTapResult" class="sr-only" aria-live="polite"></span></div>
             </section>
 
             <section class="metronome-controls paper-card">
@@ -471,7 +528,11 @@
               <div class="metronome-inline"><label>音色<select id="metronomeSound"><option value="wood">木質</option><option value="mechanical">經典機械</option><option value="soft">柔和</option></select></label><label>音量<input id="metronomeVolume" type="range" min="0" max="100" value="70" /></label><button id="metronomeMute" type="button">靜音</button></div>
               <div class="metronome-choice-grid count-in-grid"><button data-count-in="0" class="active" type="button">預備拍關閉</button><button data-count-in="1" type="button">1 小節</button><button data-count-in="2" type="button">2 小節</button></div>
             </section>
-            <section class="metronome-controls paper-card"><div class="card-row-head"><h3>預設組合</h3><button id="metronomeSavePreset" type="button">儲存目前設定</button></div><ul id="metronomePresetList" class="metronome-preset-list"></ul></section>
+            <section class="metronome-controls paper-card">
+              <div class="card-row-head"><h3>預設組合</h3><button id="metronomeSavePreset" type="button" aria-haspopup="dialog" aria-expanded="false">儲存目前設定</button></div>
+              <p id="metronomePresetNotice" class="metronome-preset-notice hidden" role="status" aria-live="polite"></p>
+              <ul id="metronomePresetList" class="metronome-preset-list"></ul>
+            </section>
           </div>
 
           <div id="metronomeTrainerDialog" class="metronome-panel-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="metronomeTrainerTitle">
@@ -514,6 +575,17 @@
               <div class="metronome-panel-body"><div id="metronomeRhythmOptions" class="metronome-rhythm-options" role="listbox" aria-label="細分節奏"></div><label id="metronomeSwingRow" class="metronome-range-row hidden"><span>Swing <b id="metronomeSwingValue">50%</b></span><input id="metronomeSwing" type="range" min="50" max="75" step="1" value="50" disabled /></label></div>
               <footer><button id="metronomeRhythmCancel" type="button">取消</button></footer>
             </section>
+          </div>
+
+          <div id="metronomePresetDialog" class="metronome-panel-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="metronomePresetTitle">
+            <form id="metronomePresetForm" class="metronome-panel-sheet">
+              <header class="metronome-panel-header"><h3 id="metronomePresetTitle">儲存預設組合</h3><button id="metronomePresetClose" class="metronome-panel-close" type="button" aria-label="關閉命名視窗">×</button></header>
+              <div class="metronome-panel-body">
+                <label>預設名稱<input id="metronomePresetName" type="text" maxlength="20" autocomplete="off" required /></label>
+                <p id="metronomePresetError" class="metronome-form-error hidden" role="alert">請輸入預設名稱。</p>
+              </div>
+              <footer><button id="metronomePresetCancel" type="button">取消</button><button class="primary-btn" type="submit" data-haptic="manual">儲存</button></footer>
+            </form>
           </div>
         </section>
 
@@ -1175,7 +1247,7 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-169</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-170</span></strong>
                 </div>
                 <button id="feedbackOpenBtn" class="setting-row settings-action-row" type="button">
                   <span>問題回報</span>
@@ -1205,16 +1277,18 @@
     </div>
 
 
-    <script src="./supabase-config.js?v=refresh-169"></script>
-    <script src="./haptic-feedback.js?v=refresh-169"></script>
-    <script src="./practice-reminders.js?v=refresh-169"></script>
-    <script src="./daily-login-bonus.js?v=refresh-169"></script>
-    <script src="./daily-goal-rewards.js?v=refresh-169"></script>
-    <script src="./quick-practice.js?v=refresh-169"></script>
-    <script src="./metronome-core.js?v=refresh-169"></script>
-    <script src="./metronome.js?v=refresh-169"></script>
-    <script src="./garden-qa.js?v=refresh-169"></script>
-    <script src="./app.js?v=refresh-169"></script>
-    <script src="./auth-runtime.js?v=refresh-169"></script>
+    <script src="./supabase-config.js?v=refresh-170"></script>
+    <script src="./haptic-feedback.js?v=refresh-170"></script>
+    <script src="./practice-reminders.js?v=refresh-170"></script>
+    <script src="./daily-login-bonus.js?v=refresh-170"></script>
+    <script src="./daily-goal-rewards.js?v=refresh-170"></script>
+    <script src="./quick-practice.js?v=refresh-170"></script>
+    <script src="./metronome-core.js?v=refresh-170"></script>
+    <script src="./metronome.js?v=refresh-170"></script>
+    <script src="./leaderboard-core.js?v=refresh-170"></script>
+    <script src="./leaderboard.js?v=refresh-170"></script>
+    <script src="./garden-qa.js?v=refresh-170"></script>
+    <script src="./app.js?v=refresh-170"></script>
+    <script src="./auth-runtime.js?v=refresh-170"></script>
   </body>
 </html>
