@@ -1194,10 +1194,138 @@ async function initializeGoogleAuth() {
   }
 }
 
+const LEADERBOARD_AVATAR_INPUT_LIMIT = 2 * 1024 * 1024;
+const LEADERBOARD_AVATAR_OUTPUT_LIMIT = 300 * 1024;
+const LEADERBOARD_AVATAR_MAX_EDGE = 512;
+
+async function detectLeaderboardAvatarMime(file) {
+  if (!file || file.size > LEADERBOARD_AVATAR_INPUT_LIMIT) return "";
+  const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a) return "image/png";
+  const ascii = String.fromCharCode(...bytes);
+  if (ascii.startsWith("RIFF") && ascii.slice(8, 12) === "WEBP") return "image/webp";
+  return "";
+}
+
+async function loadLeaderboardAvatarImage(file) {
+  if (typeof createImageBitmap === "function") return createImageBitmap(file);
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.decoding = "async";
+    image.src = objectUrl;
+    await image.decode();
+    return image;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+function encodeLeaderboardAvatar(canvas, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("avatar-encode-failed"));
+    }, "image/webp", quality);
+  });
+}
+
+async function prepareLeaderboardAvatar(file) {
+  const actualMime = await detectLeaderboardAvatarMime(file);
+  if (!actualMime) throw new Error("avatar-file-invalid");
+  const source = await loadLeaderboardAvatarImage(file);
+  try {
+    const sourceWidth = Number(source.width || source.naturalWidth || 0);
+    const sourceHeight = Number(source.height || source.naturalHeight || 0);
+    if (!sourceWidth || !sourceHeight) throw new Error("avatar-decode-failed");
+    const cropSize = Math.min(sourceWidth, sourceHeight);
+    const cropX = Math.floor((sourceWidth - cropSize) / 2);
+    const cropY = Math.floor((sourceHeight - cropSize) / 2);
+    const candidateSizes = [Math.min(LEADERBOARD_AVATAR_MAX_EDGE, cropSize), 448, 384, 320, 256]
+      .filter((size, index, values) => size > 0 && size <= Math.min(LEADERBOARD_AVATAR_MAX_EDGE, cropSize) && values.indexOf(size) === index);
+    for (const size of candidateSizes) {
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const context = canvas.getContext("2d", { alpha: false });
+      if (!context) throw new Error("avatar-canvas-unavailable");
+      context.drawImage(source, cropX, cropY, cropSize, cropSize, 0, 0, size, size);
+      for (const quality of [0.88, 0.8, 0.72, 0.64, 0.56]) {
+        const blob = await encodeLeaderboardAvatar(canvas, quality);
+        if (blob.size < LEADERBOARD_AVATAR_OUTPUT_LIMIT) return blob;
+      }
+    }
+    throw new Error("avatar-output-too-large");
+  } finally {
+    source.close?.();
+  }
+}
+
+const LEADERBOARD_RPC_ALLOWLIST = new Set([
+  "get_leaderboard_avatar_prefix",
+  "get_my_leaderboard_membership",
+  "join_global_leaderboard",
+  "leave_global_leaderboard",
+  "sync_leaderboard_profile",
+  "get_global_leaderboard",
+  "update_leaderboard_profile",
+  "record_leaderboard_practice",
+]);
+
 window.chromaticaAuth = {
   getDisplayName() {
     if (currentAuthUser) return getDisplayName(currentAuthUser);
     return getAuthElements().name?.textContent?.trim() || "練習者";
+  },
+  getPublicUserProfile() {
+    if (!currentAuthUser) return null;
+    return {
+      id: currentAuthUser.id,
+      displayName: getDisplayName(currentAuthUser),
+      avatarUrl: getAvatarUrl(currentAuthUser),
+    };
+  },
+  getLeaderboardAccount() {
+    return currentAuthUser ? { id: currentAuthUser.id } : null;
+  },
+  async leaderboardRpc(name, params = {}) {
+    if (!supabaseClient || !LEADERBOARD_RPC_ALLOWLIST.has(name)) {
+      return { data: null, error: new Error("leaderboard-rpc-unavailable") };
+    }
+    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError || !sessionData.session?.user) {
+      return { data: null, error: sessionError || new Error("auth-required") };
+    }
+    return supabaseClient.rpc(name, params);
+  },
+  getLeaderboardAvatarUrl(path, version = 0) {
+    if (!supabaseClient || !path) return "";
+    const publicUrl = supabaseClient.storage.from("leaderboard-avatars").getPublicUrl(path).data?.publicUrl || "";
+    return publicUrl ? `${publicUrl}${publicUrl.includes("?") ? "&" : "?"}v=${encodeURIComponent(String(version || 0))}` : "";
+  },
+  async uploadLeaderboardAvatar(file) {
+    if (!supabaseClient || !currentAuthUser) throw new Error("auth-required");
+    const prepared = await prepareLeaderboardAvatar(file);
+    const { data, error } = await supabaseClient.functions.invoke("upload-leaderboard-avatar", {
+      body: prepared,
+      headers: { "Content-Type": "image/webp" },
+    });
+    if (error) throw error;
+    const path = String(data?.path || "");
+    if (!/^[a-f0-9]{32}\/avatar-[a-f0-9-]+\.webp$/i.test(path)) throw new Error("avatar-upload-invalid-response");
+    const publicUrl = supabaseClient.storage.from("leaderboard-avatars").getPublicUrl(path).data?.publicUrl || "";
+    return { path, publicUrl, bytes: prepared.size, mime: prepared.type, maxEdge: LEADERBOARD_AVATAR_MAX_EDGE };
+  },
+  async deleteLeaderboardAvatar(path) {
+    if (!supabaseClient || !currentAuthUser || !path) return false;
+    const { data: prefix, error: prefixError } = await supabaseClient.rpc("get_leaderboard_avatar_prefix");
+    if (prefixError || String(path).split("/")[0] !== String(prefix || "")) {
+      throw prefixError || new Error("avatar-path-invalid");
+    }
+    const { error } = await supabaseClient.storage.from("leaderboard-avatars").remove([path]);
+    if (error) throw error;
+    return true;
   },
   async invokeFunction(name, body) {
     if (!supabaseClient) return { data: null, error: new Error("auth-unavailable") };

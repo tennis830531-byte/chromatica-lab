@@ -20,6 +20,8 @@ const webSourceFiles = [
   "quick-practice.js",
   "metronome-core.js",
   "metronome.js",
+  "leaderboard-core.js",
+  "leaderboard.js",
   "garden-qa.js",
   "auth-runtime.js",
 ];

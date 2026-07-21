@@ -314,17 +314,75 @@
     </div>
 
     <div id="leaderboardModal" class="leaderboard-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="leaderboardModalTitle">
-      <div class="leaderboard-modal paper-card">
+      <section class="leaderboard-modal paper-card">
         <div class="leaderboard-modal-head">
           <div>
+            <p class="eyebrow">世界各地的練習夥伴</p>
             <h2 id="leaderboardModalTitle">全球排行榜</h2>
           </div>
           <button id="leaderboardModalClose" class="calendar-close" type="button" aria-label="關閉全球排行榜">×</button>
         </div>
-        <div class="leaderboard-preview">
-          <strong>練習王尚未公開</strong>
+        <p id="leaderboardLoginPrompt" class="leaderboard-consent-note hidden">請先登入，登入後再設定獨立的排行榜名字與頭像。</p>
+        <section id="leaderboardOwnProfile" class="leaderboard-own-profile hidden" aria-label="我的排行榜公開資料">
+          <img id="leaderboardOwnAvatar" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="" />
+          <div>
+            <span>我的公開資料</span>
+            <strong id="leaderboardOwnName">練習者</strong>
+            <small id="leaderboardOwnSpirit">尚未設定展示精靈</small>
+          </div>
+          <button id="leaderboardProfileEdit" type="button" aria-haspopup="dialog">編輯</button>
+        </section>
+        <div class="leaderboard-tabs" role="tablist" aria-label="排行榜類型">
+          <button id="leaderboardPracticeTab" class="active" data-leaderboard-metric="practice" type="button" role="tab" aria-selected="true" aria-controls="leaderboardList">練習王</button>
+          <button id="leaderboardStreakTab" data-leaderboard-metric="streak" type="button" role="tab" aria-selected="false" aria-controls="leaderboardList">連續學習王</button>
         </div>
-      </div>
+        <p id="leaderboardPracticePeriod" class="leaderboard-period-note">練習王成績自 refresh-170 起累積。</p>
+        <p id="leaderboardStatus" class="leaderboard-status" role="status" aria-live="polite">正在載入排行榜…</p>
+        <ol id="leaderboardList" class="leaderboard-list" aria-label="全球排行榜名次"></ol>
+        <p class="leaderboard-refresh-note">開啟時更新，之後最長每 10 分鐘重新整理。</p>
+      </section>
+    </div>
+
+    <div id="leaderboardProfileModal" class="leaderboard-profile-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="leaderboardProfileTitle">
+      <form id="leaderboardProfileForm" class="leaderboard-profile-modal paper-card">
+        <header>
+          <div>
+            <p class="eyebrow">排行榜公開資料</p>
+            <h2 id="leaderboardProfileTitle">編輯名字與頭像</h2>
+          </div>
+          <button id="leaderboardProfileClose" class="calendar-close" type="button" aria-label="關閉公開資料編輯">×</button>
+        </header>
+        <div class="leaderboard-profile-avatar-editor">
+          <img id="leaderboardProfileAvatarPreview" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="頭像預覽" />
+          <div>
+            <label class="leaderboard-avatar-upload">選擇頭像<input id="leaderboardProfileAvatarInput" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+            <small>必須自行選擇 JPG、PNG 或 WebP；原始檔最大 2 MB，上傳前會裁成正方形並壓縮。</small>
+          </div>
+        </div>
+        <label class="leaderboard-name-field">排行榜名字<input id="leaderboardProfileName" type="text" minlength="2" maxlength="20" autocomplete="nickname" placeholder="例如：口琴小芽" required /></label>
+        <label id="leaderboardConsentWrap" class="leaderboard-consent-check hidden">
+          <input id="leaderboardProfileConsent" type="checkbox" />
+          <span>你的排行榜名字、頭像、展示精靈與排行成績，將公開顯示給其他排行榜使用者。</span>
+        </label>
+        <p class="leaderboard-fair-play-note">排行榜是友善競賽；系統會防止重送並限制異常頻率，但修改版客戶端仍可能使用不同事件編號灌榜，無法宣稱完全防作弊。</p>
+        <p id="leaderboardProfileError" class="leaderboard-profile-error hidden" role="alert"></p>
+        <button id="leaderboardLeaveButton" class="leaderboard-leave-button" type="button">退出排行榜</button>
+        <footer>
+          <button id="leaderboardProfileCancel" type="button">取消</button>
+          <button id="leaderboardProfileSubmit" class="primary-btn" type="submit">儲存公開資料</button>
+        </footer>
+      </form>
+    </div>
+
+    <div id="leaderboardLeaveModal" class="leaderboard-profile-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="leaderboardLeaveTitle">
+      <section class="leaderboard-leave-modal paper-card">
+        <h2 id="leaderboardLeaveTitle">退出全球排行榜？</h2>
+        <p>退出後會停止提交成績並隱藏公開名字、頭像與展示精靈；正式練習與帳號存檔不受影響。</p>
+        <div>
+          <button id="leaderboardLeaveCancel" type="button">保留排行榜</button>
+          <button id="leaderboardLeaveConfirm" class="danger-btn" type="button">確認退出</button>
+        </div>
+      </section>
     </div>
 
     <div class="app-shell">
@@ -383,7 +441,7 @@
               <button class="quick-card" data-jump="practicehub" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/practice_record_icon.png" alt="" /></span><strong>開始練習</strong></button>
               <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" /></span><strong>每日目標</strong></button>
               <button class="quick-card" data-jump="garden" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/garden/icons/spirit-garden-icon.png" alt="" /></span><strong>精靈花園</strong></button>
-              <button class="quick-card leaderboard-card" data-leaderboard-open type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/global_leaderboard_icon.png?v=transparent-1" alt="" /></span><strong>全球排行榜</strong><em>尚未公開</em></button>
+              <button class="quick-card leaderboard-card" data-leaderboard-open type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/global_leaderboard_icon.png?v=transparent-1" alt="" /></span><strong>全球排行榜</strong><em>練習王・連續學習王</em></button>
               <button class="quick-card" data-jump="audio" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/mic_settings_icon.png" alt="" /></span><strong>設定</strong></button>
             </div>
           </section>
@@ -1227,6 +1285,8 @@
     <script src="./quick-practice.js?v=refresh-170"></script>
     <script src="./metronome-core.js?v=refresh-170"></script>
     <script src="./metronome.js?v=refresh-170"></script>
+    <script src="./leaderboard-core.js?v=refresh-170"></script>
+    <script src="./leaderboard.js?v=refresh-170"></script>
     <script src="./garden-qa.js?v=refresh-170"></script>
     <script src="./app.js?v=refresh-170"></script>
     <script src="./auth-runtime.js?v=refresh-170"></script>
