@@ -65,6 +65,7 @@ async function upload(client, index, body = validPng, contentType = "image/png")
   form.append("featured_spirit_stage", "2");
   const { data, error } = await client.functions.invoke("upload-leaderboard-avatar", {
     body: form,
+    headers: { Origin: "http://localhost" },
   });
   if (error) {
     const status = Number(error?.context?.status || 0);

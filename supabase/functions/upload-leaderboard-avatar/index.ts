@@ -24,7 +24,7 @@ const MIME_SIGNATURES = new Map<string, (bytes: Uint8Array) => boolean>([
   ["image/webp", (b) => b.length >= 12 && String.fromCharCode(...b.slice(0, 4)) === "RIFF" && String.fromCharCode(...b.slice(8, 12)) === "WEBP"],
 ]);
 const ALLOWED_ORIGINS = new Set([
-  "https://yrpeng.github.io",
+  "https://tennis830531-byte.github.io",
   "http://localhost",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
@@ -90,7 +90,7 @@ function processImage(input: Uint8Array) {
 
 Deno.serve(async (request) => {
   const origin = request.headers.get("Origin");
-  if (origin && !ALLOWED_ORIGINS.has(origin)) return json(origin, 403, { error: "origin-not-allowed" });
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) return json(origin, 403, { error: "origin-not-allowed" });
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(origin) });
   if (request.method !== "POST") return json(origin, 405, { error: "method-not-allowed" });
   const authorization = request.headers.get("Authorization") || "";

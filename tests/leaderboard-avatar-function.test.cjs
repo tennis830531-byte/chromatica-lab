@@ -8,6 +8,8 @@ const source = fs.readFileSync(path.join(root, "supabase/functions/upload-leader
 const deno = fs.readFileSync(path.join(root, "supabase/functions/upload-leaderboard-avatar/deno.json"), "utf8");
 const config = fs.readFileSync(path.join(root, "supabase/config.toml"), "utf8");
 const has = (pattern) => () => assert.match(source, pattern);
+const originSetSource = source.match(/const ALLOWED_ORIGINS = new Set\(\[([\s\S]*?)\]\);/)?.[1] || "";
+const allowedOrigins = new Set(Array.from(originSetSource.matchAll(/"([^"]+)"/g), (match) => match[1]));
 
 test("pins magick-wasm", () => assert.match(deno, /magick-wasm@0\.0\.41/));
 test("pins supabase-js", () => assert.match(deno, /supabase-js@2\.56\.1/));
@@ -41,3 +43,25 @@ test("cleans new upload after profile failure", has(/profileUpdate\.error[\s\S]*
 test("deletes old image only after profile success", () => assert.ok(source.indexOf("profileUpdate.error") < source.indexOf("remove([oldPath])")));
 test("uses an opaque prefix and random UUID", has(/get_leaderboard_avatar_prefix[\s\S]*crypto\.randomUUID\(\)/));
 test("rejects unlisted CORS origins", has(/!ALLOWED_ORIGINS\.has\(origin\)[\s\S]*origin-not-allowed/));
+test("allows the production GitHub Pages origin", () => assert.equal(allowedOrigins.has("https://tennis830531-byte.github.io"), true));
+test("returns the exact allowed origin in CORS headers", has(/"Access-Control-Allow-Origin": origin/));
+test("allows POST in CORS headers", has(/"Access-Control-Allow-Methods": "POST, OPTIONS"/));
+test("does not allow the production site path as an origin", () => assert.equal(allowedOrigins.has("https://tennis830531-byte.github.io/chromatica-lab/"), false));
+test("rejects an unlisted origin", () => assert.equal(allowedOrigins.has("https://example.invalid"), false));
+test("rejects a similar attack origin", () => assert.equal(allowedOrigins.has("https://tennis830531-byte.github.io.example.com"), false));
+test("rejects other GitHub Pages origins", () => assert.equal(allowedOrigins.has("https://someone-else.github.io"), false));
+test("rejects null origins before request processing", has(/if \(!origin \|\| !ALLOWED_ORIGINS\.has\(origin\)\) return json\(origin, 403/));
+test("rejects origins before OPTIONS, JWT, image, Storage, or RPC processing", () => {
+  const rejection = source.indexOf("if (!origin || !ALLOWED_ORIGINS.has(origin))");
+  for (const marker of [
+    'request.method === "OPTIONS"',
+    'request.headers.get("Authorization")',
+    "processImage(input)",
+    ".storage.from(BUCKET)",
+    "userClient.rpc(rpcName",
+  ]) assert.ok(rejection >= 0 && rejection < source.indexOf(marker), `${marker} must follow the origin gate`);
+});
+test("uses no wildcard or fuzzy GitHub origin matching", () => {
+  assert.equal(allowedOrigins.has("*"), false);
+  assert.doesNotMatch(source, /(?:endsWith|includes)\(["']github\.io/);
+});
