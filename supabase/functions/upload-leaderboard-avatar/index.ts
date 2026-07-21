@@ -25,6 +25,7 @@ const MIME_SIGNATURES = new Map<string, (bytes: Uint8Array) => boolean>([
 ]);
 const ALLOWED_ORIGINS = new Set([
   "https://tennis830531-byte.github.io",
+  "https://localhost",
   "http://localhost",
   "http://localhost:5173",
   "http://127.0.0.1:5173",

@@ -44,12 +44,24 @@ test("deletes old image only after profile success", () => assert.ok(source.inde
 test("uses an opaque prefix and random UUID", has(/get_leaderboard_avatar_prefix[\s\S]*crypto\.randomUUID\(\)/));
 test("rejects unlisted CORS origins", has(/!ALLOWED_ORIGINS\.has\(origin\)[\s\S]*origin-not-allowed/));
 test("allows the production GitHub Pages origin", () => assert.equal(allowedOrigins.has("https://tennis830531-byte.github.io"), true));
+test("allows the exact Android Capacitor origin", () => assert.equal(allowedOrigins.has("https://localhost"), true));
+test("allows the existing local web origin", () => assert.equal(allowedOrigins.has("http://localhost"), true));
 test("returns the exact allowed origin in CORS headers", has(/"Access-Control-Allow-Origin": origin/));
 test("allows POST in CORS headers", has(/"Access-Control-Allow-Methods": "POST, OPTIONS"/));
+test("returns 204 for allowed OPTIONS before the POST JWT gate", has(/request\.method === "OPTIONS"[\s\S]*status: 204[\s\S]*request\.method !== "POST"[\s\S]*authorization\.startsWith/));
+test("lets an allowed Android POST continue to the JWT gate", () => {
+  assert.equal(allowedOrigins.has("https://localhost"), true);
+  assert.ok(source.indexOf("!ALLOWED_ORIGINS.has(origin)") < source.indexOf('request.headers.get("Authorization")'));
+});
 test("does not allow the production site path as an origin", () => assert.equal(allowedOrigins.has("https://tennis830531-byte.github.io/chromatica-lab/"), false));
 test("rejects an unlisted origin", () => assert.equal(allowedOrigins.has("https://example.invalid"), false));
 test("rejects a similar attack origin", () => assert.equal(allowedOrigins.has("https://tennis830531-byte.github.io.example.com"), false));
 test("rejects other GitHub Pages origins", () => assert.equal(allowedOrigins.has("https://someone-else.github.io"), false));
+test("rejects Android lookalike and alternate-port origins", () => {
+  assert.equal(allowedOrigins.has("https://localhost.example.com"), false);
+  assert.equal(allowedOrigins.has("https://localhost:1234"), false);
+  assert.equal(allowedOrigins.has("http://localhost.example.com"), false);
+});
 test("rejects null origins before request processing", has(/if \(!origin \|\| !ALLOWED_ORIGINS\.has\(origin\)\) return json\(origin, 403/));
 test("rejects origins before OPTIONS, JWT, image, Storage, or RPC processing", () => {
   const rejection = source.indexOf("if (!origin || !ALLOWED_ORIGINS.has(origin))");
