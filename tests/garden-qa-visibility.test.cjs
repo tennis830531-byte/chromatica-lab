@@ -6,6 +6,7 @@ const vm = require("node:vm");
 
 const root = path.join(__dirname, "..");
 const source = fs.readFileSync(path.join(root, "garden-qa.js"), "utf8");
+const sharedSource = fs.readFileSync(path.join(root, "garden-shared.js"), "utf8");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const styles = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 const ACTIVE_KEY = "chromatica.qaGardenMode";
@@ -72,15 +73,36 @@ function loadQa(state, promptValue = null) {
     getElementById(id) { return id === "gardenqa" ? qaRoot : null; },
     querySelector(selector) { return selector === "#gardenPlantImage" ? formalImage : globalNode(selector); },
   };
+  const shared = {
+    renderGardenCollection({ container, storeAdapter }) {
+      container?.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-open-spirit]");
+        if (button) storeAdapter?.openSpirit?.(button.dataset.openSpirit);
+      });
+    },
+    renderPlantScene({ elements, species: speciesId, stage, imageSrc, displayName, stageLabel, progressText, progressPercent = 0 }) {
+      if (elements.image) {
+        elements.image.src = imageSrc;
+        elements.image.classList.add(`garden-stage-${stage || 1}`);
+        if (speciesId) elements.image.classList.add(`species-${speciesId}`);
+      }
+      if (elements.actionLayer) elements.actionLayer.classList.add(`garden-stage-${stage || 1}`);
+      if (elements.name) elements.name.textContent = displayName;
+      if (elements.stage) elements.stage.textContent = stageLabel;
+      if (elements.progressText) elements.progressText.textContent = progressText;
+      if (elements.progressBar) elements.progressBar.style.width = `${progressPercent}%`;
+    },
+  };
+  const detailCalls = [];
   const context = {
-    globalThis: {}, document, sessionStorage, crypto: require("node:crypto").webcrypto,
+    globalThis: { ChromaticaGardenShared: shared }, document, sessionStorage, crypto: require("node:crypto").webcrypto,
     TextEncoder, Uint8Array, Date, JSON, setTimeout, clearTimeout,
     confirm: () => true, prompt: () => promptValue,
   };
   vm.runInNewContext(source, context);
   const api = context.globalThis.ChromaticaGardenQA;
-  api.init({ species, stageRequirements: [2, 2, 2], navigate() {}, playGardenEffect() {} });
-  return { api, sessionStorage, qaNodes, actions, formalImage };
+  api.init({ species, stageRequirements: [2, 2, 2], navigate() {}, playGardenEffect() {}, openSpiritDetail(id, adapter) { detailCalls.push({ id, adapter }); } });
+  return { api, sessionStorage, qaNodes, actions, formalImage, detailCalls };
 }
 
 function state(overrides = {}) {
@@ -99,22 +121,23 @@ test("document contains no duplicate IDs", () => {
 });
 
 test("QA plant has its own unique render target", () => {
-  assert.match(html, /id="gardenQaPlantImage"/);
-  assert.match(html, /id="gardenPlantImage"/);
+  assert.match(sharedSource, /plantImage: "gardenQaPlantImage"/);
+  assert.match(sharedSource, /plantImage: "gardenPlantImage"/);
   assert.notEqual("gardenQaPlantImage", "gardenPlantImage");
 });
 
 test("QA plant uses the same visible scene wrapper hierarchy as the formal garden", () => {
-  const qa = html.match(/<section id="gardenqa"[\s\S]*?<\/section>/)?.[0] || "";
-  assert.match(qa, /id="gardenQaPlantIdleLayer" class="plant-idle-layer is-idle"/);
-  assert.match(qa, /id="gardenQaPlantActionLayer" class="plant-action-layer garden-stage-1"/);
-  assert.match(qa, /gardenQaPlantActionLayer[\s\S]*gardenQaPlantImage/);
+  assert.doesNotMatch(sharedSource, /cloneNode|ID_MAP/);
+  assert.match(sharedSource, /function gardenPresentationMarkup/);
+  assert.match(sharedSource, /function applyGardenPlantPresentation/);
+  assert.match(sharedSource, /idleLayer: "gardenQaPlantIdleLayer"/);
+  assert.match(sharedSource, /actionLayer: "gardenQaPlantActionLayer"/);
+  assert.match(sharedSource, /plantImage: "gardenQaPlantImage"/);
 });
 
 test("QA controls retain unique scoped IDs", () => {
-  for (const id of ["gardenQaPlantScene", "gardenQaPlantName", "gardenQaPlantImage", "gardenQaWater", "gardenQaProgress", "gardenQaProgressBar", "gardenQaCollection", "gardenQaResetAll"]) {
-    assert.equal((html.match(new RegExp(`id="${id}"`, "g")) || []).length, 1);
-  }
+  for (const id of ["gardenQaPlantScene", "gardenQaPlantName", "gardenQaPlantImage", "gardenQaWater", "gardenQaProgress", "gardenQaProgressBar", "gardenQaCollection"]) assert.match(sharedSource, new RegExp(id));
+  assert.equal((html.match(/id="gardenQaResetAll"/g) || []).length, 1);
 });
 
 test("QA renderer scopes plant and collection queries to the active QA root", () => {
@@ -123,9 +146,11 @@ test("QA renderer scopes plant and collection queries to the active QA root", ()
   assert.match(source, /qa\$\("#gardenQaPlantImage"\)/);
 });
 
-test("obsolete off-screen absolute positioning is removed", () => {
+test("shared garden scenes stay in flow while their backdrop can extend beyond the frame", () => {
   assert.doesNotMatch(styles, /garden-qa-layout \.garden-plant-image[^{]*\{[^}]*position:\s*absolute/);
-  assert.match(styles, /\.garden-plant-scene\s*\{[\s\S]*?min-height:\s*238px/);
+  assert.match(styles, /\.garden-card\s*\{[\s\S]*?overflow:\s*visible/);
+  assert.match(styles, /\.garden-plant-scene\s*\{[\s\S]*?height:\s*clamp\(238px, 62vw, 300px\)[\s\S]*?overflow:\s*visible/);
+  assert.match(styles, /\.garden-scene-backdrop\s*\{[\s\S]*?inset:\s*-8px;[\s\S]*?width:\s*calc\(100% \+ 16px\);[\s\S]*?height:\s*calc\(100% \+ 16px\);[\s\S]*?border-radius:\s*0;[\s\S]*?clip-path:\s*none/);
 });
 
 test("active QA render assigns a non-empty plant image source", () => {
@@ -165,20 +190,24 @@ test("reset current plant restores the first-stage QA image", () => {
   assert.equal(qaNodes.get("#gardenQaPlantImage").src, "stage-1.png");
 });
 
-test("renaming a collected spirit also marks it as QA featured", () => {
+test("QA collection opens the formal detail adapter and keeps edits session-only", () => {
   const collected = { id: "qa-spirit", species: "sprout", name: "芽芽", customName: false, stage: 3, waterProgress: 6 };
-  const { qaNodes, sessionStorage } = loadQa(state({ collection: [collected] }), "新名字");
-  const target = { closest() { return { dataset: { qaSpirit: "qa-spirit" } }; } };
+  const { qaNodes, sessionStorage, detailCalls } = loadQa(state({ collection: [collected] }));
+  const target = { closest() { return { dataset: { openSpirit: "qa-spirit" } }; } };
   qaNodes.get("#gardenQaCollection").dispatch("click", { target });
+  assert.equal(detailCalls[0].id, "qa-spirit");
+  detailCalls[0].adapter.updateName("qa-spirit", "新名字");
+  detailCalls[0].adapter.setFeatured("qa-spirit", 2);
   const updated = JSON.parse(sessionStorage.getItem(SANDBOX_KEY));
   assert.equal(updated.collection[0].name, "新名字");
   assert.equal(updated.featuredSpiritId, "qa-spirit");
+  assert.equal(updated.featuredSpiritStage, 2);
 });
 
 test("formal garden image remains present and uses its formal wrapper", () => {
-  const formal = html.match(/<section id="garden"[\s\S]*?<section id="gardenqa"/)?.[0] || "";
-  assert.match(formal, /id="gardenPlantIdleLayer" class="plant-idle-layer is-idle"/);
-  assert.match(formal, /id="gardenPlantImage"/);
+  assert.match(html, /id="gardenSharedRoot"/);
+  assert.match(sharedSource, /idleLayer: "gardenPlantIdleLayer"/);
+  assert.match(sharedSource, /plantImage: "gardenPlantImage"/);
 });
 
 test("QA runtime remains isolated from formal storage and cloud persistence", () => {

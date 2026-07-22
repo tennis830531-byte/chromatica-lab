@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="../../styles.css">
+  <style>
+    body { margin: 0; width: 390px; }
+    #gardenSharedRoot, #gardenQaSharedRoot { width: 390px; }
+  </style>
+</head>
+<body class="simple-motion">
+  <div hidden aria-hidden="true">
+    <img src="../../public/assets/garden/plants/melody-sprout-stage1.png"><img src="../../public/assets/garden/plants/melody-sprout-stage2.png?v=clean-2"><img src="../../public/assets/garden/plants/melody-sprout-stage3.png?v=clean-2">
+    <img src="../../public/assets/garden/plants/mushroom-spirit-stage1.png"><img src="../../public/assets/garden/plants/mushroom-spirit-stage2.png"><img src="../../public/assets/garden/plants/mushroom-spirit-stage3.png">
+    <img src="../../public/assets/garden/plants/flower-spirit-stage1.png"><img src="../../public/assets/garden/plants/flower-spirit-stage2.png"><img src="../../public/assets/garden/plants/flower-spirit-stage3.png">
+  </div>
+  <div id="gardenSharedRoot"></div>
+  <div id="gardenQaSharedRoot"></div>
+  <pre id="result">pending</pre>
+  <script src="../../garden-shared.js"></script>
+  <script>
+    window.addEventListener("load", async () => {
+      try {
+      const species = ["melody-sprout", "mushroom-spirit", "flower-spirit"];
+      const ids = window.ChromaticaGardenShared.PRESENTATION_IDS;
+      const byId = (id) => document.getElementById(id);
+      const rect = (element) => {
+        const value = element.getBoundingClientRect();
+        return [value.x, value.y, value.width, value.height].map((number) => Math.round(number * 100) / 100);
+      };
+      const relativeRect = (element, parent) => {
+        const child = rect(element);
+        const origin = rect(parent);
+        return [child[0] - origin[0], child[1] - origin[1], child[2], child[3]].map((number) => Math.round(number * 100) / 100);
+      };
+      const alphaBounds = (element) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = element.naturalWidth; canvas.height = element.naturalHeight;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        context.drawImage(element, 0, 0);
+        const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+        let left = canvas.width; let top = canvas.height; let right = -1; let bottom = -1;
+        for (let y = 0; y < canvas.height; y += 1) for (let x = 0; x < canvas.width; x += 1) {
+          if (pixels[(y * canvas.width + x) * 4 + 3] === 0) continue;
+          left = Math.min(left, x); top = Math.min(top, y); right = Math.max(right, x); bottom = Math.max(bottom, y);
+        }
+        return { left, top, right, bottom, width: right - left + 1, height: bottom - top + 1 };
+      };
+      const visibleBottom = (element, scene, alpha) => {
+        const image = relativeRect(element, scene);
+        return image[1] + image[3] * ((alpha.bottom + 1) / element.naturalHeight);
+      };
+      const boxesEqual = (left, right, tolerance = 0.05) => left.every((value, index) => Math.abs(value - right[index]) <= tolerance);
+      const result = [];
+      for (const speciesId of species) for (const stage of [1, 2, 3]) {
+        const suffix = speciesId === "melody-sprout" && stage > 1 ? "?v=clean-2" : "";
+        const source = `../../public/assets/garden/plants/${speciesId}-stage${stage}.png${suffix}`;
+        const formal = ids.formal;
+        const qa = ids.qa;
+        const formalImage = byId(formal.plantImage);
+        const qaImage = byId(qa.plantImage);
+        window.ChromaticaGardenShared.applyGardenPlantPresentation({
+          plant: { species: speciesId, stage }, plantImage: formalImage,
+          idleLayer: byId(formal.idleLayer), actionLayer: byId(formal.actionLayer), scene: byId(formal.scene),
+          speciesIds: species, imageSrc: source,
+        });
+        window.ChromaticaGardenShared.applyGardenPlantPresentation({
+          plant: { species: speciesId, stage }, plantImage: qaImage,
+          idleLayer: byId(qa.idleLayer), actionLayer: byId(qa.actionLayer), scene: byId(qa.scene),
+          speciesIds: species, imageSrc: source,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        if (!formalImage.complete || !qaImage.complete || formalImage.naturalWidth < 1 || qaImage.naturalWidth < 1) {
+          throw new Error(`Images were not ready for ${speciesId} stage ${stage}`);
+        }
+        const formalStyle = getComputedStyle(formalImage);
+        const qaStyle = getComputedStyle(qaImage);
+        const formalScene = byId(formal.scene);
+        const qaScene = byId(qa.scene);
+        const formalBackdrop = formalScene.querySelector(".garden-scene-backdrop");
+        const qaBackdrop = qaScene.querySelector(".garden-scene-backdrop");
+        const alpha = alphaBounds(formalImage);
+        const formalVisibleBottom = Math.round(visibleBottom(formalImage, formalScene, alpha) * 100) / 100;
+        const qaVisibleBottom = Math.round(visibleBottom(qaImage, qaScene, alpha) * 100) / 100;
+        const visibleBottomDelta = Math.round((formalVisibleBottom - qaVisibleBottom) * 100) / 100;
+        const qaAction = byId(qa.actionLayer);
+        const qaIdle = byId(qa.idleLayer);
+        const qaActionStyle = getComputedStyle(qaAction);
+        const qaIdleStyle = getComputedStyle(qaIdle);
+        const matchedSelectors = [...document.styleSheets].flatMap((sheet) => {
+          try { return [...sheet.cssRules]; } catch { return []; }
+        }).filter((rule) => rule.selectorText && qaImage.matches(rule.selectorText)).map((rule) => rule.selectorText);
+        result.push({
+          species: speciesId, stage,
+          sceneBoxEqual: boxesEqual(rect(formalScene).slice(2), rect(qaScene).slice(2)),
+          backgroundBoxEqual: boxesEqual(relativeRect(formalBackdrop, formalScene), relativeRect(qaBackdrop, qaScene)),
+          plantBoxEqual: boxesEqual(relativeRect(formalImage, formalScene), relativeRect(qaImage, qaScene)),
+          positiveBoxes: rect(formalScene)[2] > 0 && rect(formalScene)[3] > 0 && rect(formalImage)[2] > 0 && rect(formalImage)[3] > 0,
+          objectFitEqual: formalStyle.objectFit === qaStyle.objectFit,
+          transformEqual: formalStyle.transform === qaStyle.transform,
+          visibleBottomDelta, formalVisibleBottom, qaVisibleBottom, alpha,
+          naturalWidth: qaImage.naturalWidth, naturalHeight: qaImage.naturalHeight,
+          renderedImageBox: relativeRect(qaImage, qaScene),
+          actionBox: relativeRect(qaAction, qaScene), idleBox: relativeRect(qaIdle, qaScene),
+          sceneBox: rect(qaScene), backdropBox: relativeRect(qaBackdrop, qaScene),
+          imageTransform: qaStyle.transform, objectPosition: qaStyle.objectPosition,
+          actionTransform: qaActionStyle.transform, idleTransform: qaIdleStyle.transform,
+          actionAlignItems: qaActionStyle.alignItems, idleAlignItems: qaIdleStyle.alignItems,
+          sceneAlignItems: getComputedStyle(qaScene).alignItems,
+          scenePaddingBottom: getComputedStyle(qaScene).paddingBottom,
+          matchedSelectors,
+          formalGardenY: formalStyle.getPropertyValue("--garden-plant-y").trim(),
+          qaGardenY: qaStyle.getPropertyValue("--garden-plant-y").trim(),
+          classEqual: formalImage.className === qaImage.className,
+          formalClass: formalImage.className,
+          qaClass: qaImage.className,
+        });
+      }
+      const repeatMelody = [];
+      for (const stage of [1, 2, 3, 1, 2, 3]) {
+        const qa = ids.qa;
+        const qaImage = byId(qa.plantImage);
+        const suffix = stage > 1 ? "?v=clean-2" : "";
+        window.ChromaticaGardenShared.applyGardenPlantPresentation({
+          plant: { species: "melody-sprout", stage }, plantImage: qaImage,
+          idleLayer: byId(qa.idleLayer), actionLayer: byId(qa.actionLayer), scene: byId(qa.scene),
+          speciesIds: species,
+          imageSrc: `../../public/assets/garden/plants/melody-sprout-stage${stage}.png${suffix}`,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        if (!qaImage.complete || qaImage.naturalWidth < 1) throw new Error(`Repeated melody image was not ready for stage ${stage}`);
+        const alpha = alphaBounds(qaImage);
+        repeatMelody.push({
+          stage,
+          visibleBottom: Math.round(visibleBottom(qaImage, byId(qa.scene), alpha) * 100) / 100,
+          className: qaImage.className,
+          transform: getComputedStyle(qaImage).transform,
+        });
+      }
+      document.getElementById("result").textContent = JSON.stringify({ rows: result, repeatMelody });
+      } catch (error) {
+        document.getElementById("result").textContent = JSON.stringify({ error: String(error?.stack || error) });
+      }
+    });
+  </script>
+</body>
+</html>

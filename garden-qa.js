@@ -144,18 +144,44 @@
   }
   function onViewChanged(view) { if (view !== "intro") titleClicks = 0; if (view !== "gardenqa" && isActive() && view === "garden") options.navigate?.("gardenqa"); }
   function renderCollection(state) {
-    const collection = qa$("#gardenQaCollection"); if (!collection) return;
-    collection.innerHTML = state.collection.map((spirit) => `<button type="button" data-qa-spirit="${spirit.id}" class="garden-qa-spirit ${state.featuredSpiritId === spirit.id ? "featured" : ""}"><img src="${plantImage(spirit, 1)}" alt=""><strong>${plantName(spirit, state.featuredSpiritId === spirit.id ? state.featuredSpiritStage : 3)}</strong></button>`).join("") || "<p>測試圖鑑尚無精靈。</p>";
-  }
-  function setPlantPresentation(plant) {
-    const stage = plant?.stage || 1;
-    [qa$("#gardenQaPlantActionLayer"), qa$("#gardenQaPlantImage")].forEach((element) => {
-      if (!element) return;
-      element.classList.remove("garden-stage-1", "garden-stage-2", "garden-stage-3");
-      for (const species of options.species || []) element.classList.remove(`species-${species.species}`);
-      element.classList.add(`garden-stage-${stage}`);
-      if (plant?.species) element.classList.add(`species-${plant.species}`);
+    const adapter = createDetailAdapter();
+    global.ChromaticaGardenShared?.renderGardenCollection?.({
+      container: qa$("#gardenQaCollection"),
+      storeAdapter: adapter,
     });
+  }
+
+  function createDetailAdapter() {
+    const adapter = {
+      getCollection() { return loadState().collection; },
+      getSpeciesList() { return options.species || []; },
+      getSpirit(id) { return loadState().collection.find((spirit) => spirit.id === id) || null; },
+      getFeaturedId() { return loadState().featuredSpiritId; },
+      getFeaturedStage() { return loadState().featuredSpiritStage || 3; },
+      getSpecies,
+      getDisplayName: plantName,
+      getStageName(spirit, stage) { return getSpecies(spirit.species).stageNames?.[stage - 1] || `階段 ${stage}`; },
+      getImage: plantImage,
+      updateName(id, name) {
+        const state = loadState();
+        const spirit = state.collection.find((item) => item.id === id);
+        if (!spirit) return null;
+        spirit.name = name;
+        spirit.customName = true;
+        saveState(state);
+        return spirit;
+      },
+      setFeatured(id, stage) {
+        const state = loadState();
+        if (!state.collection.some((spirit) => spirit.id === id)) return;
+        state.featuredSpiritId = id;
+        state.featuredSpiritStage = stage;
+        saveState(state);
+      },
+      render,
+    };
+    adapter.openSpirit = (id) => options.openSpiritDetail?.(id, adapter);
+    return adapter;
   }
   function playPlantEffect(evolved) {
     const scene = qa$("#gardenQaPlantScene");
@@ -177,15 +203,48 @@
     const water = qa$("#gardenQaWater");
     if (!water) return;
     water.textContent = "∞";
-    if (!plant) { qa$("#gardenQaPlantName").textContent = "全部測試完成"; qa$("#gardenQaPlantImage").src = "./public/assets/garden/collection/starter-pot.png"; qa$("#gardenQaProgress").textContent = "—"; qa$("#gardenQaProgressBar").style.width = "0%"; setPlantPresentation(null); }
+    const dailyWater = qa$("#gardenQaDailyWaterText");
+    if (dailyWater) dailyWater.textContent = "∞";
+    if (!plant) {
+      global.ChromaticaGardenShared?.renderPlantScene?.({
+        elements: {
+          name: qa$("#gardenQaPlantName"), stage: qa$("#gardenQaPlantStage"), image: qa$("#gardenQaPlantImage"),
+          scene: qa$("#gardenQaPlantScene"),
+          idleLayer: qa$("#gardenQaPlantIdleLayer"), actionLayer: qa$("#gardenQaPlantActionLayer"),
+          progressText: qa$("#gardenQaProgress"), progressBar: qa$("#gardenQaProgressBar"),
+        },
+        speciesIds: (options.species || []).map((item) => item.species),
+        displayName: "全部測試完成",
+      });
+    }
     else {
       plant.stage = getStage(plant.waterProgress || 0); saveState(state);
       const progress = stageProgress(plant.waterProgress || 0, plant.stage); const required = stageRequired(plant.stage);
-      qa$("#gardenQaPlantName").textContent = plantName(plant);
-      qa$("#gardenQaPlantImage").src = plantImage(plant);
-      setPlantPresentation(plant);
-      qa$("#gardenQaProgress").textContent = plant.waterProgress >= totalRequired() ? "可採收" : `${progress} / ${required}`;
-      qa$("#gardenQaProgressBar").style.width = `${Math.min(100, progress / required * 100)}%`;
+      global.ChromaticaGardenShared?.renderPlantScene?.({
+        elements: {
+          name: qa$("#gardenQaPlantName"), stage: qa$("#gardenQaPlantStage"), image: qa$("#gardenQaPlantImage"),
+          scene: qa$("#gardenQaPlantScene"),
+          idleLayer: qa$("#gardenQaPlantIdleLayer"), actionLayer: qa$("#gardenQaPlantActionLayer"),
+          progressText: qa$("#gardenQaProgress"), progressBar: qa$("#gardenQaProgressBar"),
+        },
+        speciesIds: (options.species || []).map((item) => item.species),
+        species: plant.species,
+        stage: plant.stage,
+        imageSrc: plantImage(plant),
+        displayName: plantName(plant),
+        stageLabel: plant.waterProgress >= totalRequired() ? "可採收" : (getSpecies(plant.species).stageNames?.[plant.stage - 1] || `階段 ${plant.stage}`),
+        progressText: plant.waterProgress >= totalRequired() ? "可採收" : `${progress} / ${required}`,
+        progressPercent: Math.min(100, progress / required * 100),
+      });
+      const primary = qa$("#gardenQaPrimaryAction");
+      if (primary) {
+        const ready = plant.waterProgress >= totalRequired();
+        primary.dataset.qaAction = ready ? "harvest" : "water";
+        primary.setAttribute?.("aria-label", ready ? "採收植物" : "澆水");
+        primary.classList.toggle("is-harvest-ready", ready);
+        const icon = primary.querySelector?.("img");
+        if (icon) icon.src = ready ? "./public/assets/garden/icons/garden-shovel.png" : "./public/assets/garden/icons/watering-can.png";
+      }
     }
     renderCollection(state);
   }
@@ -224,7 +283,6 @@
     qa$$('[data-qa-action]').forEach((button) => button.addEventListener("click", () => button.dataset.qaAction === "harvest" ? harvest() : mutatePlant(button.dataset.qaAction)));
     $("#gardenQaResetAll")?.addEventListener("click", resetSandbox);
     qa$$("[data-qa-leave]").forEach((button) => button.addEventListener("click", leave));
-    qa$("#gardenQaCollection")?.addEventListener("click", (event) => { const button = event.target.closest("[data-qa-spirit]"); if (!button) return; const state = loadState(); const spirit = state.collection.find((item) => item.id === button.dataset.qaSpirit); if (!spirit) return; const name = prompt("精靈名字", plantName(spirit, 3)); if (name?.trim()) { spirit.name = name.trim().slice(0, 14); spirit.customName = true; state.featuredSpiritId = spirit.id; state.featuredSpiritStage = 3; saveState(state); render(); } });
   }
   function init(nextOptions = {}) {
     options = nextOptions;
