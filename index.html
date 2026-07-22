@@ -20,7 +20,7 @@
     <link rel="apple-touch-icon" href="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" />
     <link rel="stylesheet" href="./public/assets/fonts/noto-sans-tc/noto-sans-tc-variable.css" />
     <link rel="stylesheet" href="./public/assets/fonts/lxgw-wenkai-tc/lxgw-wenkai-tc-bold.css" />
-    <link rel="stylesheet" href="./styles.css?v=refresh-170" />
+    <link rel="stylesheet" href="./styles.css?v=refresh-171" />
   </head>
   <body class="auth-checking">
     <div id="authGate" class="auth-gate" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
@@ -318,25 +318,13 @@
         <div class="leaderboard-modal-head">
           <div>
             <p class="eyebrow">世界各地的練習夥伴</p>
-            <h2 id="leaderboardModalTitle">全球排行榜</h2>
+            <h2 id="leaderboardModalTitle">排行榜</h2>
           </div>
           <button id="leaderboardModalClose" class="calendar-close" type="button" aria-label="關閉全球排行榜">×</button>
         </div>
-        <p id="leaderboardLoginPrompt" class="leaderboard-consent-note hidden">請先登入，登入後再設定獨立的排行榜名字與頭像。</p>
-        <section id="leaderboardOwnProfile" class="leaderboard-own-profile hidden" aria-label="我的排行榜公開資料">
-          <img id="leaderboardOwnAvatar" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="" />
-          <div>
-            <span>我的公開資料</span>
-            <strong id="leaderboardOwnName">練習者</strong>
-            <small id="leaderboardOwnSpirit">尚未設定展示精靈</small>
-          </div>
-          <button id="leaderboardProfileEdit" type="button" aria-haspopup="dialog">編輯</button>
-        </section>
-        <div class="leaderboard-tabs" role="tablist" aria-label="排行榜類型">
-          <button id="leaderboardPracticeTab" class="active" data-leaderboard-metric="practice" type="button" role="tab" aria-selected="true" aria-controls="leaderboardList">練習王</button>
-          <button id="leaderboardStreakTab" data-leaderboard-metric="streak" type="button" role="tab" aria-selected="false" aria-controls="leaderboardList">連續學習王</button>
-        </div>
-        <p id="leaderboardPracticePeriod" class="leaderboard-period-note">練習王成績自 refresh-170 起累積。</p>
+        <p id="leaderboardLoginPrompt" class="leaderboard-consent-note hidden">請先登入；加入與公開資料設定請前往「設定 → 會員帳號」。</p>
+        <h3 class="leaderboard-board-title">乖乖練習王</h3>
+        <p id="leaderboardWeekLabel" class="leaderboard-period-note">每週日 00:00（Asia/Taipei）開始新一週。</p>
         <p id="leaderboardStatus" class="leaderboard-status" role="status" aria-live="polite">正在載入排行榜…</p>
         <ol id="leaderboardList" class="leaderboard-list" aria-label="全球排行榜名次"></ol>
         <p class="leaderboard-refresh-note">開啟時更新，之後最長每 10 分鐘重新整理。</p>
@@ -348,7 +336,7 @@
         <header>
           <div>
             <p class="eyebrow">排行榜公開資料</p>
-            <h2 id="leaderboardProfileTitle">編輯名字與頭像</h2>
+            <h2 id="leaderboardProfileTitle">編輯乖乖練習王公開資料</h2>
           </div>
           <button id="leaderboardProfileClose" class="calendar-close" type="button" aria-label="關閉公開資料編輯">×</button>
         </header>
@@ -366,23 +354,11 @@
         </label>
         <p class="leaderboard-fair-play-note">排行榜是友善競賽；系統會防止重送並限制異常頻率，但修改版客戶端仍可能使用不同事件編號灌榜，無法宣稱完全防作弊。</p>
         <p id="leaderboardProfileError" class="leaderboard-profile-error hidden" role="alert"></p>
-        <button id="leaderboardLeaveButton" class="leaderboard-leave-button" type="button">退出排行榜</button>
         <footer>
           <button id="leaderboardProfileCancel" type="button">取消</button>
           <button id="leaderboardProfileSubmit" class="primary-btn" type="submit">儲存公開資料</button>
         </footer>
       </form>
-    </div>
-
-    <div id="leaderboardLeaveModal" class="leaderboard-profile-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="leaderboardLeaveTitle">
-      <section class="leaderboard-leave-modal paper-card">
-        <h2 id="leaderboardLeaveTitle">退出全球排行榜？</h2>
-        <p>退出後會停止提交成績並隱藏公開名字、頭像與展示精靈；正式練習與帳號存檔不受影響。</p>
-        <div>
-          <button id="leaderboardLeaveCancel" type="button">保留排行榜</button>
-          <button id="leaderboardLeaveConfirm" class="danger-btn" type="button">確認退出</button>
-        </div>
-      </section>
     </div>
 
     <div class="app-shell">
@@ -441,7 +417,7 @@
               <button class="quick-card" data-jump="practicehub" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/practice_record_icon.png" alt="" /></span><strong>開始練習</strong></button>
               <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" /></span><strong>每日目標</strong></button>
               <button class="quick-card" data-jump="garden" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/garden/icons/spirit-garden-icon.png" alt="" /></span><strong>精靈花園</strong></button>
-              <button class="quick-card leaderboard-card" data-leaderboard-open type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/global_leaderboard_icon.png?v=transparent-1" alt="" /></span><strong>全球排行榜</strong><em>練習王・連續學習王</em></button>
+              <button class="quick-card leaderboard-card" data-leaderboard-open type="button" aria-label="開啟排行榜"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/global_leaderboard_icon.png?v=transparent-1" alt="" /></span><strong>排行榜</strong><em>查看本週名次</em></button>
               <button class="quick-card" data-jump="audio" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/mic_settings_icon.png" alt="" /></span><strong>設定</strong></button>
             </div>
           </section>
@@ -456,8 +432,9 @@
           </div>
 
           <div class="home-tuner-card tuner-page-card paper-card">
-            <div class="card-row-head">
+            <div class="card-row-head tuner-card-head">
               <em id="homeTunerStatus">等待收音</em>
+              <button id="tunerReferencePitchOpen" class="tuner-reference-pitch-button" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="選擇標準音高，目前 A4 等於 440 Hz"><span>標準音高</span><strong id="tunerReferencePitchValue">A4 = 440 Hz</strong></button>
             </div>
             <div class="home-tuner-display">
               <strong id="homePitchNote">--</strong>
@@ -475,6 +452,14 @@
                 <span>-50</span><span>0</span><span>+50</span>
               </div>
             </div>
+          </div>
+          <div id="tunerReferencePitchDialog" class="tuner-pitch-dialog-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="tunerReferencePitchTitle">
+            <section class="tuner-pitch-dialog paper-card">
+              <header><h3 id="tunerReferencePitchTitle">選擇標準音高</h3><button id="tunerReferencePitchClose" type="button" aria-label="關閉標準音高選擇">×</button></header>
+              <div id="tunerReferencePitchOptions" class="tuner-pitch-options" role="listbox" aria-label="標準音高">
+                <button data-tuning-hz="440" type="button">A4 = 440 Hz</button><button data-tuning-hz="441" type="button">A4 = 441 Hz</button><button data-tuning-hz="442" type="button">A4 = 442 Hz</button><button data-tuning-hz="443" type="button">A4 = 443 Hz</button><button data-tuning-hz="444" type="button">A4 = 444 Hz</button><button data-tuning-hz="445" type="button">A4 = 445 Hz</button>
+              </div>
+            </section>
           </div>
           <div class="tuner-reference-note paper-card">
             <h3>一般演奏者</h3>
@@ -1028,67 +1013,14 @@
             <p>完成各種練習室的練習獲得水滴，澆灌屬於你的口琴植物精靈。</p>
           </div>
 
-          <div class="garden-layout">
-            <section class="garden-card paper-card">
-              <div class="garden-card-head">
-                <div class="garden-plant-heading">
-                  <div class="garden-plant-title-line">
-                    <h3 id="gardenPlantName">旋律芽芽</h3>
-                    <span id="gardenPlantStage" class="garden-stage-pill">幼苗</span>
-                  </div>
-                </div>
-                <div class="water-balance"><img src="./public/assets/garden/icons/water-drop.png" alt="" /><span><b id="waterDropCount">0</b> 滴</span></div>
-              </div>
-              <div class="garden-plant-scene">
-                <button id="gardenPrimaryAction" class="watering-can-button" data-haptic="manual" type="button" aria-label="澆水">
-                  <img id="gardenWateringCan" class="watering-can" src="./public/assets/garden/icons/watering-can.png" alt="" aria-hidden="true" />
-                </button>
-                <div id="gardenFxLayer" class="garden-fx-layer" aria-hidden="true"></div>
-                <img class="garden-scene-backdrop" src="./public/assets/garden/icons/garden-stage-backdrop-refresh.png" alt="" aria-hidden="true" />
-                <div id="gardenPlantIdleLayer" class="plant-idle-layer is-idle">
-                  <div id="gardenPlantActionLayer" class="plant-action-layer">
-                    <img id="gardenPlantImage" class="garden-plant-image garden-stage-1" src="./public/assets/garden/collection/starter-pot.png" alt="" />
-                  </div>
-                </div>
-              </div>
-              <div class="garden-progress">
-                <div class="garden-progress-row"><span>階段進度</span><b id="gardenProgressText">0 / 100</b></div>
-                <div class="garden-progress-track"><i id="gardenProgressBar"></i></div>
-                <div class="daily-practice-water"><span>今日練習水滴上限</span><b id="dailyPracticeWaterText">0 / 80</b></div>
-              </div>
-            </section>
-
-            <section class="garden-card paper-card garden-collection-card">
-              <div class="garden-card-head compact">
-                <div>
-                  <h3>植物精靈圖鑑</h3>
-                </div>
-              </div>
-              <div id="gardenCollection" class="garden-collection"></div>
-              <p class="garden-hint">採收成熟植物精靈後，可在圖鑑中選一株放到首頁展示。</p>
-            </section>
-          </div>
+          <div id="gardenSharedRoot" aria-live="polite"></div>
         </section>
 
         <section id="gardenqa" class="view">
           <div class="garden-qa-banner"><strong>植物測試模式｜不影響正式進度</strong><button data-qa-leave type="button">離開測試模式</button></div>
           <div class="section-head compact no-eyebrow"><img class="section-icon ui-quick-icon" src="./public/assets/garden/icons/watering-can.png" alt="" /><h2>植物精靈測試花園</h2><p>所有操作只保存在本次 session。</p></div>
-          <div class="garden-layout garden-qa-layout">
-            <section class="garden-card paper-card">
-              <div class="garden-card-head"><div><h3 id="gardenQaPlantName">測試植物</h3><span>水滴 <b id="gardenQaWater">∞</b></span></div></div>
-              <div id="gardenQaPlantScene" class="garden-plant-scene">
-                <img class="garden-scene-backdrop" src="./public/assets/garden/icons/garden-stage-backdrop-refresh.png" alt="" />
-                <div id="gardenQaPlantIdleLayer" class="plant-idle-layer is-idle">
-                  <div id="gardenQaPlantActionLayer" class="plant-action-layer garden-stage-1">
-                    <img id="gardenQaPlantImage" class="garden-plant-image garden-stage-1" src="./public/assets/garden/collection/starter-pot.png" alt="" />
-                  </div>
-                </div>
-              </div>
-              <div class="garden-progress"><div class="garden-progress-row"><span>階段進度</span><b id="gardenQaProgress">0 / 100</b></div><div class="garden-progress-track"><i id="gardenQaProgressBar"></i></div></div>
-              <div class="garden-qa-toolbar" aria-label="植物測試工具"><button data-qa-action="water" data-haptic="manual" type="button">澆水</button><button data-qa-action="fill" data-haptic="manual" type="button">本階段補滿</button><button data-qa-action="mature" data-haptic="manual" type="button">直接成熟</button><button data-qa-action="harvest" type="button">採收</button><button data-qa-action="reset" type="button">重置目前植物</button><button id="gardenQaResetAll" type="button">重置測試花園</button><button data-qa-leave type="button">離開測試模式</button></div>
-            </section>
-            <section class="garden-card paper-card garden-collection-card"><h3>QA 植物精靈圖鑑</h3><div id="gardenQaCollection" class="garden-qa-collection"></div><p class="garden-hint">點擊已採收精靈可改名並設為 QA 首頁展示。</p></section>
-          </div>
+          <div class="garden-qa-toolbar" aria-label="植物測試工具"><button data-qa-action="water" data-haptic="manual" type="button">澆水</button><button data-qa-action="fill" data-haptic="manual" type="button">本階段補滿</button><button data-qa-action="mature" data-haptic="manual" type="button">直接成熟</button><button data-qa-action="harvest" type="button">採收</button><button data-qa-action="reset" type="button">重置目前植物</button><button id="gardenQaResetAll" type="button">重置測試花園</button><button id="announcementAdminOpen" type="button">公告管理</button><button data-qa-leave type="button">離開測試模式</button></div>
+          <div id="gardenQaSharedRoot" aria-live="polite"></div>
         </section>
 
         <section id="audio" class="view">
@@ -1213,6 +1145,15 @@
                   <input id="practiceReminderToggle" type="checkbox" />
                 </label>
                 <p id="practiceReminderStatus" class="settings-status-text" aria-live="polite"></p>
+                <label class="sound-toggle-row leaderboard-push-toggle">
+                  <span><strong>每週排名結果通知</strong><small>每週結算後通知本週前十名結果。</small></span>
+                  <input id="leaderboardWeeklyResultToggle" type="checkbox" checked />
+                </label>
+                <label class="sound-toggle-row leaderboard-push-toggle">
+                  <span><strong>前十名名次變動通知</strong><small>進入前十、名次上升或掉出前十時通知。</small></span>
+                  <input id="leaderboardMovementToggle" type="checkbox" checked />
+                </label>
+                <p id="leaderboardPushStatus" class="settings-status-text" aria-live="polite"></p>
                 <div class="setting-row">
                   <span>語言</span>
                   <strong>繁體中文</strong>
@@ -1237,6 +1178,11 @@
                   </div>
                   <button id="googleLogoutBtn" class="google-logout-btn" type="button">登出</button>
                 </div>
+                <section id="leaderboardAccountSection" class="leaderboard-account-section" aria-labelledby="leaderboardAccountTitle">
+                  <div class="setting-row"><span><strong id="leaderboardAccountTitle">排行榜公開資料</strong></span><strong id="leaderboardAccountMembership">尚未加入</strong></div>
+                  <div id="leaderboardOwnProfile" class="leaderboard-own-profile hidden" aria-label="目前排行榜公開資料"><div><span class="sr-only">目前公開頭像</span><img id="leaderboardOwnAvatar" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="目前公開頭像" /></div><div><span>目前公開名字</span><strong id="leaderboardOwnName">練習者</strong><span>目前展示精靈</span><small id="leaderboardOwnSpirit">尚未設定展示精靈</small></div></div>
+                  <div class="leaderboard-account-actions"><button id="leaderboardProfileEdit" type="button" aria-haspopup="dialog">前往排行榜完成首次設定</button></div>
+                </section>
                 <button id="resetAccountDataBtn" class="account-reset-btn" type="button">清除所有紀錄</button>
                 <p class="settings-card-copy">遊戲進度會保留在本機，並在網路可用時同步到此 Google 帳號。</p>
                 <p id="googleLoginStatus" class="settings-status-text" aria-live="polite"></p>
@@ -1247,8 +1193,9 @@
               <div class="settings-accordion-body">
                 <div class="setting-row">
                   <span>Chromatic Harmonica Lab</span>
-                  <strong>目前版本：<span class="version-number">refresh-170</span></strong>
+                  <strong>目前版本：<span class="version-number">refresh-171</span></strong>
                 </div>
+                <button id="announcementsOpen" class="setting-row settings-action-row" type="button"><span>公告</span><strong>查看公告 〉</strong></button>
                 <button id="feedbackOpenBtn" class="setting-row settings-action-row" type="button">
                   <span>問題回報</span>
                   <strong>填寫表單 〉</strong>
@@ -1277,18 +1224,21 @@
     </div>
 
 
-    <script src="./supabase-config.js?v=refresh-170"></script>
-    <script src="./haptic-feedback.js?v=refresh-170"></script>
-    <script src="./practice-reminders.js?v=refresh-170"></script>
-    <script src="./daily-login-bonus.js?v=refresh-170"></script>
-    <script src="./daily-goal-rewards.js?v=refresh-170"></script>
-    <script src="./quick-practice.js?v=refresh-170"></script>
-    <script src="./metronome-core.js?v=refresh-170"></script>
-    <script src="./metronome.js?v=refresh-170"></script>
-    <script src="./leaderboard-core.js?v=refresh-170"></script>
-    <script src="./leaderboard.js?v=refresh-170"></script>
-    <script src="./garden-qa.js?v=refresh-170"></script>
-    <script src="./app.js?v=refresh-170"></script>
-    <script src="./auth-runtime.js?v=refresh-170"></script>
+    <script src="./supabase-config.js?v=refresh-171"></script>
+    <script src="./haptic-feedback.js?v=refresh-171"></script>
+    <script src="./practice-reminders.js?v=refresh-171"></script>
+    <script src="./daily-login-bonus.js?v=refresh-171"></script>
+    <script src="./daily-goal-rewards.js?v=refresh-171"></script>
+    <script src="./quick-practice.js?v=refresh-171"></script>
+    <script src="./metronome-core.js?v=refresh-171"></script>
+    <script src="./metronome.js?v=refresh-171"></script>
+    <script src="./leaderboard-core.js?v=refresh-171"></script>
+    <script src="./leaderboard.js?v=refresh-171"></script>
+    <script src="./announcements.js?v=refresh-171"></script>
+    <script src="./push-notifications.js?v=refresh-171"></script>
+    <script src="./garden-shared.js?v=refresh-171"></script>
+    <script src="./garden-qa.js?v=refresh-171"></script>
+    <script src="./app.js?v=refresh-171"></script>
+    <script src="./auth-runtime.js?v=refresh-171"></script>
   </body>
 </html>

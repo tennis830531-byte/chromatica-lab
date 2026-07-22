@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="../../styles.css">
+  <style>
+    body { margin: 0; padding: 24px; }
+    .set { display: grid; grid-template-columns: repeat(2, 140px); gap: 12px; }
+    #result { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <div id="before" class="set"></div>
+  <div id="after" class="set"></div>
+  <div id="alternatingBefore" class="set"></div>
+  <div id="alternatingAfter" class="set"></div>
+  <pre id="result"></pre>
+  <script>
+    const patterns = [
+      { id: "quarter", stepCount: 1, hits: [1], group: "quarter" },
+      { id: "eighth", stepCount: 2, hits: [1, 1], group: "eighth" },
+      { id: "eighth-offbeat", stepCount: 2, hits: [0, 1], group: "eighth" },
+      { id: "triplet", stepCount: 3, hits: [1, 1, 1], group: "triplet" },
+      { id: "triplet-middle-rest", stepCount: 3, hits: [1, 0, 1], group: "triplet" },
+      { id: "triplet-last-rest", stepCount: 3, hits: [1, 1, 0], group: "triplet" },
+      { id: "sixteenth", stepCount: 4, hits: [1, 1, 1, 1], group: "sixteenth" },
+      { id: "sixteenth-alternating", stepCount: 4, hits: [1, 0, 1, 0], group: "sixteenth" },
+      { id: "sixteenth-middle-rests", stepCount: 4, hits: [1, 0, 0, 1], group: "sixteenth" },
+      { id: "sixteenth-syncopated", stepCount: 4, hits: [1, 0, 1, 1], group: "sixteenth" },
+    ];
+    const digitPath = "M4 4.2C6.1 2.2 8.7 1.2 12 1.2c4.4 0 7.4 2.4 7.4 6 0 2.4-1.2 4.1-3.6 5.1 2.6 1 4 3 4 5.6 0 4.4-3.5 7-8.1 7-3.7 0-6.8-1.3-8.9-3.8l3.4-4c1.5 1.6 3.3 2.4 5.2 2.4 2 0 3.1-.8 3.1-2.1 0-1.5-1.3-2.2-4-2.2H8.2v-4.7h2.4c2.4 0 3.6-.7 3.6-2.1 0-1.3-1.1-2-2.8-2-1.6 0-3.2.7-4.6 1.9Z";
+
+    function notation(pattern, repaired, extendAlternating = true) {
+      const width = 120;
+      const left = 18;
+      const right = 102;
+      const stemTop = 13;
+      const noteY = 32;
+      const gap = pattern.stepCount > 1 ? (right - left) / (pattern.stepCount - 1) : 0;
+      const positions = Array.from({ length: pattern.stepCount }, (_, index) => left + gap * index);
+      const notes = positions.map((x, index) => pattern.hits[index]
+        ? `<g class="rhythm-note"><ellipse cx="${x}" cy="${noteY}" rx="5" ry="3.8" transform="rotate(-18 ${x} ${noteY})"></ellipse><path d="M ${x + 4} ${noteY - 1} V ${stemTop}"></path></g>`
+        : `<g class="rhythm-rest"><path d="M ${x - 3} ${stemTop + 4} l 6 5 -6 5 6 5 -5 7"></path></g>`).join("");
+      const hitPositions = positions.filter((_, index) => pattern.hits[index]);
+      const beamCount = pattern.group === "sixteenth" ? 2 : pattern.stepCount > 1 ? 1 : 0;
+      const beamEndX = extendAlternating && pattern.id === "sixteenth-alternating" ? right + 4 : hitPositions.at(-1) + 4;
+      const beams = beamCount && hitPositions.length > 1
+        ? Array.from({ length: beamCount }, (_, index) => `<path class="rhythm-beam" d="M ${hitPositions[0] + 4} ${stemTop + index * 5} H ${beamEndX}"></path>`).join("")
+        : "";
+      const offbeat = repaired && pattern.id === "eighth-offbeat"
+        ? `<path class="rhythm-beam rhythm-offbeat-line" data-offbeat-line="upper" d="M ${left + 4} ${stemTop} H ${right + 4}"></path>`
+        : "";
+      const triplet = pattern.group === "triplet" ? `<path class="rhythm-tuplet" d="M 15 7 H 107"></path><svg class="rhythm-triplet-glyph" x="51" y="-14.25" width="18" height="18" viewBox="-3 -2 30 30"><path d="${digitPath}" fill="#724523" stroke="#fffaf2" stroke-width="1.25" vector-effect="non-scaling-stroke"></path></svg>` : "";
+      return `<svg class="rhythm-notation" data-pattern="${pattern.id}" viewBox="0 0 120 44">${triplet}${beams}${offbeat}${notes}</svg>`;
+    }
+
+    for (const pattern of patterns) {
+      before.insertAdjacentHTML("beforeend", notation(pattern, false));
+      after.insertAdjacentHTML("beforeend", notation(pattern, true));
+    }
+    const alternatingPattern = patterns.find(({ id }) => id === "sixteenth-alternating");
+    alternatingBefore.insertAdjacentHTML("beforeend", notation(alternatingPattern, true, false));
+    alternatingAfter.insertAdjacentHTML("beforeend", notation(alternatingPattern, true, true));
+
+    const round = (value) => Math.round(value * 1000) / 1000;
+    function relativeBox(element, outer) {
+      const box = element.getBoundingClientRect();
+      const root = outer.getBoundingClientRect();
+      return { x: round(box.x - root.x), y: round(box.y - root.y), width: round(box.width), height: round(box.height) };
+    }
+    function metrics(root, id) {
+      const outer = root.querySelector(`[data-pattern="${id}"]`);
+      return {
+        html: outer.innerHTML,
+        outer: relativeBox(outer, outer),
+        notes: [...outer.querySelectorAll(".rhythm-note")].map((node) => relativeBox(node, outer)),
+        rests: [...outer.querySelectorAll(".rhythm-rest")].map((node) => relativeBox(node, outer)),
+        beams: [...outer.querySelectorAll(".rhythm-beam")].map((node) => ({
+          ...relativeBox(node, outer),
+          d: node.getAttribute("d"),
+          strokeWidth: getComputedStyle(node).strokeWidth,
+          strokeLinecap: getComputedStyle(node).strokeLinecap,
+        })),
+      };
+    }
+    const result = {
+      offbeatBefore: metrics(before, "eighth-offbeat"),
+      offbeatAfter: metrics(after, "eighth-offbeat"),
+      alternatingBefore: metrics(alternatingBefore, "sixteenth-alternating"),
+      alternatingAfter: metrics(alternatingAfter, "sixteenth-alternating"),
+      unchanged: Object.fromEntries(patterns.filter(({ id }) => id !== "eighth-offbeat").map(({ id }) => [id, {
+        before: metrics(before, id),
+        after: metrics(after, id),
+      }])),
+    };
+    document.querySelector("#result").textContent = JSON.stringify(result);
+  </script>
+</body>
+</html>
