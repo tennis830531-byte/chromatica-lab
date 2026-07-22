@@ -3,14 +3,14 @@
 
   const core = global.ChromaticaLeaderboardCore;
   const PLACEHOLDER_AVATAR = "./public/assets/chromatic-refresh/brand/chl_brand_badge.png";
-  const CACHE_PREFIX = "chromatica.leaderboard.cache.v1";
-  const QUEUE_PREFIX = "chromatica.leaderboard.pending.v1";
+  const CACHE_PREFIX = "chromatica.leaderboard.weekly.cache.v2";
+  const QUEUE_PREFIX = "chromatica.leaderboard.weekly.pending.v2";
+  const RANK_SHOWN_PREFIX = "chromatica.leaderboard.rankShown.v1";
   const PROFILE_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
   let initialized = false;
-  let activeMetric = "practice";
+  let activeMetric = "weekly";
   let modalOpen = false;
   let profileOpen = false;
-  let leaveOpen = false;
   let refreshTimer = null;
   let refreshFlight = null;
   let queueFlight = null;
@@ -23,6 +23,7 @@
   let pendingAvatarFile = null;
   let resetCustomAvatar = false;
   let previewObjectUrl = "";
+  let pendingRankMovement = null;
 
   const $ = (selector) => document.querySelector(selector);
 
@@ -42,6 +43,10 @@
     return `${QUEUE_PREFIX}.${userId}`;
   }
 
+  function rankShownKey(userId) {
+    return `${RANK_SHOWN_PREFIX}.${userId}`;
+  }
+
   function readJson(storage, key, fallback) {
     try {
       return JSON.parse(storage.getItem(key)) ?? fallback;
@@ -57,8 +62,23 @@
     element.dataset.kind = kind;
   }
 
+  function classifyLeaderboardError(error) {
+    const code = String(error?.code || error?.status || "").toUpperCase();
+    const message = String(error?.message || "").toLowerCase();
+    if (code === "PGRST202" || /function .* does not exist|schema cache|could not find the function/.test(message)) {
+      return { kind: "service-updating", message: "排行榜服務正在更新中" };
+    }
+    if (["401", "403", "PGRST301"].includes(code) || /jwt|auth-required|not authenticated|unauthorized/.test(message)) {
+      return { kind: "auth", message: "登入狀態已失效，請重新登入" };
+    }
+    if (/failed to fetch|network|offline|load failed|timeout/.test(message)) {
+      return { kind: "offline", message: "目前無法連線，請稍後再試" };
+    }
+    return { kind: "unknown", message: "排行榜暫時無法載入，請稍後再試" };
+  }
+
   function updateModalOpenClass() {
-    document.body.classList.toggle("modal-open", modalOpen || profileOpen || leaveOpen);
+    document.body?.classList.toggle("modal-open", modalOpen || profileOpen);
   }
 
   function getFeaturedSpirit() {
@@ -110,7 +130,14 @@
     const signedIn = Boolean(getPublicUser());
     $("#leaderboardLoginPrompt")?.classList.toggle("hidden", signedIn);
     $("#leaderboardOwnProfile")?.classList.toggle("hidden", joined !== true);
-    $("#leaderboardProfileEdit")?.toggleAttribute("disabled", joined !== true);
+    const membership = $("#leaderboardAccountMembership");
+    if (membership) membership.textContent = !signedIn ? "請先登入" : joined === true ? "已加入" : joined === false ? "尚未加入" : "確認中";
+    const edit = $("#leaderboardProfileEdit");
+    if (edit) {
+      edit.disabled = !signedIn || membershipUnavailable;
+      edit.textContent = joined === true ? "編輯公開資料／更換頭像" : "前往排行榜完成首次設定";
+    }
+    global.ChromaticaPushNotifications?.setMembership?.(joined === true);
   }
 
   function renderOwnProfile() {
@@ -179,7 +206,7 @@
   function invalidateCache() {
     const user = getPublicUser();
     if (!user?.id) return;
-    ["practice", "streak"].forEach((metric) => sessionStorage.removeItem(cacheKey(metric, user.id)));
+    sessionStorage.removeItem(cacheKey("weekly", user.id));
   }
 
   function podiumClass(position) {
@@ -224,9 +251,8 @@
         custom_avatar_path: row.customAvatarPath,
         avatar_version: row.avatarVersion,
       }));
-      const player = document.createElement("div");
-      player.className = "leaderboard-player";
       const name = document.createElement("strong");
+      name.className = "leaderboard-name";
       name.textContent = row.isCurrentUser ? `${row.displayName}（你）` : row.displayName;
       const spirit = document.createElement("span");
       spirit.className = "leaderboard-spirit";
@@ -238,23 +264,40 @@
       const spiritName = document.createElement("span");
       spiritName.textContent = row.featuredSpiritName || "尚未展示精靈";
       spirit.append(spiritImage, spiritName);
-      player.append(name, spirit);
       const score = document.createElement("strong");
       score.className = "leaderboard-score";
-      score.textContent = metric === "streak" ? `連續學習 ${row.score} 天` : `練習循環 ${row.score} 次`;
-      item.append(rank, avatar, player, score);
+      score.textContent = `本週 ${row.score} 次`;
+      item.append(rank, avatar, name, spirit, score);
       list.append(item);
     });
+    animatePendingRankMovement();
+  }
+
+  function animatePendingRankMovement() {
+    const movement = pendingRankMovement;
+    if (!movement) return;
+    const row = $(".leaderboard-row.is-me");
+    if (!row) return;
+    pendingRankMovement = null;
+    const reduced = global.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    row.dataset.rankMovement = `${movement.previousRank || "榜外"}→${movement.nextRank}`;
+    if (reduced || typeof row.animate !== "function") {
+      row.classList.add("rank-movement-highlight");
+      global.setTimeout(() => row.classList.remove("rank-movement-highlight"), 900);
+      return;
+    }
+    const rowHeight = Math.max(64, row.getBoundingClientRect().height + 9);
+    const rankDistance = movement.previousRank ? Math.max(1, movement.previousRank - movement.nextRank) : 3;
+    const startY = Math.min(rowHeight * rankDistance, rowHeight * 6);
+    row.animate([
+      { transform: `translateY(${startY}px)`, opacity: movement.enteredTopRows ? .35 : .72 },
+      { transform: "translateY(-6px)", opacity: 1, offset: .82 },
+      { transform: "translateY(0)", opacity: 1 },
+    ], { duration: 850, easing: "cubic-bezier(.2,.85,.3,1)", fill: "both" });
   }
 
   async function loadLeaderboard(metric = activeMetric, { force = false } = {}) {
     activeMetric = core.normalizeMetric(metric);
-    document.querySelectorAll("[data-leaderboard-metric]").forEach((button) => {
-      const active = button.dataset.leaderboardMetric === activeMetric;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-selected", String(active));
-    });
-    $("#leaderboardPracticePeriod")?.classList.toggle("hidden", activeMetric !== "practice");
     if (!getPublicUser()) {
       renderLeaderboardRows([], activeMetric);
       setStatus("請先登入，即可查看全球排行榜。", "");
@@ -273,7 +316,7 @@
     }
     if (refreshFlight) return refreshFlight;
     setStatus("正在更新排行榜…", "");
-    refreshFlight = rpc("get_global_leaderboard", { p_metric: activeMetric })
+    refreshFlight = rpc("get_weekly_leaderboard")
       .then((rows) => {
         const normalized = core.normalizeLeaderboardRows(rows, activeMetric);
         writeCache(activeMetric, normalized.map((row) => ({
@@ -293,8 +336,10 @@
         return rows;
       })
       .catch((error) => {
-        setStatus(cache?.rows ? "目前離線，先顯示最近一次排行。" : "排行榜暫時無法載入，請稍後再試。", "error");
-        console.warn("Leaderboard refresh failed.", error?.message || error);
+        const classified = classifyLeaderboardError(error);
+        const message = cache?.rows && classified.kind === "offline" ? "目前離線，先顯示最近一次排行。" : classified.message;
+        setStatus(message, "error");
+        console.warn("Leaderboard refresh failed.", classified.kind);
         return cache?.rows || [];
       })
       .finally(() => { refreshFlight = null; });
@@ -334,7 +379,6 @@
     if ($("#leaderboardProfileConsent")) $("#leaderboardProfileConsent").checked = false;
     if ($("#leaderboardProfileSubmit")) $("#leaderboardProfileSubmit").textContent = onboarding ? "同意並加入排行榜" : "儲存公開資料";
     if ($("#leaderboardProfileTitle")) $("#leaderboardProfileTitle").textContent = onboarding ? "設定排行榜公開資料" : "編輯名字與頭像";
-    $("#leaderboardLeaveButton")?.classList.toggle("hidden", onboarding);
     profileOpen = true;
     $("#leaderboardProfileModal")?.classList.remove("hidden");
     updateModalOpenClass();
@@ -400,10 +444,12 @@
       }
       invalidateCache();
       renderOwnProfile();
+      const completedOnboarding = profileOnboarding;
+      if (completedOnboarding) {
+        modalOpen = true;
+        $("#leaderboardModal")?.classList.remove("hidden");
+      }
       closeProfileEditor();
-      modalOpen = true;
-      $("#leaderboardModal")?.classList.remove("hidden");
-      updateModalOpenClass();
       await loadLeaderboard(activeMetric, { force: true });
     } catch (error) {
       showProfileError(profileOnboarding ? "公開資料尚未建立；請確認圖片與網路後再試。" : "公開資料儲存失敗，原本資料已保留；請確認網路後再試。");
@@ -416,6 +462,42 @@
   function readPendingEvents(userId) {
     const events = readJson(localStorage, queueKey(userId), []);
     return (Array.isArray(events) ? events : []).map(core.normalizePracticeEvent).filter((event) => event.eventId);
+  }
+
+  function currentCachedRank() {
+    const rows = core.normalizeLeaderboardRows(readCache("weekly")?.rows, "weekly");
+    return rows.find((row) => row.isCurrentUser)?.position || null;
+  }
+
+  function rankMovementAlreadyShown(userId, eventId) {
+    if (!eventId) return true;
+    const shown = readJson(localStorage, rankShownKey(userId), []);
+    return Array.isArray(shown) && shown.includes(eventId);
+  }
+
+  function markRankMovementShown(userId, eventId) {
+    const shown = readJson(localStorage, rankShownKey(userId), []);
+    const next = [...new Set([...(Array.isArray(shown) ? shown : []), eventId])].slice(-100);
+    localStorage.setItem(rankShownKey(userId), JSON.stringify(next));
+  }
+
+  async function presentRankMovement(movement) {
+    const user = getPublicUser();
+    if (!user?.id || !movement || rankMovementAlreadyShown(user.id, movement.eventId)) return;
+    markRankMovementShown(user.id, movement.eventId);
+    const show = async () => {
+      pendingRankMovement = movement;
+      modalOpen = true;
+      $("#leaderboardModal")?.classList.remove("hidden");
+      updateModalOpenClass();
+      setStatus(`名次從第 ${movement.previousRank || "15 名外"} 前進到第 ${movement.nextRank} 名！`, "success");
+      await loadLeaderboard("weekly", { force: true });
+    };
+    if (global.chromaticaApp?.isPracticeRewardAnimationRunning?.()) {
+      global.addEventListener("chromatica:practice-reward-complete", () => void show(), { once: true });
+    } else {
+      await show();
+    }
   }
 
   function writePendingEvents(userId, events) {
@@ -432,15 +514,17 @@
       while (pending.length && joined === true) {
         const event = pending[0];
         try {
-          await rpc("record_leaderboard_practice", {
+          const result = unwrapSingle(await rpc("record_weekly_leaderboard_practice", {
             p_event_id: event.eventId,
             p_completed_cycles: event.completedCycles,
             p_practice_date: event.practiceDate,
             p_protected_dates: event.protectedDates,
-          });
+          })) || {};
           pending.shift();
           writePendingEvents(user.id, pending);
           invalidateCache();
+          const movement = core.createRankMovement(result.previous_rank ?? event.previousRank, result.current_rank, event.eventId);
+          if (movement) void presentRankMovement(movement);
         } catch (error) {
           console.warn("Leaderboard progress remains queued.", error?.message || error);
           break;
@@ -464,12 +548,14 @@
   function enqueuePracticeCompletion(completedCycles, practiceDate, protectedDates) {
     const user = getPublicUser();
     if (!user?.id || isQaActive() || joined !== true) return false;
-    const event = core.normalizePracticeEvent({ eventId: createEventId(), completedCycles, practiceDate, protectedDates });
+    const event = core.normalizePracticeEvent({ eventId: createEventId(), completedCycles, practiceDate, protectedDates, previousRank: currentCachedRank() });
     if (!event.practiceDate || !event.protectedDates.length) return false;
     const pending = readPendingEvents(user.id);
     pending.push(event);
     writePendingEvents(user.id, pending);
-    void syncOwnProfile().then(flushPendingEvents);
+    void syncOwnProfile().then(flushPendingEvents).catch((error) => {
+      console.warn("Leaderboard queued sync failed.", classifyLeaderboardError(error).kind);
+    });
     return true;
   }
 
@@ -484,77 +570,38 @@
     return false;
   }
 
-  function openLeaveConfirmation() {
-    if (joined !== true) return;
-    leaveOpen = true;
-    $("#leaderboardLeaveModal")?.classList.remove("hidden");
-    updateModalOpenClass();
-    requestAnimationFrame(() => $("#leaderboardLeaveCancel")?.focus());
-  }
-
-  function closeLeaveConfirmation() {
-    leaveOpen = false;
-    $("#leaderboardLeaveModal")?.classList.add("hidden");
-    updateModalOpenClass();
-  }
-
-  async function leaveLeaderboard() {
-    const user = getPublicUser();
-    if (!user?.id || joined !== true) return;
-    const button = $("#leaderboardLeaveConfirm");
-    if (button) button.disabled = true;
-    const oldAvatarPath = profile?.custom_avatar_path || "";
-    try {
-      await rpc("leave_global_leaderboard");
-      joined = false;
-      profile = null;
-      writePendingEvents(user.id, []);
-      invalidateCache();
-      closeLeaveConfirmation();
-      closeProfileEditor();
-      renderMembership();
-      if (oldAvatarPath) void authApi()?.deleteLeaderboardAvatar?.(oldAvatarPath);
-      modalOpen = false;
-      $("#leaderboardModal")?.classList.add("hidden");
-      setStatus("已退出排行榜；公開資料已隱藏，之後不會提交成績。", "");
-    } catch (error) {
-      setStatus("退出排行榜失敗，請稍後再試。", "error");
-      console.warn("Leaderboard leave failed.", error?.message || error);
-    } finally {
-      if (button) button.disabled = false;
-    }
-  }
-
-  async function open() {
+  async function openUnsafe() {
+    const modal = $("#leaderboardModal");
+    if (!modal) return false;
     if (!getPublicUser()) {
       modalOpen = true;
-      $("#leaderboardModal")?.classList.remove("hidden");
+      modal.classList.remove("hidden");
       renderMembership();
       await loadLeaderboard(activeMetric);
       updateModalOpenClass();
-      return;
+      return true;
     }
     await ensureMembership({ force: true });
     if (membershipUnavailable) {
       modalOpen = true;
       profileOpen = false;
       $("#leaderboardProfileModal")?.classList.add("hidden");
-      $("#leaderboardModal")?.classList.remove("hidden");
+      modal.classList.remove("hidden");
       renderMembership();
       renderLeaderboardRows([], activeMetric);
-      setStatus("排行榜服務正在準備中，請稍後再試。", "error");
+      setStatus("排行榜服務正在更新中", "error");
       updateModalOpenClass();
       requestAnimationFrame(() => $("#leaderboardModalClose")?.focus());
-      return;
+      return true;
     }
     if (!joined) {
       modalOpen = false;
       $("#leaderboardModal")?.classList.add("hidden");
       openProfileEditor({ onboarding: true });
-      return;
+      return true;
     }
     modalOpen = true;
-    $("#leaderboardModal")?.classList.remove("hidden");
+    modal.classList.remove("hidden");
     updateModalOpenClass();
     try {
       await syncOwnProfile();
@@ -568,10 +615,30 @@
       if (modalOpen && !document.hidden) void loadLeaderboard(activeMetric, { force: true });
     }, PROFILE_REFRESH_INTERVAL_MS);
     requestAnimationFrame(() => $("#leaderboardModalClose")?.focus());
+    return true;
+  }
+
+  async function open() {
+    try {
+      return await openUnsafe();
+    } catch (error) {
+      const modal = $("#leaderboardModal");
+      if (!modal) return false;
+      modalOpen = true;
+      profileOpen = false;
+      $("#leaderboardProfileModal")?.classList.add("hidden");
+      modal.classList.remove("hidden");
+      renderLeaderboardRows([], activeMetric);
+      const classified = classifyLeaderboardError(error);
+      setStatus(classified.message, "error");
+      updateModalOpenClass();
+      console.warn("Leaderboard open failed.", classified.kind);
+      requestAnimationFrame(() => $("#leaderboardModalClose")?.focus());
+      return false;
+    }
   }
 
   function close() {
-    if (leaveOpen) { closeLeaveConfirmation(); return true; }
     if (profileOpen) { closeProfileEditor(); return true; }
     if (!modalOpen) return false;
     modalOpen = false;
@@ -585,7 +652,6 @@
   function resetForSignedOutAccount() {
     modalOpen = false;
     profileOpen = false;
-    leaveOpen = false;
     joined = null;
     membershipUnavailable = false;
     profile = null;
@@ -593,26 +659,35 @@
     refreshTimer = null;
     $("#leaderboardModal")?.classList.add("hidden");
     $("#leaderboardProfileModal")?.classList.add("hidden");
-    $("#leaderboardLeaveModal")?.classList.add("hidden");
     updateModalOpenClass();
+  }
+
+  function resetAfterAccountDataClear() {
+    const user = getPublicUser();
+    if (user?.id) {
+      writePendingEvents(user.id, []);
+      sessionStorage.removeItem(cacheKey("weekly", user.id));
+      localStorage.removeItem(rankShownKey(user.id));
+    }
+    joined = false;
+    membershipUnavailable = false;
+    profile = null;
+    pendingRankMovement = null;
+    renderOwnProfile();
   }
 
   function bind() {
     $("#leaderboardModalClose")?.addEventListener("click", close);
     $("#leaderboardModal")?.addEventListener("click", (event) => { if (event.target.id === "leaderboardModal") close(); });
-    document.querySelectorAll("[data-leaderboard-metric]").forEach((button) => {
-      button.addEventListener("click", () => void loadLeaderboard(button.dataset.leaderboardMetric));
+    $("#leaderboardProfileEdit")?.addEventListener("click", () => {
+      if (joined === true) openProfileEditor();
+      else void open();
     });
-    $("#leaderboardProfileEdit")?.addEventListener("click", () => openProfileEditor());
     $("#leaderboardProfileClose")?.addEventListener("click", closeProfileEditor);
     $("#leaderboardProfileCancel")?.addEventListener("click", closeProfileEditor);
     $("#leaderboardProfileModal")?.addEventListener("click", (event) => { if (event.target.id === "leaderboardProfileModal") closeProfileEditor(); });
     $("#leaderboardProfileForm")?.addEventListener("submit", saveProfile);
     $("#leaderboardProfileName")?.addEventListener("input", () => showProfileError());
-    $("#leaderboardLeaveButton")?.addEventListener("click", openLeaveConfirmation);
-    $("#leaderboardLeaveCancel")?.addEventListener("click", closeLeaveConfirmation);
-    $("#leaderboardLeaveConfirm")?.addEventListener("click", () => void leaveLeaderboard());
-    $("#leaderboardLeaveModal")?.addEventListener("click", (event) => { if (event.target.id === "leaderboardLeaveModal") closeLeaveConfirmation(); });
     $("#leaderboardProfileAvatarInput")?.addEventListener("change", (event) => {
       const file = event.target.files?.[0] || null;
       if (!file) return;
@@ -629,7 +704,7 @@
       showProfileError();
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && (leaveOpen || profileOpen || modalOpen)) {
+      if (event.key === "Escape" && (profileOpen || modalOpen)) {
         event.preventDefault();
         close();
       }
@@ -649,8 +724,16 @@
     initialized = true;
     bind();
     renderMembership();
-    if (getPublicUser()) void ensureMembership().then((isJoined) => {
-      if (isJoined) void syncOwnProfile().then(flushPendingEvents);
+    if (getPublicUser()) void ensureMembership().then(async (isJoined) => {
+      if (!isJoined) return;
+      try {
+        await syncOwnProfile();
+        await flushPendingEvents();
+      } catch (error) {
+        console.warn("Leaderboard initialization failed.", classifyLeaderboardError(error).kind);
+      }
+    }).catch((error) => {
+      console.warn("Leaderboard membership initialization failed.", classifyLeaderboardError(error).kind);
     });
   }
 
@@ -661,13 +744,15 @@
     recordPracticeCompletion,
     flushPendingEvents,
     resetForSignedOutAccount,
+    resetAfterAccountDataClear,
+    openProfileSettings() { if (joined === true) openProfileEditor(); else void open(); },
+    getMembership() { return { joined, profile: profile ? { ...profile } : null }; },
     getDiagnostics() {
       return {
         initialized,
         joined,
         modalOpen,
         profileOpen,
-        leaveOpen,
         activeMetric,
         refreshTimerActive: Boolean(refreshTimer),
         refreshInFlight: Boolean(refreshFlight),

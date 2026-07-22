@@ -6,6 +6,9 @@ export const DAILY_GOAL_KEY_PREFIX = "chromatica-daily-goal-";
 
 export const ACCOUNT_SCOPED_KEYS = Object.freeze([
   "chromatica.settings.practice",
+  "chromatica.settings.tuningA4",
+  "chromatica.settings.leaderboardWeeklyResults",
+  "chromatica.settings.leaderboardTopTenChanges",
   "chromatica.intervalPracticeHistory",
   "chromatica.homeSpiritTapReward",
   "chromatica.waterDrops",

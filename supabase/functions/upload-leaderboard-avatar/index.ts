@@ -31,13 +31,14 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:5173",
 ]);
 
-function corsHeaders(origin: string | null) {
-  return origin && ALLOWED_ORIGINS.has(origin) ? {
+function corsHeaders(origin: string | null): Record<string, string> {
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) return {};
+  return {
     "Access-Control-Allow-Origin": origin,
     "Vary": "Origin",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-  } : {};
+  };
 }
 
 function json(origin: string | null, status: number, body: Record<string, unknown>) {

@@ -26,8 +26,8 @@
       && !/[\u0000-\u001f\u007f-\u009f]/u.test(normalized);
   }
 
-  function normalizeMetric(value) {
-    return value === "streak" ? "streak" : "practice";
+  function normalizeMetric() {
+    return "weekly";
   }
 
   function normalizeLeaderboardRow(row = {}, metric = "practice") {
@@ -79,6 +79,27 @@
       practiceDate,
       protectedDates,
       createdAt: typeof event.createdAt === "string" ? event.createdAt : new Date().toISOString(),
+      previousRank: Number.isInteger(Number(event.previousRank)) && Number(event.previousRank) > 0
+        ? Number(event.previousRank)
+        : null,
+    };
+  }
+
+  function shouldShowRankMovement(previousRank, nextRank) {
+    const before = Number(previousRank);
+    const after = Number(nextRank);
+    return Number.isInteger(after) && after > 0
+      && (!Number.isInteger(before) || before <= 0 || after < before);
+  }
+
+  function createRankMovement(previousRank, nextRank, eventId = "") {
+    if (!shouldShowRankMovement(previousRank, nextRank)) return null;
+    const normalizedPreviousRank = Number.isInteger(Number(previousRank)) && Number(previousRank) > 0 ? Number(previousRank) : null;
+    return {
+      previousRank: normalizedPreviousRank,
+      nextRank: Number(nextRank),
+      eventId: String(eventId || ""),
+      enteredTopRows: (normalizedPreviousRank === null || normalizedPreviousRank > MAX_TOP_ROWS) && Number(nextRank) <= MAX_TOP_ROWS,
     };
   }
 
@@ -96,5 +117,7 @@
     shouldInsertSelfSeparator,
     isCacheFresh,
     normalizePracticeEvent,
+    shouldShowRankMovement,
+    createRankMovement,
   });
 })(typeof window !== "undefined" ? window : globalThis);

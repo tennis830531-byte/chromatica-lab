@@ -13,14 +13,14 @@ const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 const build = fs.readFileSync(path.join(root, "scripts/build-web.mjs"), "utf8");
 const sw = fs.readFileSync(path.join(root, "sw.js"), "utf8");
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/202607210001_create_global_leaderboards.sql"), "utf8");
+const weeklyMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607210002_create_weekly_leaderboard_announcements.sql"), "utf8");
 const avatarFunction = fs.readFileSync(path.join(root, "supabase/functions/upload-leaderboard-avatar/index.ts"), "utf8");
 
-test("global leaderboard exposes practice and streak rankings with the refresh-170 period note", () => {
-  assert.match(html, /data-leaderboard-metric="practice"[^>]*>練習王/);
-  assert.match(html, /data-leaderboard-metric="streak"[^>]*>連續學習王/);
-  assert.match(html, /自 refresh-170 起累積/);
-  assert.match(runtime, /練習循環 \$\{row\.score\} 次/);
-  assert.match(runtime, /連續學習 \$\{row\.score\} 天/);
+test("global leaderboard exposes only the weekly 乖乖練習王", () => {
+  assert.match(html, /乖乖練習王/);
+  assert.doesNotMatch(html, /data-leaderboard-metric="streak"|連續學習王|自 refresh-170 起累積|歷史總循環/);
+  assert.match(runtime, /本週 \$\{row\.score\} 次/);
+  assert.doesNotMatch(runtime, /連續學習 \$\{row\.score\} 天/);
 });
 
 test("ranking query returns top fifteen and current user with stable tie ordering", () => {
@@ -65,15 +65,18 @@ test("unauthenticated and incomplete profiles cannot fetch rankings", () => {
   assert.match(migration, /is_active = true and profile_completed = true and consented_at is not null/);
 });
 
-test("opening an incomplete account goes directly to profile setup without reading the list", () => {
-  assert.match(runtime, /ensureMembership\(\{ force: true \}\)[\s\S]*if \(!joined\)[\s\S]*openProfileEditor\(\{ onboarding: true \}\)[\s\S]*return/);
+test("an incomplete account enters onboarding from the leaderboard while member settings only links there", () => {
+  assert.match(runtime, /if \(!joined\)[\s\S]*openProfileEditor\(\{ onboarding: true \}\)/);
+  assert.match(html, /id="leaderboardAccountSection"[\s\S]*排行榜公開資料/);
+  assert.match(html, /id="leaderboardProfileEdit"[^>]*>前往排行榜完成首次設定/);
+  assert.match(runtime, /leaderboardProfileEdit[\s\S]*if \(joined === true\) openProfileEditor\(\);[\s\S]*else void open\(\)/);
   assert.match(runtime, /onboarding \? "" : core\.normalizeDisplayName/);
 });
 
 test("an unavailable backend shows one friendly status instead of opening public profile setup", () => {
   assert.match(runtime, /\.catch\(\(error\) => \{[\s\S]*membershipUnavailable = true/);
-  const unavailable = runtime.match(/if \(membershipUnavailable\) \{[\s\S]*?return;[\s\S]*?\}/)?.[0] || "";
-  assert.match(unavailable, /排行榜服務正在準備中，請稍後再試。/);
+  const unavailable = runtime.match(/if \(membershipUnavailable\) \{[\s\S]*?return true;\s*\}/)?.[0] || "";
+  assert.match(unavailable, /排行榜服務正在更新中/);
   assert.match(unavailable, /renderLeaderboardRows\(\[\], activeMetric\)/);
   assert.doesNotMatch(unavailable, /openProfileEditor/);
 });
@@ -126,19 +129,20 @@ test("public avatar references use an opaque prefix instead of the raw Supabase 
   assert.match(migration, /split_part\(v_avatar_path, '\/', 1\) <> md5\(v_user_id::text\)/);
 });
 
-test("leaving hides the profile and clears account cache and pending queue", () => {
-  assert.match(html, /id="leaderboardLeaveButton"/);
-  assert.match(runtime, /leave_global_leaderboard/);
-  assert.match(runtime, /writePendingEvents\(user\.id, \[\]\)/);
-  assert.match(runtime, /invalidateCache\(\)/);
-  assert.match(migration, /profile_completed = false/);
-  assert.match(migration, /consented_at = null/);
+test("ordinary users have no leaderboard leave entry or public client helper", () => {
+  assert.doesNotMatch(html, /退出排行榜|離開排行榜|停止參加|leaderboardAccountLeave|leaderboardLeaveModal/);
+  assert.doesNotMatch(runtime, /leave_global_leaderboard|leaveLeaderboard|openLeaveConfirmation/);
+  assert.doesNotMatch(auth, /"leave_global_leaderboard"/);
 });
 
-test("leaving requires full setup and consent again", () => {
-  assert.match(runtime, /joined = false/);
-  assert.match(runtime, /openProfileEditor\(\{ onboarding: true \}\)/);
-  assert.match(runtime, /leaderboardProfileConsent[\s\S]*checked = false/);
+test("high-risk clear-all flow alone resets the current user's leaderboard data", () => {
+  assert.match(auth, /resetCurrentWorkspace[\s\S]*supabaseClient\.rpc\("reset_my_leaderboard_data"\)/);
+  assert.doesNotMatch(auth.match(/LEADERBOARD_RPC_ALLOWLIST[\s\S]*?\]\);/)?.[0] || "", /reset_my_leaderboard_data/);
+  assert.match(weeklyMigration, /create or replace function public\.reset_my_leaderboard_data\(\)/);
+  assert.match(weeklyMigration, /v_user_id uuid := auth\.uid\(\)/);
+  for (const table of ["leaderboard_profiles", "weekly_leaderboard_scores", "weekly_leaderboard_results", "leaderboard_practice_events", "leaderboard_weekly_rank_state", "leaderboard_notification_queue", "leaderboard_notification_deliveries", "leaderboard_push_preferences"]) {
+    assert.match(weeklyMigration, new RegExp(`delete from public\\.${table} where user_id = v_user_id`));
+  }
 });
 
 test("unfinished or inactive accounts neither queue nor flush practice events", () => {
@@ -225,7 +229,7 @@ test("leaderboard remains a ten minute foreground refresh without realtime", () 
 
 test("leaderboard data is isolated from account snapshot and QA garden", () => {
   assert.match(runtime, /isQaActive\(\)/);
-  assert.match(runtime, /chromatica\.leaderboard\.pending\.v1/);
+  assert.match(runtime, /chromatica\.leaderboard\.weekly\.pending\.v2/);
   assert.doesNotMatch(runtime, /scheduleAccountSnapshotSave|flushSave|syncBestEffort|save_game_state/);
   assert.match(app, /isQaActive: isGardenQaSessionActive/);
 });

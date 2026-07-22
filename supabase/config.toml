@@ -385,6 +385,12 @@ deno_version = 2
 [functions.upload-leaderboard-avatar]
 verify_jwt = true
 
+[functions.upload-announcement-image]
+verify_jwt = true
+
+[functions.process-leaderboard-notifications]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
