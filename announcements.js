@@ -1,0 +1,244 @@
+(function initAnnouncements(global) {
+  "use strict";
+
+  const CACHE_KEY = "chromatica.announcements.cache.v1";
+  const CACHE_TTL_MS = 5 * 60 * 1000;
+  const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+  let initialized = false;
+  let runtimePreviewShown = false;
+  let activeAnnouncement = null;
+  let adminEditingId = null;
+
+  const $ = (selector) => document.querySelector(selector);
+  const auth = () => global.chromaticaAuth;
+
+  function truncateGraphemes(value, limit = 10) {
+    const text = String(value || "");
+    const segments = typeof Intl?.Segmenter === "function"
+      ? [...new Intl.Segmenter("zh-Hant", { granularity: "grapheme" }).segment(text)].map((item) => item.segment)
+      : Array.from(text);
+    return segments.length > limit ? `${segments.slice(0, limit).join("")}…` : segments.join("");
+  }
+
+  function formatPublishedAt(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "" : new Intl.DateTimeFormat("zh-TW", {
+      timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+    }).format(date);
+  }
+
+  function createUi() {
+    if ($("#announcementPreviewModal")) return;
+    const root = document.createElement("div");
+    root.id = "announcementUiRoot";
+    root.innerHTML = `
+      <div id="announcementPreviewModal" class="announcement-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="announcementPreviewTitle"><article class="announcement-modal paper-card"><button class="announcement-close" data-announcement-close type="button" aria-label="關閉公告">×</button><p id="announcementPreviewTopic" class="eyebrow"></p><h2 id="announcementPreviewTitle"></h2><time id="announcementPreviewTime"></time><img id="announcementPreviewImage" class="announcement-preview-image hidden" alt="" /><p id="announcementPreviewBody"></p><div class="announcement-actions"><button data-announcement-close type="button">稍後再看</button><button id="announcementReadMore" class="primary-btn" type="button">查看完整公告</button></div></article></div>
+      <div id="announcementFullModal" class="announcement-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="announcementFullTitle"><article class="announcement-modal announcement-full paper-card"><button class="announcement-close" data-announcement-full-close type="button" aria-label="關閉完整公告">×</button><p id="announcementFullTopic" class="eyebrow"></p><h2 id="announcementFullTitle"></h2><time id="announcementFullTime"></time><img id="announcementFullImage" class="announcement-full-image hidden" alt="" /><p id="announcementFullBody"></p></article></div>
+      <div id="announcementListModal" class="announcement-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="announcementListTitle"><section class="announcement-modal paper-card"><button class="announcement-close" data-announcement-list-close type="button" aria-label="關閉公告列表">×</button><h2 id="announcementListTitle">公告</h2><p id="announcementListStatus" role="status"></p><div id="announcementList" class="announcement-list"></div></section></div>
+      <div id="announcementAdminModal" class="announcement-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="announcementAdminTitle"><section class="announcement-modal announcement-admin paper-card"><button class="announcement-close" data-announcement-admin-close type="button" aria-label="關閉公告管理">×</button><h2 id="announcementAdminTitle">公告管理</h2><div id="announcementAdminList" class="announcement-list"></div><form id="announcementAdminForm"><label>大主題<input id="announcementAdminTopic" maxlength="30" required /></label><label>標題<input id="announcementAdminHeadline" maxlength="80" required /></label><label>內容<textarea id="announcementAdminBody" maxlength="5000" required></textarea></label><label>發布日期時間<input id="announcementAdminPublishedAt" type="datetime-local" required /></label><label>公告圖片<input id="announcementAdminImage" type="file" accept="image/jpeg,image/png,image/webp" /></label><p id="announcementAdminStatus" role="status"></p><div class="announcement-actions"><button id="announcementAdminNew" type="button">新增</button><button name="intent" value="draft" type="submit">儲存草稿</button><button class="primary-btn" name="intent" value="publish" type="submit">發布</button><button id="announcementAdminUnpublish" type="button">取消發布</button><button id="announcementAdminPreview" type="button">預覽</button></div></form></section></div>`;
+    document.body.append(root);
+  }
+
+  function readCache() {
+    try {
+      const cache = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "null");
+      return cache && Date.now() - Number(cache.savedAt) < CACHE_TTL_MS && Array.isArray(cache.rows) ? cache.rows : null;
+    } catch { return null; }
+  }
+
+  async function fetchPublished({ force = false } = {}) {
+    const cached = !force && readCache();
+    if (cached) return cached;
+    const { data, error } = await auth()?.leaderboardRpc?.("get_published_announcements") || {};
+    if (error) throw error;
+    const rows = Array.isArray(data) ? data : [];
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt: Date.now(), rows }));
+    return rows;
+  }
+
+  function assignImage(image, announcement, preview = false) {
+    const source = auth()?.getAnnouncementImageUrl?.(announcement?.image_path, announcement?.image_version) || "";
+    image.classList.toggle("hidden", !source);
+    if (!source) { image.removeAttribute("src"); return; }
+    image.onerror = () => { image.onerror = null; image.classList.add("hidden"); image.removeAttribute("src"); };
+    image.alt = preview ? "公告縮圖" : "公告圖片";
+    image.src = source;
+  }
+
+  function setModalOpen(selector, open) {
+    $(selector)?.classList.toggle("hidden", !open);
+    document.body.classList.toggle("modal-open", open || Boolean(document.querySelector(".announcement-backdrop:not(.hidden)")));
+  }
+
+  function showPreview(announcement) {
+    if (!announcement) return;
+    activeAnnouncement = announcement;
+    $("#announcementPreviewTopic").textContent = announcement.large_topic || "公告";
+    $("#announcementPreviewTitle").textContent = announcement.title || "";
+    $("#announcementPreviewTime").textContent = formatPublishedAt(announcement.published_at);
+    $("#announcementPreviewBody").textContent = truncateGraphemes(announcement.body, 10);
+    assignImage($("#announcementPreviewImage"), announcement, true);
+    setModalOpen("#announcementPreviewModal", true);
+  }
+
+  function showFull(announcement = activeAnnouncement) {
+    if (!announcement) return;
+    activeAnnouncement = announcement;
+    setModalOpen("#announcementPreviewModal", false);
+    $("#announcementFullTopic").textContent = announcement.large_topic || "公告";
+    $("#announcementFullTitle").textContent = announcement.title || "";
+    $("#announcementFullTime").textContent = formatPublishedAt(announcement.published_at);
+    $("#announcementFullBody").textContent = announcement.body || "";
+    assignImage($("#announcementFullImage"), announcement);
+    setModalOpen("#announcementFullModal", true);
+  }
+
+  async function showList() {
+    setModalOpen("#announcementListModal", true);
+    const list = $("#announcementList");
+    const status = $("#announcementListStatus");
+    list.replaceChildren();
+    status.textContent = "正在載入公告…";
+    try {
+      const rows = await fetchPublished({ force: true });
+      status.textContent = rows.length ? "" : "目前沒有公告。";
+      rows.forEach((announcement) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "announcement-list-item";
+        const image = document.createElement("img");
+        assignImage(image, announcement, true);
+        const copy = document.createElement("span");
+        const topic = document.createElement("small"); topic.textContent = announcement.large_topic || "公告";
+        const title = document.createElement("strong"); title.textContent = announcement.title || "";
+        const time = document.createElement("time"); time.textContent = formatPublishedAt(announcement.published_at);
+        copy.append(topic, title, time); button.append(image, copy);
+        button.addEventListener("click", () => showFull(announcement));
+        list.append(button);
+      });
+    } catch {
+      status.textContent = "目前離線，暫時無法取得公告。";
+    }
+  }
+
+  async function maybeShowLatest() {
+    if (runtimePreviewShown) return;
+    const waitUntilStartupReady = async () => {
+      if (runtimePreviewShown) return;
+      const workspaceReady = global.chromaticaStartupState?.workspaceStatus === "ready";
+      const appVisible = document.body.classList.contains("auth-authenticated");
+      if (!workspaceReady || !appVisible || document.body.classList.contains("modal-open")) {
+        global.setTimeout(waitUntilStartupReady, 500);
+        return;
+      }
+      runtimePreviewShown = true;
+      try {
+        const rows = await fetchPublished();
+        if (rows[0]) showPreview(rows[0]);
+      } catch { /* Offline startup is non-blocking. */ }
+    };
+    global.setTimeout(waitUntilStartupReady, 650);
+  }
+
+  function resetAdminForm(announcement = null) {
+    adminEditingId = announcement?.id || null;
+    $("#announcementAdminTopic").value = announcement?.large_topic || "";
+    $("#announcementAdminHeadline").value = announcement?.title || "";
+    $("#announcementAdminBody").value = announcement?.body || "";
+    const date = announcement?.published_at ? new Date(announcement.published_at) : new Date(Date.now() + 60_000);
+    $("#announcementAdminPublishedAt").value = new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+    $("#announcementAdminImage").value = "";
+    $("#announcementAdminStatus").textContent = "";
+  }
+
+  async function loadAdminList() {
+    const { data, error } = await auth()?.leaderboardRpc?.("get_admin_announcements") || {};
+    if (error) throw error;
+    const list = $("#announcementAdminList"); list.replaceChildren();
+    (Array.isArray(data) ? data : []).forEach((announcement) => {
+      const button = document.createElement("button"); button.type = "button"; button.className = "announcement-list-item";
+      const copy = document.createElement("span"); const title = document.createElement("strong"); title.textContent = announcement.title;
+      const state = document.createElement("small"); state.textContent = announcement.is_published ? "已發布" : "草稿";
+      copy.append(title, state); button.append(copy); button.addEventListener("click", () => resetAdminForm(announcement)); list.append(button);
+    });
+  }
+
+  async function openAdmin() {
+    const { data, error } = await auth()?.leaderboardRpc?.("get_announcement_admin_status") || {};
+    const allowed = Array.isArray(data) ? data[0]?.is_admin === true : data?.is_admin === true || data === true;
+    if (error || !allowed) {
+      global.chromaticaApp?.showNonBlockingToast?.("此帳號沒有公告管理權限。");
+      return;
+    }
+    resetAdminForm(); setModalOpen("#announcementAdminModal", true);
+    try { await loadAdminList(); } catch { $("#announcementAdminStatus").textContent = "公告後台暫時無法載入。"; }
+  }
+
+  async function saveAdmin(event) {
+    event.preventDefault();
+    const intent = event.submitter?.value || "draft";
+    const payload = {
+      p_id: adminEditingId,
+      p_large_topic: $("#announcementAdminTopic").value,
+      p_title: $("#announcementAdminHeadline").value,
+      p_body: $("#announcementAdminBody").value,
+      p_published_at: new Date($("#announcementAdminPublishedAt").value).toISOString(),
+      p_publish: intent === "publish",
+    };
+    const { data, error } = await auth().leaderboardRpc("save_announcement", payload);
+    if (error) { $("#announcementAdminStatus").textContent = "儲存失敗，原公告未變更。"; return; }
+    const saved = Array.isArray(data) ? data[0] : data;
+    adminEditingId = saved?.id || adminEditingId;
+    const image = $("#announcementAdminImage").files?.[0];
+    if (image) {
+      if (image.size <= 0 || image.size > MAX_IMAGE_BYTES || !["image/jpeg", "image/png", "image/webp"].includes(image.type)) {
+        $("#announcementAdminStatus").textContent = "公告已儲存，但圖片必須是 5 MB 以下的 JPEG、PNG 或 WebP。";
+        return;
+      }
+      const form = new FormData(); form.append("announcement_id", adminEditingId); form.append("file", image, image.name || "announcement");
+      const upload = await auth().invokeFunction("upload-announcement-image", form);
+      if (upload.error) { $("#announcementAdminStatus").textContent = "公告已儲存，但新圖片上傳失敗，舊圖片仍保留。"; return; }
+    }
+    sessionStorage.removeItem(CACHE_KEY);
+    $("#announcementAdminStatus").textContent = intent === "publish" ? "公告已發布。" : "草稿已儲存。";
+    await loadAdminList();
+  }
+
+  async function unpublishAdmin() {
+    if (!adminEditingId) return;
+    const { error } = await auth().leaderboardRpc("set_announcement_published", { p_id: adminEditingId, p_publish: false });
+    $("#announcementAdminStatus").textContent = error ? "取消發布失敗。" : "已取消發布。";
+    if (!error) { sessionStorage.removeItem(CACHE_KEY); await loadAdminList(); }
+  }
+
+  function previewAdminDraft() {
+    showPreview({
+      large_topic: $("#announcementAdminTopic").value,
+      title: $("#announcementAdminHeadline").value,
+      body: $("#announcementAdminBody").value,
+      published_at: new Date($("#announcementAdminPublishedAt").value).toISOString(),
+      image_path: "",
+    });
+  }
+
+  function bind() {
+    document.querySelectorAll("[data-announcement-close]").forEach((button) => button.addEventListener("click", () => setModalOpen("#announcementPreviewModal", false)));
+    document.querySelectorAll("[data-announcement-full-close]").forEach((button) => button.addEventListener("click", () => setModalOpen("#announcementFullModal", false)));
+    document.querySelectorAll("[data-announcement-list-close]").forEach((button) => button.addEventListener("click", () => setModalOpen("#announcementListModal", false)));
+    document.querySelectorAll("[data-announcement-admin-close]").forEach((button) => button.addEventListener("click", () => setModalOpen("#announcementAdminModal", false)));
+    $("#announcementReadMore").addEventListener("click", () => showFull());
+    $("#announcementsOpen")?.addEventListener("click", () => void showList());
+    $("#announcementAdminOpen")?.addEventListener("click", () => void openAdmin());
+    $("#announcementAdminForm")?.addEventListener("submit", (event) => void saveAdmin(event));
+    $("#announcementAdminNew")?.addEventListener("click", () => resetAdminForm());
+    $("#announcementAdminUnpublish")?.addEventListener("click", () => void unpublishAdmin());
+    $("#announcementAdminPreview")?.addEventListener("click", previewAdminDraft);
+  }
+
+  function init() {
+    if (initialized) return;
+    initialized = true; createUi(); bind(); void maybeShowLatest();
+  }
+
+  global.ChromaticaAnnouncements = Object.freeze({ init, truncateGraphemes, showList, showFull });
+})(typeof window !== "undefined" ? window : globalThis);
