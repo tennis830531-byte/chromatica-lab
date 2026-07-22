@@ -39,18 +39,20 @@ test("formal and quick long-tone and interval flows share the same animation dia
   assert.equal((app.match(/animatePracticeRewardWater\(totalWaterGranted\)/g) || []).length, 2, "definition plus the single shared dialog call");
 });
 
-test("extended slot phase uses one timeout chain and count-up uses requestAnimationFrame", () => {
+test("refresh-170 water reward keeps its slot roll count and reveal sequence", () => {
   const block = app.match(/function animatePracticeRewardWater\(totalWaterGranted\) \{([\s\S]*?)\n\}/)?.[1] || "";
+  assert.match(block, /schedulePracticeRewardTimeout\(\(\) => \{[\s\S]*is-spinning[\s\S]*\}, 250\)/);
   assert.match(block, /performance\.now\(\) - slotStartedAt >= 900/);
-  assert.match(block, /schedulePracticeRewardTimeout\(spin, 80\)/);
-  assert.match(block, /countDuration = 900/);
+  assert.match(block, /const countDuration = 900/);
   assert.match(block, /requestAnimationFrame\(step\)/);
+  assert.doesNotMatch(block, /is-expanded|is-floating|is-flying|getBoundingClientRect/);
   assert.doesNotMatch(block, /setInterval/);
 });
 
-test("reduced motion skips slot and count-up animation", () => {
+test("reduced motion finishes the restored reward immediately", () => {
   assert.match(app, /matchMedia\?\.\("\(prefers-reduced-motion: reduce\)"\)[\s\S]*finish\(\);\s*return;/);
   assert.match(css, /prefers-reduced-motion[\s\S]*practice-reward-water-animation/);
+  assert.doesNotMatch(css, /body\.practice-reward-active|rewardWaterFloat|rewardWaterFly/);
 });
 
 test("closing or replacing the dialog cancels all pending animation work", () => {
@@ -65,6 +67,10 @@ test("reward roll and final reveal use shared audio context and success haptic",
   assert.match(app, /schedulePracticeRewardTone\(0, \[660, 830, 1040\]/);
   assert.match(app, /ChromaticaHaptics\?\.success/);
   assert.match(app, /settings\.appSound !== false && settings\.completionSound !== false/);
+});
+
+test("rank feedback can wait for the reward completion event", () => {
+  assert.match(app, /chromatica:practice-reward-complete/);
 });
 
 test("reward diagnostics prove effects are removed after close", () => {

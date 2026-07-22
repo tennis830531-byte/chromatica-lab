@@ -22,6 +22,9 @@ const webSourceFiles = [
   "metronome.js",
   "leaderboard-core.js",
   "leaderboard.js",
+  "announcements.js",
+  "push-notifications.js",
+  "garden-shared.js",
   "garden-qa.js",
   "auth-runtime.js",
 ];

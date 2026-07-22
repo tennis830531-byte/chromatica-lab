@@ -786,6 +786,7 @@ let selectedTargetVolume = "mf";
 let selectedVariants = {};
 let selectedGardenSpiritId = "";
 let selectedGardenSpiritStage = 3;
+let activeGardenSpiritAdapter = null;
 let selectedStarterSpeciesId = "";
 let gardenHopTimer = null;
 let suppressNextGardenPersistence = false;
@@ -818,10 +819,15 @@ let micFloatFrequencyData = null;
 let micFrame = null;
 let practiceRewardAnimationFrame = null;
 let practiceRewardSlotTimeout = null;
+let practiceRewardAnimationRunning = false;
 const practiceRewardTimeouts = new Set();
 const practiceRewardAudioNodes = new Set();
 let micSensitivity = 3.2;
-let tuningA4 = 440;
+const TUNING_A4_STORAGE_KEY = "chromatica.settings.tuningA4";
+const TUNING_A4_VALUES = Object.freeze([440, 441, 442, 443, 444, 445]);
+let tuningA4 = TUNING_A4_VALUES.includes(Number(localStorage.getItem(TUNING_A4_STORAGE_KEY)))
+  ? Number(localStorage.getItem(TUNING_A4_STORAGE_KEY))
+  : 440;
 let micSilentRms = 0;
 let isCalibratingMic = false;
 const tunerMode = "full-range";
@@ -1831,10 +1837,10 @@ function getHomeSpiritTapRewardState() {
   return stored;
 }
 
-function showHomeSpiritRewardToast() {
+function showHomeSpiritRewardToast(message = "精靈送你 1 滴水滴！💧") {
   const toast = $("#homeSpiritRewardToast");
   if (!toast) return;
-  $("#homeSpiritRewardToastTitle").textContent = "精靈送你 1 滴水滴！💧";
+  $("#homeSpiritRewardToastTitle").textContent = message;
   window.clearTimeout(homeSpiritRewardToastTimer);
   window.clearTimeout(homeSpiritRewardToastHideTimer);
   toast.classList.remove("hidden", "is-visible");
@@ -2277,23 +2283,54 @@ function setGardenSpiritModalOpen(open) {
   modal.classList.toggle("hidden", !open);
 }
 
+function createFormalGardenSpiritAdapter() {
+  const adapter = {
+    getCollection: getGardenCollection,
+    getSpeciesList: () => gardenSpecies,
+    getSpirit: getCollectedSpiritById,
+    getFeaturedId: getFeaturedSpiritId,
+    getFeaturedStage: getFeaturedSpiritStage,
+    getSpecies: (speciesId) => getGardenSpecies(speciesId),
+    getDisplayName: (spirit, stage) => getPlantDisplayName(spirit, stage),
+    getStageName: (spirit, stage) => getPlantStageName(spirit, stage),
+    getImage: (spirit, stage) => getPlantImage({ ...spirit, stage }),
+    updateName: (id, name) => updateCollectedSpirit(id, () => ({ name, customName: true })),
+    setFeatured: (id, stage) => {
+      setFeaturedSpiritId(id);
+      setFeaturedSpiritStage(stage);
+    },
+    render: () => renderGarden(),
+    afterRename: () => void reconcilePracticeReminderSchedule(),
+  };
+  adapter.openSpirit = (id) => openGardenSpiritModal(id, adapter);
+  return adapter;
+}
+
+function getGardenSpiritAdapter() {
+  if (!activeGardenSpiritAdapter) activeGardenSpiritAdapter = createFormalGardenSpiritAdapter();
+  return activeGardenSpiritAdapter;
+}
+
 function renderGardenSpiritModal() {
-  const spirit = getCollectedSpiritById(selectedGardenSpiritId);
+  const adapter = getGardenSpiritAdapter();
+  const spirit = adapter.getSpirit(selectedGardenSpiritId);
   if (!spirit) return;
   const title = $("#gardenSpiritModalTitle");
   const subtitle = $("#gardenSpiritModalSubtitle");
   const description = $("#gardenSpiritDescription");
   const list = $("#gardenSpiritStageList");
-  const species = getGardenSpecies(spirit.species);
-  const displayName = getPlantDisplayName(spirit, selectedGardenSpiritStage);
+  const species = adapter.getSpecies(spirit.species);
+  const displayName = adapter.getDisplayName(spirit, selectedGardenSpiritStage);
   if (title) title.textContent = displayName;
   if (subtitle) subtitle.textContent = "左右滑動查看三種形態，選一個放到首頁展示。";
   if (description) description.textContent = species.description || "";
   if (list) {
     list.innerHTML = [1, 2, 3].map((stage) => `
-      <button class="garden-spirit-stage-card spirit-${species.species} stage-${stage} ${stage === selectedGardenSpiritStage ? "active" : ""}" data-spirit-stage="${stage}" type="button" aria-label="查看${getPlantStageName(spirit, stage)}">
-        <img src="${getPlantImage({ ...spirit, stage })}" alt="" />
-        <span>${getPlantStageName(spirit, stage)}</span>
+      <button class="garden-spirit-stage-card spirit-${species.species} stage-${stage} ${stage === selectedGardenSpiritStage ? "active" : ""}" data-spirit-stage="${stage}" type="button" aria-label="查看${adapter.getStageName(spirit, stage)}">
+        <span class="garden-spirit-stage-image-frame">
+          <img src="${adapter.getImage(spirit, stage)}" alt="" />
+        </span>
+        <span>${adapter.getStageName(spirit, stage)}</span>
       </button>
     `).join("");
     requestAnimationFrame(() => {
@@ -2306,11 +2343,14 @@ function renderGardenSpiritModal() {
   }
 }
 
-function openGardenSpiritModal(id) {
-  const spirit = getCollectedSpiritById(id);
+function openGardenSpiritModal(id, adapter = null) {
+  activeGardenSpiritAdapter = adapter || createFormalGardenSpiritAdapter();
+  const spirit = activeGardenSpiritAdapter.getSpirit(id);
   if (!spirit) return;
   selectedGardenSpiritId = id;
-  selectedGardenSpiritStage = getFeaturedSpiritId() === id ? getFeaturedSpiritStage() : 3;
+  selectedGardenSpiritStage = activeGardenSpiritAdapter.getFeaturedId() === id
+    ? activeGardenSpiritAdapter.getFeaturedStage()
+    : 3;
   renderGardenSpiritModal();
   setGardenSpiritModalOpen(true);
 }
@@ -2326,10 +2366,11 @@ function setGardenRenameModalOpen(isOpen) {
 }
 
 function openGardenRenameModal() {
-  const spirit = getCollectedSpiritById(selectedGardenSpiritId);
+  const adapter = getGardenSpiritAdapter();
+  const spirit = adapter.getSpirit(selectedGardenSpiritId);
   const input = $("#gardenRenameInput");
   if (!spirit || !input) return;
-  input.value = getPlantDisplayName(spirit, selectedGardenSpiritStage);
+  input.value = adapter.getDisplayName(spirit, selectedGardenSpiritStage);
   setGardenRenameModalOpen(true);
   requestAnimationFrame(() => {
     input.focus();
@@ -2342,7 +2383,8 @@ function closeGardenRenameModal() {
 }
 
 function saveGardenSpiritName() {
-  const spirit = getCollectedSpiritById(selectedGardenSpiritId);
+  const adapter = getGardenSpiritAdapter();
+  const spirit = adapter.getSpirit(selectedGardenSpiritId);
   const input = $("#gardenRenameInput");
   if (!spirit || !input) return;
   const name = input.value.trim();
@@ -2354,14 +2396,13 @@ function saveGardenSpiritName() {
     showGardenToast("名字太長", "請使用 7 個中文字以內，或 14 個英文字母以內。");
     return;
   }
-  const updated = updateCollectedSpirit(spirit.id, () => ({ name, customName: true }));
+  const updated = adapter.updateName(spirit.id, name);
   if (!updated) return;
-  renderGardenCollection();
-  renderHeroGarden();
+  adapter.render();
   renderGardenSpiritModal();
   closeGardenRenameModal();
-  void reconcilePracticeReminderSchedule();
-  showGardenToast("名字已更新", `已改名為「${getPlantDisplayName(updated)}」。`);
+  adapter.afterRename?.();
+  showGardenToast("名字已更新", `已改名為「${adapter.getDisplayName(updated, selectedGardenSpiritStage)}」。`);
 }
 
 function editGardenSpiritName() {
@@ -2369,76 +2410,46 @@ function editGardenSpiritName() {
 }
 
 function setSelectedGardenSpiritFeatured() {
-  const spirit = getCollectedSpiritById(selectedGardenSpiritId);
+  const adapter = getGardenSpiritAdapter();
+  const spirit = adapter.getSpirit(selectedGardenSpiritId);
   if (!spirit) return;
-  setFeaturedSpiritId(spirit.id);
-  setFeaturedSpiritStage(selectedGardenSpiritStage);
-  renderGarden();
+  adapter.setFeatured(spirit.id, selectedGardenSpiritStage);
+  adapter.render();
   closeGardenSpiritModal();
-  showGardenToast("已更新首頁展示", `「${getPlantDisplayName(spirit, selectedGardenSpiritStage)}」會出現在首頁。`);
+  showGardenToast("已更新首頁展示", `「${adapter.getDisplayName(spirit, selectedGardenSpiritStage)}」會出現在首頁。`);
 }
 
 function renderGardenCollection() {
   const container = $("#gardenCollection");
-  if (!container) return;
-  const collection = getGardenCollection();
-  const collectionBySpecies = new Map(collection.map((item) => [item.species, item]));
-  const featuredId = getFeaturedSpiritId();
-  const cells = Array.from({ length: 50 }, (_, index) => {
-    const slot = index + 1;
-    const speciesForSlot = gardenSpecies[index];
-    const collected = speciesForSlot ? collectionBySpecies.get(speciesForSlot.species) : null;
-    if (collected) {
-      const featured = collected.id === featuredId;
-      const previewStage = 1;
-      return `
-        <div class="garden-collection-cell ${featured ? "featured" : ""}">
-          <span class="slot-number">${slot}</span>
-          <button data-open-spirit="${collected.id}" type="button" aria-label="查看 ${getPlantDisplayName(collected, previewStage)}">
-            <img class="garden-collection-spirit-thumb collection-${collected.species} collection-stage-${previewStage}" src="${getPlantImage({ ...collected, stage: previewStage })}" alt="" />
-          </button>
-        </div>
-      `;
-    }
-    if (speciesForSlot) {
-      return `
-        <div class="garden-collection-cell locked">
-          <span class="slot-number">${slot}</span>
-          <img src="./public/assets/garden/collection/locked-shadow.png" alt="" />
-        </div>
-      `;
-    }
-    return `
-      <div class="garden-collection-cell empty">
-        <span class="slot-number">${slot}</span>
-        <img src="./public/assets/garden/collection/spirit-slot-empty.png" alt="" />
-      </div>
-    `;
+  window.ChromaticaGardenShared?.renderGardenCollection?.({
+    container,
+    storeAdapter: createFormalGardenSpiritAdapter(),
   });
-  container.innerHTML = cells.join("");
+}
+
+function getFormalGardenSceneElements() {
+  return {
+    name: $("#gardenPlantName"),
+    stage: $("#gardenPlantStage"),
+    image: $("#gardenPlantImage"),
+    scene: $("#gardenPlantScene"),
+    idleLayer: $("#gardenPlantIdleLayer"),
+    actionLayer: $("#gardenPlantActionLayer"),
+    progressText: $("#gardenProgressText"),
+    progressBar: $("#gardenProgressBar"),
+  };
 }
 
 function renderEmptyGardenState() {
   if ($("#waterDropCount")) $("#waterDropCount").textContent = getWaterDrops();
   renderDailyPracticeWater();
-  if ($("#gardenPlantName")) $("#gardenPlantName").textContent = "等待新植物";
-  if ($("#gardenPlantStage")) $("#gardenPlantStage").textContent = "已全收集";
-  const plantImage = $("#gardenPlantImage");
-  if (plantImage) {
-    plantImage.src = "./public/assets/garden/collection/starter-pot.png";
-    plantImage.classList.remove("garden-stage-1", "garden-stage-2", "garden-stage-3");
-    plantImage.classList.add("garden-stage-1");
-    setGardenSpeciesClass(plantImage, "");
-  }
-  ["gardenPlantIdleLayer", "gardenPlantActionLayer"].forEach((id) => {
-    const layer = $(`#${id}`);
-    if (!layer) return;
-    layer.classList.remove("garden-stage-1", "garden-stage-2", "garden-stage-3");
-    layer.classList.add("garden-stage-1");
-    setGardenSpeciesClass(layer, "");
+  window.ChromaticaGardenShared?.renderPlantScene?.({
+    elements: getFormalGardenSceneElements(),
+    speciesIds: gardenSpecies.map((item) => item.species),
+    displayName: "等待新植物",
+    stageLabel: "已全收集",
+    progressText: "全收集",
   });
-  if ($("#gardenProgressText")) $("#gardenProgressText").textContent = "全收集";
-  if ($("#gardenProgressBar")) $("#gardenProgressBar").style.width = "0%";
   const primaryAction = $("#gardenPrimaryAction");
   const actionIcon = $("#gardenWateringCan");
   if (primaryAction) {
@@ -2467,24 +2478,17 @@ function renderGarden({ persistNormalizedState = true } = {}) {
   const stageProgress = getStageProgress(progress, plant.stage);
   if ($("#waterDropCount")) $("#waterDropCount").textContent = getWaterDrops();
   renderDailyPracticeWater();
-  if ($("#gardenPlantName")) $("#gardenPlantName").textContent = getPlantDisplayName(plant, plant.stage);
-  if ($("#gardenPlantStage")) $("#gardenPlantStage").textContent = ready ? "可採收" : getStageLabel(plant.stage);
-  const plantImage = $("#gardenPlantImage");
-  if (plantImage) {
-    plantImage.src = getPlantImage(plant);
-    plantImage.classList.remove("garden-stage-1", "garden-stage-2", "garden-stage-3");
-    plantImage.classList.add(`garden-stage-${plant.stage}`);
-    setGardenSpeciesClass(plantImage, plant.species);
-  }
-  ["gardenPlantIdleLayer", "gardenPlantActionLayer"].forEach((id) => {
-    const layer = $(`#${id}`);
-    if (!layer) return;
-    layer.classList.remove("garden-stage-1", "garden-stage-2", "garden-stage-3");
-    layer.classList.add(`garden-stage-${plant.stage}`);
-    setGardenSpeciesClass(layer, plant.species);
+  window.ChromaticaGardenShared?.renderPlantScene?.({
+    elements: getFormalGardenSceneElements(),
+    speciesIds: gardenSpecies.map((item) => item.species),
+    species: plant.species,
+    stage: plant.stage,
+    imageSrc: getPlantImage(plant),
+    displayName: getPlantDisplayName(plant, plant.stage),
+    stageLabel: ready ? "可採收" : getStageLabel(plant.stage),
+    progressText: `${stageProgress} / ${stageRequired}`,
+    progressPercent: Math.min(100, (stageProgress / stageRequired) * 100),
   });
-  if ($("#gardenProgressText")) $("#gardenProgressText").textContent = `${stageProgress} / ${stageRequired}`;
-  if ($("#gardenProgressBar")) $("#gardenProgressBar").style.width = `${Math.min(100, (stageProgress / stageRequired) * 100)}%`;
   const primaryAction = $("#gardenPrimaryAction");
   const actionIcon = $("#gardenWateringCan");
   if (primaryAction) {
@@ -2634,6 +2638,7 @@ function cancelPracticeRewardWaterAnimation() {
   $("#practiceRewardWaterAnimation")?.querySelectorAll("[data-reward-particle]").forEach((particle) => particle.remove());
   practiceRewardAnimationFrame = null;
   practiceRewardSlotTimeout = null;
+  practiceRewardAnimationRunning = false;
 }
 
 function schedulePracticeRewardTimeout(callback, delay) {
@@ -2711,6 +2716,7 @@ function animatePracticeRewardWater(totalWaterGranted) {
   animation.classList.remove("hidden");
   animation.classList.remove("is-spinning", "is-counting", "is-revealed");
   animation.classList.add("is-entering");
+  practiceRewardAnimationRunning = true;
   number.textContent = "+0";
   if (announcement) announcement.textContent = "";
   const finish = () => {
@@ -2722,6 +2728,8 @@ function animatePracticeRewardWater(totalWaterGranted) {
     if (announcement) announcement.textContent = `本次共獲得 ${total} 滴水滴`;
     practiceRewardAnimationFrame = null;
     practiceRewardSlotTimeout = null;
+    practiceRewardAnimationRunning = false;
+    globalThis.dispatchEvent(new CustomEvent("chromatica:practice-reward-complete", { detail: { water: total } }));
   };
   if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
     finish();
@@ -4554,6 +4562,51 @@ function findNearestAllowedNote(freq, notes = allowedNotes) {
 
 function refreshAllowedNotes() {
   allowedNotes = buildNoteRange(allowedRange.lowNote, allowedRange.highNote, tuningA4);
+}
+
+function normalizeTuningA4(value) {
+  const parsed = Math.floor(Number(value));
+  return TUNING_A4_VALUES.includes(parsed) ? parsed : 440;
+}
+
+function renderTuningA4Controls() {
+  const select = $("#tuningSelect");
+  const value = $("#tunerReferencePitchValue");
+  const openButton = $("#tunerReferencePitchOpen");
+  if (select) select.value = String(tuningA4);
+  if (value) value.textContent = `A4 = ${tuningA4} Hz`;
+  if (openButton) openButton.setAttribute("aria-label", `選擇標準音高，目前 A4 等於 ${tuningA4} Hz`);
+  $$('[data-tuning-hz]').forEach((button) => {
+    const selected = Number(button.dataset.tuningHz) === tuningA4;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-selected", String(selected));
+  });
+}
+
+function setTuningA4(value, { persist = true } = {}) {
+  const next = normalizeTuningA4(value);
+  const changed = next !== tuningA4;
+  tuningA4 = next;
+  if (persist) {
+    localStorage.setItem(TUNING_A4_STORAGE_KEY, String(next));
+    scheduleAccountSnapshotSave();
+  }
+  renderTuningA4Controls();
+  if (changed) {
+    refreshAllowedNotes();
+    resetPitchTracker();
+  }
+  return next;
+}
+
+function setTunerReferencePitchDialogOpen(open) {
+  const dialog = $("#tunerReferencePitchDialog");
+  const button = $("#tunerReferencePitchOpen");
+  dialog?.classList.toggle("hidden", !open);
+  button?.setAttribute("aria-expanded", String(open));
+  document.body.classList.toggle("modal-open", open);
+  if (open) requestAnimationFrame(() => document.querySelector(`[data-tuning-hz="${tuningA4}"]`)?.focus());
+  else requestAnimationFrame(() => button?.focus());
 }
 
 function median(values) {
@@ -6717,7 +6770,7 @@ async function submitFeedbackForm(event) {
     try {
       const result = await window.chromaticaAuth?.invokeFunction?.("send-feedback", {
         category, description,
-        appVersion: "refresh-170 / Android 1.0.54 (55)",
+        appVersion: "refresh-171 / Android 1.0.55 (56)",
         platform: isNativeAndroidApp() ? "android" : "web",
         currentView, requestId,
       });
@@ -6901,7 +6954,12 @@ function bindEvents() {
   });
 
   $$("[data-leaderboard-open]").forEach((button) => {
-    button.addEventListener("click", () => void window.ChromaticaLeaderboard?.open?.());
+    button.addEventListener("click", () => {
+      Promise.resolve(window.ChromaticaLeaderboard?.open?.()).catch(() => {
+        // open() owns the visible fallback; this terminal catch prevents a
+        // future adapter regression from reaching the global rejection hook.
+      });
+    });
   });
 
   $("#starterPlantChoices")?.addEventListener("click", (event) => {
@@ -7049,12 +7107,6 @@ function bindEvents() {
     waterCurrentPlant();
   });
 
-  $("#gardenCollection").addEventListener("click", (event) => {
-    const button = event.target.closest("[data-open-spirit]");
-    if (!button) return;
-    openGardenSpiritModal(button.dataset.openSpirit);
-  });
-
   $("#gardenSpiritModalClose").addEventListener("click", closeGardenSpiritModal);
   $("#gardenSpiritModal").addEventListener("click", (event) => {
     if (event.target.id === "gardenSpiritModal") {
@@ -7107,10 +7159,17 @@ function bindEvents() {
       setIntervalIntroOpen(false);
     }
   });
-  $("#tuningSelect").addEventListener("change", (event) => {
-    tuningA4 = Number(event.target.value);
-    refreshAllowedNotes();
-    resetPitchTracker();
+  $("#tuningSelect").addEventListener("change", (event) => setTuningA4(event.target.value));
+  $("#tunerReferencePitchOpen")?.addEventListener("click", () => setTunerReferencePitchDialogOpen(true));
+  $("#tunerReferencePitchClose")?.addEventListener("click", () => setTunerReferencePitchDialogOpen(false));
+  $("#tunerReferencePitchOptions")?.addEventListener("click", (event) => {
+    const option = event.target.closest("[data-tuning-hz]");
+    if (!option) return;
+    setTuningA4(option.dataset.tuningHz);
+    setTunerReferencePitchDialogOpen(false);
+  });
+  $("#tunerReferencePitchDialog")?.addEventListener("click", (event) => {
+    if (event.target.id === "tunerReferencePitchDialog") setTunerReferencePitchDialogOpen(false);
   });
   $("#calibrateMicBtn").addEventListener("click", calibrateMic);
   $("#audioCalibrateBtn").addEventListener("click", calibrateMic);
@@ -7372,6 +7431,7 @@ function initializeAuthenticatedApp(options = {}) {
     applyDisplaySettings();
     registerServiceWorker();
     refreshAllowedNotes();
+    renderTuningA4Controls();
     resetPitchTracker();
     renderNoteMap();
     updateBeatDisplay();
@@ -7383,6 +7443,8 @@ function initializeAuthenticatedApp(options = {}) {
       resolveSpiritImage: resolveLeaderboardSpiritImage,
       isQaActive: isGardenQaSessionActive,
     });
+    window.ChromaticaPushNotifications?.init?.();
+    window.ChromaticaAnnouncements?.init?.();
     window.ChromaticaGardenQA?.init?.({
       species: availableGardenSpecies,
       stageRequirements: PLANT_STAGE_WATER_REQUIREMENTS,
@@ -7395,6 +7457,7 @@ function initializeAuthenticatedApp(options = {}) {
           .finally(() => { qaFormalResumePromise = null; });
         return qaFormalResumePromise;
       },
+      openSpiritDetail: (id, adapter) => openGardenSpiritModal(id, adapter),
       playGardenEffect: (evolved) => {
         playSound("watering");
         if (evolved) {
@@ -7428,6 +7491,9 @@ function initializeAuthenticatedApp(options = {}) {
 
 window.chromaticaApp = {
   initializeForAuthenticatedAccount: initializeAuthenticatedApp,
+  isPracticeRewardAnimationRunning() {
+    return practiceRewardAnimationRunning;
+  },
   recordDailyLoginEvent(event, details = {}) {
     dailyLoginBonusController.record(event, { userId: getActiveAccountId(), date: getTodayKey(), ...details });
   },
@@ -7436,6 +7502,9 @@ window.chromaticaApp = {
   },
   getDailyGoalRewardDiagnostics() {
     return dailyGoalRewardController.getDiagnostics();
+  },
+  showNonBlockingToast(message) {
+    showHomeSpiritRewardToast(String(message || ""));
   },
   getAuthenticatedStartupImageUrls() {
     const heroImage = document.getElementById("heroGardenPlant");
