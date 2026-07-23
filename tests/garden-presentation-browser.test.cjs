@@ -72,7 +72,7 @@ test("mushroom and flower presentation geometry remains at the approved V5 basel
   }
 });
 
-test("alpha-measured homepage thumbnails water balance and stable layout match the local visual contract", () => {
+test("alpha-measured homepage water balance and stable layout match the locked V5 visual contract", () => {
   const result = readFixtureResult(localFixture);
   assert.equal(result.hero.length, 9);
   const lockedHero = {
@@ -106,13 +106,6 @@ test("alpha-measured homepage thumbnails water balance and stable layout match t
   assert.equal(result.layout.heroName.bottom, 315);
   assert.deepEqual(result.layout.heroImage, { x: 76.91, y: 42.93, width: 236.19, height: 200, bottom: 242.93 });
   assert.ok(result.layout.startWrap.y - result.layout.heroName.bottom >= 8);
-  assert.deepEqual({ width: result.thumbs.melody.width, height: result.thumbs.melody.height }, { width: "56px", height: "56px" });
-  assert.equal(result.thumbs.melody.transform, "matrix(1.05, 0, 0, 1.05, -2, 1)");
-  assert.ok(Math.abs(result.thumbs.melody.visibleWidth - result.thumbs.flower.visibleWidth) <= 1);
-  assert.ok(Math.abs(result.thumbs.melody.visibleHeight - result.thumbs.mushroom.visibleHeight) <= 1);
-  assert.equal(result.thumbs.melody.fitsCell, true);
-  assert.equal(result.thumbs.flower.transform, "matrix(0.92, 0, 0, 0.92, 0, 0)");
-  assert.equal(result.thumbs.mushroom.transform, "matrix(0.9, 0, 0, 0.9, -3, 0)");
   assert.equal(result.water.flexDirection, "row");
   assert.equal(result.water.flexWrap, "nowrap");
   assert.equal(result.water.alignItems, "center");
@@ -147,7 +140,4 @@ test("page-specific garden selectors preserve formal background hero detail and 
     assert.equal(detail.objectPosition, "50% 100%");
     assert.equal(detail.className, "");
   }
-  assert.deepEqual(result.thumb.melody, { width: "56px", height: "56px", transform: "matrix(1.05, 0, 0, 1.05, -2, 1)", className: "garden-collection-spirit-thumb collection-melody-sprout collection-stage-1" });
-  assert.deepEqual(result.thumb.flower, { width: "56px", height: "56px", transform: "matrix(0.92, 0, 0, 0.92, 0, 0)", className: "garden-collection-spirit-thumb collection-flower-spirit collection-stage-1" });
-  assert.deepEqual(result.thumb.mushroom, { width: "56px", height: "56px", transform: "matrix(0.9, 0, 0, 0.9, -3, 0)", className: "garden-collection-spirit-thumb collection-mushroom-spirit collection-stage-1" });
 });

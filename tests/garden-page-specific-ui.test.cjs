@@ -48,12 +48,14 @@ test("detail stage rules stay independent from collection and hero classes", () 
   assert.doesNotMatch(detailMarkup, /collection-|garden-stage-|hero-stage-|style=/);
 });
 
-test("collection thumbnails retain independent calibrated transforms and 56px box", () => {
-  assert.match(css, /\.garden-collection-cell \.garden-collection-spirit-thumb \{[^}]*width: 56px;[^}]*height: 56px;[^}]*transform-origin: center;/s);
-  assert.match(css, /\.garden-collection-cell \.collection-melody-sprout \{\s*transform: translateX\(-2px\) translateY\(1px\) scale\(1\.05\);\s*\}/s);
-  assert.match(css, /\.garden-collection-cell \.collection-flower-spirit \{\s*transform: scale\(0\.92\);\s*\}/s);
-  assert.match(css, /\.garden-collection-cell \.collection-mushroom-spirit \{\s*transform: translateX\(-3px\) scale\(0\.9\);\s*\}/s);
-  assert.match(shared, /image\.className = `garden-collection-spirit-thumb collection-\$\{collected\.species\} collection-stage-\$\{previewStage\}`/);
+test("collection uses full 2:3 art cards without legacy plant thumbnail transforms", () => {
+  assert.match(css, /\.garden-collection \{[^}]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/s);
+  assert.match(css, /\.garden-collection-cell \{[^}]*aspect-ratio: 2 \/ 3;/s);
+  assert.match(css, /\.garden-collection-art-card \{[^}]*width: 100%;[^}]*height: 100%;[^}]*object-fit: contain;/s);
+  assert.match(shared, /image\.className = "garden-collection-art-card"/);
+  assert.match(shared, /getGardenCardAsset\(collected\.species\)/);
+  assert.doesNotMatch(css, /\.garden-collection-cell \.collection-(?:melody-sprout|flower-spirit|mushroom-spirit)/);
+  assert.doesNotMatch(shared, /garden-collection-spirit-thumb|collection-stage-/);
   const collectionRenderer = shared.match(/function renderGardenCollection\([\s\S]*?\n  \}/)?.[0] || "";
   assert.doesNotMatch(collectionRenderer, /style\.(?:width|height|transform|left|right)|hero-stage-|garden-stage-/);
 });

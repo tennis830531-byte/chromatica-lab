@@ -23,7 +23,7 @@ test("interval completion captures balance before every reward and passes the fi
   const block = app.match(/function finishIntervalPractice\(\) \{([\s\S]*?)\n\}/)?.[1] || "";
   assert.ok(block.indexOf("const waterBeforeCompletion = getWaterDrops()") < block.indexOf("markIntervalDailyGoalsDone"));
   assert.ok(block.indexOf("awardDailyTaskBonusIfNeeded") < block.indexOf("getPracticeCompletionWaterDelta"));
-  assert.match(block, /showPracticeCompletionRewardDialog\("音程練習", waterResult, goalResult, bonusMessages, totalWaterGranted\)/);
+  assert.match(block, /showPracticeCompletionRewardDialog\("音程練習", waterResult, goalResult, bonusMessages, totalWaterGranted, \{/);
 });
 
 test("long-tone completion captures balance before every reward and passes the final delta", () => {
@@ -34,23 +34,24 @@ test("long-tone completion captures balance before every reward and passes the f
 });
 
 test("formal and quick long-tone and interval flows share the same animation dialog", () => {
-  assert.match(app, /showPracticeCompletionRewardDialog\("音程練習"[\s\S]*handleQuickPracticeCompletion\("音程練習", completedFromQuickPractice\)/);
-  assert.match(app, /showPracticeCompletionRewardDialog\(exercise\.title[\s\S]*handleQuickPracticeCompletion\(exercise\.title, completedFromQuickPractice\)/);
-  assert.equal((app.match(/animatePracticeRewardWater\(totalWaterGranted\)/g) || []).length, 2, "definition plus the single shared dialog call");
+  assert.match(app, /showPracticeCompletionRewardDialog\("音程練習"/);
+  assert.match(app, /showPracticeCompletionRewardDialog\(exercise\.title/);
+  assert.match(app, /runPracticeSettlement\(\{[\s\S]*practiceName[\s\S]*totalWaterGranted/);
+  assert.match(app, /animatePracticeRewardWater\(totalWaterGranted, session\)/);
 });
 
-test("refresh-170 water reward keeps its slot roll count and reveal sequence", () => {
-  const block = app.match(/function animatePracticeRewardWater\(totalWaterGranted\) \{([\s\S]*?)\n\}/)?.[1] || "";
-  assert.match(block, /schedulePracticeRewardTimeout\(\(\) => \{[\s\S]*is-spinning[\s\S]*\}, 250\)/);
-  assert.match(block, /performance\.now\(\) - slotStartedAt >= 900/);
-  assert.match(block, /const countDuration = 900/);
-  assert.match(block, /requestAnimationFrame\(step\)/);
+test("water reward uses fast fake values then slows to the exact result", () => {
+  const block = app.match(/async function animatePracticeRewardWater\(totalWaterGranted, session\) \{([\s\S]*?)\n\}/)?.[1] || "";
+  assert.match(block, /waterFastSteps/);
+  assert.match(block, /waterSlowSteps/);
+  assert.match(block, /number\.textContent = `\+\$\{total\}`/);
+  assert.match(block, /if \(total === 0 \|\| reducedMotion\)/);
   assert.doesNotMatch(block, /is-expanded|is-floating|is-flying|getBoundingClientRect/);
   assert.doesNotMatch(block, /setInterval/);
 });
 
-test("reduced motion finishes the restored reward immediately", () => {
-  assert.match(app, /matchMedia\?\.\("\(prefers-reduced-motion: reduce\)"\)[\s\S]*finish\(\);\s*return;/);
+test("reduced motion skips fake rolling and keeps the exact result", () => {
+  assert.match(app, /if \(total === 0 \|\| reducedMotion\) \{\s*await finish/);
   assert.match(css, /prefers-reduced-motion[\s\S]*practice-reward-water-animation/);
   assert.doesNotMatch(css, /body\.practice-reward-active|rewardWaterFloat|rewardWaterFly/);
 });
@@ -63,7 +64,7 @@ test("closing or replacing the dialog cancels all pending animation work", () =>
 
 test("reward roll and final reveal use shared audio context and success haptic", () => {
   assert.match(app, /function schedulePracticeRewardTone[\s\S]*getSharedAudioContext\(\)/);
-  assert.match(app, /schedulePracticeRewardTone\(250, \[420, 470, 530, 590, 650, 710\]/);
+  assert.match(app, /schedulePracticeRewardTone\(100, \[420, 470, 530, 590, 650\]/);
   assert.match(app, /schedulePracticeRewardTone\(0, \[660, 830, 1040\]/);
   assert.match(app, /ChromaticaHaptics\?\.success/);
   assert.match(app, /settings\.appSound !== false && settings\.completionSound !== false/);
@@ -84,7 +85,8 @@ test("animation never mutates rewards storage or replays completion audio", () =
   assert.doesNotMatch(block, /setWaterDrops|localStorage|award|playSound|markDailyGoal|scheduleAccountSnapshotSave/);
 });
 
-test("reward modal remains bounded on narrow and enlarged text layouts", () => {
-  assert.match(css, /\.goal-toast-card[^}]*width:\s*min\(100%, 390px\)[^}]*max-height:\s*calc\(100dvh - 36px\)[^}]*overflow-y:\s*auto/s);
+test("settlement modal remains bounded on narrow and enlarged text layouts", () => {
+  assert.match(css, /\.practice-settlement-card[^}]*width:\s*min\(100%, 430px\)[^}]*max-height:\s*calc\(100dvh/s);
+  assert.match(css, /\.practice-settlement-content[^}]*overflow-y:\s*auto/s);
   assert.match(css, /\.practice-reward-water-animation[^}]*min-height:\s*88px/);
 });

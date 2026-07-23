@@ -18,6 +18,16 @@
     }),
   });
 
+  const GARDEN_CARD_ASSETS = Object.freeze({
+    "melody-sprout": "./public/assets/garden/cards/melody-sprout-art-card.png",
+    "mushroom-spirit": "./public/assets/garden/cards/mushroom-spirit-art-card.png",
+    "flower-spirit": "./public/assets/garden/cards/flower-spirit-art-card.png",
+  });
+
+  function getGardenCardAsset(speciesId = "") {
+    return GARDEN_CARD_ASSETS[String(speciesId)] || "";
+  }
+
   function gardenPresentationMarkup(ids) {
     return `<div class="garden-layout" data-garden-presentation="shared">
       <section class="garden-card paper-card">
@@ -47,7 +57,7 @@
         </div>
       </section>
       <section class="garden-card paper-card garden-collection-card">
-        <div class="garden-card-head compact"><div><h3>植物精靈圖鑑</h3></div></div>
+        <div class="garden-card-head compact garden-collection-head"><div><h3>。植物精靈圖鑑。</h3></div></div>
         <div id="${ids.collection}" class="garden-collection"></div>
         <p class="garden-hint">採收成熟植物精靈後，可在圖鑑中選一株放到首頁展示。</p>
       </section>
@@ -129,34 +139,32 @@
       const collected = speciesForSlot ? collectionBySpecies.get(speciesForSlot.species) : null;
       const cell = document.createElement("div");
       cell.className = `garden-collection-cell${collected?.id === featuredId ? " featured" : ""}`;
-      const number = document.createElement("span");
-      number.className = "slot-number";
-      number.textContent = String(slot);
-      cell.append(number);
+      cell.dataset.collectionSlot = String(slot);
+      if (speciesForSlot?.species) cell.dataset.collectionSpecies = speciesForSlot.species;
       if (collected) {
-        const previewStage = 1;
         const button = document.createElement("button");
         button.type = "button";
         button.dataset.openSpirit = collected.id;
-        button.setAttribute("aria-label", `查看 ${getDisplayName(collected, previewStage)}`);
+        button.setAttribute("aria-label", `查看 ${getDisplayName(collected, 3)}的藝術卡與詳細資料`);
         button.addEventListener("click", () => storeAdapter?.openSpirit?.(collected.id));
         const image = document.createElement("img");
-        image.className = `garden-collection-spirit-thumb collection-${collected.species} collection-stage-${previewStage}`;
-        image.src = getImage({ ...collected, stage: previewStage }, previewStage);
+        image.className = "garden-collection-art-card";
+        image.src = getGardenCardAsset(collected.species);
         image.alt = "";
         button.append(image);
         cell.append(button);
       } else {
-        const image = document.createElement("img");
-        image.alt = "";
+        const back = document.createElement("span");
+        back.className = "garden-collection-card-back";
+        back.setAttribute("aria-hidden", "true");
         if (speciesForSlot) {
           cell.classList.add("locked");
-          image.src = "./public/assets/garden/collection/locked-shadow.png";
+          back.classList.add("is-locked");
         } else {
           cell.classList.add("empty");
-          image.src = "./public/assets/garden/collection/spirit-slot-empty.png";
+          back.classList.add("is-empty");
         }
-        cell.append(image);
+        cell.append(back);
       }
       fragment.append(cell);
     });
@@ -170,6 +178,8 @@
     applyGardenPlantPresentation,
     renderPlantScene,
     renderGardenCollection,
+    getGardenCardAsset,
+    GARDEN_CARD_ASSETS,
     PRESENTATION_IDS,
   });
 })(typeof window !== "undefined" ? window : globalThis);

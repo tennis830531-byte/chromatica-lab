@@ -24,6 +24,8 @@
   let resetCustomAvatar = false;
   let previewObjectUrl = "";
   let pendingRankMovement = null;
+  const practiceSettlementResults = new Map();
+  const practiceSettlementEvents = new Set();
 
   const $ = (selector) => document.querySelector(selector);
 
@@ -523,8 +525,15 @@
           pending.shift();
           writePendingEvents(user.id, pending);
           invalidateCache();
+          practiceSettlementResults.set(event.eventId, {
+            status: "ranked",
+            accepted: result.accepted === true,
+            previousRank: Number(result.previous_rank) || null,
+            currentRank: Number(result.current_rank) || null,
+            weekStart: typeof result.week_start === "string" ? result.week_start : "",
+          });
           const movement = core.createRankMovement(result.previous_rank ?? event.previousRank, result.current_rank, event.eventId);
-          if (movement) void presentRankMovement(movement);
+          if (movement && !practiceSettlementEvents.has(event.eventId)) void presentRankMovement(movement);
         } catch (error) {
           console.warn("Leaderboard progress remains queued.", error?.message || error);
           break;
@@ -545,29 +554,46 @@
     return [...bytes].map((value, index) => `${[4, 6, 8, 10].includes(index) ? "-" : ""}${value.toString(16).padStart(2, "0")}`).join("");
   }
 
-  function enqueuePracticeCompletion(completedCycles, practiceDate, protectedDates) {
+  async function enqueuePracticeCompletion(completedCycles, practiceDate, protectedDates) {
     const user = getPublicUser();
-    if (!user?.id || isQaActive() || joined !== true) return false;
+    if (!user?.id || isQaActive() || joined !== true) return { status: "not-joined" };
     const event = core.normalizePracticeEvent({ eventId: createEventId(), completedCycles, practiceDate, protectedDates, previousRank: currentCachedRank() });
-    if (!event.practiceDate || !event.protectedDates.length) return false;
+    if (!event.practiceDate || !event.protectedDates.length) return { status: "unavailable" };
+    if (queueFlight) await queueFlight;
     const pending = readPendingEvents(user.id);
     pending.push(event);
     writePendingEvents(user.id, pending);
-    void syncOwnProfile().then(flushPendingEvents).catch((error) => {
+    practiceSettlementEvents.add(event.eventId);
+    try {
+      await syncOwnProfile();
+      await flushPendingEvents();
+      const result = practiceSettlementResults.get(event.eventId);
+      if (!result) return { status: "queued" };
+      const rows = await loadLeaderboard("weekly", { force: true });
+      const currentRow = core.normalizeLeaderboardRows(rows, "weekly").find((row) => row.isCurrentUser);
+      const movement = core.createRankMovement(result.previousRank ?? event.previousRank, result.currentRank, event.eventId);
+      if (movement) markRankMovementShown(user.id, event.eventId);
+      return {
+        ...result,
+        previousRank: result.previousRank ?? event.previousRank,
+        weeklyCycles: currentRow?.score ?? null,
+        eventId: event.eventId,
+      };
+    } catch (error) {
       console.warn("Leaderboard queued sync failed.", classifyLeaderboardError(error).kind);
-    });
-    return true;
+      return { status: "unavailable" };
+    } finally {
+      practiceSettlementEvents.delete(event.eventId);
+      practiceSettlementResults.delete(event.eventId);
+    }
   }
 
-  function recordPracticeCompletion({ completedCycles, practiceDate, protectedDates } = {}) {
-    if (!getPublicUser() || isQaActive()) return false;
-    if (joined === true) return enqueuePracticeCompletion(completedCycles, practiceDate, protectedDates);
-    if (joined === null) {
-      void ensureMembership().then((isJoined) => {
-        if (isJoined) enqueuePracticeCompletion(completedCycles, practiceDate, protectedDates);
-      });
-    }
-    return false;
+  async function recordPracticeCompletion({ completedCycles, practiceDate, protectedDates } = {}) {
+    if (!getPublicUser() || isQaActive()) return { status: "not-joined" };
+    if (joined === null) await ensureMembership();
+    if (membershipUnavailable) return { status: "unavailable" };
+    if (joined !== true) return { status: "not-joined" };
+    return enqueuePracticeCompletion(completedCycles, practiceDate, protectedDates);
   }
 
   async function openUnsafe() {

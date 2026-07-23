@@ -38,6 +38,9 @@
       featuredSpiritStage: 3,
       starterPlantSelected: Boolean(species),
       unlimitedWater: true,
+      previewMode: "garden",
+      heroSpecies: species?.species || "",
+      heroStage: 1,
     };
   }
   function createPlant(speciesId) {
@@ -63,6 +66,9 @@
     state.schemaVersion = 1;
     state.starterPlantSelected = Boolean(state.currentPlant || state.collection.length);
     state.unlimitedWater = true;
+    if (state.previewMode !== undefined) state.previewMode = state.previewMode === "hero" ? "hero" : "garden";
+    if (state.heroSpecies !== undefined && !allowedIds.has(state.heroSpecies)) state.heroSpecies = options.species?.[0]?.species || "";
+    if (state.heroStage !== undefined) state.heroStage = Math.max(1, Math.min(3, Number(state.heroStage) || 1));
     return state;
   }
   function loadState() {
@@ -148,6 +154,61 @@
     global.ChromaticaGardenShared?.renderGardenCollection?.({
       container: qa$("#gardenQaCollection"),
       storeAdapter: adapter,
+    });
+  }
+
+  function mountHeroPreview() {
+    const root = qa$("#gardenQaHeroRoot");
+    if (!root || typeof root.querySelector !== "function" || root.dataset?.ready === "true") return;
+    root.innerHTML = `<div class="garden-qa-hero-controls">
+      <label>植物<select id="gardenQaHeroSpecies">${(options.species || []).map((item) => `<option value="${item.species}">${item.name}</option>`).join("")}</select></label>
+      <label>階段<select id="gardenQaHeroStage"><option value="1">Stage 1</option><option value="2">Stage 2</option><option value="3">Stage 3</option></select></label>
+    </div><div class="garden-qa-hero-preview home-hero paper-card">
+      <div class="hero-top"><div class="hero-copy"><h2>半音階口琴練習室</h2><p>透過孔位地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p></div></div>
+      <div class="hero-actions"><button class="hero-plant-slot" type="button" aria-label="QA首頁植物預覽">
+        <span class="hero-plant-stage"><span class="hero-plant-idle is-idle"><span class="hero-plant-action"><img id="gardenQaHeroPlant" class="hero-garden-plant-image hero-stage-1" alt="" /></span></span></span>
+        <span class="hero-plant-name-card"><b id="gardenQaHeroName">測試植物</b><small hidden></small></span>
+      </button><div class="hero-start-wrap"><button class="primary-btn start-practice-button" type="button" aria-disabled="true" tabindex="-1">
+        <img class="start-practice-button-art" src="./public/assets/chromatic-refresh/feature/start_practice_button_with_bird.png" alt="" aria-hidden="true" /><span class="start-practice-glow" aria-hidden="true"></span><span class="start-practice-ripple" aria-hidden="true"></span><span class="start-practice-content"><span class="start-practice-label">開始練習</span></span>
+      </button></div></div></div>`;
+    root.querySelector?.(".start-practice-button")?.addEventListener("click", (event) => event.preventDefault());
+    root.querySelector?.("#gardenQaHeroSpecies")?.addEventListener("change", (event) => {
+      const state = loadState(); state.heroSpecies = event.target.value; saveState(state); render();
+    });
+    root.querySelector?.("#gardenQaHeroStage")?.addEventListener("change", (event) => {
+      const state = loadState(); state.heroStage = Number(event.target.value) || 1; saveState(state); render();
+    });
+    if (root.dataset) root.dataset.ready = "true";
+  }
+
+  function renderHeroPreview(state) {
+    mountHeroPreview();
+    const root = qa$("#gardenQaHeroRoot");
+    const species = getSpecies(state.heroSpecies || options.species?.[0]?.species);
+    const stage = Math.max(1, Math.min(3, Number(state.heroStage) || 1));
+    const image = root?.querySelector?.("#gardenQaHeroPlant");
+    if (image) {
+      (options.species || []).forEach((item) => image.classList.remove(`species-${item.species}`));
+      image.classList.remove("hero-stage-1", "hero-stage-2", "hero-stage-3");
+      image.classList.add(`species-${species.species}`, `hero-stage-${stage}`);
+      image.src = species.images?.[stage - 1] || "./public/assets/garden/collection/starter-pot.png";
+    }
+    const collected = state.collection.find((item) => item.species === species.species);
+    const name = collected?.customName ? collected.name : species.stageNames?.[stage - 1] || species.name;
+    if (root?.querySelector?.("#gardenQaHeroName")) root.querySelector("#gardenQaHeroName").textContent = name;
+    if (root?.querySelector?.("#gardenQaHeroSpecies")) root.querySelector("#gardenQaHeroSpecies").value = species.species;
+    if (root?.querySelector?.("#gardenQaHeroStage")) root.querySelector("#gardenQaHeroStage").value = String(stage);
+  }
+
+  function applyPreviewMode(state) {
+    const hero = state.previewMode === "hero";
+    qa$("#gardenQaSharedRoot")?.classList?.toggle("hidden", hero);
+    qa$("#gardenQaHeroRoot")?.classList?.toggle("hidden", !hero);
+    qa$(".garden-qa-toolbar")?.classList?.toggle("hidden", hero);
+    qa$$('[data-qa-preview]').forEach((button) => {
+      const active = button.dataset.qaPreview === state.previewMode;
+      button.classList?.toggle("active", active);
+      button.setAttribute?.("aria-selected", active ? "true" : "false");
     });
   }
 
@@ -247,6 +308,8 @@
       }
     }
     renderCollection(state);
+    renderHeroPreview(state);
+    applyPreviewMode(state);
   }
   function mutatePlant(action) {
     const state = loadState(); const plant = state.currentPlant; if (!plant) return;
@@ -260,10 +323,15 @@
   }
   function harvest() {
     const state = loadState(); const plant = state.currentPlant; if (!plant || plant.waterProgress < totalRequired()) return;
-    if (!state.collection.some((item) => item.species === plant.species)) state.collection.push({ ...plant, id: `qa-spirit-${Date.now()}`, stage: 3, harvested: true });
+    let harvested = null;
+    if (!state.collection.some((item) => item.species === plant.species)) {
+      harvested = { ...plant, id: `qa-spirit-${Date.now()}`, stage: 3, harvested: true };
+      state.collection.push(harvested);
+    }
     const nextSpecies = options.species?.find((item) => !state.collection.some((spirit) => spirit.species === item.species));
     state.currentPlant = nextSpecies ? createPlant(nextSpecies.species) : null;
     saveState(state); render();
+    if (harvested) void options.presentHarvestCard?.(harvested);
   }
   function resetSandbox() { if (!confirm("確定重置測試花園嗎？")) return; sessionStorage.removeItem(SANDBOX_KEY); saveState(defaultState()); render(); }
   function leave() {
@@ -281,6 +349,11 @@
     $("#gardenQaPassword")?.addEventListener("keydown", (event) => { if (event.key === "Enter") verifyPassword(); });
     $("#gardenQaPasswordModal")?.addEventListener("click", (event) => { if (event.target.id === "gardenQaPasswordModal") setModal(false); });
     qa$$('[data-qa-action]').forEach((button) => button.addEventListener("click", () => button.dataset.qaAction === "harvest" ? harvest() : mutatePlant(button.dataset.qaAction)));
+    qa$$('[data-qa-preview]').forEach((button) => button.addEventListener("click", () => {
+      const state = loadState();
+      state.previewMode = button.dataset.qaPreview === "hero" ? "hero" : "garden";
+      saveState(state); render();
+    }));
     $("#gardenQaResetAll")?.addEventListener("click", resetSandbox);
     qa$$("[data-qa-leave]").forEach((button) => button.addEventListener("click", leave));
   }

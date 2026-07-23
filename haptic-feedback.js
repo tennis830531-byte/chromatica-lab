@@ -1,7 +1,7 @@
 (function initHapticFeedback(global) {
   "use strict";
 
-  const FALLBACK_DURATIONS = Object.freeze({ tap: 20, close: 40, success: [24, 45, 32], long: 450 });
+  const FALLBACK_DURATIONS = Object.freeze({ tap: 20, close: 40, success: [24, 45, 32], long: 450, reveal: 1000 });
   let bound = false;
 
   function plugin() {
@@ -42,6 +42,10 @@
     return invoke((haptics) => haptics.vibrate({ duration: FALLBACK_DURATIONS.long }), FALLBACK_DURATIONS.long);
   }
 
+  function reveal() {
+    return invoke((haptics) => haptics.vibrate({ duration: FALLBACK_DURATIONS.reveal }), FALLBACK_DURATIONS.reveal);
+  }
+
   function isSupported() {
     return Boolean(plugin() || (typeof navigator !== "undefined" && typeof navigator.vibrate === "function"));
   }
@@ -69,5 +73,5 @@
     }, true);
   }
 
-  global.ChromaticaHaptics = Object.freeze({ tap, close, success, long, isSupported, bindGlobalFeedback, resolveFeedback });
+  global.ChromaticaHaptics = Object.freeze({ tap, close, success, long, reveal, isSupported, bindGlobalFeedback, resolveFeedback });
 })(typeof window !== "undefined" ? window : globalThis);

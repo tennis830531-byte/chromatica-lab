@@ -118,14 +118,48 @@
       </div>
     </div>
 
+    <div id="practiceSettlementOverlay" class="practice-settlement-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="practiceSettlementTitle" data-state="idle">
+      <section class="practice-settlement-card paper-card">
+        <header class="practice-settlement-head">
+          <p id="practiceSettlementEyebrow" class="eyebrow">練習結算</p>
+          <h2 id="practiceSettlementTitle">完成練習</h2>
+          <p id="practiceSettlementStageLabel" class="practice-settlement-stage-label" aria-live="polite">正在整理本次成果…</p>
+        </header>
+        <div class="practice-settlement-content">
+          <section class="practice-settlement-panel practice-settlement-intro-panel hidden" data-settlement-panel="entering" aria-labelledby="practiceSettlementIntroTitle">
+            <p class="practice-settlement-panel-kicker">本次練習完成</p>
+            <h3 id="practiceSettlementIntroTitle">準備查看本次成果</h3>
+            <div class="practice-settlement-intro-mark" aria-hidden="true">✓</div>
+            <p>水滴、每日任務與本週排名已安全保存。</p>
+          </section>
+          <section class="practice-settlement-panel practice-settlement-water-panel" data-settlement-panel="water-slot" aria-labelledby="practiceSettlementWaterTitle">
+            <p class="practice-settlement-panel-kicker">水滴獎勵</p>
+            <h3 id="practiceSettlementWaterTitle">本次獲得水滴</h3>
+            <div id="practiceRewardWaterAnimation" class="practice-reward-water-animation hidden" aria-hidden="true">
+              <span id="practiceRewardWaterNumber">+0</span><span aria-hidden="true">💧</span>
+            </div>
+            <p id="practiceRewardWaterAnnouncement" class="sr-only" role="status" aria-live="polite"></p>
+            <div id="practiceSettlementItems" class="practice-settlement-items hidden" role="list" aria-label="水滴與本日完成事項"></div>
+          </section>
+          <section class="practice-settlement-panel practice-settlement-leaderboard hidden" data-settlement-panel="leaderboard" aria-labelledby="practiceSettlementLeaderboardTitle">
+            <p class="practice-settlement-panel-kicker">乖乖練習王</p>
+            <h3 id="practiceSettlementLeaderboardTitle">本週排行榜</h3>
+            <div id="practiceSettlementRankBadge" class="practice-settlement-rank-badge" aria-hidden="true">—</div>
+            <strong id="practiceSettlementRankText">正在取得本週名次…</strong>
+            <p id="practiceSettlementRankDetail"></p>
+          </section>
+        </div>
+        <footer class="practice-settlement-actions">
+          <button id="practiceSettlementNext" class="primary-btn" type="button" disabled>請稍候…</button>
+          <p id="practiceSettlementCountdown" class="practice-settlement-countdown hidden" aria-live="polite"></p>
+        </footer>
+      </section>
+    </div>
+
     <div id="goalToast" class="goal-toast hidden" role="dialog" aria-modal="true" aria-labelledby="goalToastTitle">
       <div class="goal-toast-card">
         <p id="goalToastEyebrow" class="eyebrow">每日目標</p>
         <h2 id="goalToastTitle">恭喜完成</h2>
-        <div id="practiceRewardWaterAnimation" class="practice-reward-water-animation hidden" aria-hidden="true">
-          <span id="practiceRewardWaterNumber">+0</span><span aria-hidden="true">💧</span>
-        </div>
-        <p id="practiceRewardWaterAnnouncement" class="sr-only" role="status" aria-live="polite"></p>
         <p id="goalToastText">你已完成今日目標。</p>
         <button id="goalToastClose" class="primary-btn" type="button">知道了</button>
       </div>
@@ -268,10 +302,17 @@
           </div>
           <button id="gardenSpiritModalClose" class="calendar-close" type="button" aria-label="關閉植物詳情">×</button>
         </div>
-        <div id="gardenSpiritStageList" class="garden-spirit-stage-list" aria-label="植物三種形態"></div>
-        <p id="gardenSpiritDescription" class="garden-spirit-description"></p>
-        <div class="garden-spirit-modal-actions">
-          <button id="gardenSpiritSetFeatured" class="primary-btn" type="button">設為首頁展示</button>
+        <button id="gardenSpiritArtPage" class="garden-spirit-art-page" type="button" aria-label="翻到植物詳細資料">
+          <img id="gardenSpiritArtImage" alt="" />
+          <span>點一下翻頁</span>
+        </button>
+        <div id="gardenSpiritDetailPage" class="garden-spirit-detail-page hidden">
+          <div id="gardenSpiritStageList" class="garden-spirit-stage-list" aria-label="植物三種形態"></div>
+          <p id="gardenSpiritDescription" class="garden-spirit-description"></p>
+          <div class="garden-spirit-modal-actions">
+            <button id="gardenSpiritBackToCard" class="ghost-btn" type="button">返回卡牌</button>
+            <button id="gardenSpiritSetFeatured" class="primary-btn" type="button">設為首頁展示</button>
+          </div>
         </div>
       </div>
     </div>
@@ -882,7 +923,6 @@
 
               <div class="mic-card paper-card">
                 <div class="mic-panel">
-                  <h3 class="card-title">音準觀察</h3>
                   <div id="pitchTuner" class="pitch-tuner" data-status="waiting">
                     <span class="tuner-edge flat">低</span>
                     <div class="tuner-track">
@@ -1019,8 +1059,10 @@
         <section id="gardenqa" class="view">
           <div class="garden-qa-banner"><strong>植物測試模式｜不影響正式進度</strong><button data-qa-leave type="button">離開測試模式</button></div>
           <div class="section-head compact no-eyebrow"><img class="section-icon ui-quick-icon" src="./public/assets/garden/icons/watering-can.png" alt="" /><h2>植物精靈測試花園</h2><p>所有操作只保存在本次 session。</p></div>
+          <div class="garden-qa-preview-switch" role="tablist" aria-label="植物預覽模式"><button class="active" data-qa-preview="garden" role="tab" aria-selected="true" type="button">測試花園</button><button data-qa-preview="hero" role="tab" aria-selected="false" type="button">首頁展示</button></div>
           <div class="garden-qa-toolbar" aria-label="植物測試工具"><button data-qa-action="water" data-haptic="manual" type="button">澆水</button><button data-qa-action="fill" data-haptic="manual" type="button">本階段補滿</button><button data-qa-action="mature" data-haptic="manual" type="button">直接成熟</button><button data-qa-action="harvest" type="button">採收</button><button data-qa-action="reset" type="button">重置目前植物</button><button id="gardenQaResetAll" type="button">重置測試花園</button><button id="announcementAdminOpen" type="button">公告管理</button><button data-qa-leave type="button">離開測試模式</button></div>
-          <div id="gardenQaSharedRoot" aria-live="polite"></div>
+          <div id="gardenQaSharedRoot" data-qa-preview-panel="garden" aria-live="polite"></div>
+          <div id="gardenQaHeroRoot" data-qa-preview-panel="hero" class="hidden" aria-live="polite"></div>
         </section>
 
         <section id="audio" class="view">

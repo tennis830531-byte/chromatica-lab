@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <link rel="stylesheet" href="../../styles.css" />
+</head>
+<body class="practice-settlement-open">
+  <div id="practiceSettlementOverlay" class="practice-settlement-overlay" role="dialog" aria-modal="true" data-state="task-results">
+    <section class="practice-settlement-card paper-card">
+      <header class="practice-settlement-head"><p class="eyebrow">練習結算</p><h2>完成「平穩長音」</h2><p class="practice-settlement-stage-label">本次完成事項</p></header>
+      <div class="practice-settlement-content">
+        <section class="practice-settlement-panel practice-settlement-water-panel is-active" data-settlement-panel="water-slot">
+          <p class="practice-settlement-panel-kicker">水滴獎勵</p><h3>本次獲得水滴</h3>
+          <div class="practice-reward-water-animation is-revealed"><span>+9</span><span>💧</span></div>
+          <div class="practice-settlement-items" role="list">
+            <article class="practice-settlement-item" role="listitem"><span class="practice-settlement-item-icon">💧</span><span class="practice-settlement-item-copy"><strong>本次獲得水滴</strong><small>已加入目前水滴總數</small></span><strong class="practice-settlement-item-value">+9</strong></article>
+            <article class="practice-settlement-item" role="listitem"><span class="practice-settlement-item-icon">💧</span><span class="practice-settlement-item-copy"><strong>今日練習水滴</strong><small>只計入今日正式練習獎勵</small></span><strong class="practice-settlement-item-value">28 / 80</strong></article>
+            <article class="practice-settlement-item" role="listitem"><span class="practice-settlement-item-icon">✓</span><span class="practice-settlement-item-copy"><strong>每日任務完成</strong><small>平穩長音</small></span><strong class="practice-settlement-item-value">完成</strong></article>
+            <article class="practice-settlement-item" role="listitem"><span class="practice-settlement-item-icon">☑</span><span class="practice-settlement-item-copy"><strong>今日任務進度</strong><small>依本次正式完成結果更新</small></span><strong class="practice-settlement-item-value">5 / 7</strong></article>
+          </div>
+        </section>
+      </div>
+      <footer class="practice-settlement-actions"><button class="primary-btn" type="button">繼續</button></footer>
+    </section>
+  </div>
+  <pre id="result"></pre>
+  <script>
+    requestAnimationFrame(() => {
+      document.querySelectorAll(".practice-settlement-item").forEach((item) => item.classList.add("is-visible"));
+    });
+    setTimeout(() => {
+      const overlay = document.querySelector(".practice-settlement-overlay");
+      const card = document.querySelector(".practice-settlement-card");
+      const content = document.querySelector(".practice-settlement-content");
+      const item = document.querySelector(".practice-settlement-item");
+      const waterReward = document.querySelector(".practice-reward-water-animation");
+      const output = {
+        viewport: {
+          width: document.documentElement.clientWidth,
+          height: document.documentElement.clientHeight,
+        },
+        overlay: getComputedStyle(overlay).position,
+        overlayRect: overlay.getBoundingClientRect().toJSON(),
+        cardRect: card.getBoundingClientRect().toJSON(),
+        cardMaxHeight: getComputedStyle(card).maxHeight,
+        contentOverflow: getComputedStyle(content).overflowY,
+        bodyOverflow: getComputedStyle(document.body).overflowY,
+        itemOpacity: getComputedStyle(item).opacity,
+        itemTransform: getComputedStyle(item).transform,
+        waterRewardRect: waterReward.getBoundingClientRect().toJSON(),
+        waterRewardMaxWidth: getComputedStyle(waterReward).maxWidth,
+        reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
+      };
+      document.querySelector("#result").textContent = JSON.stringify(output);
+    }, 600);
+  </script>
+</body>
+</html>

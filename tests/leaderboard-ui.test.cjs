@@ -147,7 +147,8 @@ test("high-risk clear-all flow alone resets the current user's leaderboard data"
 
 test("unfinished or inactive accounts neither queue nor flush practice events", () => {
   assert.match(runtime, /isQaActive\(\) \|\| joined !== true/);
-  assert.match(runtime, /if \(joined === true\) return enqueuePracticeCompletion/);
+  assert.match(runtime, /if \(joined === null\) await ensureMembership\(\)/);
+  assert.match(runtime, /if \(joined !== true\) return \{ status: "not-joined" \}/);
   assert.match(migration, /leaderboard membership required/);
 });
 

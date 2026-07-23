@@ -1,0 +1,14 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="../../"><link rel="stylesheet" href="styles.css"><style>body{margin:0;width:430px}.garden-collection-card{box-sizing:border-box;width:398px;margin:16px;padding:18px}</style></head><body>
+<section class="garden-card paper-card garden-collection-card"><div id="cards" class="garden-collection"></div></section>
+<div id="gardenSharedRoot"></div><div id="gardenQaSharedRoot"></div><pre id="result">pending</pre>
+<script src="garden-shared.js"></script><script>
+(async()=>{try{
+ const species=[{species:"melody-sprout",name:"旋律森使"},{species:"mushroom-spirit",name:"菇鳴賢者"},{species:"flower-spirit",name:"花樂仙子"}];
+ const collection=species.map((item,index)=>({...item,id:`spirit-${index+1}`}));
+ ChromaticaGardenShared.renderGardenCollection({container:document.getElementById("cards"),species,collection,featuredId:"spirit-2",slots:8,getDisplayName:(item)=>item.name,storeAdapter:{openSpirit(){}}});
+ await new Promise((resolve)=>setTimeout(resolve,1500));
+ const cells=[...document.querySelectorAll("#cards .garden-collection-cell")]; const images=[...document.querySelectorAll("#cards .garden-collection-art-card")];
+ const rect=(element)=>{const value=element.getBoundingClientRect();return {x:value.x,y:value.y,width:value.width,height:value.height}};
+ document.getElementById("result").textContent=JSON.stringify({columns:getComputedStyle(document.getElementById("cards")).gridTemplateColumns,cells:cells.map((cell)=>({rect:rect(cell),ratio:getComputedStyle(cell).aspectRatio,species:cell.dataset.collectionSpecies||"",featured:cell.classList.contains("featured")})),images:images.map((image)=>({naturalWidth:image.naturalWidth,naturalHeight:image.naturalHeight,objectFit:getComputedStyle(image).objectFit,rect:rect(image),src:image.getAttribute("src")})),legacyThumbs:document.querySelectorAll(".garden-collection-spirit-thumb").length});
+}catch(error){document.getElementById("result").textContent=JSON.stringify({error:String(error?.stack||error)})}})();
+</script></body></html>

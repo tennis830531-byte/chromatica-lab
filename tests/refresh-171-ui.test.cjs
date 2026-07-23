@@ -166,10 +166,12 @@ test("two independent push preferences default on and permission remains user in
   assert.doesNotMatch(push, /console\.(?:log|info|warn|error)\([^\n]*token/i);
 });
 
-test("practice reward restores refresh-170 animation and only adds a completion event", () => {
+test("practice reward is staged and still emits one completion event", () => {
   assert.doesNotMatch(css, /body\.practice-reward-active|\.is-expanded|\.is-floating|\.is-flying/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
-  assert.match(app, /const countDuration = 900/);
+  assert.match(app, /PRACTICE_SETTLEMENT_STATES/);
+  assert.match(app, /waterFastSteps/);
+  assert.match(app, /waterSlowSteps/);
   assert.match(app, /chromatica:practice-reward-complete/);
   assert.match(app, /isPracticeRewardAnimationRunning/);
 });

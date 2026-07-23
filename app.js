@@ -787,6 +787,8 @@ let selectedVariants = {};
 let selectedGardenSpiritId = "";
 let selectedGardenSpiritStage = 3;
 let activeGardenSpiritAdapter = null;
+let gardenSpiritModalPage = "card";
+let harvestCardAnimationActive = false;
 let selectedStarterSpeciesId = "";
 let gardenHopTimer = null;
 let suppressNextGardenPersistence = false;
@@ -822,6 +824,31 @@ let practiceRewardSlotTimeout = null;
 let practiceRewardAnimationRunning = false;
 const practiceRewardTimeouts = new Set();
 const practiceRewardAudioNodes = new Set();
+const PRACTICE_SETTLEMENT_STATES = Object.freeze([
+  "idle",
+  "entering",
+  "water-slot",
+  "water-result",
+  "task-results",
+  "leaderboard",
+  "closing",
+  "original-completion-page",
+]);
+const PRACTICE_SETTLEMENT_TIMING = Object.freeze({
+  entering: 440,
+  waterFastStep: 70,
+  waterFastSteps: 7,
+  waterSlowSteps: Object.freeze([110, 160, 230]),
+  waterResult: 460,
+  zeroWaterResult: 520,
+  taskStep: 180,
+  taskResult: 360,
+  leaderboardTimeout: 1600,
+  leaderboardResult: 720,
+  closing: 220,
+});
+let practiceSettlementSession = null;
+let practiceSettlementSequence = 0;
 let micSensitivity = 3.2;
 const TUNING_A4_STORAGE_KEY = "chromatica.settings.tuningA4";
 const TUNING_A4_VALUES = Object.freeze([440, 441, 442, 443, 444, 445]);
@@ -2321,8 +2348,16 @@ function renderGardenSpiritModal() {
   const list = $("#gardenSpiritStageList");
   const species = adapter.getSpecies(spirit.species);
   const displayName = adapter.getDisplayName(spirit, selectedGardenSpiritStage);
+  const artPage = $("#gardenSpiritArtPage");
+  const artImage = $("#gardenSpiritArtImage");
+  const detailPage = $("#gardenSpiritDetailPage");
+  const isCardPage = gardenSpiritModalPage === "card";
   if (title) title.textContent = displayName;
-  if (subtitle) subtitle.textContent = "左右滑動查看三種形態，選一個放到首頁展示。";
+  if (subtitle) subtitle.textContent = isCardPage ? "點一下卡牌翻到完整介紹。" : "左右滑動查看三種形態，選一個放到首頁展示。";
+  if (artPage) artPage.classList.toggle("hidden", !isCardPage);
+  if (detailPage) detailPage.classList.toggle("hidden", isCardPage);
+  if ($("#gardenSpiritEditName")) $("#gardenSpiritEditName").classList.toggle("hidden", isCardPage);
+  if (artImage) artImage.src = window.ChromaticaGardenShared?.getGardenCardAsset?.(spirit.species) || "";
   if (description) description.textContent = species.description || "";
   if (list) {
     list.innerHTML = [1, 2, 3].map((stage) => `
@@ -2351,12 +2386,31 @@ function openGardenSpiritModal(id, adapter = null) {
   selectedGardenSpiritStage = activeGardenSpiritAdapter.getFeaturedId() === id
     ? activeGardenSpiritAdapter.getFeaturedStage()
     : 3;
+  gardenSpiritModalPage = "card";
   renderGardenSpiritModal();
   setGardenSpiritModalOpen(true);
+  requestAnimationFrame(() => $("#gardenSpiritArtPage")?.focus());
 }
 
 function closeGardenSpiritModal() {
   setGardenSpiritModalOpen(false);
+  gardenSpiritModalPage = "card";
+}
+
+function showGardenSpiritDetailPage() {
+  if (gardenSpiritModalPage !== "card") return;
+  gardenSpiritModalPage = "detail";
+  const modal = $(".garden-spirit-modal");
+  modal?.classList.add("is-flipping-to-detail");
+  window.setTimeout(() => modal?.classList.remove("is-flipping-to-detail"), 420);
+  renderGardenSpiritModal();
+  requestAnimationFrame(() => $("#gardenSpiritStageList [data-spirit-stage]")?.focus());
+}
+
+function showGardenSpiritCardPage() {
+  gardenSpiritModalPage = "card";
+  renderGardenSpiritModal();
+  requestAnimationFrame(() => $("#gardenSpiritArtPage")?.focus());
 }
 
 function setGardenRenameModalOpen(isOpen) {
@@ -2572,6 +2626,7 @@ function waterCurrentPlant() {
 }
 
 function harvestCurrentPlant() {
+  if (harvestCardAnimationActive) return;
   const plant = getCurrentPlant(false);
   if (!plant) return;
   if ((plant.waterProgress || 0) < PLANT_WATER_REQUIRED) return;
@@ -2598,6 +2653,7 @@ function harvestCurrentPlant() {
   setCurrentPlant(createGardenPlant());
   renderGarden();
   playSound("harvest");
+  if (harvested) void presentHarvestCard(harvested);
   if (!getCurrentPlant(false)) {
     showGardenToast(
       alreadyCollected || !canAddToCollection ? "採收完成" : "圖鑑全收集！",
@@ -2617,6 +2673,100 @@ function harvestCurrentPlant() {
         ? `「${harvestedName}」已採收過，不會重複加入圖鑑。`
         : `「${harvestedName}」已加入圖鑑。`,
   );
+}
+
+function waitForHarvestCardImage(image) {
+  if (!image) return Promise.reject(new Error("missing-card-image"));
+  if (image.complete && image.naturalWidth > 0) return image.decode?.().catch(() => {}) || Promise.resolve();
+  return new Promise((resolve, reject) => {
+    image.addEventListener("load", resolve, { once: true });
+    image.addEventListener("error", reject, { once: true });
+  }).then(() => image.decode?.().catch(() => {}));
+}
+
+async function presentHarvestCard(spirit, {
+  primaryActionSelector = "#gardenPrimaryAction",
+  targetRootSelector = "",
+  renderAfter = renderGarden,
+} = {}) {
+  if (harvestCardAnimationActive || !spirit?.species) return;
+  harvestCardAnimationActive = true;
+  const primaryAction = $(primaryActionSelector);
+  if (primaryAction) primaryAction.disabled = true;
+  const targetSelector = `[data-collection-species="${CSS.escape(spirit.species)}"]`;
+  const findTarget = () => targetRootSelector
+    ? document.querySelector(targetRootSelector)?.querySelector(targetSelector)
+    : document.querySelector(targetSelector);
+  const overlay = document.createElement("div");
+  overlay.className = "harvest-card-overlay";
+  overlay.dataset.cardState = "spinning-back";
+  overlay.innerHTML = `<div class="harvest-card-dialog" role="dialog" aria-modal="true" aria-label="獲得新的植物精靈卡牌">
+    <button class="harvest-card-button" data-haptic="manual" type="button" aria-label="點一下揭曉卡牌">
+      <span class="harvest-card-inner"><span class="harvest-card-back" aria-hidden="true"></span><img class="harvest-card-front" alt="" /></span>
+    </button><p>點一下揭曉卡牌</p>
+  </div>`;
+  document.body.append(overlay);
+  document.body.classList.add("modal-open");
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Tab") {
+      event.preventDefault();
+      overlay.querySelector(".harvest-card-button")?.focus();
+    }
+  });
+  const button = overlay.querySelector(".harvest-card-button");
+  const front = overlay.querySelector(".harvest-card-front");
+  front.src = window.ChromaticaGardenShared?.getGardenCardAsset?.(spirit.species) || "";
+  try {
+    await waitForHarvestCardImage(front);
+  } catch {
+    front.removeAttribute("src");
+    front.alt = "卡牌圖片暫時無法載入";
+    front.classList.add("is-fallback");
+  }
+  button.focus();
+  let revealed = false;
+  const finish = async () => {
+    overlay.dataset.cardState = "flying";
+    const target = findTarget();
+    if (target && !target.getBoundingClientRect().height) target.scrollIntoView({ block: "center" });
+    if (target && !window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
+      target.scrollIntoView({ behavior: "auto", block: "center" });
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const from = button.getBoundingClientRect();
+      const to = target.getBoundingClientRect();
+      const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+      const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+      const scale = Math.min(to.width / from.width, to.height / from.height);
+      await button.animate([
+        { transform: "translate(0, 0) scale(1)", opacity: 1 },
+        { transform: `translate(${dx}px, ${dy}px) scale(${scale})`, opacity: 0.15 },
+      ], { duration: 720, easing: "cubic-bezier(.2,.72,.24,1)", fill: "forwards" }).finished.catch(() => {});
+    } else {
+      await new Promise((resolve) => window.setTimeout(resolve, 180));
+    }
+    overlay.dataset.cardState = "completed";
+    overlay.remove();
+    document.body.classList.remove("modal-open");
+    harvestCardAnimationActive = false;
+    if (primaryAction) primaryAction.disabled = false;
+    renderAfter?.();
+    const finalTarget = findTarget();
+    finalTarget?.classList.add("just-collected");
+    window.setTimeout(() => finalTarget?.classList.remove("just-collected"), 900);
+    finalTarget?.querySelector("button")?.focus();
+  };
+  button.addEventListener("click", () => {
+    if (revealed) return;
+    revealed = true;
+    void window.ChromaticaHaptics?.reveal?.();
+    button.setAttribute("aria-disabled", "true");
+    overlay.dataset.cardState = "revealing";
+    requestAnimationFrame(() => {
+      overlay.dataset.cardState = "revealed";
+      overlay.querySelector("p").textContent = "新卡牌已加入圖鑑";
+      window.setTimeout(finish, 850);
+    });
+  }, { once: true });
 }
 
 function setGoalToastEyebrow(label = "每日目標") {
@@ -2706,69 +2856,54 @@ function hidePracticeRewardWaterAnimation() {
   if (announcement) announcement.textContent = "";
 }
 
-function animatePracticeRewardWater(totalWaterGranted) {
+async function animatePracticeRewardWater(totalWaterGranted, session) {
   cancelPracticeRewardWaterAnimation();
   const total = Math.max(0, Math.floor(Number(totalWaterGranted) || 0));
   const animation = $("#practiceRewardWaterAnimation");
   const number = $("#practiceRewardWaterNumber");
   const announcement = $("#practiceRewardWaterAnnouncement");
-  if (!animation || !number) return;
-  animation.classList.remove("hidden");
-  animation.classList.remove("is-spinning", "is-counting", "is-revealed");
+  if (!animation || !number || !session) return;
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+  const finish = async (delay) => {
+    number.textContent = `+${total}`;
+    animation.classList.remove("is-entering", "is-spinning", "is-counting");
+    animation.classList.add("is-revealed");
+    schedulePracticeRewardTone(0, [660, 830, 1040], 0.24);
+    void window.ChromaticaHaptics?.success?.();
+    if (announcement) announcement.textContent = `本次共獲得 ${total} 滴水滴`;
+    practiceRewardAnimationRunning = false;
+    setPracticeSettlementState(session, "water-result");
+    await waitForPracticeSettlement(session, reducedMotion ? 120 : delay);
+  };
+
+  animation.classList.remove("hidden", "is-spinning", "is-counting", "is-revealed");
   animation.classList.add("is-entering");
   practiceRewardAnimationRunning = true;
   number.textContent = "+0";
   if (announcement) announcement.textContent = "";
-  const finish = () => {
-    number.textContent = `+${total}`;
-    animation.classList.remove("is-spinning", "is-counting");
-    animation.classList.add("is-revealed");
-    schedulePracticeRewardTone(0, [660, 830, 1040], 0.34);
-    void window.ChromaticaHaptics?.success?.();
-    if (announcement) announcement.textContent = `本次共獲得 ${total} 滴水滴`;
-    practiceRewardAnimationFrame = null;
-    practiceRewardSlotTimeout = null;
-    practiceRewardAnimationRunning = false;
-    globalThis.dispatchEvent(new CustomEvent("chromatica:practice-reward-complete", { detail: { water: total } }));
-  };
-  if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
-    finish();
+
+  if (total === 0 || reducedMotion) {
+    await finish(total === 0 ? PRACTICE_SETTLEMENT_TIMING.zeroWaterResult : 120);
     return;
   }
-  createPracticeRewardParticles(animation);
-  const slotStartedAt = performance.now();
-  const runCounter = () => {
-    animation.classList.remove("is-spinning");
-    animation.classList.add("is-counting");
-    const countStartedAt = performance.now();
-    const countDuration = 900;
-    const step = (now) => {
-      const progress = Math.min(1, (now - countStartedAt) / countDuration);
-      const eased = 1 - ((1 - progress) ** 4);
-      number.textContent = `+${Math.round(total * eased)}`;
-      if (progress < 1) practiceRewardAnimationFrame = requestAnimationFrame(step);
-      else finish();
-    };
-    number.textContent = "+0";
-    practiceRewardAnimationFrame = requestAnimationFrame(step);
-  };
-  const spin = () => {
-    if (performance.now() - slotStartedAt >= 900) {
-      practiceRewardSlotTimeout = null;
-      runCounter();
-      return;
-    }
-    const visualCeiling = Math.max(9, total + 7);
-    number.textContent = `+${Math.floor(Math.random() * (visualCeiling + 1))}`;
-    practiceRewardSlotTimeout = schedulePracticeRewardTimeout(spin, 80);
-  };
-  schedulePracticeRewardTone(250, [420, 470, 530, 590, 650, 710], 0.075);
-  schedulePracticeRewardTone(1320, [540, 650, 760], 0.1);
-  practiceRewardSlotTimeout = schedulePracticeRewardTimeout(() => {
-    animation.classList.remove("is-entering");
-    animation.classList.add("is-spinning");
-    spin();
-  }, 250);
+
+  createPracticeRewardParticles(animation, 6);
+  schedulePracticeRewardTone(100, [420, 470, 530, 590, 650], 0.065);
+  animation.classList.remove("is-entering");
+  animation.classList.add("is-spinning");
+  const visualCeiling = Math.max(9, total + 7);
+  for (let index = 0; index < PRACTICE_SETTLEMENT_TIMING.waterFastSteps; index += 1) {
+    number.textContent = `+${((index + 3) * 7 + total) % (visualCeiling + 1)}`;
+    await waitForPracticeSettlement(session, PRACTICE_SETTLEMENT_TIMING.waterFastStep);
+  }
+  animation.classList.remove("is-spinning");
+  animation.classList.add("is-counting");
+  for (let index = 0; index < PRACTICE_SETTLEMENT_TIMING.waterSlowSteps.length; index += 1) {
+    const progress = (index + 1) / (PRACTICE_SETTLEMENT_TIMING.waterSlowSteps.length + 1);
+    number.textContent = `+${Math.max(0, Math.round(total * progress))}`;
+    await waitForPracticeSettlement(session, PRACTICE_SETTLEMENT_TIMING.waterSlowSteps[index]);
+  }
+  await finish(PRACTICE_SETTLEMENT_TIMING.waterResult);
 }
 
 function getPracticeRewardEffectDiagnostics() {
@@ -2778,6 +2913,394 @@ function getPracticeRewardEffectDiagnostics() {
     rewardAudioNodes: practiceRewardAudioNodes.size,
     particles: $("#practiceRewardWaterAnimation")?.querySelectorAll("[data-reward-particle]").length || 0,
   };
+}
+
+function waitForPracticeSettlement(session, delayMs) {
+  if (!session?.active || delayMs <= 0) return Promise.resolve("skipped");
+  return new Promise((resolve) => {
+    const entry = {
+      timer: null,
+      finish(reason = "elapsed") {
+        if (!session.waiters.has(entry)) return;
+        session.waiters.delete(entry);
+        if (entry.timer != null) window.clearTimeout(entry.timer);
+        resolve(reason);
+      },
+    };
+    entry.timer = window.setTimeout(() => entry.finish(), delayMs);
+    session.waiters.add(entry);
+  });
+}
+
+function setPracticeSettlementAdvance(session, label, enabled) {
+  const button = $("#practiceSettlementNext");
+  if (!button || !session?.active) return;
+  button.textContent = label;
+  button.disabled = !enabled;
+  session.canAdvance = enabled;
+  if (enabled) requestAnimationFrame(() => button.focus());
+}
+
+function setPracticeSettlementCountdown(value = 0) {
+  const countdown = $("#practiceSettlementCountdown");
+  if (!countdown) return;
+  const remaining = Math.max(0, Math.floor(Number(value) || 0));
+  countdown.classList.toggle("hidden", remaining <= 0);
+  countdown.textContent = remaining > 0 ? String(remaining) : "";
+  countdown.setAttribute("aria-label", remaining > 0 ? `${remaining} 秒後自動繼續` : "");
+}
+
+function waitForPracticeSettlementAdvance(session, label, { autoAdvanceSeconds = 0 } = {}) {
+  if (!session?.active) return Promise.resolve("inactive");
+  setPracticeSettlementAdvance(session, label, true);
+  return new Promise((resolve) => {
+    let remaining = Math.max(0, Math.floor(Number(autoAdvanceSeconds) || 0));
+    const entry = {
+      finish(reason = "advanced") {
+        if (session.advanceWaiter !== entry) return;
+        if (session.advanceCountdownTimer != null) window.clearInterval(session.advanceCountdownTimer);
+        if (session.advanceTimeoutTimer != null) window.clearTimeout(session.advanceTimeoutTimer);
+        session.advanceCountdownTimer = null;
+        session.advanceTimeoutTimer = null;
+        setPracticeSettlementCountdown(0);
+        session.advanceWaiter = null;
+        session.canAdvance = false;
+        resolve(reason);
+      },
+    };
+    session.advanceWaiter = entry;
+    if (remaining > 0) {
+      setPracticeSettlementCountdown(remaining);
+      session.advanceCountdownTimer = window.setInterval(() => {
+        remaining -= 1;
+        if (remaining > 0) setPracticeSettlementCountdown(remaining);
+      }, 1000);
+      session.advanceTimeoutTimer = window.setTimeout(() => entry.finish("auto"), remaining * 1000);
+    } else {
+      setPracticeSettlementCountdown(0);
+    }
+  });
+}
+
+function advancePracticeSettlement() {
+  const session = practiceSettlementSession;
+  if (!session?.active || !session.canAdvance || !session.advanceWaiter) return;
+  setPracticeSettlementAdvance(session, "請稍候…", false);
+  session.advanceWaiter.finish("advanced");
+}
+
+function cancelPracticeSettlementForAccountChange() {
+  const session = practiceSettlementSession;
+  if (!session) return;
+  session.allowOriginal = false;
+  session.active = false;
+  session.advanceWaiter?.finish("account-change");
+  [...session.waiters].forEach((entry) => entry.finish("account-change"));
+  $("#practiceSettlementOverlay")?.classList.add("hidden");
+  document.body.classList.remove("practice-settlement-open");
+}
+
+function setPracticeSettlementState(session, state) {
+  if (!session?.active || !PRACTICE_SETTLEMENT_STATES.includes(state)) return;
+  session.state = state;
+  session.canAdvance = false;
+  const overlay = $("#practiceSettlementOverlay");
+  if (!overlay) return;
+  overlay.dataset.state = state;
+  overlay.classList.toggle("is-closing", state === "closing");
+  const panelName = state === "entering"
+    ? "entering"
+    : ["water-slot", "water-result", "task-results"].includes(state)
+    ? "water-slot"
+    : state === "leaderboard"
+        ? "leaderboard"
+        : "";
+  overlay.querySelectorAll("[data-settlement-panel]").forEach((panel) => {
+    const active = panel.dataset.settlementPanel === panelName;
+    panel.classList.toggle("hidden", !active);
+    panel.classList.toggle("is-active", active);
+  });
+  const labels = {
+    entering: "正在整理本次成果…",
+    "water-slot": "水滴拉霸",
+    "water-result": "水滴已結算",
+    "task-results": "本次完成事項",
+    leaderboard: "本週排行榜",
+    closing: "結算完成",
+  };
+  const stageLabel = $("#practiceSettlementStageLabel");
+  if (stageLabel && labels[state]) stageLabel.textContent = labels[state];
+  const pendingLabels = {
+    entering: "準備中…",
+    "water-slot": "水滴拉霸中…",
+    "water-result": "水滴已結算",
+    "task-results": "整理完成事項…",
+    leaderboard: "取得排名中…",
+    closing: "結算完成",
+  };
+  setPracticeSettlementAdvance(session, pendingLabels[state] || "請稍候…", false);
+}
+
+function buildPracticeSettlementItems(totalWaterGranted, waterResult, goalResult, waterBreakdown = {}) {
+  const total = Math.max(0, Math.floor(Number(totalWaterGranted) || 0));
+  const practiceWater = Math.max(0, Math.floor(Number(waterBreakdown.practiceWater ?? waterResult?.water) || 0));
+  const dailyTaskWater = Math.max(0, Math.floor(Number(waterBreakdown.dailyTaskWater) || 0));
+  const allTasksWater = Math.max(0, Math.floor(Number(waterBreakdown.allTasksWater) || 0));
+  const streakMilestoneWater = Math.max(0, Math.floor(Number(waterBreakdown.streakMilestoneWater) || 0));
+  const categorizedWater = practiceWater + dailyTaskWater + allTasksWater + streakMilestoneWater;
+  const otherWater = Math.max(0, total - categorizedWater);
+  const items = [{
+    icon: "💧",
+    title: "練習循環完成的水滴",
+    value: `+${practiceWater}`,
+    detail: waterResult?.capped ? "今日練習水滴已達上限" : "依本次完成循環實際發放",
+  }];
+  if (dailyTaskWater > 0) {
+    items.push({
+      icon: "💧",
+      title: "每日任務的水滴",
+      value: `+${dailyTaskWater}`,
+      detail: "依本次新完成的每日任務實際發放",
+    });
+  }
+  if (allTasksWater > 0) {
+    items.push({
+      icon: "💧",
+      title: "所有任務完成的水滴",
+      value: `+${allTasksWater}`,
+      detail: "今日全部每日任務完成獎勵",
+    });
+  }
+  if (streakMilestoneWater > 0) {
+    items.push({
+      icon: "💧",
+      title: "連續學習里程碑的水滴",
+      value: `+${streakMilestoneWater}`,
+      detail: "本次達成連續學習里程碑",
+    });
+  }
+  if (otherWater > 0) {
+    items.push({
+      icon: "💧",
+      title: "其他本次獎勵水滴",
+      value: `+${otherWater}`,
+      detail: "本次實際發放的其他水滴獎勵",
+    });
+  }
+  if (waterResult?.water > 0 || waterResult?.capped) {
+    const dailyWater = getDailyWaterRewardState();
+    items.push({
+      icon: "💧",
+      title: "今日練習水滴",
+      value: `${dailyWater.practiceWaterEarned} / ${MAX_DAILY_PRACTICE_WATER_REWARD}`,
+      detail: waterResult.capped ? "今日練習水滴已達上限" : "只計入今日正式練習獎勵",
+    });
+  }
+  const newlyCompleted = Array.isArray(goalResult?.newlyCompleted) ? goalResult.newlyCompleted : [];
+  newlyCompleted.forEach((task) => {
+    items.push({
+      icon: "✓",
+      title: "每日任務完成",
+      value: "完成",
+      detail: String(task?.title || "每日任務"),
+    });
+  });
+  if (goalResult?.progressChanged && goalResult?.dailySummary) {
+    items.push({
+      icon: "☑",
+      title: "今日任務進度",
+      value: `${goalResult.dailySummary.doneCount} / ${goalResult.dailySummary.totalCount}`,
+      detail: "依本次正式完成結果更新",
+    });
+  }
+  if (goalResult?.becameAllDone) {
+    items.push({
+      icon: "★",
+      title: "七項每日任務全部完成",
+      value: "完成",
+      detail: "今日每日任務已全部達成",
+    });
+  }
+  if (goalResult?.streakResult?.isFirstCompletionToday) {
+    const currentStreak = Math.max(1, Math.floor(Number(goalResult.streakResult.currentStreak) || 1));
+    items.push({
+      icon: "🔥",
+      title: "連續學習",
+      value: `第 ${currentStreak} 天`,
+      detail: "今天第一次練習已達成",
+    });
+  }
+  return items;
+}
+
+function renderPracticeSettlementItems(items) {
+  const container = $("#practiceSettlementItems");
+  if (!container) return [];
+  container.classList.add("hidden");
+  container.replaceChildren();
+  return items.map((item) => {
+    const card = document.createElement("article");
+    card.className = "practice-settlement-item";
+    card.setAttribute("role", "listitem");
+    const icon = document.createElement("span");
+    icon.className = "practice-settlement-item-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = item.icon;
+    const copy = document.createElement("span");
+    copy.className = "practice-settlement-item-copy";
+    const title = document.createElement("strong");
+    title.textContent = item.title;
+    const detail = document.createElement("small");
+    detail.textContent = item.detail;
+    copy.append(title, detail);
+    const value = document.createElement("strong");
+    value.className = "practice-settlement-item-value";
+    value.textContent = item.value;
+    card.append(icon, copy, value);
+    container.append(card);
+    return card;
+  });
+}
+
+async function revealPracticeSettlementItems(session, cards) {
+  setPracticeSettlementState(session, "task-results");
+  $("#practiceSettlementItems")?.classList.remove("hidden");
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+  for (let index = 0; index < cards.length; index += 1) {
+    cards[index].classList.add("is-visible");
+    await waitForPracticeSettlement(session, reducedMotion ? 35 : PRACTICE_SETTLEMENT_TIMING.taskStep);
+  }
+  await waitForPracticeSettlement(session, reducedMotion ? 80 : PRACTICE_SETTLEMENT_TIMING.taskResult);
+}
+
+function renderPracticeSettlementLeaderboard(result = {}) {
+  const panel = $("[data-settlement-panel=\"leaderboard\"]");
+  const badge = $("#practiceSettlementRankBadge");
+  const text = $("#practiceSettlementRankText");
+  const detail = $("#practiceSettlementRankDetail");
+  if (!panel || !badge || !text || !detail) return;
+  panel.dataset.rankDirection = "none";
+  badge.textContent = "—";
+  detail.textContent = "";
+  const currentRank = Math.max(0, Math.floor(Number(result.currentRank) || 0));
+  const previousRank = Math.max(0, Math.floor(Number(result.previousRank) || 0));
+  if (result.status !== "ranked" || currentRank <= 0) {
+    text.textContent = "排行榜服務正在更新中";
+    detail.textContent = "本次練習已保存，稍後同步不會重複累積";
+    return;
+  }
+  badge.textContent = `#${currentRank}`;
+  if (!previousRank) {
+    text.textContent = `本週目前第 ${currentRank} 名`;
+    panel.dataset.rankDirection = "first";
+  } else if (currentRank < previousRank) {
+    text.textContent = `從第 ${previousRank} 名上升至第 ${currentRank} 名`;
+    panel.dataset.rankDirection = "up";
+  } else if (currentRank === previousRank) {
+    text.textContent = `本週維持第 ${currentRank} 名`;
+    panel.dataset.rankDirection = "same";
+  } else {
+    text.textContent = `本週由第 ${previousRank} 名調整為第 ${currentRank} 名`;
+    panel.dataset.rankDirection = "down";
+  }
+  const weeklyCycles = Math.max(0, Math.floor(Number(result.weeklyCycles) || 0));
+  detail.textContent = weeklyCycles > 0 ? `本週累積 ${weeklyCycles} 次循環` : "本週排行已更新";
+}
+
+async function resolvePracticeSettlementLeaderboard(session, resultPromise) {
+  const safeResult = Promise.resolve(resultPromise)
+    .then((value) => ({ source: "result", value: value || { status: "unavailable" } }))
+    .catch(() => ({ source: "result", value: { status: "unavailable" } }));
+  const timeout = waitForPracticeSettlement(session, PRACTICE_SETTLEMENT_TIMING.leaderboardTimeout)
+    .then(() => ({ source: "timeout", value: { status: "unavailable" } }));
+  const settled = await Promise.race([safeResult, timeout]);
+  return settled.value;
+}
+
+function runPracticeSettlement({
+  practiceName,
+  waterResult,
+  goalResult,
+  totalWaterGranted,
+  waterBreakdown,
+  leaderboardResultPromise,
+  showOriginalCompletionPage,
+}) {
+  if (practiceSettlementSession?.active) return practiceSettlementSession.promise;
+  const overlay = $("#practiceSettlementOverlay");
+  if (!overlay) {
+    playSound("practiceComplete");
+    showOriginalCompletionPage?.();
+    return Promise.resolve(false);
+  }
+  const session = {
+    id: ++practiceSettlementSequence,
+    active: true,
+    state: "idle",
+    canAdvance: false,
+    advanceWaiter: null,
+    advanceCountdownTimer: null,
+    advanceTimeoutTimer: null,
+    waiters: new Set(),
+    originalShown: false,
+    allowOriginal: true,
+    promise: null,
+  };
+  practiceSettlementSession = session;
+  const title = $("#practiceSettlementTitle");
+  if (title) title.textContent = `完成「${practiceName}」`;
+  const cards = renderPracticeSettlementItems(buildPracticeSettlementItems(totalWaterGranted, waterResult, goalResult, waterBreakdown));
+  overlay.classList.remove("hidden", "is-closing", "is-opening");
+  void overlay.offsetWidth;
+  overlay.classList.add("is-opening");
+  document.body.classList.add("practice-settlement-open");
+  playSound("practiceComplete");
+  setPracticeSettlementState(session, "entering");
+
+  const revealOriginalPage = () => {
+    if (session.originalShown || !session.allowOriginal) return;
+    session.originalShown = true;
+    showOriginalCompletionPage?.();
+  };
+
+  session.promise = (async () => {
+    try {
+      const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+      await waitForPracticeSettlement(session, reducedMotion ? 180 : PRACTICE_SETTLEMENT_TIMING.entering);
+      await waitForPracticeSettlementAdvance(session, "結束", { autoAdvanceSeconds: 5 });
+      setPracticeSettlementState(session, "water-slot");
+      await animatePracticeRewardWater(totalWaterGranted, session);
+      await revealPracticeSettlementItems(session, cards);
+      await waitForPracticeSettlementAdvance(session, "繼續");
+      const leaderboardResult = await resolvePracticeSettlementLeaderboard(session, leaderboardResultPromise);
+      if (leaderboardResult.status !== "not-joined") {
+        setPracticeSettlementState(session, "leaderboard");
+        renderPracticeSettlementLeaderboard(leaderboardResult);
+        await waitForPracticeSettlement(session, reducedMotion ? 120 : PRACTICE_SETTLEMENT_TIMING.leaderboardResult);
+        await waitForPracticeSettlementAdvance(session, "繼續");
+      }
+      setPracticeSettlementState(session, "closing");
+      await waitForPracticeSettlement(session, reducedMotion ? 100 : PRACTICE_SETTLEMENT_TIMING.closing);
+    } catch (error) {
+      console.warn("Practice settlement presentation failed safely.", error?.message || error);
+    } finally {
+      session.advanceWaiter?.finish("cleanup");
+      [...session.waiters].forEach((entry) => entry.finish("cleanup"));
+      hidePracticeRewardWaterAnimation();
+      overlay.classList.add("hidden");
+      overlay.classList.remove("is-opening", "is-closing");
+      overlay.dataset.state = "original-completion-page";
+      document.body.classList.remove("practice-settlement-open");
+      session.state = "original-completion-page";
+      session.active = false;
+      globalThis.dispatchEvent(new CustomEvent("chromatica:practice-reward-complete", { detail: { water: Math.max(0, Number(totalWaterGranted) || 0) } }));
+      globalThis.dispatchEvent(new CustomEvent("chromatica:practice-settlement-complete", { detail: { sessionId: session.id } }));
+      revealOriginalPage();
+      if (practiceSettlementSession === session) practiceSettlementSession = null;
+    }
+    return true;
+  })();
+  return session.promise;
 }
 
 function closeGoalToast() {
@@ -3685,9 +4208,7 @@ function renderDailyGoals() {
       const completedLabels = task.combos
         .filter((combo) => progress.completedCombos.includes(combo.id))
         .map((combo) => combo.label);
-      const comboText = completedLabels.length
-        ? `已完成 ${completedLabels.join("、")}`
-        : `下一組合：${nextCombo.label}`;
+      const comboText = completedLabels.length ? ` · 已完成 ${completedLabels.join("、")}` : "";
       const durationText = task.durationSeconds
         ? `${task.durationSeconds} 拍`
         : `${task.playBeats} 拍`;
@@ -3695,7 +4216,7 @@ function renderDailyGoals() {
         <button class="goal-chip ${progress.done ? "done" : ""}" data-goal-exercise="${task.exerciseIndex}" data-goal-combo="${nextCombo.id}" type="button">
           <span>${progress.done ? "✓" : index + 1}</span>
           <strong>${task.title}</strong>
-          <small>${localizeLevel(task.level)} · ${durationText} · 不同組合 ${progress.completedCount} / ${progress.required} · ${comboText}</small>
+          <small>${localizeLevel(task.level)} · ${durationText} · 不同組合 ${progress.completedCount} / ${progress.required}${comboText}</small>
         </button>
       `;
     })
@@ -3709,8 +4230,11 @@ function markDailyGoalDone(goalId, comboId) {
   if (!task) {
     const streakResult = markPracticeCompletedToday();
     renderDailyGoals();
-    return { isNew: false, isAllDone: false, streakResult, progress: null };
+    return { isNew: false, isAllDone: false, becameAllDone: false, progressChanged: false, newlyCompleted: [], streakResult, progress: null };
   }
+  const tasks = getDailyGoalTasks();
+  const previousDoneCount = tasks.filter((item) => getDailyGoalProgress(state, item).done).length;
+  const wasAllDone = tasks.length > 0 && previousDoneCount === tasks.length;
   const previousProgress = getDailyGoalProgress(state, task);
   const completedCombos = new Set(previousProgress.completedCombos);
   const normalizedComboId = task.combos.some((combo) => combo.id === comboId) ? comboId : task.combos[0]?.id;
@@ -3722,16 +4246,23 @@ function markDailyGoalDone(goalId, comboId) {
   setDailyGoalState(state);
   const streakResult = markPracticeCompletedToday();
   renderDailyGoals();
-  const tasks = getDailyGoalTasks();
   const nextState = getDailyGoalState();
   const nextProgress = getDailyGoalProgress(nextState, task);
   const isNew = !previousProgress.done && nextProgress.done;
+  const waterBeforeTaskReward = getWaterDrops();
   const taskRewardMessage = claimDailyGoalItemRewards(nextState, isNew ? [task.id] : []);
+  const taskRewardWater = Math.max(0, getWaterDrops() - waterBeforeTaskReward);
   const isAllDone = tasks.every((item) => getDailyGoalProgress(nextState, item).done);
+  const doneCount = tasks.filter((item) => getDailyGoalProgress(nextState, item).done).length;
   return {
     isNew,
     isAllDone,
+    becameAllDone: !wasAllDone && isAllDone,
+    progressChanged: nextProgress.completedCount !== previousProgress.completedCount || nextProgress.done !== previousProgress.done,
+    newlyCompleted: isNew ? [{ id: task.id, title: task.title }] : [],
+    dailySummary: { doneCount, totalCount: tasks.length },
     taskRewardMessage,
+    taskRewardWater,
     streakResult,
     progress: {
       title: task.title,
@@ -3746,6 +4277,9 @@ function markIntervalDailyGoalsDone(keyName, intervalSize) {
   const state = getDailyGoalState();
   const comboId = `${keyName}-${intervalSize}`;
   const intervalTasks = getDailyGoalTasks().filter((task) => task.type === "interval");
+  const allTasks = getDailyGoalTasks();
+  const previousDoneCount = allTasks.filter((task) => getDailyGoalProgress(state, task).done).length;
+  const wasAllDone = allTasks.length > 0 && previousDoneCount === allTasks.length;
   const previousProgress = new Map(intervalTasks.map((task) => [task.id, getDailyGoalProgress(state, task)]));
   const completedCombos = new Set(getDailyGoalCompletedCombos(state, intervalTasks[0]));
   completedCombos.add(comboId);
@@ -3757,7 +4291,6 @@ function markIntervalDailyGoalsDone(keyName, intervalSize) {
   const streakResult = markPracticeCompletedToday();
   renderDailyGoals();
   const nextState = getDailyGoalState();
-  const allTasks = getDailyGoalTasks();
   const isAllDone = allTasks.every((task) => getDailyGoalProgress(nextState, task).done);
   const progress = intervalTasks.map((task) => {
     const taskProgress = getDailyGoalProgress(nextState, task);
@@ -3771,8 +4304,29 @@ function markIntervalDailyGoalsDone(keyName, intervalSize) {
   const newlyCompletedTaskIds = intervalTasks
     .filter((task) => !previousProgress.get(task.id)?.done && getDailyGoalProgress(nextState, task).done)
     .map((task) => task.id);
+  const waterBeforeTaskReward = getWaterDrops();
   const taskRewardMessage = claimDailyGoalItemRewards(nextState, newlyCompletedTaskIds);
-  return { isAllDone, streakResult, progress, taskRewardMessage };
+  const taskRewardWater = Math.max(0, getWaterDrops() - waterBeforeTaskReward);
+  const newlyCompleted = intervalTasks
+    .filter((task) => newlyCompletedTaskIds.includes(task.id))
+    .map((task) => ({ id: task.id, title: task.title }));
+  const progressChanged = intervalTasks.some((task) => {
+    const before = previousProgress.get(task.id);
+    const after = getDailyGoalProgress(nextState, task);
+    return before?.completedCount !== after.completedCount || before?.done !== after.done;
+  });
+  const doneCount = allTasks.filter((task) => getDailyGoalProgress(nextState, task).done).length;
+  return {
+    isAllDone,
+    becameAllDone: !wasAllDone && isAllDone,
+    progressChanged,
+    newlyCompleted,
+    dailySummary: { doneCount, totalCount: allTasks.length },
+    streakResult,
+    progress,
+    taskRewardMessage,
+    taskRewardWater,
+  };
 }
 
 function formatDailyGoalProgress(progress) {
@@ -3860,21 +4414,24 @@ function showPracticeCompletedToast(practiceName, waterResult = null, bonusMessa
   playSound("practiceComplete");
 }
 
-function showPracticeCompletionRewardDialog(practiceName, waterResult, goalResult, bonusMessages = [], totalWaterGranted = 0) {
-  const lines = [];
-  if (waterResult?.water > 0) lines.push(`本次練習獲得 ${waterResult.water} 滴 💧。`);
-  if (waterResult?.capped) lines.push("今日練習獎勵已達上限，完成紀錄仍已保存。");
-  const dailyGoalProgress = formatDailyGoalProgress(goalResult?.progress);
-  if (dailyGoalProgress) lines.push(dailyGoalProgress);
-  if (goalResult?.streakResult?.isFirstCompletionToday) {
-    lines.push(`今日連續學習已完成，目前連續 ${goalResult.streakResult.currentStreak} 天。`);
-  }
-  lines.push(...bonusMessages.filter(Boolean));
-  setGoalToastEyebrow("練習獎勵");
-  $("#goalToastTitle").textContent = `完成「${practiceName}」`;
-  setGoalToastTextLines(lines);
-  $("#goalToast").classList.remove("hidden");
-  animatePracticeRewardWater(totalWaterGranted);
+function showPracticeCompletionRewardDialog(
+  practiceName,
+  waterResult,
+  goalResult,
+  bonusMessages = [],
+  totalWaterGranted = 0,
+  options = {},
+) {
+  void bonusMessages;
+  return runPracticeSettlement({
+    practiceName,
+    waterResult,
+    goalResult,
+    totalWaterGranted,
+    waterBreakdown: options.waterBreakdown,
+    leaderboardResultPromise: options.leaderboardResultPromise,
+    showOriginalCompletionPage: options.showOriginalCompletionPage,
+  });
 }
 
 function setCalendarModalOpen(isOpen) {
@@ -6214,12 +6771,24 @@ function finishIntervalPractice() {
   const goalResult = markIntervalDailyGoalsDone(state.key, state.interval);
   const streakResult = goalResult.streakResult;
   const waterResult = awardGardenWaterForPractice(state.completedCycles);
+  const waterBeforeAllTasksReward = getWaterDrops();
+  const allTasksRewardMessage = awardDailyTaskBonusIfNeeded(goalResult.isAllDone);
+  const allTasksWater = Math.max(0, getWaterDrops() - waterBeforeAllTasksReward);
+  const waterBeforeStreakReward = getWaterDrops();
+  const streakRewardMessages = awardStreakMilestoneBonusesIfNeeded(streakResult);
+  const streakMilestoneWater = Math.max(0, getWaterDrops() - waterBeforeStreakReward);
   const bonusMessages = [
     goalResult.taskRewardMessage,
-    awardDailyTaskBonusIfNeeded(goalResult.isAllDone),
-    ...awardStreakMilestoneBonusesIfNeeded(streakResult),
+    allTasksRewardMessage,
+    ...streakRewardMessages,
   ].filter(Boolean);
   const totalWaterGranted = getPracticeCompletionWaterDelta(waterBeforeCompletion);
+  const waterBreakdown = {
+    practiceWater: waterResult.water,
+    dailyTaskWater: goalResult.taskRewardWater,
+    allTasksWater,
+    streakMilestoneWater,
+  };
   if (bonusMessages.length) renderGarden();
   saveIntervalPracticeRecord({
     date: getTodayKey(),
@@ -6233,21 +6802,26 @@ function finishIntervalPractice() {
     cyclesCompleted: state.completedCycles,
     waterEarned: waterResult.water,
   });
-  window.ChromaticaLeaderboard?.recordPracticeCompletion?.({
+  const leaderboardResultPromise = window.ChromaticaLeaderboard?.recordPracticeCompletion?.({
     completedCycles: state.completedCycles,
     ...getCanonicalLeaderboardStreakEvidence(),
   });
   renderStreakSummary();
   $("#intervalPlayer").classList.add("hidden");
-  $("#intervalComplete").classList.remove("hidden");
+  $("#intervalComplete").classList.add("hidden");
   $("#intervalCompleteKey").textContent = INTERVAL_KEYS[state.key].label;
   $("#intervalCompleteSize").textContent = INTERVAL_LABELS[state.interval];
   $("#intervalCompleteDirection").textContent = INTERVAL_DIRECTION_LABELS[state.direction];
   $("#intervalCompleteCycles").textContent = `${state.completedCycles} / ${state.totalCycles}`;
-  playSound("practiceComplete");
-  scrollToSection("intervalComplete");
-  showPracticeCompletionRewardDialog("音程練習", waterResult, goalResult, bonusMessages, totalWaterGranted);
   handleQuickPracticeCompletion("音程練習", completedFromQuickPractice);
+  void showPracticeCompletionRewardDialog("音程練習", waterResult, goalResult, bonusMessages, totalWaterGranted, {
+    waterBreakdown,
+    leaderboardResultPromise,
+    showOriginalCompletionPage() {
+      $("#intervalComplete").classList.remove("hidden");
+      scrollToSection("intervalComplete");
+    },
+  });
 }
 
 function setLongToneCompletionVisible(visible) {
@@ -6262,16 +6836,21 @@ function getLongToneCompletionSetting(exercise) {
   return `${exercise.playBeats} 拍`;
 }
 
-function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessages, totalWaterGranted }) {
+function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessages, totalWaterGranted, waterBreakdown, leaderboardResultPromise }) {
   const completedFromQuickPractice = hasActiveQuickPracticeTask();
   $("#longToneCompleteExercise").textContent = exercise.title;
   $("#longToneCompleteSetting").textContent = getLongToneCompletionSetting(exercise);
   $("#longToneCompleteCycles").textContent = `${totalCycles} / ${totalCycles}`;
-  setLongToneCompletionVisible(true);
-  playSound("practiceComplete");
-  scrollToSection("longToneComplete");
-  showPracticeCompletionRewardDialog(exercise.title, waterResult, goalResult, bonusMessages, totalWaterGranted);
+  setLongToneCompletionVisible(false);
   handleQuickPracticeCompletion(exercise.title, completedFromQuickPractice);
+  void showPracticeCompletionRewardDialog(exercise.title, waterResult, goalResult, bonusMessages, totalWaterGranted, {
+    waterBreakdown,
+    leaderboardResultPromise,
+    showOriginalCompletionPage() {
+      setLongToneCompletionVisible(true);
+      scrollToSection("longToneComplete");
+    },
+  });
 }
 
 function returnToLongTonePractice() {
@@ -6520,19 +7099,31 @@ function stepPractice() {
       const currentGoal = getCurrentDailyGoalCompletion();
       const goalResult = markDailyGoalDone(currentGoal.goalId, currentGoal.comboId);
       const waterResult = awardGardenWaterForPractice(totalCycles);
+      const waterBeforeAllTasksReward = getWaterDrops();
+      const allTasksRewardMessage = awardDailyTaskBonusIfNeeded(goalResult.isAllDone);
+      const allTasksWater = Math.max(0, getWaterDrops() - waterBeforeAllTasksReward);
+      const waterBeforeStreakReward = getWaterDrops();
+      const streakRewardMessages = awardStreakMilestoneBonusesIfNeeded(goalResult.streakResult);
+      const streakMilestoneWater = Math.max(0, getWaterDrops() - waterBeforeStreakReward);
       const bonusMessages = [
         goalResult.taskRewardMessage,
-        awardDailyTaskBonusIfNeeded(goalResult.isAllDone),
-        ...awardStreakMilestoneBonusesIfNeeded(goalResult.streakResult),
+        allTasksRewardMessage,
+        ...streakRewardMessages,
       ].filter(Boolean);
       const totalWaterGranted = getPracticeCompletionWaterDelta(waterBeforeCompletion);
+      const waterBreakdown = {
+        practiceWater: waterResult.water,
+        dailyTaskWater: goalResult.taskRewardWater,
+        allTasksWater,
+        streakMilestoneWater,
+      };
       if (bonusMessages.length) renderGarden();
-      window.ChromaticaLeaderboard?.recordPracticeCompletion?.({
+      const leaderboardResultPromise = window.ChromaticaLeaderboard?.recordPracticeCompletion?.({
         completedCycles: totalCycles,
         ...getCanonicalLeaderboardStreakEvidence(),
       });
       stopPractice(true);
-      showLongToneCompletion({ exercise, averageScore, waterResult, goalResult, bonusMessages, totalWaterGranted });
+      showLongToneCompletion({ exercise, averageScore, waterResult, goalResult, bonusMessages, totalWaterGranted, waterBreakdown, leaderboardResultPromise });
       return;
     }
     cycle += 1;
@@ -7108,6 +7699,8 @@ function bindEvents() {
   });
 
   $("#gardenSpiritModalClose").addEventListener("click", closeGardenSpiritModal);
+  $("#gardenSpiritArtPage").addEventListener("click", showGardenSpiritDetailPage);
+  $("#gardenSpiritBackToCard").addEventListener("click", showGardenSpiritCardPage);
   $("#gardenSpiritModal").addEventListener("click", (event) => {
     if (event.target.id === "gardenSpiritModal") {
       closeGardenSpiritModal();
@@ -7191,6 +7784,7 @@ function bindEvents() {
       setPracticeSettings({ defaultCycles: Number(button.dataset.defaultCycles) });
     });
   });
+  $("#practiceSettlementNext")?.addEventListener("click", advancePracticeSettlement);
   $("#goalToastClose").addEventListener("click", () => {
     closeGoalToast();
   });
@@ -7466,6 +8060,11 @@ function initializeAuthenticatedApp(options = {}) {
           window.setTimeout(() => playSound("evolveComplete"), 600);
         } else void window.ChromaticaHaptics?.tap?.();
       },
+      presentHarvestCard: (spirit) => presentHarvestCard(spirit, {
+        primaryActionSelector: "#gardenQaPrimaryAction",
+        targetRootSelector: "#gardenQaCollection",
+        renderAfter: () => window.ChromaticaGardenQA?.render?.(),
+      }),
     });
   } else {
     stopGardenBgm();
@@ -7492,7 +8091,7 @@ function initializeAuthenticatedApp(options = {}) {
 window.chromaticaApp = {
   initializeForAuthenticatedAccount: initializeAuthenticatedApp,
   isPracticeRewardAnimationRunning() {
-    return practiceRewardAnimationRunning;
+    return practiceRewardAnimationRunning || practiceSettlementSession?.active === true;
   },
   recordDailyLoginEvent(event, details = {}) {
     dailyLoginBonusController.record(event, { userId: getActiveAccountId(), date: getTodayKey(), ...details });
@@ -7542,9 +8141,12 @@ window.chromaticaApp = {
     stopPractice(false);
     window.ChromaticaMetronome?.stop?.();
     window.ChromaticaLeaderboard?.resetForSignedOutAccount?.();
+    cancelPracticeSettlementForAccountChange();
     cancelPracticeRewardWaterAnimation();
     document.body.classList.remove("modal-open");
+    document.body.classList.remove("practice-settlement-open");
     [
+      "practiceSettlementOverlay",
       "goalToast",
       "feedbackModal",
       "calendarModal",

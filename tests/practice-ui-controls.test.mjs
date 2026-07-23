@@ -59,15 +59,22 @@ test("interval score renders all eight groups as two synchronized rows", () => {
   assert.doesNotMatch(app, /function changeIntervalScorePage|function clampIntervalPage/);
 });
 
-test("practice rewards and daily-goal progress open in a separate completion dialog", () => {
+test("numbered notation keeps the long dash and raises it above the baseline", () => {
+  assert.match(app, /class="jianpu-hold\$\{isActiveNote \? " active" : ""\}" aria-label="延長一拍">—<\/b>/);
+  assert.doesNotMatch(app, /class="jianpu-hold[^>]*>[－＿_]<\/b>/);
+  assert.match(css, /\.jianpu-hold \{[^}]*transform: translateY\(-7px\);/s);
+});
+
+test("practice rewards and daily-goal progress run in the settlement overlay before the original page", () => {
   assert.doesNotMatch(html, /id="intervalCompleteWater"|id="longToneCompleteWater"/);
   assert.doesNotMatch(html, /id="intervalCompleteNote"|id="longToneCompleteNote"/);
-  assert.match(app, /function showPracticeCompletionRewardDialog\(practiceName, waterResult, goalResult, bonusMessages = \[\], totalWaterGranted = 0\)/);
-  assert.match(app, /setGoalToastEyebrow\("練習獎勵"\)/);
-  assert.match(app, /本次練習獲得 \$\{waterResult\.water\} 滴 💧/);
+  assert.match(html, /id="practiceSettlementOverlay"[^>]*data-state="idle"/);
+  assert.match(app, /function showPracticeCompletionRewardDialog\([\s\S]*options = \{\},[\s\S]*return runPracticeSettlement\(/);
+  assert.match(app, /leaderboardResultPromise: options\.leaderboardResultPromise/);
+  assert.match(app, /showOriginalCompletionPage: options\.showOriginalCompletionPage/);
   assert.equal((app.match(/const completedFromQuickPractice = hasActiveQuickPracticeTask\(\);/g) || []).length, 2);
-  assert.match(app, /showPracticeCompletionRewardDialog\("音程練習", waterResult, goalResult, bonusMessages, totalWaterGranted\);\s*handleQuickPracticeCompletion\("音程練習", completedFromQuickPractice\)/);
-  assert.match(app, /showPracticeCompletionRewardDialog\(exercise\.title, waterResult, goalResult, bonusMessages, totalWaterGranted\);\s*handleQuickPracticeCompletion\(exercise\.title, completedFromQuickPractice\)/);
+  assert.match(app, /handleQuickPracticeCompletion\("音程練習", completedFromQuickPractice\);\s*void showPracticeCompletionRewardDialog\("音程練習"[\s\S]*showOriginalCompletionPage\(\) \{\s*\$\("#intervalComplete"\)\.classList\.remove\("hidden"\)/);
+  assert.match(app, /handleQuickPracticeCompletion\(exercise\.title, completedFromQuickPractice\);\s*void showPracticeCompletionRewardDialog\(exercise\.title[\s\S]*showOriginalCompletionPage\(\) \{\s*setLongToneCompletionVisible\(true\)/);
 });
 
 test("daily goal reward note is a fixed two-line message", () => {

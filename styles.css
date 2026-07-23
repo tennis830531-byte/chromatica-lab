@@ -1568,6 +1568,36 @@ body.simple-motion .hero-plant-action {
   background: transparent;
 }
 
+.leaderboard-card em {
+  border-color: #a92f2f;
+  color: #fff;
+  background: #c43d3d;
+  font-size: 10px;
+  animation: leaderboardRankPillFlash 900ms ease-in-out infinite;
+}
+
+.leaderboard-card:active em {
+  border-color: #842525;
+  background: #9f2f2f;
+}
+
+@keyframes leaderboardRankPillFlash {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(196, 61, 61, 0.08);
+  }
+  50% {
+    opacity: 0.52;
+    box-shadow: 0 0 0 4px rgba(196, 61, 61, 0.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaderboard-card em {
+    animation: none;
+  }
+}
+
 @media (max-width: 420px) {
   .quick-grid {
     gap: 4px 10px;
@@ -1971,6 +2001,7 @@ body.hide-featured-spirit .hero-plant-slot {
   font-size: 15px;
   font-weight: 900;
   line-height: 1;
+  transform: translateY(-7px);
 }
 
 .jianpu-hold.active {
@@ -4646,6 +4677,11 @@ body.simple-motion .plant-action-layer.is-stage-up {
   align-items: center;
 }
 
+.garden-collection-head {
+  justify-content: center;
+  text-align: center;
+}
+
 .garden-card h3 {
   margin: 3px 0 8px;
   color: var(--text-main);
@@ -4755,8 +4791,8 @@ body.simple-motion .plant-action-layer.is-stage-up {
 
 .watering-can-button {
   position: absolute;
-  right: 20px;
-  top: 18px;
+  right: 8px;
+  top: 6px;
   z-index: 30;
   pointer-events: auto;
   display: inline-grid;
@@ -5097,7 +5133,7 @@ body.simple-motion .plant-action-layer.is-stage-up {
 
 .garden-collection {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   max-height: 410px;
   overflow-y: auto;
@@ -5106,73 +5142,35 @@ body.simple-motion .plant-action-layer.is-stage-up {
 
 .garden-collection-cell {
   position: relative;
-  display: grid;
-  place-items: center;
-  gap: 3px;
-  min-height: 84px;
-  padding: 8px 5px 6px;
-  border: 1px solid rgba(231, 216, 200, 0.82);
-  border-radius: 16px;
-  background: rgba(255, 253, 249, 0.58);
+  aspect-ratio: 2 / 3;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 253, 249, 0.18);
 }
 
 .garden-collection-cell button {
-  display: grid;
-  align-items: center;
-  justify-items: center;
+  display: block;
   width: 100%;
-  min-height: 62px;
+  height: 100%;
   padding: 0;
   overflow: hidden;
   border: 0;
+  border-radius: 7px;
   background: transparent;
 }
 
-.garden-collection-cell img {
-  width: 54px;
-  height: 48px;
+.garden-collection-art-card {
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  object-position: center bottom;
-}
-
-.garden-collection-cell .garden-collection-spirit-thumb {
-  width: 56px;
-  height: 56px;
-  transform-origin: center;
-}
-
-.garden-collection-cell .collection-melody-sprout {
-  transform: translateX(-2px) translateY(1px) scale(1.05);
-}
-
-.garden-collection-cell .collection-flower-spirit {
-  transform: scale(0.92);
-}
-
-.garden-collection-cell .collection-mushroom-spirit {
-  transform: translateX(-3px) scale(0.9);
-}
-
-.garden-collection-cell .collection-lucky-leaf-spirit {
-  transform: scale(0.82);
-}
-
-.garden-collection-cell .collection-bamboo-sound-child {
-  transform: scale(0.82);
-}
-
-.garden-collection-cell .slot-number {
-  position: absolute;
-  left: 7px;
-  top: 6px;
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 900;
+  object-position: center;
 }
 
 .garden-collection-cell.featured {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  box-shadow: 0 0 0 2px #f4c865, 0 0 0 4px rgba(255, 247, 208, 0.86), 0 0 18px rgba(245, 196, 77, 0.66);
 }
 
 .garden-collection-cell.empty {
@@ -5180,19 +5178,34 @@ body.simple-motion .plant-action-layer.is-stage-up {
 }
 
 .garden-collection-cell.locked {
-  grid-template-rows: 62px auto;
-  align-items: end;
-  justify-items: center;
-  gap: 0;
+  opacity: 0.88;
 }
 
-.garden-collection-cell.locked img {
-  align-self: end;
-  width: 54px;
-  height: 56px;
-  object-fit: contain;
-  object-position: center bottom;
-  opacity: 0.7;
+.garden-collection-card-back {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(241, 213, 161, 0.76);
+  border-radius: 7px;
+  background:
+    radial-gradient(circle at center, rgba(255, 239, 188, 0.14) 0 16%, transparent 17%),
+    repeating-conic-gradient(from 22.5deg, rgba(248, 222, 164, 0.14) 0 12.5%, transparent 0 25%),
+    linear-gradient(145deg, #65401f, #2f2117 58%, #714921);
+  box-shadow: inset 0 0 0 3px rgba(255, 239, 190, 0.1);
+}
+
+.garden-collection-card-back::after {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  content: "♪";
+  color: rgba(255, 237, 190, 0.78);
+  font-size: clamp(22px, 8vw, 34px);
+  transform: translate(-50%, -50%);
+}
+
+.garden-collection-cell.just-collected {
+  animation: collectedCardGlow 0.9s ease-out;
 }
 
 .garden-spirit-modal-backdrop {
@@ -5224,6 +5237,209 @@ body.simple-motion .plant-action-layer.is-stage-up {
     radial-gradient(circle at 18% 0%, rgba(212, 165, 90, 0.08), transparent 34%),
     linear-gradient(180deg, #fffdf9, #fcf7ef);
   box-shadow: var(--shadow-card);
+}
+
+.garden-spirit-art-page {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: min(100%, 320px);
+  margin: 4px auto 0;
+  padding: 0;
+  border: 0;
+  color: var(--text-muted);
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  perspective: 900px;
+}
+
+.garden-spirit-art-page.hidden,
+.garden-spirit-detail-page.hidden {
+  display: none;
+}
+
+.garden-spirit-art-page img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: contain;
+  border-radius: 20px;
+  box-shadow: 0 18px 34px rgba(66, 40, 21, 0.24);
+  transform-origin: center;
+}
+
+.garden-spirit-art-page:focus-visible img {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.garden-spirit-modal.is-flipping-to-detail .garden-spirit-detail-page {
+  animation: spiritDetailFlipIn 0.4s ease-out;
+}
+
+.harvest-card-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  display: grid;
+  place-items: center;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+  background: rgba(43, 29, 19, 0.7);
+  backdrop-filter: blur(10px);
+}
+
+.harvest-card-dialog {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  width: min(72vw, 300px);
+  color: #fff9ea;
+  text-align: center;
+}
+
+.harvest-card-dialog p {
+  margin: 0;
+  font-weight: 900;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.harvest-card-button {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  padding: 0;
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+  perspective: 1000px;
+}
+
+.harvest-card-inner,
+.harvest-card-front,
+.harvest-card-back {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.harvest-card-inner {
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.harvest-card-front,
+.harvest-card-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+}
+
+.harvest-card-back {
+  border: 2px solid rgba(255, 232, 176, 0.9);
+  background:
+    radial-gradient(circle at center, rgba(255, 239, 188, 0.2) 0 15%, transparent 16%),
+    repeating-conic-gradient(from 22.5deg, rgba(248, 222, 164, 0.18) 0 12.5%, transparent 0 25%),
+    linear-gradient(145deg, #75491f, #2f2117 58%, #815429);
+  box-shadow: inset 0 0 0 6px rgba(255, 239, 190, 0.12), 0 24px 60px rgba(0, 0, 0, 0.38);
+}
+
+.harvest-card-back::after {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  content: "♪";
+  color: rgba(255, 238, 191, 0.88);
+  font-size: 68px;
+  transform: translate(-50%, -50%);
+}
+
+.harvest-card-front {
+  object-fit: contain;
+  transform: rotateY(180deg);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.38);
+}
+
+.harvest-card-front.is-fallback {
+  display: grid;
+  place-items: center;
+  color: #6b4725;
+  background: #fff4d6;
+}
+
+.harvest-card-overlay[data-card-state="spinning-back"] .harvest-card-inner {
+  animation: harvestCardSpin 0.72s linear infinite;
+}
+
+.harvest-card-overlay[data-card-state="revealing"] .harvest-card-inner,
+.harvest-card-overlay[data-card-state="revealed"] .harvest-card-inner,
+.harvest-card-overlay[data-card-state="flying"] .harvest-card-inner {
+  transform: rotateY(180deg);
+  transition: transform 0.56s cubic-bezier(.2,.72,.2,1);
+}
+
+.garden-qa-preview-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 4px;
+  border: 1px solid #b98a53;
+  border-radius: 14px;
+  background: rgba(255, 246, 211, 0.78);
+}
+
+.garden-qa-preview-switch button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 10px;
+  color: #704321;
+  background: transparent;
+  font-weight: 900;
+}
+
+.garden-qa-preview-switch button.active {
+  color: #fff;
+  background: #704321;
+}
+
+.garden-qa-hero-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.garden-qa-hero-controls label {
+  display: grid;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.garden-qa-hero-preview .start-practice-button[aria-disabled="true"] {
+  cursor: default;
+}
+
+@keyframes harvestCardSpin {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(360deg); }
+}
+
+@keyframes spiritDetailFlipIn {
+  from { opacity: 0; transform: rotateY(-18deg); }
+  to { opacity: 1; transform: rotateY(0); }
+}
+
+@keyframes collectedCardGlow {
+  0%, 100% { filter: none; }
+  45% { filter: drop-shadow(0 0 12px rgba(255, 223, 111, 0.95)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .harvest-card-overlay[data-card-state="spinning-back"] .harvest-card-inner { animation: none; }
+  .harvest-card-overlay[data-card-state="revealing"] .harvest-card-inner,
+  .harvest-card-overlay[data-card-state="revealed"] .harvest-card-inner { transition-duration: 0.16s; }
 }
 
 .garden-spirit-modal *,
@@ -6087,6 +6303,117 @@ body.simple-motion .plant-action-layer.is-stage-up {
   box-shadow: var(--shadow-card);
 }
 
+.practice-settlement-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) max(18px, env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
+  background:
+    radial-gradient(circle at 50% 18%, rgba(229, 190, 111, .28), transparent 34%),
+    rgba(58, 44, 35, .72);
+  backdrop-filter: blur(4px);
+  overflow: hidden;
+  opacity: 1;
+}
+.practice-settlement-overlay.hidden { display: none; }
+.practice-settlement-overlay.is-opening { animation: practiceSettlementBackdropIn 220ms ease-out both; }
+.practice-settlement-overlay.is-closing { animation: practiceSettlementBackdropOut 220ms ease-in both; }
+.practice-settlement-card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(100%, 430px);
+  max-height: calc(100dvh - max(36px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid rgba(188, 139, 69, .78);
+  border-radius: 28px;
+  background:
+    linear-gradient(rgba(255, 253, 246, .94), rgba(250, 239, 214, .96)),
+    repeating-linear-gradient(0deg, rgba(122, 78, 45, .025) 0 1px, transparent 1px 5px);
+  box-shadow: 0 24px 60px rgba(39, 24, 14, .34), inset 0 0 0 5px rgba(255,255,255,.34);
+}
+.practice-settlement-overlay.is-opening .practice-settlement-card { animation: practiceSettlementCardIn 440ms cubic-bezier(.2,.86,.28,1.18) both; }
+.practice-settlement-head { padding: 22px 22px 14px; border-bottom: 1px solid rgba(199, 157, 94, .34); text-align: center; }
+.practice-settlement-head .eyebrow { margin: 0 0 4px; color: #a16a2d; }
+.practice-settlement-head h2 { margin: 0; color: #4c2f20; font: 900 25px/1.25 var(--font-hand); }
+.practice-settlement-stage-label { min-height: 20px; margin: 7px 0 0; color: #876a55; font: 800 12px/1.5 var(--font-sans); }
+.practice-settlement-content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 18px 20px; }
+.practice-settlement-panel { min-height: 250px; text-align: center; }
+.practice-settlement-panel.hidden { display: none; }
+.practice-settlement-panel.is-active { animation: practiceSettlementPanelIn 260ms ease-out both; }
+.practice-settlement-panel-kicker { margin: 0 0 4px; color: #a16a2d; font: 900 11px/1.3 var(--font-sans); letter-spacing: .12em; }
+.practice-settlement-panel h3 { margin: 0; color: #563621; font: 900 20px/1.35 var(--font-hand); }
+.practice-settlement-intro-panel { display: grid; align-content: center; }
+.practice-settlement-intro-panel > p:last-child { margin: 10px auto 0; max-width: 280px; color: #866a55; font: 700 12px/1.6 var(--font-sans); }
+.practice-settlement-intro-mark {
+  display: grid;
+  place-items: center;
+  width: 86px;
+  height: 86px;
+  margin: 18px auto 4px;
+  border: 2px solid #c99a50;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #fff8d9, #e9c27d 72%, #c89346);
+  color: #603a20;
+  box-shadow: 0 10px 24px rgba(103, 64, 28, .2), inset 0 1px 0 rgba(255,255,255,.8);
+  font: 900 38px/1 var(--font-number);
+}
+.practice-settlement-water-panel { display: grid; align-content: center; }
+.practice-settlement-overlay[data-state="task-results"] .practice-settlement-water-panel { align-content: start; }
+.practice-settlement-items { display: grid; gap: 10px; margin-top: 14px; text-align: left; }
+.practice-settlement-item {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid rgba(201, 160, 98, .5);
+  border-radius: 17px;
+  background: rgba(255, 251, 241, .86);
+  box-shadow: 0 7px 16px rgba(91, 58, 31, .07);
+  opacity: 0;
+  transform: translateY(14px);
+}
+.practice-settlement-item.is-visible { animation: practiceSettlementItemIn 260ms ease-out both; }
+.practice-settlement-item-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: #f2d9aa; font-size: 22px; }
+.practice-settlement-item-copy { min-width: 0; }
+.practice-settlement-item-copy strong,
+.practice-settlement-item-copy small { display: block; }
+.practice-settlement-item-copy strong { color: #553520; font: 900 14px/1.35 var(--font-sans); }
+.practice-settlement-item-copy small { margin-top: 2px; color: #8c715e; font: 700 11px/1.4 var(--font-sans); }
+.practice-settlement-item-value { color: #8b5525; font: 900 17px/1 var(--font-number); white-space: nowrap; }
+.practice-settlement-leaderboard { display: grid; align-content: center; }
+.practice-settlement-rank-badge {
+  display: grid;
+  place-items: center;
+  width: 94px;
+  height: 94px;
+  margin: 18px auto 12px;
+  border: 2px solid #c99a50;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #fff8d9, #e9c27d 72%, #c89346);
+  color: #603a20;
+  box-shadow: 0 10px 24px rgba(103, 64, 28, .2), inset 0 1px 0 rgba(255,255,255,.8);
+  font: 900 32px/1 var(--font-number);
+}
+.practice-settlement-leaderboard[data-rank-direction="up"] .practice-settlement-rank-badge { animation: practiceSettlementRankUp 520ms cubic-bezier(.2,.88,.3,1.2) both; }
+.practice-settlement-leaderboard > strong { display: block; color: #553520; font: 900 18px/1.4 var(--font-sans); }
+.practice-settlement-leaderboard > p:last-child { margin: 7px 0 0; color: #866a55; font: 700 12px/1.5 var(--font-sans); }
+.practice-settlement-actions { display: grid; justify-items: center; gap: 6px; padding: 12px 20px max(16px, env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(199, 157, 94, .34); text-align: center; }
+.practice-settlement-actions button { min-width: 132px; min-height: 42px; }
+.practice-settlement-countdown { min-height: 18px; margin: 0; color: #8c715e; font: 900 13px/1.4 var(--font-number); }
+body.practice-settlement-open { overflow: hidden; }
+
+@keyframes practiceSettlementBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes practiceSettlementBackdropOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes practiceSettlementCardIn { from { opacity: 0; transform: translateY(38px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes practiceSettlementPanelIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes practiceSettlementItemIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes practiceSettlementRankUp { 0% { opacity: .4; transform: translateY(22px) scale(.86); } 68% { opacity: 1; transform: translateY(-5px) scale(1.08); } 100% { transform: none; } }
+
 .practice-reward-water-animation {
   position: relative;
   isolation: isolate;
@@ -6094,8 +6421,10 @@ body.simple-motion .plant-action-layer.is-stage-up {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  width: calc(100% - 32px);
+  max-width: 160px;
   min-height: 88px;
-  margin: 14px 0;
+  margin: 14px auto;
   border: 1px solid rgba(186, 126, 51, .35);
   border-radius: 22px;
   background: radial-gradient(circle at 50% 20%, #fff7cd, #f4d08d 72%, #e3b667);
@@ -6157,6 +6486,17 @@ body.simple-motion .plant-action-layer.is-stage-up {
 @keyframes rewardWaterBurst { 20% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--particle-angle)) translateY(-70px) scale(.5); } }
 
 @media (prefers-reduced-motion: reduce) {
+  .practice-settlement-overlay,
+  .practice-settlement-overlay.is-opening,
+  .practice-settlement-overlay.is-closing,
+  .practice-settlement-overlay.is-opening .practice-settlement-card,
+  .practice-settlement-panel.is-active,
+  .practice-settlement-item.is-visible,
+  .practice-settlement-leaderboard[data-rank-direction="up"] .practice-settlement-rank-badge {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
   .practice-reward-water-animation,
   .practice-reward-water-animation.is-entering,
   .practice-reward-water-animation.is-spinning,
@@ -6167,6 +6507,14 @@ body.simple-motion .plant-action-layer.is-stage-up {
     opacity: 1;
     transform: none;
   }
+}
+
+@media (max-width: 360px), (max-height: 640px) {
+  .practice-settlement-head { padding: 16px 16px 10px; }
+  .practice-settlement-content { padding: 13px 14px; }
+  .practice-settlement-panel { min-height: 210px; }
+  .practice-settlement-rank-badge { width: 78px; height: 78px; margin-top: 12px; font-size: 27px; }
+  .practice-settlement-actions { padding-top: 9px; }
 }
 
 .feedback-modal-backdrop {

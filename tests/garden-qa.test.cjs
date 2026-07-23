@@ -18,7 +18,7 @@ test("stores only the expected password hash", () => {
 });
 test("49 title clicks stay hidden and click 50 opens", () => { assert.match(source, /REQUIRED_CLICKS = 50/); assert.match(source, /titleClicks < REQUIRED_CLICKS/); assert.match(source, /setModal\(true\)/); });
 test("only the visible hero title owns the hidden listener", () => { assert.match(html, /id="homeHeroQaTitle"[^>]*>半音階口琴練習室/); assert.match(source, /#homeHeroQaTitle.*addEventListener\("click"/); });
-test("hero image has no QA click target", () => { assert.doesNotMatch(source, /home-hero|hero-copy|homeHeroQaImage|heroPlantSlot/); });
+test("QA hero preview reuses formal hero classes without owning the hidden entry gesture", () => { assert.match(source, /garden-qa-hero-preview home-hero paper-card/); assert.match(source, /hero-plant-slot/); assert.match(source, /start-practice-button[^>]*aria-disabled="true"/); assert.doesNotMatch(source, /\.home-hero.*addEventListener|\.hero-copy.*addEventListener/); });
 test("container blank clicks have no QA listener", () => { assert.doesNotMatch(source, /\.home-hero.*addEventListener|\.hero-copy.*addEventListener/); });
 test("password field is numeric, private and not saved", () => { assert.match(html, /id="gardenQaPassword" type="password" inputmode="numeric" maxlength="8" autocomplete="off"/); assert.doesNotMatch(source, /localStorage/); });
 test("five failures lock for thirty seconds", () => { assert.match(source, /MAX_FAILURES = 5/); assert.match(source, /LOCK_MS = 30000/); assert.match(source, /lockedUntil = Date\.now\(\) \+ LOCK_MS/); });
