@@ -449,6 +449,7 @@ function renderAuthSession(session) {
   const elements = getAuthElements();
   const user = session?.user || null;
   currentAuthUser = user;
+  window.ChromaticaLeaderboard?.activateAccount?.(user?.id || "");
   elements.signedOut?.classList.toggle("hidden", Boolean(user));
   elements.signedIn?.classList.toggle("hidden", !user);
   if (!user) {
@@ -1312,13 +1313,18 @@ window.chromaticaAuth = {
   getLeaderboardAccount() {
     return currentAuthUser ? { id: currentAuthUser.id } : null;
   },
-  async leaderboardRpc(name, params = {}) {
+  async leaderboardRpc(name, params = {}, { expectedUserId = "" } = {}) {
     if (!supabaseClient || !LEADERBOARD_RPC_ALLOWLIST.has(name)) {
       return { data: null, error: new Error("leaderboard-rpc-unavailable") };
     }
     const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
     if (sessionError || !sessionData.session?.user) {
       return { data: null, error: sessionError || new Error("auth-required") };
+    }
+    if (expectedUserId && sessionData.session.user.id !== expectedUserId) {
+      const accountError = new Error("leaderboard-account-changed");
+      accountError.code = "leaderboard-account-changed";
+      return { data: null, error: accountError };
     }
     return supabaseClient.rpc(name, params);
   },
@@ -1329,6 +1335,9 @@ window.chromaticaAuth = {
   },
   async uploadLeaderboardAvatar(file, options = {}) {
     if (!supabaseClient || !currentAuthUser) throw new Error("auth-required");
+    if (options.expectedUserId && currentAuthUser.id !== options.expectedUserId) {
+      throw new Error("leaderboard-account-changed");
+    }
     const actualMime = await detectLeaderboardAvatarMime(file);
     if (!actualMime || file.size <= 0 || file.size > LEADERBOARD_AVATAR_INPUT_LIMIT) throw new Error("avatar-file-invalid");
     const form = new FormData();
@@ -1342,6 +1351,9 @@ window.chromaticaAuth = {
       body: form,
     });
     if (error) throw error;
+    if (options.expectedUserId && currentAuthUser?.id !== options.expectedUserId) {
+      throw new Error("leaderboard-account-changed");
+    }
     const path = String(data?.path || "");
     if (!/^[a-f0-9]{32}\/avatar-[a-f0-9-]+\.webp$/i.test(path)) throw new Error("avatar-upload-invalid-response");
     const publicUrl = supabaseClient.storage.from("leaderboard-avatars").getPublicUrl(path).data?.publicUrl || "";

@@ -5,6 +5,8 @@ const path = require("node:path");
 
 const root = path.join(__dirname, "..");
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/202607210002_create_weekly_leaderboard_announcements.sql"), "utf8");
+const rankMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607230001_rank_all_joined_weekly_members.sql"), "utf8");
+const pgNetMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607230002_enable_pg_net_for_leaderboard_dispatch.sql"), "utf8");
 const oldMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607210001_create_global_leaderboards.sql"), "utf8");
 
 test("Taipei weeks begin Sunday 00:00 using server timestamps", () => {
@@ -26,6 +28,28 @@ test("weekly ordering is stable and exposes top fifteen plus self", () => {
   assert.match(migration, /completed_cycles desc,\s*score_reached_at asc,\s*user_id asc/);
   assert.match(migration, /rank_position <= 15/);
   assert.match(migration, /user_id = auth\.uid\(\)/);
+});
+
+test("all joined members receive consecutive weekly row-number ranks including zero cycles", () => {
+  assert.match(rankMigration, /^begin;/);
+  assert.match(rankMigration, /create or replace function public\.get_weekly_leaderboard\(\)/);
+  assert.match(rankMigration, /returns table \([\s\S]*"position" bigint[\s\S]*score bigint[\s\S]*week_start date/);
+  assert.match(rankMigration, /from public\.leaderboard_profiles lp[\s\S]*lp\.is_active[\s\S]*lp\.profile_completed[\s\S]*lp\.consented_at is not null/);
+  assert.match(rankMigration, /left join public\.weekly_leaderboard_scores ws[\s\S]*ws\.week_start = v_week/);
+  assert.match(rankMigration, /row_number\(\) over \([\s\S]*coalesce\(ws\.completed_cycles, 0::bigint\) desc,[\s\S]*am\.joined_at asc,[\s\S]*am\.user_id asc/);
+  assert.match(rankMigration, /rank_position <= 15[\s\S]*user_id = auth\.uid\(\)[\s\S]*rank_position > 15/);
+  assert.doesNotMatch(rankMigration, /insert into|update public|delete from|truncate|\brank\(\)|dense_rank\(\)/i);
+  assert.match(rankMigration, /revoke all on function public\.get_weekly_leaderboard\(\) from public, anon/);
+  assert.match(rankMigration, /grant execute on function public\.get_weekly_leaderboard\(\) to authenticated/);
+  assert.match(rankMigration, /commit;\s*$/);
+});
+
+test("pg_net migration only enables the dormant dispatch dependency", () => {
+  assert.match(pgNetMigration, /^begin;/);
+  assert.match(pgNetMigration, /create extension if not exists pg_net\s+with schema extensions;/);
+  assert.match(pgNetMigration, /comment on extension pg_net/);
+  assert.match(pgNetMigration, /commit;\s*$/);
+  assert.doesNotMatch(pgNetMigration, /pg_cron|cron\.schedule|net\.http_post\s*\(|dispatch_leaderboard_notification_queue\s*\(|vault\.|insert\s+into|update\s+public|delete\s+from|truncate/i);
 });
 
 test("finalization preserves results and is idempotent", () => {

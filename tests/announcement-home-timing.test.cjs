@@ -36,6 +36,7 @@ class FakeClassList {
 }
 
 function fakeElement(...classes) {
+  const listeners = new Map();
   return {
     classList: new FakeClassList(...classes),
     textContent: "",
@@ -43,7 +44,17 @@ function fakeElement(...classes) {
     files: [],
     value: "",
     children: [],
-    addEventListener() {},
+    focusCount: 0,
+    addEventListener(type, listener) {
+      const entries = listeners.get(type) || [];
+      entries.push(listener);
+      listeners.set(type, entries);
+    },
+    dispatch(type, event = {}) {
+      (listeners.get(type) || []).forEach((listener) => listener({ target: this, preventDefault() {}, ...event }));
+    },
+    click() { this.dispatch("click"); },
+    focus() { this.focusCount += 1; },
     append(...children) { this.children.push(...children); },
     replaceChildren(...children) { this.children = children; },
     removeAttribute(name) { delete this[name]; },
@@ -78,11 +89,26 @@ function createHarness({
     ["announcementPreviewImage", fakeElement("hidden")],
     ["announcementPreviewBody", fakeElement()],
     ["announcementReadMore", fakeElement()],
+    ["announcementFullModal", fakeElement("announcement-backdrop", "hidden")],
+    ["announcementFullTopic", fakeElement()],
+    ["announcementFullTitle", fakeElement()],
+    ["announcementFullTime", fakeElement()],
+    ["announcementFullImage", fakeElement("hidden")],
+    ["announcementFullBody", fakeElement()],
     ["announcementListModal", fakeElement("announcement-backdrop", "hidden")],
+    ["announcementListTitle", fakeElement()],
     ["announcementList", fakeElement()],
     ["announcementListStatus", fakeElement()],
+    ["announcementAdminModal", fakeElement("announcement-backdrop", "hidden")],
+    ["announcementAdminTitle", fakeElement()],
     ["micGate", fakeElement(...(micGateVisible ? [] : ["hidden"]))],
   ]);
+  const closeControls = {
+    preview: [fakeElement(), fakeElement()],
+    full: [fakeElement()],
+    list: [fakeElement()],
+    admin: [fakeElement()],
+  };
   const state = {
     rows: announcements,
     rpcError,
@@ -93,14 +119,34 @@ function createHarness({
     body,
     querySelector(selector) {
       if (selector === "#intro.view.active") return intro.classList.contains("active") ? intro : null;
+      const titleMatch = selector.match(/^#(announcement(?:Preview|Full|List|Admin)Modal) h2$/);
+      if (titleMatch) return elements.get(titleMatch[1].replace("Modal", "Title")) || null;
+      const closeMatch = selector.match(/^#(announcement(?:Preview|Full|List|Admin)Modal) \.announcement-close$/);
+      if (closeMatch) {
+        const key = closeMatch[1].includes("Preview") ? "preview"
+          : closeMatch[1].includes("Full") ? "full"
+            : closeMatch[1].includes("List") ? "list" : "admin";
+        return closeControls[key][0];
+      }
       if (selector.startsWith("#")) return elements.get(selector.slice(1)) || null;
       if (selector === ".announcement-backdrop:not(.hidden)") {
         return [...elements.values()].find((element) => element.classList.contains("announcement-backdrop") && !element.classList.contains("hidden")) || null;
       }
       return null;
     },
-    querySelectorAll() { return []; },
+    querySelectorAll(selector) {
+      if (selector === "[data-announcement-close]") return closeControls.preview;
+      if (selector === "[data-announcement-full-close]") return closeControls.full;
+      if (selector === "[data-announcement-list-close], [data-announcement-admin-close]") {
+        return [...closeControls.list, ...closeControls.admin];
+      }
+      if (selector === ".announcement-backdrop:not(.hidden)") {
+        return [...elements.values()].filter((element) => element.classList.contains("announcement-backdrop") && !element.classList.contains("hidden"));
+      }
+      return [];
+    },
     createElement() { return fakeElement(); },
+    addEventListener() {},
   };
   const storage = new Map();
   const eventListeners = new Map();
@@ -150,6 +196,9 @@ function createHarness({
       const listeners = [...(eventListeners.get(type) || [])];
       eventListeners.set(type, listeners.filter((entry) => !entry.once));
       listeners.forEach((entry) => entry.listener());
+    },
+    visibleAnnouncementModals() {
+      return [...elements.values()].filter((element) => element.classList.contains("announcement-backdrop") && !element.classList.contains("hidden"));
     },
   };
 }
@@ -313,4 +362,79 @@ test("23 microphone choices hide the gate before requesting the announcement", (
   assert.match(app, /function completeMicGate\(\) \{\s*\$\("#micGate"\)\?\.classList\.add\("hidden"\);\s*void window\.ChromaticaAnnouncements\?\.maybeShowLatestOnHome\?\.\(\);/);
   assert.match(app, /if \(started\) \{\s*await calibrateMic\(\);\s*completeMicGate\(\);/);
   assert.match(app, /\$\("#micGateSkip"\)\.addEventListener\("click", \(\) => \{\s*completeMicGate\(\);/);
+});
+
+test("24 preview to detail makes detail the only visible announcement modal and preserves one scroll lock", async () => {
+  const harness = createHarness();
+  await harness.api.maybeShowLatestOnHome();
+  assert.equal(harness.api.showFull(), true);
+  assert.equal(harness.elements.get("announcementPreviewModal").classList.contains("hidden"), true);
+  assert.equal(harness.elements.get("announcementFullModal").classList.contains("hidden"), false);
+  assert.equal(harness.visibleAnnouncementModals().length, 1);
+  assert.equal(harness.body.classList.contains("modal-open"), true);
+  assert.equal(harness.elements.get("announcementPreviewModal")["aria-hidden"], "true");
+  assert.equal(harness.elements.get("announcementFullModal")["aria-hidden"], "false");
+});
+
+test("25 rapid repeated detail requests are idempotent and never create a second backdrop", async () => {
+  const harness = createHarness();
+  await harness.api.maybeShowLatestOnHome();
+  assert.equal(harness.api.showFull(), true);
+  assert.equal(harness.api.showFull(), false);
+  assert.equal(harness.api.showFull(), false);
+  assert.equal(harness.visibleAnnouncementModals().length, 1);
+  assert.equal(harness.elements.get("announcementFullTitle").textContent, "最新公告");
+});
+
+test("26 closing auto detail does not reopen preview and the cold-start gate remains consumed", async () => {
+  const harness = createHarness();
+  await harness.api.maybeShowLatestOnHome();
+  harness.api.showFull();
+  assert.equal(harness.api.closeTopModal(), true);
+  assert.equal(harness.visibleAnnouncementModals().length, 0);
+  assert.equal(await harness.api.maybeShowLatestOnHome(), false);
+  assert.equal(harness.visibleAnnouncementModals().length, 0);
+});
+
+test("27 manual list detail transition remains repeatable and returns to the list without overlap", async () => {
+  const harness = createHarness();
+  await harness.api.showList();
+  const firstItem = harness.elements.get("announcementList").children[0];
+  firstItem.click();
+  assert.equal(harness.elements.get("announcementListModal").classList.contains("hidden"), true);
+  assert.equal(harness.elements.get("announcementFullModal").classList.contains("hidden"), false);
+  assert.equal(harness.visibleAnnouncementModals().length, 1);
+  harness.api.closeTopModal();
+  assert.equal(harness.elements.get("announcementListModal").classList.contains("hidden"), false);
+  assert.equal(harness.visibleAnnouncementModals().length, 1);
+  firstItem.click();
+  assert.equal(harness.elements.get("announcementFullModal").classList.contains("hidden"), false);
+  assert.equal(harness.visibleAnnouncementModals().length, 1);
+});
+
+test("28 unavailable detail data shows a safe nonblank state", () => {
+  const harness = createHarness({ announcements: [] });
+  assert.equal(harness.api.showFull(null), true);
+  assert.equal(harness.elements.get("announcementFullTitle").textContent, "無法開啟公告");
+  assert.match(harness.elements.get("announcementFullBody").textContent, /暫時無法載入/);
+  assert.equal(harness.visibleAnnouncementModals().length, 1);
+});
+
+test("29 detail transition moves focus to its title", async () => {
+  const harness = createHarness();
+  await harness.api.maybeShowLatestOnHome();
+  harness.api.showFull();
+  assert.ok(harness.elements.get("announcementFullTitle").focusCount >= 1);
+});
+
+test("30 Android back closes the active announcement before other app navigation", () => {
+  assert.match(app, /if \(window\.ChromaticaAnnouncements\?\.closeTopModal\?\.\(\)\) \{[\s\S]*?return;[\s\S]*?ChromaticaLeaderboard/);
+  assert.match(source, /function closeTopModal\(\)/);
+  assert.match(source, /document\.addEventListener\?\.\("keydown"/);
+});
+
+test("31 one modal coordinator hides every non-target announcement layer and does not use z-index patches", () => {
+  assert.match(source, /MODAL_SELECTORS\.forEach/);
+  assert.match(source, /setVisibleAnnouncementModal\("#announcementFullModal"\)/);
+  assert.doesNotMatch(source, /style\.zIndex|z-index/);
 });

@@ -84,7 +84,7 @@ test("11 leaderboard presentation follows task result presentation", () => {
 
 test("12 successful leaderboard submission returns server ranks and a real weekly score", () => {
   assert.match(leaderboard, /practiceSettlementResults\.set\(event\.eventId,[\s\S]*previousRank:[\s\S]*currentRank:/);
-  assert.match(leaderboard, /weeklyCycles: currentRow\?\.score \?\? null/);
+  assert.match(leaderboard, /weeklyCycles: currentRow\?\.score \?\? 0/);
 });
 
 test("13 an improved rank shows old and new rank with an upward animation", () => {

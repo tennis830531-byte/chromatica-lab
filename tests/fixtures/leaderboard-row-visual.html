@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="../../styles.css" />
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; overflow-x: clip; }
+    body { padding: 8px; }
+  </style>
+</head>
+<body>
+  <ol class="leaderboard-list">
+    <li class="leaderboard-row is-podium is-gold">
+      <span class="leaderboard-rank">1</span>
+      <img class="leaderboard-avatar" alt="" />
+      <strong class="leaderboard-name">這是一個二十字元長度的排行榜測試名字</strong>
+      <span class="leaderboard-spirit"><img alt="" /><span>旋律森使</span></span>
+      <strong class="leaderboard-score">本週 888 次</strong>
+    </li>
+    <li class="leaderboard-row">
+      <span class="leaderboard-rank">2</span>
+      <img class="leaderboard-avatar" alt="" />
+      <strong class="leaderboard-name">零次加入者的排行榜測試名稱</strong>
+      <span class="leaderboard-spirit"><img alt="" /><span>花樂仙子</span></span>
+      <strong class="leaderboard-score">本週 0 次</strong>
+    </li>
+  </ol>
+  <pre id="result"></pre>
+  <script>
+    function measure() {
+      const rows = [...document.querySelectorAll(".leaderboard-row")].map((row) => {
+        const rank = row.querySelector(".leaderboard-rank").getBoundingClientRect();
+        const avatar = row.querySelector(".leaderboard-avatar").getBoundingClientRect();
+        const nameNode = row.querySelector(".leaderboard-name");
+        const spiritNode = row.querySelector(".leaderboard-spirit");
+        const score = row.querySelector(".leaderboard-score").getBoundingClientRect();
+        const name = nameNode.getBoundingClientRect();
+        const spirit = spiritNode.getBoundingClientRect();
+        const box = row.getBoundingClientRect();
+        const style = getComputedStyle(row);
+        return {
+          box: { left: box.left, right: box.right, width: box.width },
+          columnGap: style.columnGap,
+          rankAvatarGap: avatar.left - rank.right,
+          avatarNameGap: name.left - avatar.right,
+          nameSpiritAligned: Math.abs(name.left - spirit.left) < .5,
+          scoreRightInset: box.right - score.right,
+          nameEllipsis: getComputedStyle(nameNode).textOverflow,
+          nameOverflowContained: name.right <= score.left || name.bottom <= score.top,
+        };
+      });
+      return {
+        viewport: innerWidth,
+        documentWidth: document.documentElement.scrollWidth,
+        rows,
+      };
+    }
+
+    addEventListener("load", () => {
+      const params = new URLSearchParams(location.search);
+      const requestedViewport = Number(params.get("viewport"));
+
+      if (params.get("child") === "1") {
+        parent.postMessage({ type: "leaderboard-row-layout", result: measure() }, "*");
+        return;
+      }
+
+      if (Number.isFinite(requestedViewport) && requestedViewport > 0) {
+        document.querySelector(".leaderboard-list").hidden = true;
+        const frame = document.createElement("iframe");
+        frame.style.cssText = `display:block;border:0;width:${requestedViewport}px;height:700px`;
+        frame.src = `${location.pathname}?child=1`;
+        document.body.append(frame);
+        addEventListener("message", (event) => {
+          if (event.data?.type === "leaderboard-row-layout") {
+            document.querySelector("#result").textContent = JSON.stringify(event.data.result);
+          }
+        }, { once: true });
+        return;
+      }
+
+      document.querySelector("#result").textContent = JSON.stringify(measure());
+    });
+  </script>
+</body>
+</html>

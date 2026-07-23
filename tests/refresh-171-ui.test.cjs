@@ -104,7 +104,7 @@ test("leaderboard is read-only and public profile actions live in member setting
 test("home and modal use neutral leaderboard labels while onboarding starts from the leaderboard", () => {
   assert.match(html, /data-leaderboard-open[^>]*aria-label="開啟排行榜"[\s\S]*?<strong>排行榜<\/strong><em>查看本週名次<\/em>/);
   assert.match(html, /id="leaderboardModalTitle">排行榜<\/h2>[\s\S]*class="leaderboard-board-title">乖乖練習王<\/h3>/);
-  assert.match(leaderboard, /if \(!joined\)[\s\S]*openProfileEditor\(\{ onboarding: true \}\)/);
+  assert.match(leaderboard, /membershipStatus === MEMBERSHIP\.NOT_JOINED[\s\S]*openProfileEditor\(\{ onboarding: true \}\)/);
   assert.match(leaderboard, /前往排行榜完成首次設定/);
 });
 
@@ -117,14 +117,27 @@ test("weekly backend absence offline and auth failures have distinct safe messag
 
 test("weekly leaderboard copy removes streak ranking and historic total explanations", () => {
   assert.match(html, /乖乖練習王/);
+  assert.match(html, /乖乖練習王<\/h3>[\s\S]*來看看練習循環次數最多的高手！/);
+  const modal = html.match(/id="leaderboardModal"[\s\S]*?<\/section>\s*<\/div>/)?.[0] || "";
+  assert.ok(modal.indexOf("leaderboardList") < modal.indexOf("leaderboardWeekLabel"));
   assert.doesNotMatch(html, /連續學習王|streak排行|歷史總循環|成績自refresh-170|自refresh-170累積/);
   assert.doesNotMatch(leaderboard, /連續學習王|歷史總循環|成績自refresh-170|自refresh-170累積/);
+  assert.doesNotMatch(html, /我的本週狀態|leaderboardOwnWeeklyStatus|leaderboardAccountWeeklyStatus/);
+  assert.doesNotMatch(leaderboard, /更新完成，共顯示/);
 });
 
 test("leaderboard rows use explicit grid columns for rank avatar name spirit and score", () => {
   assert.match(css, /\.leaderboard-row\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:/s);
   assert.match(leaderboard, /leaderboard-rank[\s\S]*leaderboard-avatar[\s\S]*leaderboard-name[\s\S]*leaderboard-spirit[\s\S]*leaderboard-score/);
   assert.match(css, /minmax\(0,\s*1fr\)/);
+  assert.match(css, /\.leaderboard-row\s*\{[^}]*column-gap:\s*16px;/s);
+  assert.match(css, /@media\s*\(max-width:\s*430px\)[\s\S]*?\.leaderboard-row\s*\{[^}]*column-gap:\s*13px;/s);
+  assert.match(css, /\.leaderboard-name\s*\{[^}]*grid-column:\s*3;[^}]*grid-row:\s*1;/s);
+  assert.match(css, /\.leaderboard-spirit\s*\{[^}]*grid-column:\s*3;[^}]*grid-row:\s*2;/s);
+  assert.match(css, /\.leaderboard-row\s*\{[^}]*grid-template-columns:\s*42px 54px minmax\(90px, 1\.4fr\) minmax\(74px, \.9fr\) minmax\(68px, auto\)/s);
+  assert.match(css, /@media\s*\(max-width:\s*430px\)[\s\S]*?grid-template-columns:\s*34px 44px minmax\(0, 1fr\) auto/s);
+  assert.match(css, /\.leaderboard-row\.is-podium \.leaderboard-rank\s*\{[^}]*width:\s*42px;[^}]*height:\s*48px;/s);
+  assert.match(css, /\.leaderboard-avatar\s*\{[^}]*width:\s*54px;[^}]*height:\s*54px;/s);
 });
 
 test("rank movement waits for successful server sync and never claims an offline rank", () => {

@@ -1,5 +1,10 @@
 {
   "appId": "com.yrpeng.chromaticalab",
   "appName": "Chromatic Harmonica Lab",
-  "webDir": "www"
+  "webDir": "www",
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "disable"
+    }
+  }
 }
