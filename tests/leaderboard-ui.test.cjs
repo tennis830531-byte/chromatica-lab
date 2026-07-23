@@ -73,6 +73,12 @@ test("an incomplete account enters onboarding from the leaderboard while member 
   assert.match(runtime, /onboarding \? "" : core\.normalizeDisplayName/);
 });
 
+test("member settings public-profile action stays on one line in both states", () => {
+  assert.match(runtime, /joined === true \? "編輯公開資料／更換頭像" : "前往排行榜完成首次設定"/);
+  assert.match(css, /\.leaderboard-account-actions \{[^}]*grid-template-columns: minmax\(0, 1fr\);/s);
+  assert.match(css, /\.leaderboard-account-actions button \{[^}]*white-space: nowrap;/s);
+});
+
 test("an unavailable backend shows one friendly status instead of opening public profile setup", () => {
   assert.match(runtime, /\.catch\(\(error\) => \{[\s\S]*membershipUnavailable = true/);
   const unavailable = runtime.match(/if \(membershipUnavailable\) \{[\s\S]*?return true;\s*\}/)?.[0] || "";

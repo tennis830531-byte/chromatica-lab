@@ -146,6 +146,18 @@ test("announcement preview truncates ten Unicode graphemes and appears once per 
   assert.match(announcements, /textContent/);
 });
 
+test("announcement settings entry is first and visually independent from About", () => {
+  const settingsStart = html.indexOf('<div class="audio-settings-panel">');
+  const announcementIndex = html.indexOf('id="announcementsOpen"', settingsStart);
+  const microphoneIndex = html.indexOf("<strong>收音設定</strong>", settingsStart);
+  const aboutIndex = html.indexOf("<strong>關於</strong>", settingsStart);
+  assert.ok(settingsStart >= 0 && announcementIndex > settingsStart && announcementIndex < microphoneIndex);
+  assert.ok(aboutIndex > microphoneIndex);
+  assert.equal((html.match(/id="announcementsOpen"/g) || []).length, 1);
+  assert.match(html, /id="announcementsOpen" class="[^"]*announcement-settings-entry[^"]*"/);
+  assert.match(css, /\.announcement-settings-entry \{[^}]*border: 2px solid #b84040;/s);
+});
+
 test("two independent push preferences default on and permission remains user initiated", () => {
   assert.match(html, /id="leaderboardWeeklyResultToggle"[^>]*checked/);
   assert.match(html, /id="leaderboardMovementToggle"[^>]*checked/);

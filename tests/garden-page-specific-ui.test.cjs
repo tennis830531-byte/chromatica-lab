@@ -29,7 +29,7 @@ test("homepage uses alpha-measured per-species per-stage vertical offsets", () =
     assert.match(css, new RegExp(`\\.hero-garden-plant-image\\.species-${species}-${spirit}\\.hero-stage-${stage} \\{ --hero-visual-y: ${offset.replace(".", "\\.")}; \\}`));
   }
   assert.match(css, /\.hero-garden-plant-image\.species-melody-sprout\.hero-stage-3 \{[^}]*max-width: 120%;[^}]*max-height: 214px;/s);
-  assert.match(css, /\.hero-plant-name-card \{[^}]*transform: translateY\(44px\);/s);
+  assert.match(css, /\.hero-plant-name-card \{[^}]*transform: translateY\(44px\);[^}]*border-radius: 0;/s);
   assert.match(app, /heroImage\.classList\.remove\("hero-stage-1", "hero-stage-2", "hero-stage-3"\);[\s\S]*setGardenSpeciesClass\(heroImage, plant\?\.species \|\| ""\);/);
   assert.doesNotMatch(app.match(/function renderHeroGarden\(\)[\s\S]*?\n\}/)?.[0] || "", /garden-stage-|garden-plant-image|applyGardenPlantPresentation|style\.(?:transform|top|bottom)/);
 });

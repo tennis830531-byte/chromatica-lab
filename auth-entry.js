@@ -645,6 +645,7 @@ async function prepareAuthenticatedSession(session, { forceFormalInitialization 
         initializationReason: "qa-resume",
       });
     }
+    void window.ChromaticaAnnouncements?.maybeShowLatestOnHome?.();
     return true;
   }
   setStartupAuthStatus("authenticated");
@@ -717,6 +718,7 @@ async function prepareAuthenticatedSession(session, { forceFormalInitialization 
   if (workspaceAttempt !== workspaceAttemptGeneration) return false;
   startupState.destination = "app";
   setGateState("authenticated");
+  void window.ChromaticaAnnouncements?.maybeShowLatestOnHome?.();
   if (qaResumeRequested && !forceFormalInitialization) {
     schedulePostStartupGardenWarmup(false);
   } else {

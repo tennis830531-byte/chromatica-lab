@@ -6875,6 +6875,11 @@ function editIntervalPracticeSettings() {
   scrollToSection("intervalSetup");
 }
 
+function completeMicGate() {
+  $("#micGate")?.classList.add("hidden");
+  void window.ChromaticaAnnouncements?.maybeShowLatestOnHome?.();
+}
+
 function setView(view, options = {}) {
   const target = options.activeTarget || options.scrollTarget || "";
   const changedView = currentView !== view || currentViewTarget !== target;
@@ -6923,6 +6928,9 @@ function setView(view, options = {}) {
     requestAnimationFrame(() => {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
+  }
+  if (view === "intro") {
+    void window.ChromaticaAnnouncements?.maybeShowLatestOnHome?.();
   }
 }
 
@@ -7810,13 +7818,13 @@ function bindEvents() {
     const started = await startMic();
     if (started) {
       await calibrateMic();
-      $("#micGate").classList.add("hidden");
+      completeMicGate();
     } else {
       $("#micGateError").textContent = "麥克風無法開啟，請確認瀏覽器權限後再試一次。";
     }
   });
   $("#micGateSkip").addEventListener("click", () => {
-    $("#micGate").classList.add("hidden");
+    completeMicGate();
   });
 }
 
@@ -7825,7 +7833,7 @@ async function requestMicOnEntry() {
   const started = await startMic();
   if (started) {
     await calibrateMic();
-    $("#micGate").classList.add("hidden");
+    completeMicGate();
   }
 }
 
@@ -8078,7 +8086,7 @@ function initializeAuthenticatedApp(options = {}) {
     remoteApply: options.initializationReason === "remote-apply",
   });
   if (isGardenQaSessionActive()) {
-    $("#micGate")?.classList.add("hidden");
+    completeMicGate();
     window.ChromaticaGardenQA?.resumeGardenQaSession?.({
       reason: qaResumeRequested ? "qa-resume" : (options.initializationReason || "auth-ready"),
       afterAuthReady: true,

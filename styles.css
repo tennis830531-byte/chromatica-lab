@@ -781,7 +781,7 @@ body.simple-motion .hero-plant-action {
   min-width: 86px;
   padding: 4px 13px 5px;
   border: 1px solid rgba(226, 206, 181, 0.72);
-  border-radius: 999px;
+  border-radius: 0;
   background: rgba(255, 253, 248, 0.9);
   box-shadow: 0 6px 14px rgba(89, 60, 36, 0.08);
 }
@@ -3772,8 +3772,8 @@ input[type="range"] {
 .rank-movement-highlight { animation: rankMovementHighlight 900ms ease-out; }
 @keyframes rankMovementHighlight { 0%,45% { box-shadow: 0 0 0 5px rgba(229,173,61,.46); } 100% { box-shadow: 0 0 0 0 rgba(229,173,61,0); } }
 .leaderboard-account-section { display: grid; gap: 8px; margin: 14px 0; padding: 12px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,250,242,.7); }
-.leaderboard-account-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
-.leaderboard-account-actions button { min-height: 42px; border: 1px solid #d2af78; border-radius: 12px; background: #fffaf2; color: #6a4026; font-weight: 900; }
+.leaderboard-account-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.leaderboard-account-actions button { min-height: 42px; border: 1px solid #d2af78; border-radius: 12px; background: #fffaf2; color: #6a4026; font-weight: 900; white-space: nowrap; }
 .leaderboard-account-actions .danger-btn { border-color: #b96a5e; color: #943e34; }
 .leaderboard-push-toggle span { display: grid; gap: 3px; }
 .leaderboard-push-toggle small { color: var(--text-muted); font-weight: 600; line-height: 1.4; }
@@ -6599,6 +6599,24 @@ body.practice-settlement-open { overflow: hidden; }
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.announcement-settings-entry {
+  border: 2px solid #b84040;
+  background: rgba(255, 247, 242, 0.96);
+  box-shadow:
+    0 0 0 3px rgba(184, 64, 64, 0.12),
+    0 8px 20px rgba(130, 38, 38, 0.14);
+}
+
+.announcement-settings-entry span,
+.announcement-settings-entry strong {
+  color: #9f2f2f;
+}
+
+.announcement-settings-entry:focus-visible {
+  outline: 3px solid rgba(184, 64, 64, 0.3);
+  outline-offset: 3px;
 }
 
 .home-spirit-reward-toast {
