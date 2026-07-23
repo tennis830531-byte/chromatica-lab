@@ -6,6 +6,20 @@
   const CACHE_PREFIX = "chromatica.leaderboard.weekly.cache.v2";
   const QUEUE_PREFIX = "chromatica.leaderboard.weekly.pending.v2";
   const RANK_SHOWN_PREFIX = "chromatica.leaderboard.rankShown.v1";
+  const LEGACY_UNSCOPED_CACHE_KEYS = Object.freeze([
+    CACHE_PREFIX,
+    QUEUE_PREFIX,
+    RANK_SHOWN_PREFIX,
+    "chromatica.leaderboard.cache.v1",
+    "chromatica.leaderboard.pending.v1",
+  ]);
+  const MEMBERSHIP = Object.freeze({
+    IDLE: "idle",
+    LOADING: "loading",
+    JOINED: "joined",
+    NOT_JOINED: "not-joined",
+    ERROR: "error",
+  });
   const PROFILE_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
   let initialized = false;
   let activeMetric = "weekly";
@@ -15,8 +29,11 @@
   let refreshFlight = null;
   let queueFlight = null;
   let membershipFlight = null;
-  let joined = null;
-  let membershipUnavailable = false;
+  let membershipStatus = MEMBERSHIP.IDLE;
+  let membershipError = null;
+  let activeUserId = "";
+  let requestGeneration = 0;
+  let weeklySummary = { loaded: false, weeklyCycles: 0, weeklyRank: null, hasWeeklyEntry: false };
   let profileOnboarding = false;
   let profile = null;
   let dependencies = {};
@@ -35,6 +52,34 @@
 
   function getPublicUser() {
     return authApi()?.getLeaderboardAccount?.() || null;
+  }
+
+  function getPublicUserId() {
+    return String(getPublicUser()?.id || "");
+  }
+
+  function clearLegacyUnscopedCaches() {
+    LEGACY_UNSCOPED_CACHE_KEYS.forEach((key) => {
+      sessionStorage.removeItem(key);
+      localStorage.removeItem(key);
+    });
+  }
+
+  function requestContext(userId = activeUserId) {
+    return { userId: String(userId || ""), generation: requestGeneration };
+  }
+
+  function isCurrentRequest(context) {
+    return Boolean(
+      context?.userId
+      && context.userId === activeUserId
+      && context.userId === getPublicUserId()
+      && context.generation === requestGeneration
+    );
+  }
+
+  function joinedNow() {
+    return membershipStatus === MEMBERSHIP.JOINED;
   }
 
   function cacheKey(metric, userId) {
@@ -100,10 +145,18 @@
     };
   }
 
-  async function rpc(name, params = {}) {
-    const result = await authApi()?.leaderboardRpc?.(name, params);
+  function staleAccountError() {
+    const error = new Error("leaderboard-account-changed");
+    error.code = "leaderboard-account-changed";
+    return error;
+  }
+
+  async function rpc(name, params = {}, context = requestContext()) {
+    if (!isCurrentRequest(context)) throw staleAccountError();
+    const result = await authApi()?.leaderboardRpc?.(name, params, { expectedUserId: context.userId });
     if (!result) throw new Error("leaderboard-auth-unavailable");
     if (result.error) throw result.error;
+    if (!isCurrentRequest(context)) throw staleAccountError();
     return result.data;
   }
 
@@ -130,21 +183,46 @@
 
   function renderMembership() {
     const signedIn = Boolean(getPublicUser());
+    const joined = membershipStatus === MEMBERSHIP.JOINED;
+    const notJoined = membershipStatus === MEMBERSHIP.NOT_JOINED;
+    const pending = membershipStatus === MEMBERSHIP.IDLE || membershipStatus === MEMBERSHIP.LOADING;
     $("#leaderboardLoginPrompt")?.classList.toggle("hidden", signedIn);
-    $("#leaderboardOwnProfile")?.classList.toggle("hidden", joined !== true);
+    $("#leaderboardOwnProfile")?.classList.toggle("hidden", !joined);
     const membership = $("#leaderboardAccountMembership");
-    if (membership) membership.textContent = !signedIn ? "請先登入" : joined === true ? "已加入" : joined === false ? "尚未加入" : "確認中";
+    if (membership) {
+      membership.textContent = !signedIn
+        ? "請先登入"
+        : joined
+          ? "已加入"
+          : notJoined
+            ? "尚未加入"
+            : membershipStatus === MEMBERSHIP.ERROR
+              ? "暫時無法確認"
+              : "確認中";
+    }
     const edit = $("#leaderboardProfileEdit");
     if (edit) {
-      edit.disabled = !signedIn || membershipUnavailable;
-      edit.textContent = joined === true ? "編輯公開資料／更換頭像" : "前往排行榜完成首次設定";
+      edit.disabled = !signedIn || pending || membershipStatus === MEMBERSHIP.ERROR;
+      edit.textContent = joined ? "編輯公開資料／更換頭像" : "前往排行榜完成首次設定";
     }
-    global.ChromaticaPushNotifications?.setMembership?.(joined === true);
+    global.ChromaticaPushNotifications?.setMembership?.(joined);
+  }
+
+  function updateWeeklySummary(rawRows, context = requestContext()) {
+    if (!isCurrentRequest(context) || !joinedNow()) return false;
+    const currentRow = core.normalizeLeaderboardRows(rawRows, "weekly").find((row) => row.isCurrentUser) || null;
+    weeklySummary = {
+      loaded: true,
+      weeklyCycles: currentRow ? Math.max(0, Number(currentRow.score) || 0) : 0,
+      weeklyRank: currentRow ? Math.max(1, Number(currentRow.position) || 1) : null,
+      hasWeeklyEntry: Boolean(currentRow),
+    };
+    return true;
   }
 
   function renderOwnProfile() {
     renderMembership();
-    if (joined !== true) return;
+    if (!joinedNow()) return;
     const spirit = getFeaturedSpirit();
     const displayName = core.normalizeDisplayName(profile?.display_name, "練習者");
     assignSafeImage($("#leaderboardOwnAvatar"), avatarUrlFor(profile));
@@ -155,60 +233,86 @@
   }
 
   async function ensureMembership({ force = false } = {}) {
-    if (!getPublicUser() || isQaActive()) {
-      joined = false;
-      membershipUnavailable = false;
-      profile = null;
-      renderMembership();
+    const userId = getPublicUserId();
+    if (!userId || isQaActive()) {
+      activateAccount("");
       return false;
     }
-    if (!force && joined !== null) return joined;
-    if (membershipFlight) return membershipFlight;
-    membershipUnavailable = false;
-    membershipFlight = rpc("get_my_leaderboard_membership")
+    if (activeUserId !== userId) activateAccount(userId, { loadMembership: false });
+    if (!force && membershipStatus === MEMBERSHIP.JOINED) return true;
+    if (!force && membershipStatus === MEMBERSHIP.NOT_JOINED) return false;
+    if (
+      membershipFlight
+      && membershipFlight.userId === userId
+      && membershipFlight.generation === requestGeneration
+    ) {
+      return membershipFlight.promise;
+    }
+
+    membershipStatus = MEMBERSHIP.LOADING;
+    membershipError = null;
+    profile = null;
+    renderOwnProfile();
+    renderLeaderboardRows([], activeMetric);
+    setStatus("正在確認排行榜資格…", "");
+    const context = requestContext(userId);
+    const flight = { ...context, promise: null };
+    flight.promise = rpc("get_my_leaderboard_membership", {}, context)
       .then((data) => {
-        const membership = unwrapSingle(data) || {};
-        joined = membership.joined === true;
-        membershipUnavailable = false;
-        profile = joined ? membership : null;
+        if (!isCurrentRequest(context)) return false;
+        const membership = unwrapSingle(data);
+        if (!membership || typeof membership.joined !== "boolean") {
+          const error = new Error("leaderboard-membership-malformed");
+          error.code = "leaderboard-membership-malformed";
+          throw error;
+        }
+        membershipStatus = membership.joined ? MEMBERSHIP.JOINED : MEMBERSHIP.NOT_JOINED;
+        membershipError = null;
+        profile = membership.joined ? membership : null;
         renderOwnProfile();
-        return joined;
+        return membership.joined;
       })
       .catch((error) => {
-        joined = false;
-        membershipUnavailable = true;
+        if (!isCurrentRequest(context)) return false;
+        membershipStatus = MEMBERSHIP.ERROR;
+        membershipError = classifyLeaderboardError(error);
         profile = null;
         renderMembership();
-        console.warn("Leaderboard membership check failed.", error?.message || error);
+        console.warn("Leaderboard membership check failed.", membershipError.kind);
         return false;
       })
-      .finally(() => { membershipFlight = null; });
-    return membershipFlight;
+      .finally(() => {
+        if (membershipFlight === flight) membershipFlight = null;
+      });
+    membershipFlight = flight;
+    return flight.promise;
   }
 
   async function syncOwnProfile() {
-    if (joined !== true || !getPublicUser() || isQaActive()) return null;
-    profile = unwrapSingle(await rpc("sync_leaderboard_profile", publicProfileParams()));
+    if (!joinedNow() || !getPublicUser() || isQaActive()) return null;
+    const context = requestContext();
+    const nextProfile = unwrapSingle(await rpc("sync_leaderboard_profile", publicProfileParams(), context));
+    if (!isCurrentRequest(context)) return null;
+    profile = nextProfile;
     renderOwnProfile();
     return profile;
   }
 
-  function readCache(metric) {
-    const user = getPublicUser();
-    if (!user?.id) return null;
-    return readJson(sessionStorage, cacheKey(metric, user.id), null);
+  function readCache(metric, userId = activeUserId) {
+    if (!userId || userId !== getPublicUserId()) return null;
+    return readJson(sessionStorage, cacheKey(metric, userId), null);
   }
 
-  function writeCache(metric, rows) {
-    const user = getPublicUser();
-    if (!user?.id) return;
-    sessionStorage.setItem(cacheKey(metric, user.id), JSON.stringify({ savedAt: Date.now(), rows }));
+  function writeCache(metric, rows, context = requestContext()) {
+    if (!isCurrentRequest(context)) return false;
+    sessionStorage.setItem(cacheKey(metric, context.userId), JSON.stringify({ savedAt: Date.now(), rows }));
+    return true;
   }
 
-  function invalidateCache() {
-    const user = getPublicUser();
-    if (!user?.id) return;
-    sessionStorage.removeItem(cacheKey("weekly", user.id));
+  function invalidateCache(context = requestContext()) {
+    if (!isCurrentRequest(context)) return false;
+    sessionStorage.removeItem(cacheKey("weekly", context.userId));
+    return true;
   }
 
   function podiumClass(position) {
@@ -300,27 +404,60 @@
 
   async function loadLeaderboard(metric = activeMetric, { force = false } = {}) {
     activeMetric = core.normalizeMetric(metric);
-    if (!getPublicUser()) {
+    const userId = getPublicUserId();
+    if (!userId) {
       renderLeaderboardRows([], activeMetric);
       setStatus("請先登入，即可查看全球排行榜。", "");
       return [];
     }
-    if (joined !== true) {
+    if (activeUserId !== userId) activateAccount(userId, { loadMembership: false });
+    if (membershipStatus === MEMBERSHIP.IDLE || membershipStatus === MEMBERSHIP.LOADING) {
+      renderLeaderboardRows([], activeMetric);
+      setStatus("正在確認排行榜資格…", "");
+      return [];
+    }
+    if (membershipStatus === MEMBERSHIP.ERROR) {
+      renderLeaderboardRows([], activeMetric);
+      setStatus(membershipError?.message || "排行榜暫時無法載入，請稍後再試", "error");
+      return [];
+    }
+    if (membershipStatus === MEMBERSHIP.NOT_JOINED) {
       renderLeaderboardRows([], activeMetric);
       setStatus("請先完成排行榜公開資料設定。", "");
       return [];
     }
-    const cache = readCache(activeMetric);
-    if (cache?.rows) renderLeaderboardRows(cache.rows, activeMetric);
-    if (!force && core.isCacheFresh(cache)) {
-      setStatus("已顯示最近更新的排行。", "");
+    const context = requestContext(userId);
+    const cache = readCache(activeMetric, userId);
+    const cacheHasCurrentUser = Boolean(
+      cache?.rows && core.normalizeLeaderboardRows(cache.rows, activeMetric).some((row) => row.isCurrentUser)
+    );
+    if (cacheHasCurrentUser) {
+      updateWeeklySummary(cache.rows, context);
+      renderLeaderboardRows(cache.rows, activeMetric);
+    }
+    if (!force && cacheHasCurrentUser && core.isCacheFresh(cache)) {
+      setStatus("", "");
       return cache.rows;
     }
-    if (refreshFlight) return refreshFlight;
+    if (
+      refreshFlight
+      && refreshFlight.userId === userId
+      && refreshFlight.generation === context.generation
+    ) {
+      return refreshFlight.promise;
+    }
     setStatus("正在更新排行榜…", "");
-    refreshFlight = rpc("get_weekly_leaderboard")
+    const flight = { ...context, promise: null };
+    flight.promise = rpc("get_weekly_leaderboard", {}, context)
       .then((rows) => {
+        if (!isCurrentRequest(context)) return [];
         const normalized = core.normalizeLeaderboardRows(rows, activeMetric);
+        if (!normalized.some((row) => row.isCurrentUser)) {
+          renderLeaderboardRows([], activeMetric);
+          setStatus("排行榜服務正在更新中", "error");
+          return [];
+        }
+        updateWeeklySummary(rows, context);
         writeCache(activeMetric, normalized.map((row) => ({
           position: row.position,
           public_key: row.userId,
@@ -332,20 +469,24 @@
           featured_spirit_stage: row.featuredSpiritStage,
           score: row.score,
           is_current_user: row.isCurrentUser,
-        })));
+        })), context);
         renderLeaderboardRows(rows, activeMetric);
-        setStatus(`更新完成，共顯示 ${normalized.length} 筆名次。`, "");
+        setStatus("", "");
         return rows;
       })
       .catch((error) => {
+        if (!isCurrentRequest(context)) return [];
         const classified = classifyLeaderboardError(error);
         const message = cache?.rows && classified.kind === "offline" ? "目前離線，先顯示最近一次排行。" : classified.message;
         setStatus(message, "error");
         console.warn("Leaderboard refresh failed.", classified.kind);
         return cache?.rows || [];
       })
-      .finally(() => { refreshFlight = null; });
-    return refreshFlight;
+      .finally(() => {
+        if (refreshFlight === flight) refreshFlight = null;
+      });
+    refreshFlight = flight;
+    return flight.promise;
   }
 
   function closeProfileEditor() {
@@ -368,7 +509,7 @@
   }
 
   function openProfileEditor({ onboarding = false } = {}) {
-    if (!getPublicUser() || (joined !== true && !onboarding)) return;
+    if (!getPublicUser() || (!joinedNow() && !onboarding)) return;
     profileOnboarding = onboarding;
     pendingAvatarFile = null;
     resetCustomAvatar = false;
@@ -389,6 +530,8 @@
 
   async function saveProfile(event) {
     event.preventDefault();
+    const context = requestContext();
+    if (!isCurrentRequest(context)) return;
     const name = core.normalizeDisplayName($("#leaderboardProfileName")?.value, "");
     if (!core.isValidDisplayName(name)) {
       showProfileError("排行榜名字需為 2～20 個可見字元，且不能包含控制字元。");
@@ -402,7 +545,7 @@
       showProfileError("請先確認公開資料說明。");
       return;
     }
-    if (!profileOnboarding && joined !== true) return;
+    if (!profileOnboarding && !joinedNow()) return;
     const submit = event.submitter;
     if (submit) submit.disabled = true;
     showProfileError();
@@ -413,38 +556,41 @@
       if (pendingAvatarFile) {
         const spirit = publicProfileParams();
         uploaded = await authApi()?.uploadLeaderboardAvatar?.(pendingAvatarFile, {
+          expectedUserId: context.userId,
           displayName: name,
           consent: true,
           featuredSpiritSpecies: spirit.p_featured_spirit_species,
           featuredSpiritName: spirit.p_featured_spirit_name,
           featuredSpiritStage: spirit.p_featured_spirit_stage,
         });
+        if (!isCurrentRequest(context)) throw staleAccountError();
         if (!uploaded?.path) throw new Error("avatar-upload-failed");
         customAvatarPath = uploaded.path;
       }
       if (uploaded?.profile) {
         profile = uploaded.profile;
-        joined = profile?.joined === true;
-        if (!joined) throw new Error("leaderboard-profile-incomplete");
+        membershipStatus = profile?.joined === true ? MEMBERSHIP.JOINED : MEMBERSHIP.ERROR;
+        if (!joinedNow()) throw new Error("leaderboard-profile-incomplete");
       } else if (profileOnboarding) {
         profile = unwrapSingle(await rpc("join_global_leaderboard", {
           p_display_name: name,
           p_custom_avatar_path: customAvatarPath,
           p_consent: true,
           ...publicProfileParams(),
-        }));
-        joined = profile?.joined === true;
-        if (!joined) throw new Error("leaderboard-profile-incomplete");
+        }, context));
+        membershipStatus = profile?.joined === true ? MEMBERSHIP.JOINED : MEMBERSHIP.ERROR;
+        if (!joinedNow()) throw new Error("leaderboard-profile-incomplete");
       } else {
         profile = unwrapSingle(await rpc("update_leaderboard_profile", {
           p_display_name: name,
           p_custom_avatar_path: customAvatarPath,
-        }));
+        }, context));
       }
+      if (!isCurrentRequest(context)) throw staleAccountError();
       if (!uploaded?.path && resetCustomAvatar && oldAvatarPath) {
         void authApi()?.deleteLeaderboardAvatar?.(oldAvatarPath);
       }
-      invalidateCache();
+      invalidateCache(context);
       renderOwnProfile();
       const completedOnboarding = profileOnboarding;
       if (completedOnboarding) {
@@ -454,10 +600,11 @@
       closeProfileEditor();
       await loadLeaderboard(activeMetric, { force: true });
     } catch (error) {
+      if (!isCurrentRequest(context)) return;
       showProfileError(profileOnboarding ? "公開資料尚未建立；請確認圖片與網路後再試。" : "公開資料儲存失敗，原本資料已保留；請確認網路後再試。");
       console.warn("Leaderboard profile update failed.", error?.message || error);
     } finally {
-      if (submit) submit.disabled = false;
+      if (submit && isCurrentRequest(context)) submit.disabled = false;
     }
   }
 
@@ -483,11 +630,11 @@
     localStorage.setItem(rankShownKey(userId), JSON.stringify(next));
   }
 
-  async function presentRankMovement(movement) {
-    const user = getPublicUser();
-    if (!user?.id || !movement || rankMovementAlreadyShown(user.id, movement.eventId)) return;
-    markRankMovementShown(user.id, movement.eventId);
+  async function presentRankMovement(movement, context = requestContext()) {
+    if (!isCurrentRequest(context) || !movement || rankMovementAlreadyShown(context.userId, movement.eventId)) return;
+    markRankMovementShown(context.userId, movement.eventId);
     const show = async () => {
+      if (!isCurrentRequest(context)) return;
       pendingRankMovement = movement;
       modalOpen = true;
       $("#leaderboardModal")?.classList.remove("hidden");
@@ -508,12 +655,20 @@
   }
 
   async function flushPendingEvents() {
-    const user = getPublicUser();
-    if (!user?.id || isQaActive() || joined !== true) return null;
-    if (queueFlight) return queueFlight;
-    queueFlight = (async () => {
-      const pending = readPendingEvents(user.id);
-      while (pending.length && joined === true) {
+    const userId = getPublicUserId();
+    if (!userId || isQaActive() || !joinedNow() || userId !== activeUserId) return null;
+    const context = requestContext(userId);
+    if (
+      queueFlight
+      && queueFlight.userId === userId
+      && queueFlight.generation === context.generation
+    ) {
+      return queueFlight.promise;
+    }
+    const flight = { ...context, promise: null };
+    flight.promise = (async () => {
+      const pending = readPendingEvents(userId);
+      while (pending.length && joinedNow() && isCurrentRequest(context)) {
         const event = pending[0];
         try {
           const result = unwrapSingle(await rpc("record_weekly_leaderboard_practice", {
@@ -521,10 +676,11 @@
             p_completed_cycles: event.completedCycles,
             p_practice_date: event.practiceDate,
             p_protected_dates: event.protectedDates,
-          })) || {};
+          }, context)) || {};
+          if (!isCurrentRequest(context)) return pending.length;
           pending.shift();
-          writePendingEvents(user.id, pending);
-          invalidateCache();
+          writePendingEvents(userId, pending);
+          invalidateCache(context);
           practiceSettlementResults.set(event.eventId, {
             status: "ranked",
             accepted: result.accepted === true,
@@ -533,16 +689,22 @@
             weekStart: typeof result.week_start === "string" ? result.week_start : "",
           });
           const movement = core.createRankMovement(result.previous_rank ?? event.previousRank, result.current_rank, event.eventId);
-          if (movement && !practiceSettlementEvents.has(event.eventId)) void presentRankMovement(movement);
+          if (movement && !practiceSettlementEvents.has(event.eventId)) void presentRankMovement(movement, context);
         } catch (error) {
+          if (!isCurrentRequest(context)) return pending.length;
           console.warn("Leaderboard progress remains queued.", error?.message || error);
           break;
         }
       }
-      if (!pending.length && modalOpen) await loadLeaderboard(activeMetric, { force: true });
+      if (isCurrentRequest(context) && !pending.length && modalOpen) {
+        await loadLeaderboard(activeMetric, { force: true });
+      }
       return pending.length;
-    })().finally(() => { queueFlight = null; });
-    return queueFlight;
+    })().finally(() => {
+      if (queueFlight === flight) queueFlight = null;
+    });
+    queueFlight = flight;
+    return flight.promise;
   }
 
   function createEventId() {
@@ -555,28 +717,32 @@
   }
 
   async function enqueuePracticeCompletion(completedCycles, practiceDate, protectedDates) {
-    const user = getPublicUser();
-    if (!user?.id || isQaActive() || joined !== true) return { status: "not-joined" };
+    const userId = getPublicUserId();
+    if (!userId || isQaActive() || !joinedNow() || userId !== activeUserId) return { status: "not-joined" };
+    const context = requestContext(userId);
     const event = core.normalizePracticeEvent({ eventId: createEventId(), completedCycles, practiceDate, protectedDates, previousRank: currentCachedRank() });
     if (!event.practiceDate || !event.protectedDates.length) return { status: "unavailable" };
-    if (queueFlight) await queueFlight;
-    const pending = readPendingEvents(user.id);
+    if (queueFlight?.promise) await queueFlight.promise;
+    if (!isCurrentRequest(context) || !joinedNow()) return { status: "unavailable" };
+    const pending = readPendingEvents(userId);
     pending.push(event);
-    writePendingEvents(user.id, pending);
+    writePendingEvents(userId, pending);
     practiceSettlementEvents.add(event.eventId);
     try {
       await syncOwnProfile();
+      if (!isCurrentRequest(context)) return { status: "unavailable" };
       await flushPendingEvents();
+      if (!isCurrentRequest(context)) return { status: "unavailable" };
       const result = practiceSettlementResults.get(event.eventId);
       if (!result) return { status: "queued" };
       const rows = await loadLeaderboard("weekly", { force: true });
       const currentRow = core.normalizeLeaderboardRows(rows, "weekly").find((row) => row.isCurrentUser);
       const movement = core.createRankMovement(result.previousRank ?? event.previousRank, result.currentRank, event.eventId);
-      if (movement) markRankMovementShown(user.id, event.eventId);
+      if (movement) markRankMovementShown(userId, event.eventId);
       return {
         ...result,
         previousRank: result.previousRank ?? event.previousRank,
-        weeklyCycles: currentRow?.score ?? null,
+        weeklyCycles: currentRow?.score ?? 0,
         eventId: event.eventId,
       };
     } catch (error) {
@@ -589,17 +755,20 @@
   }
 
   async function recordPracticeCompletion({ completedCycles, practiceDate, protectedDates } = {}) {
-    if (!getPublicUser() || isQaActive()) return { status: "not-joined" };
-    if (joined === null) await ensureMembership();
-    if (membershipUnavailable) return { status: "unavailable" };
-    if (joined !== true) return { status: "not-joined" };
+    const userId = getPublicUserId();
+    if (!userId || isQaActive()) return { status: "not-joined" };
+    if (activeUserId !== userId) activateAccount(userId, { loadMembership: false });
+    if (membershipStatus === MEMBERSHIP.IDLE || membershipStatus === MEMBERSHIP.LOADING) await ensureMembership();
+    if (membershipStatus === MEMBERSHIP.ERROR) return { status: "unavailable" };
+    if (membershipStatus !== MEMBERSHIP.JOINED) return { status: "not-joined" };
     return enqueuePracticeCompletion(completedCycles, practiceDate, protectedDates);
   }
 
   async function openUnsafe() {
     const modal = $("#leaderboardModal");
     if (!modal) return false;
-    if (!getPublicUser()) {
+    const userId = getPublicUserId();
+    if (!userId) {
       modalOpen = true;
       modal.classList.remove("hidden");
       renderMembership();
@@ -607,23 +776,32 @@
       updateModalOpenClass();
       return true;
     }
+    if (activeUserId !== userId) activateAccount(userId, { loadMembership: false });
     await ensureMembership({ force: true });
-    if (membershipUnavailable) {
+    if (membershipStatus === MEMBERSHIP.ERROR) {
       modalOpen = true;
       profileOpen = false;
       $("#leaderboardProfileModal")?.classList.add("hidden");
       modal.classList.remove("hidden");
       renderMembership();
       renderLeaderboardRows([], activeMetric);
-      setStatus("排行榜服務正在更新中", "error");
+      setStatus(membershipError?.message || "排行榜暫時無法載入，請稍後再試", "error");
       updateModalOpenClass();
       requestAnimationFrame(() => $("#leaderboardModalClose")?.focus());
       return true;
     }
-    if (!joined) {
+    if (membershipStatus === MEMBERSHIP.NOT_JOINED) {
       modalOpen = false;
       $("#leaderboardModal")?.classList.add("hidden");
       openProfileEditor({ onboarding: true });
+      return true;
+    }
+    if (membershipStatus !== MEMBERSHIP.JOINED) {
+      modalOpen = true;
+      modal.classList.remove("hidden");
+      renderLeaderboardRows([], activeMetric);
+      setStatus("正在確認排行榜資格…", "");
+      updateModalOpenClass();
       return true;
     }
     modalOpen = true;
@@ -675,29 +853,84 @@
     return true;
   }
 
-  function resetForSignedOutAccount() {
+  function resetRuntimeState(nextUserId = "") {
+    requestGeneration += 1;
+    activeUserId = String(nextUserId || "");
     modalOpen = false;
     profileOpen = false;
-    joined = null;
-    membershipUnavailable = false;
+    membershipStatus = activeUserId ? MEMBERSHIP.LOADING : MEMBERSHIP.IDLE;
+    membershipError = null;
     profile = null;
+    weeklySummary = { loaded: false, weeklyCycles: 0, weeklyRank: null, hasWeeklyEntry: false };
+    membershipFlight = null;
+    refreshFlight = null;
+    queueFlight = null;
+    pendingRankMovement = null;
+    practiceSettlementResults.clear();
+    practiceSettlementEvents.clear();
     window.clearInterval(refreshTimer);
     refreshTimer = null;
+    if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+    previewObjectUrl = "";
+    pendingAvatarFile = null;
+    resetCustomAvatar = false;
+    profileOnboarding = false;
     $("#leaderboardModal")?.classList.add("hidden");
     $("#leaderboardProfileModal")?.classList.add("hidden");
+    renderLeaderboardRows([], activeMetric);
+    setStatus(activeUserId ? "正在確認排行榜資格…" : "", "");
+    renderOwnProfile();
     updateModalOpenClass();
   }
 
-  function resetAfterAccountDataClear() {
-    const user = getPublicUser();
-    if (user?.id) {
-      writePendingEvents(user.id, []);
-      sessionStorage.removeItem(cacheKey("weekly", user.id));
-      localStorage.removeItem(rankShownKey(user.id));
+  function activateAccount(userId = getPublicUserId(), { loadMembership = true } = {}) {
+    const normalizedUserId = String(userId || "");
+    clearLegacyUnscopedCaches();
+    if (normalizedUserId !== activeUserId) resetRuntimeState(normalizedUserId);
+    else renderOwnProfile();
+    if (
+      loadMembership
+      && initialized
+      && normalizedUserId
+      && normalizedUserId === getPublicUserId()
+      && membershipStatus === MEMBERSHIP.LOADING
+      && !membershipFlight
+    ) {
+      void ensureMembership().then(async (isJoined) => {
+        if (!isJoined || activeUserId !== normalizedUserId) return;
+        try {
+          await syncOwnProfile();
+          await flushPendingEvents();
+          if (isCurrentRequest(requestContext(normalizedUserId))) await loadLeaderboard("weekly");
+        } catch (error) {
+          if (activeUserId === normalizedUserId) {
+            console.warn("Leaderboard account initialization failed.", classifyLeaderboardError(error).kind);
+          }
+        }
+      });
     }
-    joined = false;
-    membershipUnavailable = false;
+    return membershipStatus;
+  }
+
+  function resetForSignedOutAccount() {
+    activateAccount("", { loadMembership: false });
+  }
+
+  function resetAfterAccountDataClear() {
+    const userId = getPublicUserId();
+    if (userId && userId === activeUserId) {
+      writePendingEvents(userId, []);
+      sessionStorage.removeItem(cacheKey("weekly", userId));
+      localStorage.removeItem(rankShownKey(userId));
+    }
+    requestGeneration += 1;
+    membershipFlight = null;
+    refreshFlight = null;
+    queueFlight = null;
+    membershipStatus = MEMBERSHIP.NOT_JOINED;
+    membershipError = null;
     profile = null;
+    weeklySummary = { loaded: false, weeklyCycles: 0, weeklyRank: null, hasWeeklyEntry: false };
     pendingRankMovement = null;
     renderOwnProfile();
   }
@@ -706,7 +939,7 @@
     $("#leaderboardModalClose")?.addEventListener("click", close);
     $("#leaderboardModal")?.addEventListener("click", (event) => { if (event.target.id === "leaderboardModal") close(); });
     $("#leaderboardProfileEdit")?.addEventListener("click", () => {
-      if (joined === true) openProfileEditor();
+      if (joinedNow()) openProfileEditor();
       else void open();
     });
     $("#leaderboardProfileClose")?.addEventListener("click", closeProfileEditor);
@@ -736,7 +969,7 @@
       }
     });
     window.addEventListener("online", () => {
-      if (joined === true) void flushPendingEvents();
+      if (joinedNow()) void flushPendingEvents();
       if (modalOpen) void loadLeaderboard(activeMetric, { force: true });
     });
   }
@@ -744,23 +977,13 @@
   function init(options = {}) {
     dependencies = { ...dependencies, ...options };
     if (initialized) {
-      renderOwnProfile();
+      activateAccount(getPublicUserId());
       return;
     }
     initialized = true;
     bind();
     renderMembership();
-    if (getPublicUser()) void ensureMembership().then(async (isJoined) => {
-      if (!isJoined) return;
-      try {
-        await syncOwnProfile();
-        await flushPendingEvents();
-      } catch (error) {
-        console.warn("Leaderboard initialization failed.", classifyLeaderboardError(error).kind);
-      }
-    }).catch((error) => {
-      console.warn("Leaderboard membership initialization failed.", classifyLeaderboardError(error).kind);
-    });
+    activateAccount(getPublicUserId());
   }
 
   global.ChromaticaLeaderboard = Object.freeze({
@@ -769,20 +992,36 @@
     close,
     recordPracticeCompletion,
     flushPendingEvents,
+    activateAccount,
     resetForSignedOutAccount,
     resetAfterAccountDataClear,
-    openProfileSettings() { if (joined === true) openProfileEditor(); else void open(); },
-    getMembership() { return { joined, profile: profile ? { ...profile } : null }; },
+    openProfileSettings() { if (joinedNow()) openProfileEditor(); else void open(); },
+    getMembership() {
+      return {
+        status: membershipStatus,
+        joined: membershipStatus === MEMBERSHIP.JOINED
+          ? true
+          : membershipStatus === MEMBERSHIP.NOT_JOINED
+            ? false
+            : null,
+        profile: profile ? { ...profile } : null,
+        weeklyCycles: weeklySummary.loaded ? weeklySummary.weeklyCycles : null,
+        weeklyRank: weeklySummary.loaded ? weeklySummary.weeklyRank : null,
+        hasWeeklyEntry: weeklySummary.loaded ? weeklySummary.hasWeeklyEntry : null,
+      };
+    },
     getDiagnostics() {
       return {
         initialized,
-        joined,
+        activeUserId: activeUserId ? "active" : "",
+        membershipStatus,
+        joined: joinedNow(),
         modalOpen,
         profileOpen,
         activeMetric,
         refreshTimerActive: Boolean(refreshTimer),
-        refreshInFlight: Boolean(refreshFlight),
-        queueInFlight: Boolean(queueFlight),
+        refreshInFlight: Boolean(refreshFlight?.promise),
+        queueInFlight: Boolean(queueFlight?.promise),
       };
     },
   });

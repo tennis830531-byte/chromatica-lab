@@ -4,11 +4,22 @@
   const CACHE_KEY = "chromatica.announcements.cache.v1";
   const CACHE_TTL_MS = 5 * 60 * 1000;
   const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+  const MODAL_SELECTORS = Object.freeze([
+    "#announcementPreviewModal",
+    "#announcementFullModal",
+    "#announcementListModal",
+    "#announcementAdminModal",
+  ]);
   let initialized = false;
   let runtimePreviewShown = false;
   let runtimePreviewRequest = null;
   let activeAnnouncement = null;
   let adminEditingId = null;
+  let visibleModalSelector = "";
+  let previewReturnSelector = "";
+  let detailReturnSelector = "";
+  let detailAnnouncementKey = "";
+  let detailTransitioning = false;
 
   const $ = (selector) => document.querySelector(selector);
   const auth = () => global.chromaticaAuth;
@@ -33,10 +44,10 @@
     const root = document.createElement("div");
     root.id = "announcementUiRoot";
     root.innerHTML = `
-      <div id="announcementPreviewModal" class="announcement-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="announcementPreviewTitle"><article class="announcement-modal paper-card"><button class="announcement-close" data-announcement-close type="button" aria-label="關閉公告">×</button><p id="announcementPreviewTopic" class="eyebrow"></p><h2 id="announcementPreviewTitle"></h2><time id="announcementPreviewTime"></time><img id="announcementPreviewImage" class="announcement-preview-image hidden" alt="" /><p id="announcementPreviewBody"></p><div class="announcement-actions"><button data-announcement-close type="button">稍後再看</button><button id="announcementReadMore" class="primary-btn" type="button">查看完整公告</button></div></article></div>
-      <div id="announcementFullModal" class="announcement-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="announcementFullTitle"><article class="announcement-modal announcement-full paper-card"><button class="announcement-close" data-announcement-full-close type="button" aria-label="關閉完整公告">×</button><p id="announcementFullTopic" class="eyebrow"></p><h2 id="announcementFullTitle"></h2><time id="announcementFullTime"></time><img id="announcementFullImage" class="announcement-full-image hidden" alt="" /><p id="announcementFullBody"></p></article></div>
-      <div id="announcementListModal" class="announcement-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="announcementListTitle"><section class="announcement-modal paper-card"><button class="announcement-close" data-announcement-list-close type="button" aria-label="關閉公告列表">×</button><h2 id="announcementListTitle">公告</h2><p id="announcementListStatus" role="status"></p><div id="announcementList" class="announcement-list"></div></section></div>
-      <div id="announcementAdminModal" class="announcement-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="announcementAdminTitle"><section class="announcement-modal announcement-admin paper-card"><button class="announcement-close" data-announcement-admin-close type="button" aria-label="關閉公告管理">×</button><h2 id="announcementAdminTitle">公告管理</h2><div id="announcementAdminList" class="announcement-list"></div><form id="announcementAdminForm"><label>大主題<input id="announcementAdminTopic" maxlength="30" required /></label><label>標題<input id="announcementAdminHeadline" maxlength="80" required /></label><label>內容<textarea id="announcementAdminBody" maxlength="5000" required></textarea></label><label>發布日期時間<input id="announcementAdminPublishedAt" type="datetime-local" required /></label><label>公告圖片<input id="announcementAdminImage" type="file" accept="image/jpeg,image/png,image/webp" /></label><p id="announcementAdminStatus" role="status"></p><div class="announcement-actions"><button id="announcementAdminNew" type="button">新增</button><button name="intent" value="draft" type="submit">儲存草稿</button><button class="primary-btn" name="intent" value="publish" type="submit">發布</button><button id="announcementAdminUnpublish" type="button">取消發布</button><button id="announcementAdminPreview" type="button">預覽</button></div></form></section></div>`;
+      <div id="announcementPreviewModal" class="announcement-backdrop hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="announcementPreviewTitle"><article class="announcement-modal paper-card"><button class="announcement-close" data-announcement-close type="button" aria-label="關閉公告">×</button><p id="announcementPreviewTopic" class="eyebrow"></p><h2 id="announcementPreviewTitle" tabindex="-1"></h2><time id="announcementPreviewTime"></time><img id="announcementPreviewImage" class="announcement-preview-image hidden" alt="" /><p id="announcementPreviewBody"></p><div class="announcement-actions"><button data-announcement-close type="button">稍後再看</button><button id="announcementReadMore" class="primary-btn" type="button">查看完整公告</button></div></article></div>
+      <div id="announcementFullModal" class="announcement-backdrop hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="announcementFullTitle"><article class="announcement-modal announcement-full paper-card"><button class="announcement-close" data-announcement-full-close type="button" aria-label="關閉完整公告">×</button><p id="announcementFullTopic" class="eyebrow"></p><h2 id="announcementFullTitle" tabindex="-1"></h2><time id="announcementFullTime"></time><img id="announcementFullImage" class="announcement-full-image hidden" alt="" /><p id="announcementFullBody"></p></article></div>
+      <div id="announcementListModal" class="announcement-backdrop hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="announcementListTitle"><section class="announcement-modal paper-card"><button class="announcement-close" data-announcement-list-close type="button" aria-label="關閉公告列表">×</button><h2 id="announcementListTitle" tabindex="-1">公告</h2><p id="announcementListStatus" role="status"></p><div id="announcementList" class="announcement-list"></div></section></div>
+      <div id="announcementAdminModal" class="announcement-backdrop hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="announcementAdminTitle"><section class="announcement-modal announcement-admin paper-card"><button class="announcement-close" data-announcement-admin-close type="button" aria-label="關閉公告管理">×</button><h2 id="announcementAdminTitle" tabindex="-1">公告管理</h2><div id="announcementAdminList" class="announcement-list"></div><form id="announcementAdminForm"><label>大主題<input id="announcementAdminTopic" maxlength="30" required /></label><label>標題<input id="announcementAdminHeadline" maxlength="80" required /></label><label>內容<textarea id="announcementAdminBody" maxlength="5000" required></textarea></label><label>發布日期時間<input id="announcementAdminPublishedAt" type="datetime-local" required /></label><label>公告圖片<input id="announcementAdminImage" type="file" accept="image/jpeg,image/png,image/webp" /></label><p id="announcementAdminStatus" role="status"></p><div class="announcement-actions"><button id="announcementAdminNew" type="button">新增</button><button name="intent" value="draft" type="submit">儲存草稿</button><button class="primary-btn" name="intent" value="publish" type="submit">發布</button><button id="announcementAdminUnpublish" type="button">取消發布</button><button id="announcementAdminPreview" type="button">預覽</button></div></form></section></div>`;
     document.body.append(root);
   }
 
@@ -66,36 +77,77 @@
     image.src = source;
   }
 
-  function setModalOpen(selector, open) {
-    $(selector)?.classList.toggle("hidden", !open);
-    document.body.classList.toggle("modal-open", open || Boolean(document.querySelector(".announcement-backdrop:not(.hidden)")));
+  function focusVisibleModal(selector) {
+    const focusTarget = $(`${selector} h2`) || $(`${selector} .announcement-close`);
+    const focus = () => focusTarget?.focus?.({ preventScroll: true });
+    if (typeof global.requestAnimationFrame === "function") global.requestAnimationFrame(focus);
+    else focus();
   }
 
-  function showPreview(announcement) {
+  function setVisibleAnnouncementModal(selector = "", { focus = true } = {}) {
+    const targetExists = selector && Boolean($(selector));
+    visibleModalSelector = targetExists ? selector : "";
+    MODAL_SELECTORS.forEach((modalSelector) => {
+      const modal = $(modalSelector);
+      if (!modal) return;
+      const visible = modalSelector === visibleModalSelector;
+      modal.classList.toggle("hidden", !visible);
+      modal.setAttribute("aria-hidden", visible ? "false" : "true");
+      if (visible) modal.removeAttribute("inert");
+      else modal.setAttribute("inert", "");
+    });
+    document.body.classList.toggle("modal-open", Boolean(visibleModalSelector));
+    if (visibleModalSelector && focus) focusVisibleModal(visibleModalSelector);
+    return Boolean(visibleModalSelector);
+  }
+
+  function showPreview(announcement, { returnTo = "" } = {}) {
     if (!announcement) return;
     activeAnnouncement = announcement;
+    previewReturnSelector = returnTo;
     $("#announcementPreviewTopic").textContent = announcement.large_topic || "公告";
     $("#announcementPreviewTitle").textContent = announcement.title || "";
     $("#announcementPreviewTime").textContent = formatPublishedAt(announcement.published_at);
     $("#announcementPreviewBody").textContent = truncateGraphemes(announcement.body, 10);
     assignImage($("#announcementPreviewImage"), announcement, true);
-    setModalOpen("#announcementPreviewModal", true);
+    setVisibleAnnouncementModal("#announcementPreviewModal");
   }
 
-  function showFull(announcement = activeAnnouncement) {
-    if (!announcement) return;
-    activeAnnouncement = announcement;
-    setModalOpen("#announcementPreviewModal", false);
-    $("#announcementFullTopic").textContent = announcement.large_topic || "公告";
-    $("#announcementFullTitle").textContent = announcement.title || "";
-    $("#announcementFullTime").textContent = formatPublishedAt(announcement.published_at);
-    $("#announcementFullBody").textContent = announcement.body || "";
-    assignImage($("#announcementFullImage"), announcement);
-    setModalOpen("#announcementFullModal", true);
+  function showFull(announcement = activeAnnouncement, { returnTo = "" } = {}) {
+    const nextAnnouncement = announcement && typeof announcement === "object" ? announcement : null;
+    const nextKey = String(nextAnnouncement?.id || `${nextAnnouncement?.published_at || ""}:${nextAnnouncement?.title || ""}`);
+    if (detailTransitioning) return false;
+    if (visibleModalSelector === "#announcementFullModal" && nextKey && nextKey === detailAnnouncementKey) {
+      focusVisibleModal("#announcementFullModal");
+      return false;
+    }
+    detailTransitioning = true;
+    try {
+      detailReturnSelector = returnTo;
+      detailAnnouncementKey = nextKey;
+      if (nextAnnouncement) {
+        activeAnnouncement = nextAnnouncement;
+        $("#announcementFullTopic").textContent = nextAnnouncement.large_topic || "公告";
+        $("#announcementFullTitle").textContent = nextAnnouncement.title || "公告";
+        $("#announcementFullTime").textContent = formatPublishedAt(nextAnnouncement.published_at);
+        $("#announcementFullBody").textContent = nextAnnouncement.body || "";
+        assignImage($("#announcementFullImage"), nextAnnouncement);
+      } else {
+        $("#announcementFullTopic").textContent = "公告";
+        $("#announcementFullTitle").textContent = "無法開啟公告";
+        $("#announcementFullTime").textContent = "";
+        $("#announcementFullBody").textContent = "公告內容暫時無法載入，請返回公告列表後再試。";
+        assignImage($("#announcementFullImage"), null);
+      }
+      setVisibleAnnouncementModal("#announcementFullModal");
+      return true;
+    } finally {
+      detailTransitioning = false;
+    }
   }
 
   async function showList() {
-    setModalOpen("#announcementListModal", true);
+    setVisibleAnnouncementModal("#announcementListModal");
     const list = $("#announcementList");
     const status = $("#announcementListStatus");
     list.replaceChildren();
@@ -114,7 +166,7 @@
         const title = document.createElement("strong"); title.textContent = announcement.title || "";
         const time = document.createElement("time"); time.textContent = formatPublishedAt(announcement.published_at);
         copy.append(topic, title, time); button.append(image, copy);
-        button.addEventListener("click", () => showFull(announcement));
+        button.addEventListener("click", () => showFull(announcement, { returnTo: "#announcementListModal" }));
         list.append(button);
       });
     } catch {
@@ -193,7 +245,7 @@
       global.chromaticaApp?.showNonBlockingToast?.("此帳號沒有公告管理權限。");
       return;
     }
-    resetAdminForm(); setModalOpen("#announcementAdminModal", true);
+    resetAdminForm(); setVisibleAnnouncementModal("#announcementAdminModal");
     try { await loadAdminList(); } catch { $("#announcementAdminStatus").textContent = "公告後台暫時無法載入。"; }
   }
 
@@ -241,21 +293,45 @@
       body: $("#announcementAdminBody").value,
       published_at: new Date($("#announcementAdminPublishedAt").value).toISOString(),
       image_path: "",
-    });
+    }, { returnTo: "#announcementAdminModal" });
+  }
+
+  function closePreview() {
+    const returnTo = previewReturnSelector;
+    previewReturnSelector = "";
+    return setVisibleAnnouncementModal(returnTo);
+  }
+
+  function closeFull() {
+    const returnTo = detailReturnSelector;
+    detailReturnSelector = "";
+    detailAnnouncementKey = "";
+    return setVisibleAnnouncementModal(returnTo);
+  }
+
+  function closeTopModal() {
+    if (!visibleModalSelector) return false;
+    if (visibleModalSelector === "#announcementPreviewModal") closePreview();
+    else if (visibleModalSelector === "#announcementFullModal") closeFull();
+    else setVisibleAnnouncementModal("");
+    return true;
   }
 
   function bind() {
-    document.querySelectorAll("[data-announcement-close]").forEach((button) => button.addEventListener("click", () => setModalOpen("#announcementPreviewModal", false)));
-    document.querySelectorAll("[data-announcement-full-close]").forEach((button) => button.addEventListener("click", () => setModalOpen("#announcementFullModal", false)));
-    document.querySelectorAll("[data-announcement-list-close]").forEach((button) => button.addEventListener("click", () => setModalOpen("#announcementListModal", false)));
-    document.querySelectorAll("[data-announcement-admin-close]").forEach((button) => button.addEventListener("click", () => setModalOpen("#announcementAdminModal", false)));
-    $("#announcementReadMore").addEventListener("click", () => showFull());
+    document.querySelectorAll("[data-announcement-close]").forEach((button) => button.addEventListener("click", closePreview));
+    document.querySelectorAll("[data-announcement-full-close]").forEach((button) => button.addEventListener("click", closeFull));
+    document.querySelectorAll("[data-announcement-list-close], [data-announcement-admin-close]").forEach((button) => button.addEventListener("click", () => setVisibleAnnouncementModal("")));
+    $("#announcementReadMore").addEventListener("click", () => showFull(activeAnnouncement, { returnTo: previewReturnSelector }));
     $("#announcementsOpen")?.addEventListener("click", () => void showList());
     $("#announcementAdminOpen")?.addEventListener("click", () => void openAdmin());
     $("#announcementAdminForm")?.addEventListener("submit", (event) => void saveAdmin(event));
     $("#announcementAdminNew")?.addEventListener("click", () => resetAdminForm());
     $("#announcementAdminUnpublish")?.addEventListener("click", () => void unpublishAdmin());
     $("#announcementAdminPreview")?.addEventListener("click", previewAdminDraft);
+    document.addEventListener?.("keydown", (event) => {
+      if (event.key !== "Escape" || !closeTopModal()) return;
+      event.preventDefault();
+    });
   }
 
   function init() {
@@ -278,6 +354,7 @@
     truncateGraphemes,
     showList,
     showFull,
+    closeTopModal,
     maybeShowLatestOnHome: maybeShowLatestAnnouncementOnHome,
   });
 })(typeof window !== "undefined" ? window : globalThis);

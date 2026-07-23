@@ -391,6 +391,110 @@ test("weekly RPC accumulates accepted events once and returns server ranks", asy
   assert.equal(rows.find((row) => row.is_current_user)?.score, 4);
 });
 
+test("weekly RPC ranks every active joined member including zero cycles without write side effects", async () => {
+  await resetScores();
+  await resetWeekly();
+  const originalProfilesResult = await admin.from("leaderboard_profiles").select("*").in("user_id", users.map((user) => user.id));
+  assert.ifError(originalProfilesResult.error);
+  const originalProfiles = originalProfilesResult.data;
+  const ids = users.slice(0, 6).map((user) => user.id);
+  const [playerA, playerB, playerC, exited, cleared, disabled] = ids;
+  const publicKey = (userId) => crypto.createHash("md5").update(userId).digest("hex");
+  const countForUsers = async (table, userIds) => {
+    const result = await admin.from(table).select("*", { count: "exact", head: true }).in("user_id", userIds);
+    assert.ifError(result.error);
+    return result.count;
+  };
+  const setProfile = async (userId, values) => {
+    const result = await admin.from("leaderboard_profiles").update(values).eq("user_id", userId);
+    assert.ifError(result.error);
+  };
+
+  try {
+    assert.ifError((await admin.from("leaderboard_profiles").update({ is_active: false }).not("user_id", "is", null)).error);
+    await setProfile(playerA, { is_active: true, joined_at: "2026-07-01T00:00:00Z" });
+    await setProfile(playerB, { is_active: true, joined_at: "2026-07-02T00:00:00Z" });
+    await setProfile(playerC, { is_active: true, joined_at: "2026-07-03T00:00:00Z" });
+    await setProfile(exited, { is_active: false, left_at: "2026-07-04T00:00:00Z" });
+    await setProfile(cleared, {
+      is_active: false,
+      profile_completed: false,
+      custom_avatar_path: null,
+      consented_at: null,
+      left_at: "2026-07-04T00:00:00Z",
+    });
+    await setProfile(disabled, { is_active: false });
+
+    for (let index = 0; index < 11; index += 1) {
+      const result = await recordWeekly(0, 8);
+      assert.equal(result?.[0]?.accepted, true);
+    }
+
+    const zeroIds = [playerB, playerC];
+    const before = {
+      scores: await countForUsers("weekly_leaderboard_scores", zeroIds),
+      events: await countForUsers("leaderboard_practice_events", zeroIds),
+      queue: await countForUsers("leaderboard_notification_queue", zeroIds),
+    };
+    assert.deepEqual(before, { scores: 0, events: 0, queue: 0 });
+
+    const ranked = await rpc(clients[0], "get_weekly_leaderboard");
+    assert.deepEqual(ranked.map((row) => [row.position, row.public_key, row.score]), [
+      [1, publicKey(playerA), 88],
+      [2, publicKey(playerB), 0],
+      [3, publicKey(playerC), 0],
+    ]);
+    assert.deepEqual(
+      (await rpc(clients[0], "get_weekly_leaderboard")).map((row) => [row.position, row.public_key, row.score]),
+      ranked.map((row) => [row.position, row.public_key, row.score]),
+    );
+    for (const excluded of [exited, cleared, disabled]) {
+      assert.equal(ranked.some((row) => row.public_key === publicKey(excluded)), false);
+    }
+    assert.deepEqual({
+      scores: await countForUsers("weekly_leaderboard_scores", zeroIds),
+      events: await countForUsers("leaderboard_practice_events", zeroIds),
+      queue: await countForUsers("leaderboard_notification_queue", zeroIds),
+    }, before);
+
+    await resetScores();
+    await resetWeekly();
+    const allZero = await rpc(clients[0], "get_weekly_leaderboard");
+    assert.deepEqual(allZero.map((row) => [row.position, row.public_key, row.score]), [
+      [1, publicKey(playerA), 0],
+      [2, publicKey(playerB), 0],
+      [3, publicKey(playerC), 0],
+    ]);
+
+    for (const index of [1, 2]) {
+      for (const cycles of [8, 8, 4]) assert.equal((await recordWeekly(index, cycles))?.[0]?.accepted, true);
+    }
+    const tiedPositive = await rpc(clients[0], "get_weekly_leaderboard");
+    assert.deepEqual(tiedPositive.map((row) => [row.position, row.public_key, row.score]), [
+      [1, publicKey(playerB), 20],
+      [2, publicKey(playerC), 20],
+      [3, publicKey(playerA), 0],
+    ]);
+
+    await resetScores();
+    await resetWeekly();
+    const sameJoinTime = "2026-07-02T00:00:00Z";
+    await setProfile(playerB, { joined_at: sameJoinTime });
+    await setProfile(playerC, { joined_at: sameJoinTime });
+    const stableByUserId = await rpc(clients[0], "get_weekly_leaderboard");
+    const expectedZeroOrder = [playerB, playerC].sort().map(publicKey);
+    assert.deepEqual(stableByUserId.slice(1).map((row) => row.public_key), expectedZeroOrder);
+    assert.deepEqual(stableByUserId.map((row) => row.position), [1, 2, 3]);
+  } finally {
+    await resetWeekly();
+    await resetScores();
+    for (const row of originalProfiles) {
+      const { user_id: userId, ...values } = row;
+      await setProfile(userId, values);
+    }
+  }
+});
+
 test("crossing the top-ten boundary queues one transition and respects cooldown before a later transition", async () => {
   await resetScores();
   await resetWeekly();

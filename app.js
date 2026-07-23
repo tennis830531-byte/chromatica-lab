@@ -7287,6 +7287,10 @@ function registerAndroidAppLifecycle() {
     console.warn("Unable to register Android app lifecycle listener.", error);
   });
   App.addListener("backButton", ({ canGoBack }) => {
+    if (window.ChromaticaAnnouncements?.closeTopModal?.()) {
+      void window.ChromaticaHaptics?.close?.();
+      return;
+    }
     if (window.ChromaticaLeaderboard?.close?.()) {
       void window.ChromaticaHaptics?.close?.();
       return;

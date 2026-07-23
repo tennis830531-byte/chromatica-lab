@@ -14,6 +14,7 @@ const build = fs.readFileSync(path.join(root, "scripts/build-web.mjs"), "utf8");
 const sw = fs.readFileSync(path.join(root, "sw.js"), "utf8");
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/202607210001_create_global_leaderboards.sql"), "utf8");
 const weeklyMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607210002_create_weekly_leaderboard_announcements.sql"), "utf8");
+const weeklyRankMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607230001_rank_all_joined_weekly_members.sql"), "utf8");
 const avatarFunction = fs.readFileSync(path.join(root, "supabase/functions/upload-leaderboard-avatar/index.ts"), "utf8");
 
 test("global leaderboard exposes only the weekly 乖乖練習王", () => {
@@ -21,6 +22,30 @@ test("global leaderboard exposes only the weekly 乖乖練習王", () => {
   assert.doesNotMatch(html, /data-leaderboard-metric="streak"|連續學習王|自 refresh-170 起累積|歷史總循環/);
   assert.match(runtime, /本週 \$\{row\.score\} 次/);
   assert.doesNotMatch(runtime, /連續學習 \$\{row\.score\} 天/);
+});
+
+test("joined zero-cycle members render as formal ranked rows without a duplicate summary", () => {
+  assert.doesNotMatch(html, /leaderboardOwnWeeklyStatus|leaderboardAccountWeeklyStatus|我的本週狀態/);
+  assert.doesNotMatch(runtime, /leaderboardOwnWeeklyStatus|leaderboardAccountWeeklyStatus|我的本週狀態/);
+  assert.match(runtime, /score\.textContent = `本週 \$\{row\.score\} 次`/);
+  assert.match(runtime, /normalized\.some\(\(row\) => row\.isCurrentUser\)/);
+  assert.match(runtime, /排行榜服務正在更新中/);
+  assert.doesNotMatch(runtime, /weeklyRow\s*==\s*null[\s\S]*MEMBERSHIP\.NOT_JOINED/);
+});
+
+test("weekly rank migration includes every active member without creating zero-score rows", () => {
+  assert.match(weeklyRankMigration, /create or replace function public\.get_weekly_leaderboard\(\)/);
+  assert.match(weeklyRankMigration, /from public\.leaderboard_profiles lp[\s\S]*where lp\.is_active[\s\S]*lp\.profile_completed[\s\S]*lp\.consented_at is not null/);
+  assert.match(weeklyRankMigration, /left join public\.weekly_leaderboard_scores ws/);
+  assert.match(weeklyRankMigration, /coalesce\(ws\.completed_cycles, 0::bigint\)/);
+  assert.match(weeklyRankMigration, /row_number\(\) over[\s\S]*completed_cycles, 0::bigint\) desc,[\s\S]*am\.joined_at asc,[\s\S]*am\.user_id asc/);
+  assert.doesNotMatch(weeklyRankMigration, /insert into|update public|delete from|truncate|rank\(\)|dense_rank\(\)/i);
+});
+
+test("successful leaderboard loads have no count announcement or empty layout gap", () => {
+  assert.doesNotMatch(runtime, /更新完成，共顯示|已顯示最近更新的排行/);
+  assert.match(runtime, /renderLeaderboardRows\(rows, activeMetric\);\s*setStatus\("", ""\)/);
+  assert.match(css, /\.leaderboard-status:empty\s*\{\s*display:\s*none;/);
 });
 
 test("ranking query returns top fifteen and current user with stable tie ordering", () => {
@@ -37,7 +62,7 @@ test("podium rules and empty state remain explicit", () => {
     assert.match(css, new RegExp(`\\.leaderboard-row\\.${className}`));
   }
   assert.match(runtime, /目前還沒有排行成績/);
-  assert.match(css, /@media \(max-width: 390px\)[\s\S]*leaderboard-row/);
+  assert.match(css, /@media \(max-width: 430px\)[\s\S]*leaderboard-row/);
 });
 
 test("leaderboard public identity never uses Google name avatar or provider metadata", () => {
@@ -59,30 +84,31 @@ test("first entry requires a custom name avatar and explicit consent", () => {
 });
 
 test("unauthenticated and incomplete profiles cannot fetch rankings", () => {
-  assert.match(runtime, /if \(!getPublicUser\(\)\)[\s\S]*請先登入/);
-  assert.match(runtime, /if \(joined !== true\)[\s\S]*請先完成排行榜公開資料設定/);
+  assert.match(runtime, /if \(!userId\)[\s\S]*請先登入/);
+  assert.match(runtime, /membershipStatus === MEMBERSHIP\.NOT_JOINED[\s\S]*請先完成排行榜公開資料設定/);
   assert.match(migration, /completed leaderboard profile required/);
   assert.match(migration, /is_active = true and profile_completed = true and consented_at is not null/);
 });
 
 test("an incomplete account enters onboarding from the leaderboard while member settings only links there", () => {
-  assert.match(runtime, /if \(!joined\)[\s\S]*openProfileEditor\(\{ onboarding: true \}\)/);
+  assert.match(runtime, /membershipStatus === MEMBERSHIP\.NOT_JOINED[\s\S]*openProfileEditor\(\{ onboarding: true \}\)/);
   assert.match(html, /id="leaderboardAccountSection"[\s\S]*排行榜公開資料/);
   assert.match(html, /id="leaderboardProfileEdit"[^>]*>前往排行榜完成首次設定/);
-  assert.match(runtime, /leaderboardProfileEdit[\s\S]*if \(joined === true\) openProfileEditor\(\);[\s\S]*else void open\(\)/);
+  assert.match(runtime, /leaderboardProfileEdit[\s\S]*if \(joinedNow\(\)\) openProfileEditor\(\);[\s\S]*else void open\(\)/);
   assert.match(runtime, /onboarding \? "" : core\.normalizeDisplayName/);
 });
 
 test("member settings public-profile action stays on one line in both states", () => {
-  assert.match(runtime, /joined === true \? "編輯公開資料／更換頭像" : "前往排行榜完成首次設定"/);
+  assert.match(runtime, /joined \? "編輯公開資料／更換頭像" : "前往排行榜完成首次設定"/);
   assert.match(css, /\.leaderboard-account-actions \{[^}]*grid-template-columns: minmax\(0, 1fr\);/s);
   assert.match(css, /\.leaderboard-account-actions button \{[^}]*white-space: nowrap;/s);
 });
 
 test("an unavailable backend shows one friendly status instead of opening public profile setup", () => {
-  assert.match(runtime, /\.catch\(\(error\) => \{[\s\S]*membershipUnavailable = true/);
-  const unavailable = runtime.match(/if \(membershipUnavailable\) \{[\s\S]*?return true;\s*\}/)?.[0] || "";
-  assert.match(unavailable, /排行榜服務正在更新中/);
+  assert.match(runtime, /\.catch\(\(error\) => \{[\s\S]*membershipStatus = MEMBERSHIP\.ERROR/);
+  const openUnsafe = runtime.match(/async function openUnsafe\(\) \{[\s\S]*?\n  \}\n\n  async function open\(\)/)?.[0] || "";
+  const unavailable = openUnsafe.match(/if \(membershipStatus === MEMBERSHIP\.ERROR\) \{[\s\S]*?return true;\s*\}/)?.[0] || "";
+  assert.match(unavailable, /membershipError\?\.message/);
   assert.match(unavailable, /renderLeaderboardRows\(\[\], activeMetric\)/);
   assert.doesNotMatch(unavailable, /openProfileEditor/);
 });
@@ -152,9 +178,9 @@ test("high-risk clear-all flow alone resets the current user's leaderboard data"
 });
 
 test("unfinished or inactive accounts neither queue nor flush practice events", () => {
-  assert.match(runtime, /isQaActive\(\) \|\| joined !== true/);
-  assert.match(runtime, /if \(joined === null\) await ensureMembership\(\)/);
-  assert.match(runtime, /if \(joined !== true\) return \{ status: "not-joined" \}/);
+  assert.match(runtime, /isQaActive\(\) \|\| !joinedNow\(\)/);
+  assert.match(runtime, /membershipStatus === MEMBERSHIP\.IDLE \|\| membershipStatus === MEMBERSHIP\.LOADING/);
+  assert.match(runtime, /membershipStatus !== MEMBERSHIP\.JOINED\) return \{ status: "not-joined" \}/);
   assert.match(migration, /leaderboard membership required/);
 });
 
