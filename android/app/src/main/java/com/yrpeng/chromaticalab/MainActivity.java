@@ -75,12 +75,12 @@ public class MainActivity extends BridgeActivity {
         splashDismissStarted = false;
         ViewGroup contentRoot = findViewById(android.R.id.content);
         splashOverlay = new FrameLayout(this);
-        splashOverlay.setBackgroundColor(ContextCompat.getColor(this, R.color.chromatica_background));
+        splashOverlay.setBackgroundColor(ContextCompat.getColor(this, R.color.chromatica_splash_background));
 
         ImageView splashArtwork = new ImageView(this);
-        splashArtwork.setImageResource(R.drawable.splash);
-        splashArtwork.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        splashArtwork.setImageResource(R.drawable.splash_art_portrait);
         splashArtwork.setAdjustViewBounds(false);
+        configureSplashArtworkFit(splashArtwork);
         splashOverlay.addView(
             splashArtwork,
             new FrameLayout.LayoutParams(
@@ -228,6 +228,10 @@ public class MainActivity extends BridgeActivity {
 
     private int dpToPx(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private void configureSplashArtworkFit(ImageView imageView) {
+        imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
     }
 
     private void configureStatusBarInsets() {
