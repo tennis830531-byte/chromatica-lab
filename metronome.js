@@ -53,6 +53,7 @@
   let scheduledNodes = new Set();
   let tapState = core.createTapTempoState();
   let playing = false;
+  let playbackAutoPositioned = false;
   let formalStartedAt = 0;
   let lastVisualSequence = -1;
   let scheduledVisualEvents = [];
@@ -240,11 +241,16 @@
       : `<g class="rhythm-rest"><path d="M ${x - 3} ${stemTop + 4} l 6 5 -6 5 6 5 -5 7"></path></g>`).join("");
     const hitPositions = positions.filter((_, index) => pattern.hits[index]);
     const beamCount = pattern.group === "sixteenth" ? 2 : pattern.stepCount > 1 ? 1 : 0;
+    const beamEndX = pattern.id === "sixteenth-alternating" ? right + 4 : hitPositions[hitPositions.length - 1] + 4;
     const beams = beamCount && hitPositions.length > 1
-      ? Array.from({ length: beamCount }, (_, index) => `<path class="rhythm-beam" d="M ${hitPositions[0] + 4} ${stemTop + index * 5} H ${hitPositions[hitPositions.length - 1] + 4}"></path>`).join("")
+      ? Array.from({ length: beamCount }, (_, index) => `<path class="rhythm-beam" d="M ${hitPositions[0] + 4} ${stemTop + index * 5} H ${beamEndX}"></path>`).join("")
       : "";
-    const triplet = pattern.group === "triplet" ? `<path class="rhythm-tuplet" d="M ${left - 3} 7 H ${right + 5}"></path><text x="${width / 2}" y="8">3</text>` : "";
-    return `<svg class="rhythm-notation${compact ? " compact" : ""}" viewBox="0 0 ${width} 44" aria-hidden="true" focusable="false">${triplet}${beams}${notes}</svg>`;
+    const offbeatBeam = pattern.id === "eighth-offbeat"
+      ? `<path class="rhythm-beam rhythm-offbeat-line" data-offbeat-line="upper" d="M ${left + 4} ${stemTop} H ${right + 4}"></path>`
+      : "";
+    const tripletGlyphX = Math.round(width / 2 - 9);
+    const triplet = pattern.group === "triplet" ? `<path class="rhythm-tuplet" d="M ${left - 3} 7 H ${right + 5}"></path><svg class="rhythm-triplet-glyph" x="${tripletGlyphX}" y="-14.25" width="18" height="18" viewBox="-3 -2 30 30" aria-hidden="true" focusable="false"><path d="M4 4.2C6.1 2.2 8.7 1.2 12 1.2c4.4 0 7.4 2.4 7.4 6 0 2.4-1.2 4.1-3.6 5.1 2.6 1 4 3 4 5.6 0 4.4-3.5 7-8.1 7-3.7 0-6.8-1.3-8.9-3.8l3.4-4c1.5 1.6 3.3 2.4 5.2 2.4 2 0 3.1-.8 3.1-2.1 0-1.5-1.3-2.2-4-2.2H8.2v-4.7h2.4c2.4 0 3.6-.7 3.6-2.1 0-1.3-1.1-2-2.8-2-1.6 0-3.2.7-4.6 1.9Z" fill="#724523" stroke="#fffaf2" stroke-width="1.25" stroke-linejoin="round" stroke-linecap="round" paint-order="stroke fill" vector-effect="non-scaling-stroke" shape-rendering="geometricPrecision"></path></svg>` : "";
+    return `<svg class="rhythm-notation${compact ? " compact" : ""}" viewBox="0 0 ${width} 44" aria-hidden="true" focusable="false">${triplet}${beams}${offbeatBeam}${notes}</svg>`;
   }
   function renderRhythmOptions() {
     const list = $("#metronomeRhythmOptions");
@@ -446,12 +452,35 @@
     schedulerTimer = window.setInterval(schedulerTick, SCHEDULER_TICK_MS);
     schedulerTick(); animationFrame = requestAnimationFrame(visualTick);
     render(); announce("節拍器已開始");
+    if (!playbackAutoPositioned) {
+      playbackAutoPositioned = true;
+      requestAnimationFrame(positionPlaybackCards);
+    }
+  }
+
+  function positionPlaybackCards() {
+    const stage = $(".metronome-stage");
+    const controls = $(".metronome-controls");
+    if (!stage || !controls) return;
+    const stageBox = stage.getBoundingClientRect();
+    const controlsBox = controls.getBoundingClientRect();
+    const headerBox = document.querySelector(".app-header")?.getBoundingClientRect();
+    const safeTop = Math.max(12, Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-area-top")) || 0);
+    const topInset = Math.max(0, headerBox?.height || 0) + safeTop;
+    const combinedTop = Math.min(stageBox.top, controlsBox.top);
+    const combinedBottom = Math.max(stageBox.bottom, controlsBox.bottom);
+    const availableHeight = Math.max(1, (global.visualViewport?.height || global.innerHeight) - topInset - 12);
+    const combinedHeight = combinedBottom - combinedTop;
+    const targetY = global.scrollY + combinedTop - topInset - (combinedHeight < availableHeight ? Math.max(0, (availableHeight - combinedHeight) / 2) : 0);
+    const reduced = global.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    global.scrollTo({ top: Math.max(0, targetY), behavior: reduced ? "auto" : "smooth" });
   }
   function stop({ completed = false } = {}) {
     if (!playing && !schedulerTimer && !animationFrame) return;
     if (schedulerTimer) clearInterval(schedulerTimer);
     if (animationFrame) cancelAnimationFrame(animationFrame);
     schedulerTimer = null; animationFrame = null; playing = false;
+    playbackAutoPositioned = false;
     cancelScheduledNodes();
     clearScheduledVisualEvents();
     presentedVisualEvent = null;

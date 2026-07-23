@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../../styles.css"><style>body{margin:0;width:390px}.fixture{width:354px;margin:18px}.row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.hero-plant-stage{width:112px;height:188px}.garden-spirit-stage-card{grid-template-rows:168px auto;width:172px}.garden-collection-cell{width:84px}</style></head>
+<body>
+  <section class="fixture garden-card"><div id="scene" class="garden-plant-scene"><img id="backdrop" class="garden-scene-backdrop" src="../../public/assets/garden/icons/garden-stage-backdrop-refresh.png" alt=""></div></section>
+  <section class="fixture row">
+    <span class="hero-plant-stage"><img id="heroMelody" class="hero-garden-plant-image species-melody-sprout hero-stage-3" src="../../public/assets/garden/plants/melody-sprout-stage3.png?v=clean-2" alt=""></span>
+    <span class="hero-plant-stage"><img id="heroMushroom" class="hero-garden-plant-image species-mushroom-spirit hero-stage-3" src="../../public/assets/garden/plants/mushroom-spirit-stage3.png" alt=""></span>
+    <span class="hero-plant-stage"><img id="heroFlower" class="hero-garden-plant-image species-flower-spirit hero-stage-3" src="../../public/assets/garden/plants/flower-spirit-stage3.png" alt=""></span>
+  </section>
+  <section class="fixture row">
+    <button id="detailMelody" class="garden-spirit-stage-card spirit-melody-sprout stage-3"><span class="garden-spirit-stage-image-frame"><img src="../../public/assets/garden/plants/melody-sprout-stage3.png?v=clean-2" alt=""></span><span>旋律森使</span></button>
+    <button id="detailFlower2" class="garden-spirit-stage-card spirit-flower-spirit stage-2"><span class="garden-spirit-stage-image-frame"><img src="../../public/assets/garden/plants/flower-spirit-stage2.png" alt=""></span><span>花樂舞靈</span></button>
+    <button id="detailFlower3" class="garden-spirit-stage-card spirit-flower-spirit stage-3"><span class="garden-spirit-stage-image-frame"><img src="../../public/assets/garden/plants/flower-spirit-stage3.png" alt=""></span><span>花樂仙子</span></button>
+  </section>
+  <section class="fixture row">
+    <div class="garden-collection-cell"><img id="thumbMelody" class="garden-collection-spirit-thumb collection-melody-sprout collection-stage-1" src="../../public/assets/garden/plants/melody-sprout-stage1.png" alt=""></div>
+    <div class="garden-collection-cell"><img id="thumbFlower" class="garden-collection-spirit-thumb collection-flower-spirit collection-stage-1" src="../../public/assets/garden/plants/flower-spirit-stage1.png" alt=""></div>
+    <div class="garden-collection-cell"><img id="thumbMushroom" class="garden-collection-spirit-thumb collection-mushroom-spirit collection-stage-1" src="../../public/assets/garden/plants/mushroom-spirit-stage1.png" alt=""></div>
+  </section>
+  <pre id="result">pending</pre>
+  <script>addEventListener("load",()=>{const $=id=>document.getElementById(id),style=id=>getComputedStyle($(id)),box=id=>{const r=$(id).getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height}},detail=id=>{const card=box(id),image=$(id).querySelector("img"),r=image.getBoundingClientRect(),s=getComputedStyle(image);return{width:s.width,maxWidth:s.maxWidth,maxHeight:s.maxHeight,transform:s.transform,objectFit:s.objectFit,objectPosition:s.objectPosition,centerDelta:Math.round(((r.left+r.right-card.x*2-card.width)/2)*100)/100,className:image.className}},hero=id=>{const s=style(id);return{maxWidth:s.maxWidth,maxHeight:s.maxHeight,transform:s.transform,className:$(id).className}},thumb=id=>{const s=style(id);return{width:s.width,height:s.height,transform:s.transform,className:$(id).className}};const scene=box("scene"),backdrop=box("backdrop");$("result").textContent=JSON.stringify({scene:{overflow:style("scene").overflow,borderRadius:style("scene").borderRadius},backdrop:{x:Math.round((backdrop.x-scene.x)*100)/100,y:Math.round((backdrop.y-scene.y)*100)/100,widthDelta:Math.round((backdrop.width-scene.width)*100)/100,heightDelta:Math.round((backdrop.height-scene.height)*100)/100,borderRadius:style("backdrop").borderRadius,clipPath:style("backdrop").clipPath},hero:{melody:hero("heroMelody"),mushroom:hero("heroMushroom"),flower:hero("heroFlower")},detail:{melody:detail("detailMelody"),flower2:detail("detailFlower2"),flower3:detail("detailFlower3")},thumb:{melody:thumb("thumbMelody"),flower:thumb("thumbFlower"),mushroom:thumb("thumbMushroom")}})});</script>
+</body></html>

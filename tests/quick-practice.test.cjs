@@ -74,8 +74,14 @@ test("real navigation handlers clear quick session before formal navigation", ()
 test("formal and quick completion paths use the same concrete-task classification", () => {
   const fs = require("node:fs");
   const app = fs.readFileSync(require.resolve("../app.js"), "utf8");
-  assert.match(app, /function finishIntervalPractice\(\)[\s\S]*?const completedFromQuickPractice = hasActiveQuickPracticeTask\(\);[\s\S]*?showPracticeCompletionRewardDialog\("音程練習"[\s\S]*?handleQuickPracticeCompletion\("音程練習", completedFromQuickPractice\)/);
-  assert.match(app, /function showLongToneCompletion\([^)]*\) \{\s*const completedFromQuickPractice = hasActiveQuickPracticeTask\(\);[\s\S]*?showPracticeCompletionRewardDialog\(exercise\.title[\s\S]*?handleQuickPracticeCompletion\(exercise\.title, completedFromQuickPractice\)/);
+  const interval = app.match(/function finishIntervalPractice\(\)[\s\S]*?\n\}/)?.[0] || "";
+  const longTone = app.match(/function showLongToneCompletion\([^)]*\)[\s\S]*?\n\}/)?.[0] || "";
+  assert.match(interval, /const completedFromQuickPractice = hasActiveQuickPracticeTask\(\)/);
+  assert.match(interval, /handleQuickPracticeCompletion\("音程練習", completedFromQuickPractice\)/);
+  assert.match(interval, /showPracticeCompletionRewardDialog\("音程練習"/);
+  assert.match(longTone, /const completedFromQuickPractice = hasActiveQuickPracticeTask\(\)/);
+  assert.match(longTone, /handleQuickPracticeCompletion\(exercise\.title, completedFromQuickPractice\)/);
+  assert.match(longTone, /showPracticeCompletionRewardDialog\(exercise\.title/);
   assert.match(app, /source: hasActiveQuickPracticeTask\(\) \? "quick-practice" : "formal-practice"/);
 });
 

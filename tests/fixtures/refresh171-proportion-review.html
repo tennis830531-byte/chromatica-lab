@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; background: #eee7dc; color: #493527; font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", sans-serif; }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    .note { margin: 0 0 22px; color: #7b685a; }
+    .species { margin-bottom: 28px; }
+    .species h2 { margin: 0 0 10px; font-size: 22px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 360px); gap: 18px; align-items: start; }
+    .cell { overflow: hidden; border: 1px solid #d6c5b4; border-radius: 18px; background: #f7f1e8; box-shadow: 0 8px 22px rgba(73,53,39,.1); }
+    .label { display: flex; justify-content: space-between; padding: 9px 12px; color: #fff; background: #78502f; font-weight: 800; }
+    iframe { display: block; width: 360px; border: 0; background: #f7f1e8; }
+  </style>
+</head>
+<body>
+  <h1 id="title">refresh-171 植物比例核對</h1>
+  <p class="note">每格都是 360 CSS px 手機 viewport，直接載入目前正式 styles.css 與原始 PNG。</p>
+  <main id="rows"></main>
+  <script>
+    const surface = new URLSearchParams(location.search).get("surface") || "collection";
+    const titles = { collection: "1. 圖鑑詳情｜真實三階卡片", garden: "2. 正式花園｜真實主卡", home: "3. 首頁｜真實主卡" };
+    const heights = { collection: 350, garden: 450, home: 450 };
+    const groups = [
+      ["melody-sprout", "旋律系", ["旋律芽芽", "旋律葉靈", "旋律森使"]],
+      ["mushroom-spirit", "菇鳴系", ["菇鳴靈", "菇鳴樂手", "菇鳴賢者"]],
+      ["flower-spirit", "花樂系", ["花樂精靈", "花樂舞靈", "花樂仙子"]],
+    ];
+    document.getElementById("title").textContent = titles[surface];
+    document.getElementById("rows").innerHTML = groups.map(([id, label, names]) => `<section class="species"><h2>${label}</h2><div class="grid">${names.map((name, index) => `<article class="cell"><div class="label"><span>Stage ${index + 1}</span><span>${name}</span></div><iframe title="${name}" height="${heights[surface]}" src="./refresh171-proportion-card.html?surface=${surface}&species=${id}&stage=${index + 1}"></iframe></article>`).join("")}</div></section>`).join("");
+  </script>
+</body>
+</html>

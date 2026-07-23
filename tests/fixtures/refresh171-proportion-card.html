@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="../../styles.css?v=refresh171-proportion-review-7">
+  <style>
+    html, body { width: 360px; min-width: 360px; margin: 0; overflow: hidden; }
+    body { background: #f7f1e8; }
+    .review-mobile { box-sizing: border-box; width: 360px; padding: 14px; }
+    .review-mobile .garden-card { margin: 0; }
+    .review-collection-shell { box-sizing: border-box; width: 360px; min-height: 350px; padding: 14px 12px; background: rgba(58, 44, 35, 0.32); }
+    .review-collection-shell .garden-spirit-modal { width: 336px; min-height: 322px; overflow: visible; }
+    .review-collection-stage { display: grid; place-items: center; margin-top: 12px; }
+    .review-collection-stage .garden-spirit-stage-card { box-sizing: border-box; width: 172px; }
+    .review-home .home-hero { margin: 0; }
+  </style>
+</head>
+<body class="simple-motion no-plant-idle">
+  <main id="surface"></main>
+  <script>
+    const species = {
+      "melody-sprout": { names: ["旋律芽芽", "旋律葉靈", "旋律森使"] },
+      "mushroom-spirit": { names: ["菇鳴靈", "菇鳴樂手", "菇鳴賢者"] },
+      "flower-spirit": { names: ["花樂精靈", "花樂舞靈", "花樂仙子"] },
+    };
+    const query = new URLSearchParams(location.search);
+    const surface = query.get("surface") || "collection";
+    const speciesId = species[query.get("species")] ? query.get("species") : "melody-sprout";
+    const stage = Math.max(1, Math.min(3, Number(query.get("stage")) || 1));
+    const name = species[speciesId].names[stage - 1];
+    const image = `../../public/assets/garden/plants/${speciesId}-stage${stage}.png`;
+    const root = document.getElementById("surface");
+
+    if (surface === "collection") {
+      root.innerHTML = `<section class="review-collection-shell"><div class="garden-spirit-modal">
+        <div class="garden-spirit-modal-head"><div><p class="eyebrow">植物精靈圖鑑</p><div class="garden-spirit-title-row"><h2>${name}</h2><button class="garden-spirit-edit-name" type="button">編輯</button></div><p>左右滑動查看三種形態。</p></div><button class="calendar-close" type="button" aria-label="關閉">×</button></div>
+        <div class="review-collection-stage"><article class="garden-spirit-stage-card spirit-${speciesId} stage-${stage} active"><span class="garden-spirit-stage-image-frame"><img src="${image}" alt="${name}"></span><span>${name}</span></article></div>
+      </div></section>`;
+    } else if (surface === "garden") {
+      root.innerHTML = `<section class="review-mobile"><section class="garden-card paper-card">
+        <div class="garden-card-head"><div class="garden-plant-heading"><div class="garden-plant-title-line"><h3>${name}</h3><span class="garden-stage-pill">${name}</span></div></div><div class="water-balance"><img src="../../public/assets/garden/icons/water-drop.png" alt=""><span><b>5</b> 滴</span></div></div>
+        <div class="garden-plant-scene species-${speciesId} garden-stage-${stage}"><button class="watering-can-button" type="button" aria-label="澆水"><img class="watering-can" src="../../public/assets/garden/icons/watering-can.png" alt=""></button><div class="garden-fx-layer"></div><img class="garden-scene-backdrop" src="../../public/assets/garden/icons/garden-stage-backdrop-refresh.png" alt=""><div class="plant-idle-layer species-${speciesId} garden-stage-${stage}"><div class="plant-action-layer species-${speciesId} garden-stage-${stage}"><img class="garden-plant-image species-${speciesId} garden-stage-${stage}" src="${image}" alt="${name}"></div></div></div>
+        <div class="garden-progress"><div class="garden-progress-row"><span>階段進度</span><b>0 / ${[100,180,250][stage-1]}</b></div><div class="garden-progress-track"><i style="width:0%"></i></div><div class="daily-practice-water"><span>今日練習水滴上限</span><b>0 / 80</b></div></div>
+      </section></section>`;
+    } else {
+      root.innerHTML = `<section class="review-mobile review-home"><div class="home-hero paper-card"><div class="hero-top"><div class="hero-copy"><h2>半音階口琴練習室</h2><p>透過孔位地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p></div></div><div class="hero-actions"><button class="hero-plant-slot" type="button"><span class="hero-plant-stage"><span class="hero-plant-idle"><span class="hero-plant-action"><img class="hero-garden-plant-image species-${speciesId} hero-stage-${stage}" src="${image}" alt="${name}"></span></span></span><span class="hero-plant-name-card"><b>${name}</b></span></button><div class="hero-start-wrap"><button class="primary-btn start-practice-button" type="button"><img class="start-practice-button-art" src="../../public/assets/chromatic-refresh/feature/start_practice_button_with_bird.png" alt=""><span class="start-practice-content"><span class="start-practice-label">開始練習</span></span></button></div></div></div></section>`;
+    }
+  </script>
+</body>
+</html>

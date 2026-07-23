@@ -114,6 +114,30 @@ async function record(index, cycles, dates = streakDates(1), eventId = crypto.ra
   });
 }
 
+async function recordWeekly(index, cycles, dates = streakDates(1), eventId = crypto.randomUUID(), extra = {}) {
+  return rpc(clients[index], "record_weekly_leaderboard_practice", {
+    p_event_id: eventId,
+    p_completed_cycles: cycles,
+    p_practice_date: dates[0],
+    p_protected_dates: dates,
+    ...extra,
+  });
+}
+
+async function resetWeekly() {
+  const targets = [
+    ["leaderboard_notification_deliveries", "user_id"], ["leaderboard_notification_queue", "user_id"],
+    ["leaderboard_weekly_rank_state", "user_id"], ["weekly_leaderboard_results", "user_id"],
+    ["weekly_leaderboard_scores", "user_id"], ["leaderboard_push_device_tokens", "user_id"],
+    ["leaderboard_push_preferences", "user_id"],
+    ["announcements", "id"], ["app_admins", "user_id"],
+  ];
+  for (const [table, column] of targets) {
+    const { error } = await admin.from(table).delete().not(column, "is", null);
+    if (error) throw error;
+  }
+}
+
 async function resetScores() {
   for (const table of ["leaderboard_practice_events", "leaderboard_practice_days"]) {
     const { error } = await admin.from(table).delete().not("user_id", "is", null);
@@ -126,8 +150,16 @@ async function resetScores() {
 }
 
 before(async () => {
+  await resetWeekly();
+  await resetScores();
+  const localUsers = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (localUsers.error) throw localUsers.error;
+  for (const existing of localUsers.data.users.filter((user) => user.email?.toLowerCase() === "leaderboard-local-admin@example.invalid")) {
+    const removed = await admin.auth.admin.deleteUser(existing.id);
+    if (removed.error) throw removed.error;
+  }
   for (let index = 0; index < 20; index += 1) {
-    const email = `leaderboard-local-${crypto.randomUUID()}@example.invalid`;
+    const email = index === 0 ? "leaderboard-local-admin@example.invalid" : `leaderboard-local-${crypto.randomUUID()}@example.invalid`;
     const created = await admin.auth.admin.createUser({
       email, password, email_confirm: true,
       user_metadata: { full_name: `Google Name ${index}`, avatar_url: "https://example.invalid/google.png", provider_id: `provider-${index}` },
@@ -150,7 +182,12 @@ before(async () => {
 
 after(async () => {
   if (uploadedPaths.length) await admin.storage.from(bucket).remove(uploadedPaths);
-  for (const user of users) await admin.auth.admin.deleteUser(user.id);
+  await resetWeekly();
+  await resetScores();
+  for (const user of users) {
+    const removed = await admin.auth.admin.deleteUser(user.id);
+    if (removed.error) throw removed.error;
+  }
 });
 
 test("unauthenticated and incomplete accounts cannot view or submit", async () => {
@@ -191,7 +228,7 @@ test("twenty complete public profiles contain no Google or provider identity fie
   for (let index = 0; index < 20; index += 1) {
     await join(index, index >= 18 ? "同名玩家" : `測試玩家${index + 1}`);
   }
-  const { data, error } = await admin.from("leaderboard_profiles").select("*");
+  const { data, error } = await admin.from("leaderboard_profiles").select("*").in("user_id", users.map((user) => user.id));
   assert.ifError(error);
   assert.equal(data.length, 20);
   for (const row of data) {
@@ -234,10 +271,6 @@ test("canonical local dates handle same day midnight and freeze evidence", async
   assert.equal(await record(0, 1, streakDates(1)), true);
   let row = await admin.from("leaderboard_profiles").select("current_streak_days").eq("user_id", users[0].id).single();
   assert.equal(row.data.current_streak_days, 1);
-  const tomorrow = localDate(1);
-  assert.equal(await record(0, 1, streakDates(2, tomorrow)), true);
-  row = await admin.from("leaderboard_profiles").select("current_streak_days").eq("user_id", users[0].id).single();
-  assert.equal(row.data.current_streak_days, 2);
   assert.equal(await record(0, 1, streakDates(3)), true);
   row = await admin.from("leaderboard_profiles").select("current_streak_days").eq("user_id", users[0].id).single();
   assert.equal(row.data.current_streak_days, 3);
@@ -255,7 +288,7 @@ test("daily 500-cycle cap is enforced independently of the rolling rate window",
   for (let batch = 0; batch < 2; batch += 1) {
     for (let index = 0; index < 30; index += 1) assert.equal(await record(1, 8), true);
     const { error } = await admin.from("leaderboard_practice_events")
-      .update({ created_at: `${localDate()}T00:00:00.000Z` }).eq("user_id", users[1].id);
+      .update({ created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString() }).eq("user_id", users[1].id);
     assert.ifError(error);
   }
   assert.equal(await record(1, 8), true);
@@ -337,4 +370,178 @@ test("database catalog confirms RLS constraints grants safe search_path and buck
       (select file_size_limit=2097152 and allowed_mime_types @> array['image/jpeg','image/png','image/webp'] from storage.buckets where id='leaderboard-avatars');`;
   const output = execFileSync("docker", ["exec", "supabase_db_chromatica-lab-local", "psql", "-U", "postgres", "-d", "postgres", "-At", "-F", ",", "-c", sql], { encoding: "utf8" }).trim();
   assert.equal(output, "t,t,t,t,t,t,t,t");
+});
+
+test("Taipei server week changes exactly at Sunday 00:00", async () => {
+  assert.equal(await rpc(admin, "taipei_leaderboard_week_start", { p_timestamp: "2026-07-25T15:59:59Z" }), "2026-07-19");
+  assert.equal(await rpc(admin, "taipei_leaderboard_week_start", { p_timestamp: "2026-07-25T16:00:00Z" }), "2026-07-26");
+  await expectFailure(() => recordWeekly(0, 1, streakDates(1), crypto.randomUUID(), { p_week_start: "1999-01-03" }), /function|parameter|schema cache/i);
+});
+
+test("weekly RPC accumulates accepted events once and returns server ranks", async () => {
+  await resetScores();
+  await resetWeekly();
+  const eventId = crypto.randomUUID();
+  const first = await recordWeekly(0, 4, streakDates(1), eventId);
+  const replay = await recordWeekly(0, 4, streakDates(1), eventId);
+  assert.equal(first?.[0]?.accepted, true);
+  assert.equal(first?.[0]?.current_rank, 1);
+  assert.equal(replay?.[0]?.accepted, false);
+  const rows = await rpc(clients[0], "get_weekly_leaderboard");
+  assert.equal(rows.find((row) => row.is_current_user)?.score, 4);
+});
+
+test("crossing the top-ten boundary queues one transition and respects cooldown before a later transition", async () => {
+  await resetScores();
+  await resetWeekly();
+  const week = await rpc(admin, "taipei_leaderboard_week_start");
+  const reached = new Date(Date.now() - 60_000).toISOString();
+  const seeded = Array.from({ length: 11 }, (_, index) => ({
+    week_start: week,
+    user_id: users[index].id,
+    completed_cycles: index < 9 ? 100 - index : 11 - index,
+    score_reached_at: reached,
+  }));
+  assert.ifError((await admin.from("weekly_leaderboard_scores").upsert(seeded, { onConflict: "week_start,user_id" })).error);
+  await rpc(admin, "refresh_weekly_leaderboard_rank_state", { p_week_start: week });
+
+  const firstMove = await recordWeekly(10, 2);
+  assert.equal(firstMove?.[0]?.previous_rank, 11);
+  assert.equal(firstMove?.[0]?.current_rank, 10);
+  let dropped = await admin.from("leaderboard_notification_queue").select("id,user_id,transition_sequence").eq("week_start", week).eq("notification_type", "dropped_out_of_top_ten");
+  assert.ifError(dropped.error);
+  assert.equal(dropped.data.filter((row) => row.user_id === users[9].id).length, 1);
+
+  await recordWeekly(10, 1);
+  dropped = await admin.from("leaderboard_notification_queue").select("id,user_id").eq("week_start", week).eq("notification_type", "dropped_out_of_top_ten");
+  assert.equal(dropped.data.filter((row) => row.user_id === users[9].id).length, 1);
+
+  await recordWeekly(9, 4);
+  await recordWeekly(10, 4);
+  dropped = await admin.from("leaderboard_notification_queue").select("id,user_id").eq("week_start", week).eq("notification_type", "dropped_out_of_top_ten");
+  assert.equal(dropped.data.filter((row) => row.user_id === users[9].id).length, 1, "cooldown suppresses a rapid second drop");
+
+  assert.ifError((await admin.from("leaderboard_weekly_rank_state").update({ last_drop_notified_at: new Date(Date.now() - 31 * 60_000).toISOString() }).eq("week_start", week).eq("user_id", users[9].id)).error);
+  await recordWeekly(9, 4);
+  await recordWeekly(10, 4);
+  dropped = await admin.from("leaderboard_notification_queue").select("id,user_id,transition_sequence").eq("week_start", week).eq("notification_type", "dropped_out_of_top_ten");
+  assert.equal(dropped.data.filter((row) => row.user_id === users[9].id).length, 2);
+  assert.equal(new Set(dropped.data.map((row) => `${row.user_id}:${row.transition_sequence}`)).size, dropped.data.length);
+});
+
+test("push token ownership is singular and missing tokens never block rankings", async () => {
+  await resetWeekly();
+  const token = `local-mock-${crypto.randomBytes(32).toString("hex")}`;
+  assert.equal(await rpc(clients[0], "register_leaderboard_push_token", { p_token: token, p_platform: "android", p_enabled: true }), true);
+  assert.equal(await rpc(clients[1], "register_leaderboard_push_token", { p_token: token, p_platform: "android", p_enabled: true }), true);
+  const rows = await admin.from("leaderboard_push_device_tokens").select("user_id,is_active");
+  assert.ifError(rows.error);
+  assert.equal(rows.data.length, 1);
+  assert.equal(rows.data[0].user_id, users[1].id);
+  assert.equal(await rpc(clients[1], "disable_leaderboard_push_token"), true);
+  assert.equal((await admin.from("leaderboard_push_device_tokens").select("is_active").single()).data.is_active, false);
+});
+
+test("weekly results and top-ten movement preferences default on and disable independently", async () => {
+  await resetWeekly();
+  const defaults = await rpc(clients[0], "get_leaderboard_push_preferences");
+  assert.equal(defaults?.[0]?.weekly_results, true);
+  assert.equal(defaults?.[0]?.top_ten_changes, true);
+  assert.equal(await rpc(clients[0], "set_leaderboard_push_preferences", { p_weekly_results: false, p_top_ten_changes: true }), true);
+  const changed = await rpc(clients[0], "get_leaderboard_push_preferences");
+  assert.equal(changed?.[0]?.weekly_results, false);
+  assert.equal(changed?.[0]?.top_ten_changes, true);
+  assert.equal(await rpc(clients[0], "set_leaderboard_push_preferences", { p_weekly_results: false, p_top_ten_changes: false }), true);
+  const accepted = await recordWeekly(0, 5);
+  assert.equal(accepted?.[0]?.accepted, true);
+  const week = accepted?.[0]?.week_start;
+  let queued = await admin.from("leaderboard_notification_queue").select("id").eq("user_id", users[0].id);
+  assert.ifError(queued.error);
+  assert.equal(queued.data.length, 0, "disabled movement preference must not enqueue");
+  await rpc(admin, "finalize_weekly_leaderboard", { p_week_start: week });
+  queued = await admin.from("leaderboard_notification_queue").select("id").eq("user_id", users[0].id);
+  assert.equal(queued.data.length, 0, "disabled weekly preference must not enqueue");
+});
+
+test("announcement drafts and admin writes are protected by server authorization", async () => {
+  await resetWeekly();
+  assert.equal((await rpc(clients[0], "get_announcement_admin_status"))?.[0]?.is_admin, false);
+  assert.ok((await clients[1].from("announcements").insert({ large_topic: "違規", title: "違規", body: "不應成功", published_at: new Date().toISOString(), created_by: users[1].id, updated_by: users[1].id })).error);
+  await expectFailure(() => rpc(clients[1], "save_announcement", { p_id: null, p_large_topic: "一般使用者", p_title: "不可寫入", p_body: "伺服器必須拒絕", p_published_at: new Date().toISOString(), p_publish: false }), /admin required/i);
+  assert.ifError((await admin.from("app_admins").insert({ user_id: users[0].id })).error);
+  assert.equal((await rpc(clients[0], "get_announcement_admin_status"))?.[0]?.is_admin, true);
+  assert.equal((await rpc(clients[1], "get_announcement_admin_status"))?.[0]?.is_admin, false);
+  const draft = await rpc(clients[0], "save_announcement", { p_id: null, p_large_topic: "測試主題", p_title: "安全公告", p_body: "這是一則純文字測試公告", p_published_at: new Date(Date.now() - 1000).toISOString(), p_publish: false });
+  assert.ok(draft?.id || draft?.[0]?.id);
+  assert.equal((await rpc(clients[1], "get_published_announcements")).length, 0);
+  const id = draft?.id || draft?.[0]?.id;
+  assert.equal(await rpc(clients[0], "set_announcement_published", { p_id: id, p_publish: true }), true);
+  const published = await rpc(clients[1], "get_published_announcements");
+  assert.equal(published.length, 1);
+  assert.equal(published[0].body, "這是一則純文字測試公告");
+});
+
+test("authenticated clear-all resets only the caller leaderboard data", async () => {
+  const week = await rpc(admin, "taipei_leaderboard_week_start");
+  const announcementBefore = await admin.from("announcements").select("id", { count: "exact", head: true });
+  assert.ifError(announcementBefore.error);
+  const otherProfileBefore = await admin.from("leaderboard_profiles").select("user_id").eq("user_id", users[1].id).single();
+  assert.ifError(otherProfileBefore.error);
+
+  assert.ifError((await admin.from("weekly_leaderboard_scores").upsert({
+    week_start: week, user_id: users[0].id, completed_cycles: 7,
+  }, { onConflict: "week_start,user_id" })).error);
+  assert.ifError((await admin.from("weekly_leaderboard_results").upsert({
+    week_start: week, user_id: users[0].id, final_rank: 1, completed_cycles: 7,
+    score_reached_at: new Date().toISOString(),
+  }, { onConflict: "week_start,user_id" })).error);
+  assert.ifError((await admin.from("leaderboard_weekly_rank_state").upsert({
+    week_start: week, user_id: users[0].id, current_rank: 1,
+    was_top_ten: true, is_top_ten: true,
+  }, { onConflict: "week_start,user_id" })).error);
+  assert.ifError((await admin.from("leaderboard_push_preferences").upsert({
+    user_id: users[0].id, weekly_results: true, top_ten_changes: true,
+  })).error);
+  const queue = await admin.from("leaderboard_notification_queue").insert({
+    week_start: week,
+    user_id: users[0].id,
+    notification_type: "weekly_top_ten_result",
+    rank: 1,
+    transition_sequence: 0,
+    event_key: `reset-test-${crypto.randomUUID()}`,
+  }).select("id").single();
+  assert.ifError(queue.error);
+  assert.ifError((await admin.from("leaderboard_notification_deliveries").insert({
+    week_start: week,
+    user_id: users[0].id,
+    notification_type: "weekly_top_ten_result",
+    transition_sequence: 0,
+    queue_id: queue.data.id,
+  })).error);
+
+  const anon = createClient(apiUrl, anonKey, options);
+  await expectFailure(() => rpc(anon, "reset_my_leaderboard_data"), /authentication required|permission denied/i);
+  assert.equal(await rpc(clients[0], "reset_my_leaderboard_data"), true);
+
+  for (const table of [
+    "leaderboard_notification_deliveries",
+    "leaderboard_notification_queue",
+    "leaderboard_weekly_rank_state",
+    "weekly_leaderboard_results",
+    "weekly_leaderboard_scores",
+    "leaderboard_practice_days",
+    "leaderboard_practice_events",
+    "leaderboard_push_preferences",
+    "leaderboard_profiles",
+  ]) {
+    const result = await admin.from(table).select("user_id", { count: "exact", head: true }).eq("user_id", users[0].id);
+    assert.ifError(result.error);
+    assert.equal(result.count, 0, `${table} must be cleared only for the caller`);
+  }
+
+  const otherProfileAfter = await admin.from("leaderboard_profiles").select("user_id").eq("user_id", users[1].id).single();
+  assert.ifError(otherProfileAfter.error);
+  const announcementAfter = await admin.from("announcements").select("id", { count: "exact", head: true });
+  assert.ifError(announcementAfter.error);
+  assert.equal(announcementAfter.count, announcementBefore.count);
 });

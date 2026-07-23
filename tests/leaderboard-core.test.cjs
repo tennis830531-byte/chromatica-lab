@@ -31,9 +31,9 @@ test("leaderboard rows normalize public fields and preserve top fifteen plus sel
   assert.equal(core.shouldInsertSelfSeparator(normalized), true);
 });
 
-test("streak metric and scores cannot be negative", () => {
+test("obsolete streak metric is normalized to weekly and scores cannot be negative", () => {
   const row = core.normalizeLeaderboardRow({ position: 2, user_id: "u", score: -8 }, "streak");
-  assert.equal(row.metric, "streak");
+  assert.equal(row.metric, "weekly");
   assert.equal(row.score, 0);
 });
 
@@ -57,5 +57,13 @@ test("practice events clamp cycles and retain only canonical local streak eviden
   assert.equal(event.completedCycles, 8);
   assert.equal(event.practiceDate, "2026-07-21");
   assert.deepEqual(Array.from(event.protectedDates), ["2026-07-21", "2026-07-20"]);
-  assert.deepEqual(Object.keys(event).sort(), ["completedCycles", "createdAt", "eventId", "practiceDate", "protectedDates"]);
+  assert.equal(event.previousRank, null);
+  assert.deepEqual(Object.keys(event).sort(), ["completedCycles", "createdAt", "eventId", "practiceDate", "previousRank", "protectedDates"]);
+});
+
+test("rank movement is created only for a genuine weekly improvement", () => {
+  assert.deepEqual(JSON.parse(JSON.stringify(core.createRankMovement(10, 8, "a"))), { previousRank: 10, nextRank: 8, eventId: "a", enteredTopRows: false });
+  assert.equal(core.createRankMovement(8, 8, "b"), null);
+  assert.equal(core.createRankMovement(8, 9, "c"), null);
+  assert.deepEqual(JSON.parse(JSON.stringify(core.createRankMovement(null, 15, "d"))), { previousRank: null, nextRank: 15, eventId: "d", enteredTopRows: true });
 });

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="../../styles.css">
+  <style>
+    body { margin: 0; width: 390px; }
+    .home-hero { width: 358px; margin: 16px; }
+    .garden-card { width: 358px; margin: 16px; }
+    .garden-collection-cell { width: 84px; margin: 4px; }
+  </style>
+</head>
+<body class="simple-motion">
+  <section id="heroCard" class="home-hero paper-card">
+    <div class="hero-actions">
+      <button id="heroSlot" class="hero-plant-slot" type="button">
+        <span id="heroStage" class="hero-plant-stage">
+          <span class="hero-plant-idle is-idle"><span id="heroAction" class="hero-plant-action">
+            <img id="heroImage" class="hero-garden-plant-image hero-stage-1" alt="">
+          </span></span>
+        </span>
+        <span id="heroName" class="hero-plant-name-card"><b>植物名稱</b></span>
+      </button>
+      <div id="startWrap" class="hero-start-wrap"><button id="startButton" class="primary-btn start-practice-button" type="button"><span class="start-practice-content"><span class="start-practice-label">開始練習</span></span></button></div>
+    </div>
+  </section>
+
+  <section class="garden-card paper-card">
+    <div class="garden-card-head"><div><h3>植物</h3></div><div id="waterBalance" class="water-balance"><img id="waterIcon" src="../../public/assets/garden/icons/water-drop.png" alt=""><span id="waterText"><b>5</b> 滴</span></div></div>
+  </section>
+
+  <section>
+    <div id="thumbCellMelody" class="garden-collection-cell"><span class="slot-number">1</span><button type="button"><img id="thumbMelody" class="garden-collection-spirit-thumb collection-melody-sprout collection-stage-1" src="../../public/assets/garden/plants/melody-sprout-stage1.png" alt=""></button></div>
+    <div id="thumbCellFlower" class="garden-collection-cell"><span class="slot-number">2</span><button type="button"><img id="thumbFlower" class="garden-collection-spirit-thumb collection-flower-spirit collection-stage-1" src="../../public/assets/garden/plants/flower-spirit-stage1.png" alt=""></button></div>
+    <div id="thumbCellMushroom" class="garden-collection-cell"><span class="slot-number">3</span><button type="button"><img id="thumbMushroom" class="garden-collection-spirit-thumb collection-mushroom-spirit collection-stage-1" src="../../public/assets/garden/plants/mushroom-spirit-stage1.png" alt=""></button></div>
+  </section>
+
+  <pre id="result">pending</pre>
+  <script>
+    addEventListener("load", async () => {
+      try {
+      const species = ["melody-sprout", "mushroom-spirit", "flower-spirit"];
+      const image = document.getElementById("heroImage");
+      const stageBox = document.getElementById("heroStage");
+      const round = (value) => Math.round(value * 100) / 100;
+      const rect = (element) => { const value = element.getBoundingClientRect(); return { x: round(value.x), y: round(value.y), width: round(value.width), height: round(value.height), bottom: round(value.bottom) }; };
+      const alphaBounds = (element) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = element.naturalWidth; canvas.height = element.naturalHeight;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        context.drawImage(element, 0, 0);
+        const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+        let left = canvas.width, top = canvas.height, right = -1, bottom = -1;
+        for (let y = 0; y < canvas.height; y += 1) for (let x = 0; x < canvas.width; x += 1) {
+          if (pixels[(y * canvas.width + x) * 4 + 3] === 0) continue;
+          left = Math.min(left, x); top = Math.min(top, y); right = Math.max(right, x); bottom = Math.max(bottom, y);
+        }
+        return { left, top, right, bottom, width: right - left + 1, height: bottom - top + 1, bottomTransparent: canvas.height - bottom - 1, bottomTransparentRatio: round((canvas.height - bottom - 1) / canvas.height) };
+      };
+      const hero = [];
+      for (const speciesId of species) for (const stage of [1, 2, 3]) {
+        image.className = `hero-garden-plant-image species-${speciesId} hero-stage-${stage}`;
+        const source = `../../public/assets/garden/plants/${speciesId}-stage${stage}.png${speciesId === "melody-sprout" && stage > 1 ? "?v=clean-2" : ""}`;
+        await new Promise((resolve, reject) => {
+          image.onload = resolve;
+          image.onerror = () => reject(new Error(`Unable to load ${source}`));
+          image.src = source;
+        });
+        const alpha = alphaBounds(image); const imageBox = rect(image); const stageRect = rect(stageBox);
+        const visibleBottom = imageBox.y + imageBox.height * ((alpha.bottom + 1) / image.naturalHeight);
+        hero.push({ species: speciesId, stage, alpha, imageBox, transform: getComputedStyle(image).transform, maxWidth: getComputedStyle(image).maxWidth, maxHeight: getComputedStyle(image).maxHeight, visibleBottom: round(visibleBottom), relativeVisibleBottom: round(visibleBottom - stageRect.y) });
+      }
+      const reference = hero.find((item) => item.species === "flower-spirit" && item.stage === 2).relativeVisibleBottom;
+      hero.forEach((item) => { item.deltaFromFlowerStage2 = round(item.relativeVisibleBottom - reference); });
+
+      const thumbnail = (id, cellId) => {
+        const element = document.getElementById(id); const alpha = alphaBounds(element); const style = getComputedStyle(element); const matrix = new DOMMatrixReadOnly(style.transform); const objectScale = Math.min(56 / element.naturalWidth, 56 / element.naturalHeight);
+        const visibleWidth = alpha.width * objectScale * Math.abs(matrix.a); const visibleHeight = alpha.height * objectScale * Math.abs(matrix.d);
+        const imageBox = rect(element); const cellBox = rect(document.getElementById(cellId));
+        return { alpha, transform: style.transform, width: style.width, height: style.height, visibleWidth: round(visibleWidth), visibleHeight: round(visibleHeight), imageBox, cellBox, fitsCell: imageBox.x >= cellBox.x && imageBox.y >= cellBox.y && imageBox.x + imageBox.width <= cellBox.x + cellBox.width && imageBox.y + imageBox.height <= cellBox.y + cellBox.height };
+      };
+      const water = document.getElementById("waterBalance"); const waterStyle = getComputedStyle(water); const iconBox = rect(document.getElementById("waterIcon")); const textBox = rect(document.getElementById("waterText"));
+      document.getElementById("result").textContent = JSON.stringify({
+        hero, reference,
+        layout: { heroCard: rect(document.getElementById("heroCard")), heroSlot: rect(document.getElementById("heroSlot")), heroStage: rect(stageBox), heroAction: rect(document.getElementById("heroAction")), heroImage: rect(image), heroName: rect(document.getElementById("heroName")), heroNameTransform: getComputedStyle(document.getElementById("heroName")).transform, startWrap: rect(document.getElementById("startWrap")), startButton: rect(document.getElementById("startButton")) },
+        thumbs: { melody: thumbnail("thumbMelody", "thumbCellMelody"), flower: thumbnail("thumbFlower", "thumbCellFlower"), mushroom: thumbnail("thumbMushroom", "thumbCellMushroom") },
+        water: { display: waterStyle.display, flexDirection: waterStyle.flexDirection, flexWrap: waterStyle.flexWrap, alignItems: waterStyle.alignItems, justifyContent: waterStyle.justifyContent, gap: waterStyle.gap, whiteSpace: waterStyle.whiteSpace, writingMode: waterStyle.writingMode, minWidth: waterStyle.minWidth, width: waterStyle.width, icon: iconBox, text: textBox, verticalOverlap: round(Math.min(iconBox.y + iconBox.height, textBox.y + textBox.height) - Math.max(iconBox.y, textBox.y)) },
+      });
+      } catch (error) {
+        document.getElementById("result").textContent = JSON.stringify({ error: String(error?.stack || error) });
+      }
+    });
+  </script>
+</body>
+</html>

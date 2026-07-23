@@ -6,6 +6,7 @@ const vm = require("node:vm");
 
 const root = path.join(__dirname, "..");
 const source = fs.readFileSync(path.join(root, "garden-qa.js"), "utf8");
+const sharedSource = fs.readFileSync(path.join(root, "garden-shared.js"), "utf8");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 
 function createStorage(initial = {}) {
@@ -37,8 +38,18 @@ function loadQa(initial = {}) {
     querySelector: node,
     querySelectorAll() { return []; },
   };
+  const shared = {
+    renderGardenCollection() {},
+    renderPlantScene({ elements, imageSrc, displayName, stageLabel, progressText, progressPercent = 0 }) {
+      if (elements.image) elements.image.src = imageSrc;
+      if (elements.name) elements.name.textContent = displayName;
+      if (elements.stage) elements.stage.textContent = stageLabel;
+      if (elements.progressText) elements.progressText.textContent = progressText;
+      if (elements.progressBar) elements.progressBar.style.width = `${progressPercent}%`;
+    },
+  };
   const context = {
-    globalThis: {}, sessionStorage, document,
+    globalThis: { ChromaticaGardenShared: shared }, sessionStorage, document,
     crypto: require("node:crypto").webcrypto,
     TextEncoder, Uint8Array, Date, JSON,
     setTimeout, clearTimeout, confirm: () => true, prompt: () => null,
@@ -99,7 +110,8 @@ test("reload renders the QA plant image", () => {
 test("QA banner plant and toolbar remain present in the reload target view", () => {
   const section = html.match(/<section id="gardenqa"[\s\S]*?<\/section>/)?.[0] || "";
   assert.match(section, /garden-qa-banner/);
-  assert.match(section, /id="gardenQaPlantImage"/);
+  assert.match(section, /id="gardenQaSharedRoot"/);
+  assert.match(sharedSource, /plantImage: "gardenQaPlantImage"/);
   assert.match(section, /garden-qa-toolbar/);
 });
 

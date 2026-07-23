@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -22,6 +23,9 @@ const webSourceFiles = [
   "metronome.js",
   "leaderboard-core.js",
   "leaderboard.js",
+  "announcements.js",
+  "push-notifications.js",
+  "garden-shared.js",
   "garden-qa.js",
   "auth-runtime.js",
 ];
@@ -34,6 +38,11 @@ const { stdout: trackedOutput } = await execFileAsync("git", ["ls-files", "-z"],
   encoding: "utf8",
 });
 const trackedSourceFiles = new Set(trackedOutput.split("\0").filter(Boolean));
+const reviewAssetHashes = new Map([
+  ["public/assets/garden/cards/melody-sprout-art-card.png", "89449a74699c411d55c996490f65ede5d37e853093cfea8490151559655a595d"],
+  ["public/assets/garden/cards/mushroom-spirit-art-card.png", "6ce428e2a445c6910ab5bdc0b448be02fb48e8e6cbb8605e55fe95bfb209c331"],
+  ["public/assets/garden/cards/flower-spirit-art-card.png", "2a76be32e4e5ec7c5c7f39eb2bee5e5022d1f37d26319d698342833ed67a450c"],
+]);
 
 function normalizeRelativePath(relativePath) {
   return relativePath.split(path.sep).join("/");
@@ -41,7 +50,7 @@ function normalizeRelativePath(relativePath) {
 
 function assertTrackedSource(relativePath) {
   const normalized = normalizeRelativePath(relativePath);
-  if (!trackedSourceFiles.has(normalized)) {
+  if (!trackedSourceFiles.has(normalized) && !reviewAssetHashes.has(normalized)) {
     throw new Error(`Required build source is not tracked by Git: ${normalized}`);
   }
 }
@@ -85,6 +94,11 @@ async function copyRelativeFile(relativePath) {
     throw error;
   }
   if (!sourceStat.isFile()) throw new Error(`Required source is not a file: ${relativePath}`);
+  const expectedReviewHash = reviewAssetHashes.get(normalizeRelativePath(relativePath));
+  if (expectedReviewHash) {
+    const actualReviewHash = createHash("sha256").update(await readFile(sourcePath)).digest("hex");
+    if (actualReviewHash !== expectedReviewHash) throw new Error(`Review asset hash mismatch: ${relativePath}`);
+  }
   await mkdir(path.dirname(destinationPath), { recursive: true });
   await copyFile(sourcePath, destinationPath);
 }

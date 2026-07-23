@@ -1,6 +1,7 @@
 import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
+import { PushNotifications } from "@capacitor/push-notifications";
 import { createClient } from "@supabase/supabase-js";
 import {
   ACTIVE_ACCOUNT_KEY,
@@ -965,6 +966,7 @@ async function confirmSignOut() {
     flushAccountSnapshot();
     await cloudSaveService?.prepareForSignOut();
     await window.chromaticaApp?.cancelPracticeRemindersForAccount?.(localStorage.getItem(ACTIVE_ACCOUNT_KEY) || "");
+    await window.ChromaticaPushNotifications?.unregisterForSignOut?.();
     signOutSnapshotFlushed = true;
   } catch {
     setAuthBusy(false);
@@ -1017,6 +1019,13 @@ async function confirmResetAccountData() {
       resetError.code = result?.code || "account-reset-failed";
       throw resetError;
     }
+    const { error: leaderboardResetError } = await supabaseClient.rpc("reset_my_leaderboard_data");
+    if (leaderboardResetError) {
+      const resetError = new Error("leaderboard-reset-failed");
+      resetError.code = "leaderboard-reset-failed";
+      throw resetError;
+    }
+    window.ChromaticaLeaderboard?.resetAfterAccountDataClear?.();
     window.chromaticaApp?.initializeForAuthenticatedAccount?.({
       allowDailyLoginBonus: false,
       initializationReason: "account-reset-rerender",
@@ -1033,6 +1042,8 @@ async function confirmResetAccountData() {
       setAuthStatus("登入狀態已失效，請重新登入。原有資料未受影響。", "error");
     } else if (code.startsWith("cloud-fetch-")) {
       setAuthStatus("無法取得雲端紀錄，請確認網路後再試。原有資料未受影響。", "error");
+    } else if (code === "leaderboard-reset-failed") {
+      setAuthStatus("遊戲紀錄已清除，但排行榜資料未能清除；請勿重複操作並稍後再試。", "error");
     } else {
       setAuthStatus("無法清除雲端紀錄，請確認網路後再試。原有資料未受影響。", "error");
     }
@@ -1266,11 +1277,21 @@ const LEADERBOARD_RPC_ALLOWLIST = new Set([
   "get_leaderboard_avatar_prefix",
   "get_my_leaderboard_membership",
   "join_global_leaderboard",
-  "leave_global_leaderboard",
   "sync_leaderboard_profile",
   "get_global_leaderboard",
+  "get_weekly_leaderboard",
   "update_leaderboard_profile",
   "record_leaderboard_practice",
+  "record_weekly_leaderboard_practice",
+  "register_leaderboard_push_token",
+  "disable_leaderboard_push_token",
+  "get_leaderboard_push_preferences",
+  "set_leaderboard_push_preferences",
+  "get_published_announcements",
+  "get_announcement_admin_status",
+  "get_admin_announcements",
+  "save_announcement",
+  "set_announcement_published",
 ]);
 
 window.chromaticaAuth = {
@@ -1341,6 +1362,19 @@ window.chromaticaAuth = {
       return { data: null, error: sessionError || new Error("auth-required") };
     }
     return supabaseClient.functions.invoke(name, { body });
+  },
+  isNativeAndroid,
+  pushNotifications: {
+    async checkPermissions() { return isNativeAndroid() ? PushNotifications.checkPermissions() : { receive: "denied" }; },
+    async requestPermissions() { return isNativeAndroid() ? PushNotifications.requestPermissions() : { receive: "denied" }; },
+    async createChannel(options) { if (isNativeAndroid()) await PushNotifications.createChannel(options); },
+    async register() { if (isNativeAndroid()) await PushNotifications.register(); },
+    async addListener(name, callback) { return isNativeAndroid() ? PushNotifications.addListener(name, callback) : { remove() {} }; },
+  },
+  getAnnouncementImageUrl(path, version = 0) {
+    if (!supabaseClient || !path) return "";
+    const publicUrl = supabaseClient.storage.from("announcement-images").getPublicUrl(path).data?.publicUrl || "";
+    return publicUrl ? `${publicUrl}${publicUrl.includes("?") ? "&" : "?"}v=${encodeURIComponent(String(version || 0))}` : "";
   },
   async resumeFormalWorkspaceAfterQa() {
     if (!supabaseClient || isGardenQaSessionActive()) return false;

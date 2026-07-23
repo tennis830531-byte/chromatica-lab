@@ -704,18 +704,25 @@ body.simple-motion .hero-plant-action {
 }
 
 .hero-plant-stage img {
+  --hero-visual-y: 0px;
   display: block;
   max-width: 100%;
   max-height: 184px;
   object-fit: contain;
   object-position: center bottom;
   filter: drop-shadow(0 8px 10px rgba(72, 48, 28, 0.12));
-  transform: translateY(clamp(36px, 10vw, 42px));
+  transform: translateY(calc(clamp(36px, 10vw, 42px) + var(--hero-visual-y)));
 }
 
 .hero-garden-plant-image.hero-stage-1 {
   max-width: 68%;
   max-height: 146px;
+}
+
+.hero-garden-plant-image.species-melody-sprout.hero-stage-1,
+.hero-garden-plant-image.species-mushroom-spirit.hero-stage-1,
+.hero-garden-plant-image.species-flower-spirit.hero-stage-1 {
+  max-width: 40%;
 }
 
 .hero-garden-plant-image.species-lucky-leaf-spirit.hero-stage-1 {
@@ -728,7 +735,7 @@ body.simple-motion .hero-plant-action {
 }
 
 .hero-garden-plant-image.species-flower-spirit.hero-stage-2 {
-  max-width: 75%;
+  max-width: 85%;
   max-height: 144px;
 }
 
@@ -748,6 +755,16 @@ body.simple-motion .hero-plant-action {
   max-height: 214px;
 }
 
+.hero-garden-plant-image.species-melody-sprout.hero-stage-1 { --hero-visual-y: 3.07px; }
+.hero-garden-plant-image.species-melody-sprout.hero-stage-2 { --hero-visual-y: 2.26px; }
+.hero-garden-plant-image.species-melody-sprout.hero-stage-3 { --hero-visual-y: -45.21px; }
+.hero-garden-plant-image.species-mushroom-spirit.hero-stage-1 { --hero-visual-y: 8.30px; }
+.hero-garden-plant-image.species-mushroom-spirit.hero-stage-2 { --hero-visual-y: 6.54px; }
+.hero-garden-plant-image.species-mushroom-spirit.hero-stage-3 { --hero-visual-y: -33.61px; }
+.hero-garden-plant-image.species-flower-spirit.hero-stage-1 { --hero-visual-y: 4.57px; }
+.hero-garden-plant-image.species-flower-spirit.hero-stage-2 { --hero-visual-y: 0px; }
+.hero-garden-plant-image.species-flower-spirit.hero-stage-3 { --hero-visual-y: -45.52px; }
+
 .hero-plant-slot b,
 .hero-plant-slot small {
   position: relative;
@@ -759,7 +776,7 @@ body.simple-motion .hero-plant-action {
   position: relative;
   z-index: 2;
   display: block;
-  transform: translateY(20px);
+  transform: translateY(44px);
   max-width: min(94%, 158px);
   min-width: 86px;
   padding: 4px 13px 5px;
@@ -1029,7 +1046,13 @@ body.simple-motion .hero-plant-action {
 .metronome-stage-selectors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; margin: auto auto 0; }
 .metronome-stage-selectors button { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 8px; min-width: 0; min-height: 58px; padding: 9px 12px; border: 1px solid rgba(229, 188, 102, .62); border-radius: 16px; background: rgba(5, 22, 48, .62); color: #fff3d5; box-shadow: inset 0 1px 0 rgba(255,255,255,.08); text-align: left; }
 .metronome-stage-selectors span { grid-column: 1; color: #d8bc82; font: 700 11px/1.2 var(--font-sans); }
+.metronome-stage-selectors #metronomeRhythmOpen strong,
+.metronome-stage-selectors #metronomeRhythmOpen .rhythm-notation { color: #fffdf8; }
+.metronome-stage-selectors #metronomeRhythmOpen:active { background: rgba(13, 40, 78, .92); }
+.metronome-stage-selectors #metronomeRhythmOpen:focus-visible { outline: 3px solid #fff5c7; outline-offset: 3px; }
+.metronome-stage-selectors #metronomeRhythmOpen:disabled { color: rgba(255,255,255,.58); opacity: .72; }
 .metronome-stage-selectors strong { grid-column: 1; display: flex; align-items: center; min-width: 0; min-height: 26px; font: 900 19px/1.2 var(--font-sans); overflow: hidden; text-overflow: ellipsis; }
+#metronomeRhythmPreview { overflow: visible; }
 .metronome-stage-selectors i { grid-column: 2; grid-row: 1 / span 2; font: 900 20px/1 var(--font-sans); }
 .metronome-beat-dots { display: grid; grid-template-columns: repeat(var(--metronome-beat-columns, 4), minmax(0, 1fr)); justify-content: center; gap: 10px; width: min(100%, 264px); margin: 8px auto 10px; }
 .metronome-beat-dots button { position: relative; display: grid; place-items: center; width: 48px; height: 48px; min-width: 0; max-width: 100%; margin: auto; padding: 0; border: 2px solid rgba(235, 200, 132, .72); border-radius: 50%; background: rgba(7, 25, 53, .66); color: #f8dfa5; font: 900 16px/1 var(--font-sans); transition: transform 80ms, box-shadow 80ms, background 80ms; }
@@ -1091,7 +1114,7 @@ body.simple-motion .hero-plant-action {
 .metronome-rhythm-option { display: grid; place-items: center; gap: 7px; min-width: 0; min-height: 92px; padding: 10px; border: 1px solid #dcc5a3; border-radius: 16px; background: #fff; color: #674028; }
 .metronome-rhythm-option.active { border-color: #754522; background: #f3dfbf; box-shadow: inset 0 0 0 2px rgba(117, 69, 34, .14); }
 .metronome-rhythm-option span { font: 800 12px/1.3 var(--font-sans); text-align: center; overflow-wrap: anywhere; }
-.rhythm-notation { display: block; width: min(100%, 120px); height: 44px; overflow: visible; color: #724523; }
+.rhythm-notation { display: block; width: min(100%, 120px); height: 44px; overflow: visible; color: #724523; transform: scale(.92); transform-origin: center; }
 .rhythm-notation.compact { width: min(100%, 88px); height: 30px; }
 .rhythm-notation .rhythm-note ellipse { fill: currentColor; stroke: none; }
 .rhythm-notation .rhythm-note path, .rhythm-notation .rhythm-beam { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; }
@@ -1099,9 +1122,7 @@ body.simple-motion .hero-plant-action {
 .rhythm-notation .rhythm-rest { opacity: .42; }
 .rhythm-notation .rhythm-rest path { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .rhythm-notation .rhythm-tuplet { fill: none; stroke: currentColor; stroke-width: 1.4; }
-.rhythm-notation text { fill: #fffaf2; stroke: #fffaf2; stroke-width: 4; paint-order: stroke; font: 900 9px/1 var(--font-sans); text-anchor: middle; }
-.rhythm-notation text + *, .rhythm-notation .rhythm-tuplet + text { fill: currentColor; stroke: #fffaf2; }
-.metronome-rhythm-option.active .rhythm-notation text { stroke: #f3dfbf; }
+.rhythm-notation .rhythm-triplet-glyph { display: block; width: 18px; height: 18px; overflow: visible; }
 .sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1134,11 +1155,6 @@ body.simple-motion .hero-plant-action {
 .garden-qa-banner { position: sticky; top: 0; z-index: 12; display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0 -4px 14px; padding: 10px 12px; border: 2px solid #936126; border-radius: 14px; background: #fff1b8; color: #663d1f; font-family: var(--font-sans); }
 .garden-qa-banner button, .garden-qa-toolbar button { border: 1px solid #8b5a29; border-radius: 11px; background: #704321; color: white; min-height: 38px; font-weight: 800; }
 .garden-qa-toolbar { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; margin-top: 14px; }
-.garden-qa-collection { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
-.garden-qa-spirit { border: 1px solid #d9c29f; border-radius: 14px; background: #fffaf0; padding: 8px; color: #5c3926; }
-.garden-qa-spirit.featured { outline: 3px solid #d89b3d; }
-.garden-qa-spirit img { width: 100%; aspect-ratio: 1; object-fit: contain; }
-.garden-qa-spirit strong { display: block; font-size: 12px; }
 
 .today-card {
   position: relative;
@@ -1246,6 +1262,34 @@ body.simple-motion .hero-plant-action {
   background: rgba(10, 24, 14, 0.58);
   border: 1px solid rgba(211, 162, 77, 0.42);
 }
+
+.tuner-card-head { align-items: flex-start; }
+.tuner-reference-pitch-button {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  min-width: 132px;
+  padding: 7px 10px;
+  border: 1px solid rgba(211, 162, 77, .58);
+  border-radius: 14px;
+  background: rgba(7, 24, 14, .72);
+  color: #fff4cf;
+  text-align: right;
+}
+.tuner-reference-pitch-button span { color: #e4c586; font: 700 10px/1.15 var(--font-sans); }
+.tuner-reference-pitch-button strong { font: 900 13px/1.2 var(--font-sans); }
+.tuner-reference-pitch-button:active { transform: scale(.97); }
+.tuner-reference-pitch-button:focus-visible { outline: 3px solid #fff2b0; outline-offset: 3px; }
+.tuner-pitch-dialog-backdrop { position: fixed; inset: 0; z-index: 1015; display: grid; place-items: center; padding: 18px; background: rgba(25, 24, 20, .5); backdrop-filter: blur(5px); }
+.tuner-pitch-dialog-backdrop.hidden { display: none; }
+.tuner-pitch-dialog { width: min(100%, 360px); padding: 18px; border-radius: 22px; }
+.tuner-pitch-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tuner-pitch-dialog h3 { margin: 0; color: #51301f; }
+.tuner-pitch-dialog header button { width: 40px; height: 40px; border: 1px solid #d2b489; border-radius: 50%; background: #fff; color: #6a4026; font-size: 24px; }
+.tuner-pitch-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 16px; }
+.tuner-pitch-options button { min-height: 48px; border: 1px solid #d7bc94; border-radius: 14px; background: #fffaf2; color: #684027; font-weight: 900; }
+.tuner-pitch-options button.active { border-color: #754522; background: #875126; color: #fff; box-shadow: 0 0 0 2px rgba(117,69,34,.18); }
+.tuner-pitch-options button:focus-visible { outline: 3px solid #d49d48; outline-offset: 2px; }
 
 .home-tuner-display {
   display: grid;
@@ -1522,6 +1566,36 @@ body.simple-motion .hero-plant-action {
 
 .leaderboard-card .quick-card-icon {
   background: transparent;
+}
+
+.leaderboard-card em {
+  border-color: #a92f2f;
+  color: #fff;
+  background: #c43d3d;
+  font-size: 10px;
+  animation: leaderboardRankPillFlash 900ms ease-in-out infinite;
+}
+
+.leaderboard-card:active em {
+  border-color: #842525;
+  background: #9f2f2f;
+}
+
+@keyframes leaderboardRankPillFlash {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(196, 61, 61, 0.08);
+  }
+  50% {
+    opacity: 0.52;
+    box-shadow: 0 0 0 4px rgba(196, 61, 61, 0.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaderboard-card em {
+    animation: none;
+  }
 }
 
 @media (max-width: 420px) {
@@ -1927,6 +2001,7 @@ body.hide-featured-spirit .hero-plant-slot {
   font-size: 15px;
   font-weight: 900;
   line-height: 1;
+  transform: translateY(-7px);
 }
 
 .jianpu-hold.active {
@@ -3614,7 +3689,7 @@ input[type="range"] {
   font-size: 13px;
   font-weight: 900;
 }
-.leaderboard-own-profile { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; align-items: center; gap: 12px; margin-bottom: 14px; padding: 12px; border: 1px solid rgba(203, 169, 112, .46); border-radius: 20px; background: linear-gradient(145deg, rgba(255, 248, 229, .96), rgba(245, 230, 196, .74)); }
+.leaderboard-own-profile { display: grid; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: 12px; margin: 10px 0; padding: 12px; border: 1px solid rgba(203, 169, 112, .46); border-radius: 20px; background: linear-gradient(145deg, rgba(255, 248, 229, .96), rgba(245, 230, 196, .74)); }
 .leaderboard-own-profile img,
 .leaderboard-avatar { width: 54px; height: 54px; border: 2px solid rgba(177, 127, 57, .46); border-radius: 50%; background: #f8edda; object-fit: cover; }
 .leaderboard-own-profile div { min-width: 0; }
@@ -3634,7 +3709,7 @@ input[type="range"] {
 .leaderboard-status { margin: 8px 0 12px; color: var(--text-muted); font: 700 13px/1.45 var(--font-sans); }
 .leaderboard-status[data-kind="error"] { color: #9a3f32; }
 .leaderboard-list { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
-.leaderboard-row { position: relative; display: grid; grid-template-columns: 42px 46px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-width: 0; padding: 10px; border: 1px solid rgba(219, 198, 168, .76); border-radius: 17px; background: rgba(255, 253, 249, .88); }
+.leaderboard-row { position: relative; display: grid; grid-template-columns: 42px 54px minmax(90px, 1.4fr) minmax(74px, .9fr) minmax(68px, auto); align-items: center; column-gap: 12px; min-width: 0; padding: 10px; border: 1px solid rgba(219, 198, 168, .76); border-radius: 17px; background: rgba(255, 253, 249, .88); }
 .leaderboard-row.is-me { border-color: #9b6936; background: linear-gradient(145deg, #fff5df, #f4e0ba); box-shadow: 0 0 0 2px rgba(167, 112, 52, .12); }
 .leaderboard-row.is-podium { padding-block: 13px; box-shadow: 0 10px 22px rgba(66, 43, 25, .12); }
 .leaderboard-row.is-gold { border-color: #c69124; background: linear-gradient(135deg, #fff8d9, #efd28a); }
@@ -3645,9 +3720,8 @@ input[type="range"] {
 .leaderboard-row.is-gold .leaderboard-rank { background: linear-gradient(160deg, #ffe99b, #c99120); }
 .leaderboard-row.is-silver .leaderboard-rank { background: linear-gradient(160deg, #f8f8f5, #aaa9a2); }
 .leaderboard-row.is-bronze .leaderboard-rank { background: linear-gradient(160deg, #f1c3a0, #a76035); }
-.leaderboard-player { min-width: 0; }
-.leaderboard-player strong { display: block; overflow: hidden; color: #3f2b20; font: 900 14px/1.35 var(--font-sans); text-overflow: ellipsis; white-space: nowrap; }
-.leaderboard-spirit { display: flex; align-items: center; gap: 5px; min-width: 0; margin-top: 3px; color: #806650; font: 700 11px/1.25 var(--font-sans); }
+.leaderboard-name { display: block; min-width: 0; overflow: hidden; padding-right: 4px; color: #3f2b20; font: 900 14px/1.35 var(--font-sans); text-overflow: ellipsis; white-space: nowrap; }
+.leaderboard-spirit { display: flex; align-items: center; gap: 5px; min-width: 0; color: #806650; font: 700 11px/1.25 var(--font-sans); }
 .leaderboard-spirit img { width: 25px; height: 25px; flex: 0 0 auto; object-fit: contain; }
 .leaderboard-spirit span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .leaderboard-score { max-width: 108px; color: #744620; font: 900 12px/1.35 var(--font-sans); text-align: right; }
@@ -3671,19 +3745,52 @@ input[type="range"] {
 .leaderboard-profile-modal footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
 .leaderboard-profile-modal footer button { min-width: 0; min-height: 46px; border: 1px solid #d2af78; border-radius: 14px; background: #fffaf2; color: #6a4026; font: 900 14px/1.2 var(--font-sans); }
 .leaderboard-profile-modal footer .primary-btn { background: #875126; color: white; }
-.leaderboard-leave-button { width: 100%; min-height: 42px; margin-top: 14px; border: 1px solid #b96a5e; border-radius: 13px; background: #fff8f5; color: #943e34; font: 900 13px/1.2 var(--font-sans); }
-.leaderboard-leave-modal { width: min(calc(100vw - 24px), 430px); padding: 20px; border-radius: 24px; }
-.leaderboard-leave-modal h2 { margin: 0 0 9px; color: #4e3020; font-size: 21px; }
-.leaderboard-leave-modal p { margin: 0; color: #7b6252; font: 700 13px/1.55 var(--font-sans); }
-.leaderboard-leave-modal > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
-.leaderboard-leave-modal button { min-height: 44px; border: 1px solid #d2af78; border-radius: 13px; background: #fffaf2; color: #6a4026; font-weight: 900; }
-.leaderboard-leave-modal .danger-btn { border-color: #a94f43; background: #a94f43; color: white; }
+.announcement-backdrop { position: fixed; inset: 0; z-index: 1040; display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom)); background: rgba(36,25,17,.52); backdrop-filter: blur(5px); }
+.announcement-backdrop.hidden { display: none; }
+.announcement-modal { position: relative; width: min(calc(100vw - 24px), 540px); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 20px; border-radius: 26px; }
+.announcement-modal h2 { margin: 4px 42px 6px 0; color: #4e3020; }
+.announcement-modal time { display: block; margin-bottom: 12px; color: var(--text-muted); font: 700 12px/1.4 var(--font-sans); }
+.announcement-modal p:not(.eyebrow) { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
+.announcement-close { position: absolute; top: 12px; right: 12px; display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid #d2b489; border-radius: 50%; background: #fff; color: #6a4026; font-size: 24px; }
+.announcement-preview-image, .announcement-full-image { display: block; width: 100%; max-height: 54dvh; margin: 10px 0 14px; border-radius: 16px; background: #f2eadf; object-fit: contain; }
+.announcement-preview-image { max-height: 180px; object-fit: cover; }
+.announcement-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.announcement-actions button { flex: 1 1 120px; min-height: 44px; border: 1px solid #d2b489; border-radius: 13px; background: #fffaf2; color: #6a4026; font-weight: 900; }
+.announcement-actions .primary-btn { background: #875126; color: #fff; }
+.announcement-list { display: grid; gap: 9px; }
+.announcement-list-item { display: grid; grid-template-columns: 64px minmax(0,1fr); align-items: center; gap: 12px; width: 100%; min-height: 70px; padding: 9px; border: 1px solid #dfc8a8; border-radius: 15px; background: #fffaf2; color: #5c3926; text-align: left; }
+.announcement-list-item > img { width: 64px; height: 52px; border-radius: 10px; background: #f1e8dc; object-fit: cover; }
+.announcement-list-item > img.hidden { visibility: hidden; }
+.announcement-list-item span { display: grid; gap: 3px; min-width: 0; }
+.announcement-list-item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.announcement-list-item small, .announcement-list-item time { color: var(--text-muted); font-size: 11px; }
+.announcement-admin { width: min(calc(100vw - 24px), 680px); }
+.announcement-admin form, .announcement-admin label { display: grid; gap: 7px; }
+.announcement-admin form { gap: 12px; margin-top: 14px; }
+.announcement-admin input, .announcement-admin textarea { width: 100%; min-height: 44px; padding: 9px 11px; border: 1px solid #d2b489; border-radius: 12px; background: #fff; color: #4e3020; font: inherit; }
+.announcement-admin textarea { min-height: 150px; resize: vertical; }
+.rank-movement-highlight { animation: rankMovementHighlight 900ms ease-out; }
+@keyframes rankMovementHighlight { 0%,45% { box-shadow: 0 0 0 5px rgba(229,173,61,.46); } 100% { box-shadow: 0 0 0 0 rgba(229,173,61,0); } }
+.leaderboard-account-section { display: grid; gap: 8px; margin: 14px 0; padding: 12px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,250,242,.7); }
+.leaderboard-account-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.leaderboard-account-actions button { min-height: 42px; border: 1px solid #d2af78; border-radius: 12px; background: #fffaf2; color: #6a4026; font-weight: 900; }
+.leaderboard-account-actions .danger-btn { border-color: #b96a5e; color: #943e34; }
+.leaderboard-push-toggle span { display: grid; gap: 3px; }
+.leaderboard-push-toggle small { color: var(--text-muted); font-weight: 600; line-height: 1.4; }
 
 @media (max-width: 390px) {
-  .leaderboard-row { grid-template-columns: 38px 42px minmax(0, 1fr); }
-  .leaderboard-score { grid-column: 3; max-width: none; text-align: left; }
+  .leaderboard-row { grid-template-columns: 34px 44px minmax(0, 1fr) auto; column-gap: 9px; }
+  .leaderboard-name { grid-column: 3; grid-row: 1; }
+  .leaderboard-spirit { grid-column: 3; grid-row: 2; }
+  .leaderboard-score { grid-column: 4; grid-row: 1 / span 2; max-width: 78px; text-align: right; }
   .leaderboard-own-profile { grid-template-columns: 48px minmax(0, 1fr) auto; }
   .leaderboard-own-profile img { width: 48px; height: 48px; }
+}
+
+@media (max-width: 360px) {
+  .tuner-reference-pitch-button { min-width: 114px; padding-inline: 8px; }
+  .tuner-reference-pitch-button strong { font-size: 11px; }
+  .tuner-page-card .home-tuner-display strong { font-size: 46px; }
 }
 
 @media (max-width: 340px) {
@@ -4570,6 +4677,11 @@ body.simple-motion .plant-action-layer.is-stage-up {
   align-items: center;
 }
 
+.garden-collection-head {
+  justify-content: center;
+  text-align: center;
+}
+
 .garden-card h3 {
   margin: 3px 0 8px;
   color: var(--text-main);
@@ -4606,6 +4718,22 @@ body.simple-motion .plant-action-layer.is-stage-up {
   font-weight: 800;
 }
 
+.water-balance {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: center;
+  width: auto;
+  min-width: max-content;
+  white-space: nowrap;
+  writing-mode: horizontal-tb;
+}
+
+.water-balance span {
+  display: inline;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .water-balance.is-updated {
   animation: waterCountPulse 0.45s ease-out;
 }
@@ -4613,6 +4741,7 @@ body.simple-motion .plant-action-layer.is-stage-up {
 .water-balance img {
   width: 24px;
   height: 24px;
+  flex: 0 0 auto;
   object-fit: contain;
 }
 
@@ -4621,10 +4750,15 @@ body.simple-motion .plant-action-layer.is-stage-up {
   display: grid;
   align-items: end;
   justify-items: center;
-  min-height: 238px;
+  box-sizing: border-box;
+  height: clamp(238px, 62vw, 300px);
+  min-height: clamp(238px, 62vw, 300px);
+  max-height: clamp(238px, 62vw, 300px);
+  overflow: visible;
   padding: 18px 16px 12px;
-  border: 1px solid rgba(231, 216, 200, 0.78);
+  border: 0;
   border-radius: 24px;
+  box-shadow: inset 0 0 0 1px rgba(231, 216, 200, 0.78);
   background:
     radial-gradient(circle at 50% 84%, rgba(143, 163, 107, 0.18), transparent 34%),
     linear-gradient(180deg, rgba(253, 249, 244, 0.52), rgba(243, 227, 199, 0.34));
@@ -4657,8 +4791,8 @@ body.simple-motion .plant-action-layer.is-stage-up {
 
 .watering-can-button {
   position: absolute;
-  right: 20px;
-  top: 18px;
+  right: 8px;
+  top: 6px;
   z-index: 30;
   pointer-events: auto;
   display: inline-grid;
@@ -4791,6 +4925,10 @@ body.simple-motion .plant-action-layer.is-stage-up {
   z-index: 0;
   width: calc(100% + 16px);
   height: calc(100% + 16px);
+  border-radius: 0;
+  clip-path: none;
+  mask: none;
+  -webkit-mask: none;
   object-fit: cover;
   object-position: center bottom;
   opacity: 0.72;
@@ -4833,13 +4971,39 @@ body.simple-motion .plant-action-layer.is-stage-up {
 }
 
 .garden-plant-image {
+  --garden-plant-y: 0px;
   position: relative;
   display: block;
   width: min(100%, 172px);
   max-height: 246px;
   object-fit: contain;
   object-position: center bottom;
+  transform: translateY(var(--garden-plant-y));
   filter: drop-shadow(0 14px 16px rgba(72, 48, 28, 0.13));
+}
+
+.garden-plant-image.species-melody-sprout.garden-stage-2 {
+  /* At the 300px scene ceiling the legacy presentation needs +1.86px. At
+     the 238px Android floor the 246px image overflows the grid track; the
+     V8 device capture measured 106 physical px (35.33 CSS px) below stage 1. */
+  --melody-stage-2-visible-bottom-offset: clamp(-33.47px, calc(35.33vw - 169.08px), 1.86px);
+  --garden-plant-y: calc(var(--melody-stage-2-visible-bottom-offset) + 26px);
+}
+
+.garden-plant-image.species-melody-sprout.garden-stage-3 {
+  /* Preserve -14.16px at the 300px scene ceiling. At the 238px Android
+     floor the 286px image measured 119 physical px (39.67 CSS px) below
+     stage 1, so the compact endpoint removes that additional overflow. */
+  --melody-stage-3-visible-bottom-offset: clamp(-53.83px, calc(39.67vw - 204.16px), -14.16px);
+  --garden-plant-y: calc(var(--melody-stage-3-visible-bottom-offset) + 18px);
+}
+
+.garden-plant-image.species-mushroom-spirit.garden-stage-2 {
+  --garden-plant-y: 9px;
+}
+
+.garden-plant-image.species-flower-spirit.garden-stage-3 {
+  --garden-plant-y: -14px;
 }
 
 .plant-action-layer.garden-stage-1 {
@@ -4848,6 +5012,10 @@ body.simple-motion .plant-action-layer.is-stage-up {
 
 .plant-action-layer.garden-stage-2 {
   width: min(72%, 236px);
+}
+
+.plant-action-layer.species-melody-sprout.garden-stage-2 {
+  width: min(64%, 236px);
 }
 
 .plant-action-layer.garden-stage-3 {
@@ -4868,7 +5036,8 @@ body.simple-motion .plant-action-layer.is-stage-up {
 }
 
 .plant-action-layer.species-melody-sprout.garden-stage-3 {
-  width: min(126%, 406px);
+  width: min(122%, 406px);
+  max-width: 96.83%;
 }
 
 .plant-action-layer.species-flower-spirit.garden-stage-2 {
@@ -4964,7 +5133,7 @@ body.simple-motion .plant-action-layer.is-stage-up {
 
 .garden-collection {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   max-height: 410px;
   overflow-y: auto;
@@ -4973,73 +5142,35 @@ body.simple-motion .plant-action-layer.is-stage-up {
 
 .garden-collection-cell {
   position: relative;
-  display: grid;
-  place-items: center;
-  gap: 3px;
-  min-height: 84px;
-  padding: 8px 5px 6px;
-  border: 1px solid rgba(231, 216, 200, 0.82);
-  border-radius: 16px;
-  background: rgba(255, 253, 249, 0.58);
+  aspect-ratio: 2 / 3;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 253, 249, 0.18);
 }
 
 .garden-collection-cell button {
-  display: grid;
-  align-items: center;
-  justify-items: center;
+  display: block;
   width: 100%;
-  min-height: 62px;
+  height: 100%;
   padding: 0;
   overflow: hidden;
   border: 0;
+  border-radius: 7px;
   background: transparent;
 }
 
-.garden-collection-cell img {
-  width: 54px;
-  height: 48px;
+.garden-collection-art-card {
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  object-position: center bottom;
-}
-
-.garden-collection-cell .garden-collection-spirit-thumb {
-  width: 56px;
-  height: 56px;
-  transform-origin: center;
-}
-
-.garden-collection-cell .collection-melody-sprout {
-  transform: translateX(-2px) translateY(1px) scale(0.9);
-}
-
-.garden-collection-cell .collection-flower-spirit {
-  transform: scale(0.92);
-}
-
-.garden-collection-cell .collection-mushroom-spirit {
-  transform: translateX(-3px) scale(0.9);
-}
-
-.garden-collection-cell .collection-lucky-leaf-spirit {
-  transform: scale(0.82);
-}
-
-.garden-collection-cell .collection-bamboo-sound-child {
-  transform: scale(0.82);
-}
-
-.garden-collection-cell .slot-number {
-  position: absolute;
-  left: 7px;
-  top: 6px;
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 900;
+  object-position: center;
 }
 
 .garden-collection-cell.featured {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  box-shadow: 0 0 0 2px #f4c865, 0 0 0 4px rgba(255, 247, 208, 0.86), 0 0 18px rgba(245, 196, 77, 0.66);
 }
 
 .garden-collection-cell.empty {
@@ -5047,19 +5178,34 @@ body.simple-motion .plant-action-layer.is-stage-up {
 }
 
 .garden-collection-cell.locked {
-  grid-template-rows: 62px auto;
-  align-items: end;
-  justify-items: center;
-  gap: 0;
+  opacity: 0.88;
 }
 
-.garden-collection-cell.locked img {
-  align-self: end;
-  width: 54px;
-  height: 56px;
-  object-fit: contain;
-  object-position: center bottom;
-  opacity: 0.7;
+.garden-collection-card-back {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(241, 213, 161, 0.76);
+  border-radius: 7px;
+  background:
+    radial-gradient(circle at center, rgba(255, 239, 188, 0.14) 0 16%, transparent 17%),
+    repeating-conic-gradient(from 22.5deg, rgba(248, 222, 164, 0.14) 0 12.5%, transparent 0 25%),
+    linear-gradient(145deg, #65401f, #2f2117 58%, #714921);
+  box-shadow: inset 0 0 0 3px rgba(255, 239, 190, 0.1);
+}
+
+.garden-collection-card-back::after {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  content: "♪";
+  color: rgba(255, 237, 190, 0.78);
+  font-size: clamp(22px, 8vw, 34px);
+  transform: translate(-50%, -50%);
+}
+
+.garden-collection-cell.just-collected {
+  animation: collectedCardGlow 0.9s ease-out;
 }
 
 .garden-spirit-modal-backdrop {
@@ -5091,6 +5237,209 @@ body.simple-motion .plant-action-layer.is-stage-up {
     radial-gradient(circle at 18% 0%, rgba(212, 165, 90, 0.08), transparent 34%),
     linear-gradient(180deg, #fffdf9, #fcf7ef);
   box-shadow: var(--shadow-card);
+}
+
+.garden-spirit-art-page {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: min(100%, 320px);
+  margin: 4px auto 0;
+  padding: 0;
+  border: 0;
+  color: var(--text-muted);
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  perspective: 900px;
+}
+
+.garden-spirit-art-page.hidden,
+.garden-spirit-detail-page.hidden {
+  display: none;
+}
+
+.garden-spirit-art-page img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: contain;
+  border-radius: 20px;
+  box-shadow: 0 18px 34px rgba(66, 40, 21, 0.24);
+  transform-origin: center;
+}
+
+.garden-spirit-art-page:focus-visible img {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.garden-spirit-modal.is-flipping-to-detail .garden-spirit-detail-page {
+  animation: spiritDetailFlipIn 0.4s ease-out;
+}
+
+.harvest-card-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  display: grid;
+  place-items: center;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+  background: rgba(43, 29, 19, 0.7);
+  backdrop-filter: blur(10px);
+}
+
+.harvest-card-dialog {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  width: min(72vw, 300px);
+  color: #fff9ea;
+  text-align: center;
+}
+
+.harvest-card-dialog p {
+  margin: 0;
+  font-weight: 900;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.harvest-card-button {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  padding: 0;
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+  perspective: 1000px;
+}
+
+.harvest-card-inner,
+.harvest-card-front,
+.harvest-card-back {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.harvest-card-inner {
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.harvest-card-front,
+.harvest-card-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+}
+
+.harvest-card-back {
+  border: 2px solid rgba(255, 232, 176, 0.9);
+  background:
+    radial-gradient(circle at center, rgba(255, 239, 188, 0.2) 0 15%, transparent 16%),
+    repeating-conic-gradient(from 22.5deg, rgba(248, 222, 164, 0.18) 0 12.5%, transparent 0 25%),
+    linear-gradient(145deg, #75491f, #2f2117 58%, #815429);
+  box-shadow: inset 0 0 0 6px rgba(255, 239, 190, 0.12), 0 24px 60px rgba(0, 0, 0, 0.38);
+}
+
+.harvest-card-back::after {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  content: "♪";
+  color: rgba(255, 238, 191, 0.88);
+  font-size: 68px;
+  transform: translate(-50%, -50%);
+}
+
+.harvest-card-front {
+  object-fit: contain;
+  transform: rotateY(180deg);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.38);
+}
+
+.harvest-card-front.is-fallback {
+  display: grid;
+  place-items: center;
+  color: #6b4725;
+  background: #fff4d6;
+}
+
+.harvest-card-overlay[data-card-state="spinning-back"] .harvest-card-inner {
+  animation: harvestCardSpin 0.72s linear infinite;
+}
+
+.harvest-card-overlay[data-card-state="revealing"] .harvest-card-inner,
+.harvest-card-overlay[data-card-state="revealed"] .harvest-card-inner,
+.harvest-card-overlay[data-card-state="flying"] .harvest-card-inner {
+  transform: rotateY(180deg);
+  transition: transform 0.56s cubic-bezier(.2,.72,.2,1);
+}
+
+.garden-qa-preview-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 4px;
+  border: 1px solid #b98a53;
+  border-radius: 14px;
+  background: rgba(255, 246, 211, 0.78);
+}
+
+.garden-qa-preview-switch button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 10px;
+  color: #704321;
+  background: transparent;
+  font-weight: 900;
+}
+
+.garden-qa-preview-switch button.active {
+  color: #fff;
+  background: #704321;
+}
+
+.garden-qa-hero-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.garden-qa-hero-controls label {
+  display: grid;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.garden-qa-hero-preview .start-practice-button[aria-disabled="true"] {
+  cursor: default;
+}
+
+@keyframes harvestCardSpin {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(360deg); }
+}
+
+@keyframes spiritDetailFlipIn {
+  from { opacity: 0; transform: rotateY(-18deg); }
+  to { opacity: 1; transform: rotateY(0); }
+}
+
+@keyframes collectedCardGlow {
+  0%, 100% { filter: none; }
+  45% { filter: drop-shadow(0 0 12px rgba(255, 223, 111, 0.95)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .harvest-card-overlay[data-card-state="spinning-back"] .harvest-card-inner { animation: none; }
+  .harvest-card-overlay[data-card-state="revealing"] .harvest-card-inner,
+  .harvest-card-overlay[data-card-state="revealed"] .harvest-card-inner { transition-duration: 0.16s; }
 }
 
 .garden-spirit-modal *,
@@ -5604,6 +5953,15 @@ body.simple-motion .plant-action-layer.is-stage-up {
   scroll-snap-align: center;
 }
 
+.garden-spirit-stage-image-frame {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 168px;
+  overflow: visible;
+}
+
 .garden-spirit-stage-card.active {
   border-color: var(--accent);
   background: var(--accent-soft);
@@ -5618,6 +5976,7 @@ body.simple-motion .plant-action-layer.is-stage-up {
   object-fit: contain;
   object-position: center bottom;
   margin-inline: auto;
+  transform: none;
   filter: drop-shadow(0 12px 14px rgba(72, 48, 28, 0.12));
   align-self: end;
 }
@@ -5644,8 +6003,12 @@ body.simple-motion .plant-action-layer.is-stage-up {
   max-height: 81px;
 }
 
+.garden-spirit-stage-card.spirit-mushroom-spirit.stage-1 img {
+  width: 48%;
+}
+
 .garden-spirit-stage-card.spirit-flower-spirit.stage-2 img {
-  width: 64%;
+  width: 78%;
   max-height: 112px;
 }
 
@@ -5657,8 +6020,8 @@ body.simple-motion .plant-action-layer.is-stage-up {
 }
 
 .garden-spirit-stage-card.spirit-melody-sprout.stage-3 img {
-  width: 132%;
-  max-width: 132%;
+  width: 128%;
+  max-width: 128%;
   max-height: 197px;
 }
 
@@ -5940,6 +6303,117 @@ body.simple-motion .plant-action-layer.is-stage-up {
   box-shadow: var(--shadow-card);
 }
 
+.practice-settlement-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) max(18px, env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
+  background:
+    radial-gradient(circle at 50% 18%, rgba(229, 190, 111, .28), transparent 34%),
+    rgba(58, 44, 35, .72);
+  backdrop-filter: blur(4px);
+  overflow: hidden;
+  opacity: 1;
+}
+.practice-settlement-overlay.hidden { display: none; }
+.practice-settlement-overlay.is-opening { animation: practiceSettlementBackdropIn 220ms ease-out both; }
+.practice-settlement-overlay.is-closing { animation: practiceSettlementBackdropOut 220ms ease-in both; }
+.practice-settlement-card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(100%, 430px);
+  max-height: calc(100dvh - max(36px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid rgba(188, 139, 69, .78);
+  border-radius: 28px;
+  background:
+    linear-gradient(rgba(255, 253, 246, .94), rgba(250, 239, 214, .96)),
+    repeating-linear-gradient(0deg, rgba(122, 78, 45, .025) 0 1px, transparent 1px 5px);
+  box-shadow: 0 24px 60px rgba(39, 24, 14, .34), inset 0 0 0 5px rgba(255,255,255,.34);
+}
+.practice-settlement-overlay.is-opening .practice-settlement-card { animation: practiceSettlementCardIn 440ms cubic-bezier(.2,.86,.28,1.18) both; }
+.practice-settlement-head { padding: 22px 22px 14px; border-bottom: 1px solid rgba(199, 157, 94, .34); text-align: center; }
+.practice-settlement-head .eyebrow { margin: 0 0 4px; color: #a16a2d; }
+.practice-settlement-head h2 { margin: 0; color: #4c2f20; font: 900 25px/1.25 var(--font-hand); }
+.practice-settlement-stage-label { min-height: 20px; margin: 7px 0 0; color: #876a55; font: 800 12px/1.5 var(--font-sans); }
+.practice-settlement-content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 18px 20px; }
+.practice-settlement-panel { min-height: 250px; text-align: center; }
+.practice-settlement-panel.hidden { display: none; }
+.practice-settlement-panel.is-active { animation: practiceSettlementPanelIn 260ms ease-out both; }
+.practice-settlement-panel-kicker { margin: 0 0 4px; color: #a16a2d; font: 900 11px/1.3 var(--font-sans); letter-spacing: .12em; }
+.practice-settlement-panel h3 { margin: 0; color: #563621; font: 900 20px/1.35 var(--font-hand); }
+.practice-settlement-intro-panel { display: grid; align-content: center; }
+.practice-settlement-intro-panel > p:last-child { margin: 10px auto 0; max-width: 280px; color: #866a55; font: 700 12px/1.6 var(--font-sans); }
+.practice-settlement-intro-mark {
+  display: grid;
+  place-items: center;
+  width: 86px;
+  height: 86px;
+  margin: 18px auto 4px;
+  border: 2px solid #c99a50;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #fff8d9, #e9c27d 72%, #c89346);
+  color: #603a20;
+  box-shadow: 0 10px 24px rgba(103, 64, 28, .2), inset 0 1px 0 rgba(255,255,255,.8);
+  font: 900 38px/1 var(--font-number);
+}
+.practice-settlement-water-panel { display: grid; align-content: center; }
+.practice-settlement-overlay[data-state="task-results"] .practice-settlement-water-panel { align-content: start; }
+.practice-settlement-items { display: grid; gap: 10px; margin-top: 14px; text-align: left; }
+.practice-settlement-item {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid rgba(201, 160, 98, .5);
+  border-radius: 17px;
+  background: rgba(255, 251, 241, .86);
+  box-shadow: 0 7px 16px rgba(91, 58, 31, .07);
+  opacity: 0;
+  transform: translateY(14px);
+}
+.practice-settlement-item.is-visible { animation: practiceSettlementItemIn 260ms ease-out both; }
+.practice-settlement-item-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: #f2d9aa; font-size: 22px; }
+.practice-settlement-item-copy { min-width: 0; }
+.practice-settlement-item-copy strong,
+.practice-settlement-item-copy small { display: block; }
+.practice-settlement-item-copy strong { color: #553520; font: 900 14px/1.35 var(--font-sans); }
+.practice-settlement-item-copy small { margin-top: 2px; color: #8c715e; font: 700 11px/1.4 var(--font-sans); }
+.practice-settlement-item-value { color: #8b5525; font: 900 17px/1 var(--font-number); white-space: nowrap; }
+.practice-settlement-leaderboard { display: grid; align-content: center; }
+.practice-settlement-rank-badge {
+  display: grid;
+  place-items: center;
+  width: 94px;
+  height: 94px;
+  margin: 18px auto 12px;
+  border: 2px solid #c99a50;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #fff8d9, #e9c27d 72%, #c89346);
+  color: #603a20;
+  box-shadow: 0 10px 24px rgba(103, 64, 28, .2), inset 0 1px 0 rgba(255,255,255,.8);
+  font: 900 32px/1 var(--font-number);
+}
+.practice-settlement-leaderboard[data-rank-direction="up"] .practice-settlement-rank-badge { animation: practiceSettlementRankUp 520ms cubic-bezier(.2,.88,.3,1.2) both; }
+.practice-settlement-leaderboard > strong { display: block; color: #553520; font: 900 18px/1.4 var(--font-sans); }
+.practice-settlement-leaderboard > p:last-child { margin: 7px 0 0; color: #866a55; font: 700 12px/1.5 var(--font-sans); }
+.practice-settlement-actions { display: grid; justify-items: center; gap: 6px; padding: 12px 20px max(16px, env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(199, 157, 94, .34); text-align: center; }
+.practice-settlement-actions button { min-width: 132px; min-height: 42px; }
+.practice-settlement-countdown { min-height: 18px; margin: 0; color: #8c715e; font: 900 13px/1.4 var(--font-number); }
+body.practice-settlement-open { overflow: hidden; }
+
+@keyframes practiceSettlementBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes practiceSettlementBackdropOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes practiceSettlementCardIn { from { opacity: 0; transform: translateY(38px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes practiceSettlementPanelIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes practiceSettlementItemIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes practiceSettlementRankUp { 0% { opacity: .4; transform: translateY(22px) scale(.86); } 68% { opacity: 1; transform: translateY(-5px) scale(1.08); } 100% { transform: none; } }
+
 .practice-reward-water-animation {
   position: relative;
   isolation: isolate;
@@ -5947,8 +6421,10 @@ body.simple-motion .plant-action-layer.is-stage-up {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  width: calc(100% - 32px);
+  max-width: 160px;
   min-height: 88px;
-  margin: 14px 0;
+  margin: 14px auto;
   border: 1px solid rgba(186, 126, 51, .35);
   border-radius: 22px;
   background: radial-gradient(circle at 50% 20%, #fff7cd, #f4d08d 72%, #e3b667);
@@ -6010,6 +6486,17 @@ body.simple-motion .plant-action-layer.is-stage-up {
 @keyframes rewardWaterBurst { 20% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--particle-angle)) translateY(-70px) scale(.5); } }
 
 @media (prefers-reduced-motion: reduce) {
+  .practice-settlement-overlay,
+  .practice-settlement-overlay.is-opening,
+  .practice-settlement-overlay.is-closing,
+  .practice-settlement-overlay.is-opening .practice-settlement-card,
+  .practice-settlement-panel.is-active,
+  .practice-settlement-item.is-visible,
+  .practice-settlement-leaderboard[data-rank-direction="up"] .practice-settlement-rank-badge {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
   .practice-reward-water-animation,
   .practice-reward-water-animation.is-entering,
   .practice-reward-water-animation.is-spinning,
@@ -6020,6 +6507,14 @@ body.simple-motion .plant-action-layer.is-stage-up {
     opacity: 1;
     transform: none;
   }
+}
+
+@media (max-width: 360px), (max-height: 640px) {
+  .practice-settlement-head { padding: 16px 16px 10px; }
+  .practice-settlement-content { padding: 13px 14px; }
+  .practice-settlement-panel { min-height: 210px; }
+  .practice-settlement-rank-badge { width: 78px; height: 78px; margin-top: 12px; font-size: 27px; }
+  .practice-settlement-actions { padding-top: 9px; }
 }
 
 .feedback-modal-backdrop {

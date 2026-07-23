@@ -78,7 +78,7 @@ test("long rhythm list scrolls vertically inside the bottom sheet", () => {
 
 test("rhythm cards and inline notation shrink without external assets", () => {
   const cardRule = css.match(/\.metronome-rhythm-option\s*\{([^}]*)\}/)?.[1] || "";
-  const notationRule = css.match(/\.rhythm-notation\s*\{([^}]*)\}/)?.[1] || "";
+  const notationRule = css.match(/(?:^|\n)\.rhythm-notation\s*\{([^}]*)\}/)?.[1] || "";
   assert.match(cardRule, /min-width:\s*0/);
   assert.match(cardRule, /padding:\s*10px/);
   assert.match(notationRule, /width:\s*min\(100%,\s*120px\)/);

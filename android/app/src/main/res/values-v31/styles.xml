@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/chromatica_background</item>
+        <item name="windowSplashScreenBackground">@color/chromatica_splash_background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/splash_transparent_icon</item>
         <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
-        <item name="android:statusBarColor">@color/chromatica_background</item>
+        <item name="android:statusBarColor">@color/chromatica_splash_background</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>
