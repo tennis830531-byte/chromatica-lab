@@ -6,6 +6,7 @@
   const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
   let initialized = false;
   let runtimePreviewShown = false;
+  let runtimePreviewRequest = null;
   let activeAnnouncement = null;
   let adminEditingId = null;
 
@@ -121,23 +122,45 @@
     }
   }
 
-  async function maybeShowLatest() {
-    if (runtimePreviewShown) return;
-    const waitUntilStartupReady = async () => {
-      if (runtimePreviewShown) return;
-      const workspaceReady = global.chromaticaStartupState?.workspaceStatus === "ready";
-      const appVisible = document.body.classList.contains("auth-authenticated");
-      if (!workspaceReady || !appVisible || document.body.classList.contains("modal-open")) {
-        global.setTimeout(waitUntilStartupReady, 500);
-        return;
-      }
-      runtimePreviewShown = true;
+  function canAutoShowLatestOnHome() {
+    const workspaceReady = global.chromaticaStartupState?.workspaceStatus === "ready";
+    const authenticated = document.body.classList.contains("auth-authenticated");
+    const homeActive = Boolean($("#intro.view.active"));
+    const micGate = $("#micGate");
+    const micGateFinished = !micGate || micGate.classList.contains("hidden");
+    const nativeAndroid = Boolean(global.Capacitor?.isNativePlatform?.() && global.Capacitor?.getPlatform?.() === "android");
+    const startupSplashFinished = !nativeAndroid || global.chromaticaStartupSplashFinished === true;
+    const presentationBlocked = document.body.classList.contains("modal-open")
+      || document.body.classList.contains("practice-settlement-open");
+    return authenticated
+      && workspaceReady
+      && homeActive
+      && micGateFinished
+      && startupSplashFinished
+      && !presentationBlocked;
+  }
+
+  async function maybeShowLatestAnnouncementOnHome() {
+    if (runtimePreviewShown) return false;
+    if (runtimePreviewRequest) return runtimePreviewRequest;
+    if (!canAutoShowLatestOnHome()) return false;
+
+    runtimePreviewRequest = (async () => {
       try {
         const rows = await fetchPublished();
-        if (rows[0]) showPreview(rows[0]);
-      } catch { /* Offline startup is non-blocking. */ }
-    };
-    global.setTimeout(waitUntilStartupReady, 650);
+        const latest = rows[0];
+        if (!latest || !canAutoShowLatestOnHome() || runtimePreviewShown) return false;
+        showPreview(latest);
+        runtimePreviewShown = true;
+        return true;
+      } catch {
+        // Offline startup is non-blocking and may be retried by a later home activation.
+        return false;
+      } finally {
+        runtimePreviewRequest = null;
+      }
+    })();
+    return runtimePreviewRequest;
   }
 
   function resetAdminForm(announcement = null) {
@@ -237,8 +260,24 @@
 
   function init() {
     if (initialized) return;
-    initialized = true; createUi(); bind(); void maybeShowLatest();
+    initialized = true;
+    createUi();
+    bind();
+    if (global.Capacitor?.isNativePlatform?.()
+      && global.Capacitor?.getPlatform?.() === "android"
+      && global.chromaticaStartupSplashFinished !== true) {
+      global.addEventListener("chromatica:startup-splash-finished", () => {
+        void maybeShowLatestAnnouncementOnHome();
+      }, { once: true });
+    }
+    void maybeShowLatestAnnouncementOnHome();
   }
 
-  global.ChromaticaAnnouncements = Object.freeze({ init, truncateGraphemes, showList, showFull });
+  global.ChromaticaAnnouncements = Object.freeze({
+    init,
+    truncateGraphemes,
+    showList,
+    showFull,
+    maybeShowLatestOnHome: maybeShowLatestAnnouncementOnHome,
+  });
 })(typeof window !== "undefined" ? window : globalThis);
