@@ -2702,6 +2702,7 @@ async function presentHarvestCard(spirit, {
   overlay.dataset.cardState = "spinning-back";
   overlay.innerHTML = `<div class="harvest-card-dialog" role="dialog" aria-modal="true" aria-label="獲得新的植物精靈卡牌">
     <button class="harvest-card-button" data-haptic="manual" type="button" aria-label="點一下揭曉卡牌">
+      <span class="harvest-card-reveal-glow" aria-hidden="true"></span>
       <span class="harvest-card-inner"><span class="harvest-card-back" aria-hidden="true"></span><img class="harvest-card-front" alt="" /></span>
     </button><p>點一下揭曉卡牌</p>
   </div>`;
@@ -7563,6 +7564,9 @@ function bindEvents() {
         // future adapter regression from reaching the global rejection hook.
       });
     });
+  });
+  $$("[data-discussion-open]").forEach((button) => {
+    button.addEventListener("click", () => showHomeSpiritRewardToast("尚未開放"));
   });
 
   $("#starterPlantChoices")?.addEventListener("click", (event) => {

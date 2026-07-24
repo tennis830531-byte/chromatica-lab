@@ -288,7 +288,7 @@ test("daily 500-cycle cap is enforced independently of the rolling rate window",
   for (let batch = 0; batch < 2; batch += 1) {
     for (let index = 0; index < 30; index += 1) assert.equal(await record(1, 8), true);
     const { error } = await admin.from("leaderboard_practice_events")
-      .update({ created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString() }).eq("user_id", users[1].id);
+      .update({ created_at: new Date(Date.now() - 11 * 60 * 1000).toISOString() }).eq("user_id", users[1].id);
     assert.ifError(error);
   }
   assert.equal(await record(1, 8), true);
@@ -583,6 +583,95 @@ test("announcement drafts and admin writes are protected by server authorization
   const published = await rpc(clients[1], "get_published_announcements");
   assert.equal(published.length, 1);
   assert.equal(published[0].body, "這是一則純文字測試公告");
+});
+
+test("announcement galleries preserve legacy cover fields and cascade cleanly", async () => {
+  await resetWeekly();
+  assert.ifError((await admin.from("app_admins").insert({ user_id: users[0].id })).error);
+  const draft = await rpc(clients[0], "save_announcement", {
+    p_id: null,
+    p_large_topic: "多圖測試",
+    p_title: "相容公告",
+    p_body: "第一張是封面",
+    p_published_at: new Date(Date.now() - 1000).toISOString(),
+    p_publish: true,
+  });
+  const id = draft?.id || draft?.[0]?.id;
+  const paths = [`announcement-${crypto.randomUUID()}.webp`, `announcement-${crypto.randomUUID()}.webp`];
+  assert.equal(await rpc(admin, "replace_announcement_images_service", {
+    p_announcement_id: id,
+    p_image_paths: paths,
+    p_image_versions: [11, 12],
+  }), true);
+  const published = await rpc(clients[1], "get_published_announcements_v2");
+  assert.deepEqual(published[0].image_paths, paths);
+  assert.equal(published[0].image_path, paths[0]);
+  assert.equal(published[0].image_version, 11);
+  const rows = await admin.from("announcement_images").select("image_path,sort_order").eq("announcement_id", id).order("sort_order");
+  assert.ifError(rows.error);
+  assert.deepEqual(rows.data.map((row) => row.image_path), paths);
+  assert.equal(await rpc(admin, "delete_announcement_service", { p_announcement_id: id }), true);
+  const after = await admin.from("announcement_images").select("id", { count: "exact", head: true }).eq("announcement_id", id);
+  assert.ifError(after.error);
+  assert.equal(after.count, 0);
+});
+
+test("announcement comments use joined public identities and enforce idempotent ownership", async () => {
+  await resetWeekly();
+  await join(0, "管理芽芽");
+  await join(1, "留言芽芽");
+  assert.ifError((await admin.from("leaderboard_profiles").delete().eq("user_id", users[2].id)).error);
+  assert.ifError((await admin.from("app_admins").insert({ user_id: users[0].id })).error);
+  const draft = await rpc(clients[0], "save_announcement", {
+    p_id: null,
+    p_large_topic: "留言測試",
+    p_title: "安全留言板",
+    p_body: "只有公開排行榜身份可留言",
+    p_published_at: new Date(Date.now() - 1000).toISOString(),
+    p_publish: true,
+  });
+  const announcementId = draft?.id || draft?.[0]?.id;
+  const requestId = crypto.randomUUID();
+  const first = await rpc(clients[1], "create_announcement_comment", {
+    p_announcement_id: announcementId,
+    p_body: " 第一則留言 ",
+    p_request_id: requestId,
+  });
+  assert.equal(first[0].display_name, "留言芽芽");
+  assert.equal(first[0].body, "第一則留言");
+  await rpc(clients[1], "create_announcement_comment", {
+    p_announcement_id: announcementId,
+    p_body: "重播不得新增",
+    p_request_id: requestId,
+  });
+  let comments = await rpc(clients[0], "get_announcement_comments", { p_announcement_id: announcementId });
+  assert.equal(comments.length, 1);
+  assert.equal(comments[0].body, "第一則留言");
+  await expectFailure(() => rpc(clients[2], "create_announcement_comment", {
+    p_announcement_id: announcementId,
+    p_body: "沒有公開資料",
+    p_request_id: crypto.randomUUID(),
+  }), /leaderboard public profile required/i);
+  assert.ok((await clients[1].from("announcement_comments").insert({
+    announcement_id: announcementId,
+    user_id: users[0].id,
+    request_id: crypto.randomUUID(),
+    body: "偽造別人身份",
+  })).error);
+  const adminComment = await rpc(clients[0], "create_announcement_comment", {
+    p_announcement_id: announcementId,
+    p_body: "管理者留言",
+    p_request_id: crypto.randomUUID(),
+  });
+  assert.equal(await rpc(clients[1], "delete_announcement_comment", { p_comment_id: adminComment[0].id }), false);
+  assert.equal(await rpc(clients[0], "delete_announcement_comment", { p_comment_id: first[0].id }), true);
+  comments = await rpc(clients[0], "get_announcement_comments", { p_announcement_id: announcementId });
+  assert.equal(comments.length, 1);
+  assert.equal(comments[0].body, "管理者留言");
+  assert.equal(await rpc(admin, "delete_announcement_service", { p_announcement_id: announcementId }), true);
+  const after = await admin.from("announcement_comments").select("id", { count: "exact", head: true }).eq("announcement_id", announcementId);
+  assert.ifError(after.error);
+  assert.equal(after.count, 0);
 });
 
 test("authenticated clear-all resets only the caller leaderboard data", async () => {

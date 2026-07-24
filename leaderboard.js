@@ -3,6 +3,11 @@
 
   const core = global.ChromaticaLeaderboardCore;
   const PLACEHOLDER_AVATAR = "./public/assets/chromatic-refresh/brand/chl_brand_badge.png";
+  const PODIUM_ICON_BY_POSITION = Object.freeze({
+    1: "./public/assets/leaderboard/podium-flag-gold-1.png",
+    2: "./public/assets/leaderboard/podium-flag-silver-2.png",
+    3: "./public/assets/leaderboard/podium-flag-bronze-3.png",
+  });
   const CACHE_PREFIX = "chromatica.leaderboard.weekly.cache.v2";
   const QUEUE_PREFIX = "chromatica.leaderboard.weekly.pending.v2";
   const RANK_SHOWN_PREFIX = "chromatica.leaderboard.rankShown.v1";
@@ -20,6 +25,7 @@
     NOT_JOINED: "not-joined",
     ERROR: "error",
   });
+  const TOP_TEN_RANK_LABELS = Object.freeze(["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]);
   const PROFILE_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
   let initialized = false;
   let activeMetric = "weekly";
@@ -41,6 +47,7 @@
   let resetCustomAvatar = false;
   let previewObjectUrl = "";
   let pendingRankMovement = null;
+  let profileViewportCleanup = null;
   const practiceSettlementResults = new Map();
   const practiceSettlementEvents = new Set();
 
@@ -80,6 +87,28 @@
 
   function joinedNow() {
     return membershipStatus === MEMBERSHIP.JOINED;
+  }
+
+  function renderMetricTabs(metric = activeMetric) {
+    const normalizedMetric = core.normalizeMetric(metric);
+    let activeTabId = "";
+    Array.from(document.querySelectorAll?.("[data-leaderboard-metric]") || []).forEach((button) => {
+      const isActive = core.normalizeMetric(button.dataset.leaderboardMetric) === normalizedMetric;
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-selected", String(isActive));
+      button.tabIndex = isActive ? 0 : -1;
+      if (isActive) activeTabId = button.id;
+    });
+    if (activeTabId) $("#leaderboardList")?.setAttribute("aria-labelledby", activeTabId);
+  }
+
+  function renderHomeLeaderboardTitle() {
+    const element = $("#homeLeaderboardTitle");
+    if (!element) return;
+    const rank = Number(weeklySummary.weeklyRank);
+    const isTopTen = joinedNow() && weeklySummary.loaded && Number.isInteger(rank) && rank >= 1 && rank <= 10;
+    element.textContent = isTopTen ? `乖乖練習王 第${TOP_TEN_RANK_LABELS[rank]}名` : "";
+    element.classList.toggle("hidden", !isTopTen);
   }
 
   function cacheKey(metric, userId) {
@@ -206,6 +235,7 @@
       edit.textContent = joined ? "編輯公開資料／更換頭像" : "前往排行榜完成首次設定";
     }
     global.ChromaticaPushNotifications?.setMembership?.(joined);
+    renderHomeLeaderboardTitle();
   }
 
   function updateWeeklySummary(rawRows, context = requestContext()) {
@@ -217,6 +247,7 @@
       weeklyRank: currentRow ? Math.max(1, Number(currentRow.position) || 1) : null,
       hasWeeklyEntry: Boolean(currentRow),
     };
+    renderHomeLeaderboardTitle();
     return true;
   }
 
@@ -350,6 +381,19 @@
       rank.className = "leaderboard-rank";
       rank.textContent = String(row.position);
       rank.setAttribute("aria-label", `第 ${row.position} 名`);
+      const podiumIconPath = PODIUM_ICON_BY_POSITION[row.position];
+      if (podiumIconPath) {
+        const podiumIcon = document.createElement("img");
+        podiumIcon.className = "leaderboard-podium-icon";
+        podiumIcon.alt = "";
+        podiumIcon.addEventListener("error", () => {
+          podiumIcon.remove();
+          rank.textContent = String(row.position);
+        }, { once: true });
+        podiumIcon.src = podiumIconPath;
+        rank.textContent = "";
+        rank.append(podiumIcon);
+      }
       const avatar = document.createElement("img");
       avatar.className = "leaderboard-avatar";
       avatar.alt = "";
@@ -402,8 +446,9 @@
     ], { duration: 850, easing: "cubic-bezier(.2,.85,.3,1)", fill: "both" });
   }
 
-  async function loadLeaderboard(metric = activeMetric, { force = false } = {}) {
+  async function loadLeaderboard(metric = activeMetric, { force = false, showCache = true } = {}) {
     activeMetric = core.normalizeMetric(metric);
+    renderMetricTabs(activeMetric);
     const userId = getPublicUserId();
     if (!userId) {
       renderLeaderboardRows([], activeMetric);
@@ -431,11 +476,11 @@
     const cacheHasCurrentUser = Boolean(
       cache?.rows && core.normalizeLeaderboardRows(cache.rows, activeMetric).some((row) => row.isCurrentUser)
     );
-    if (cacheHasCurrentUser) {
+    if (showCache && cacheHasCurrentUser) {
       updateWeeklySummary(cache.rows, context);
       renderLeaderboardRows(cache.rows, activeMetric);
     }
-    if (!force && cacheHasCurrentUser && core.isCacheFresh(cache)) {
+    if (!force && showCache && cacheHasCurrentUser && core.isCacheFresh(cache)) {
       setStatus("", "");
       return cache.rows;
     }
@@ -490,6 +535,8 @@
   }
 
   function closeProfileEditor() {
+    profileViewportCleanup?.();
+    profileViewportCleanup = null;
     profileOpen = false;
     $("#leaderboardProfileModal")?.classList.add("hidden");
     if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
@@ -499,6 +546,77 @@
     profileOnboarding = false;
     updateModalOpenClass();
     requestAnimationFrame(() => $("#leaderboardProfileEdit")?.focus());
+  }
+
+  function bindProfileKeyboardViewport() {
+    profileViewportCleanup?.();
+    const backdrop = $("#leaderboardProfileModal");
+    const modal = $("#leaderboardProfileForm");
+    const input = $("#leaderboardProfileName");
+    if (!backdrop || !modal || !input) return;
+    const viewport = global.visualViewport;
+    const keepInputVisible = () => {
+      if (document.activeElement !== input) return;
+      const inputRect = input.getBoundingClientRect();
+      const modalRect = modal.getBoundingClientRect();
+      const visibleTop = modalRect.top + 16;
+      const visibleBottom = Math.min(modalRect.bottom, (viewport?.height || global.innerHeight) + (viewport?.offsetTop || 0)) - 16;
+      if (inputRect.top < visibleTop) {
+        modal.scrollBy({ top: inputRect.top - visibleTop, behavior: "auto" });
+      } else if (inputRect.bottom > visibleBottom) {
+        modal.scrollBy({ top: inputRect.bottom - visibleBottom, behavior: "auto" });
+      }
+    };
+    const update = () => {
+      if (!profileOpen) return;
+      const height = Math.max(
+        240,
+        Math.floor(
+          viewport?.height
+          || global.innerHeight
+          || document.documentElement?.clientHeight
+          || document.body?.clientHeight
+          || 640,
+        ),
+      );
+      const offsetTop = Math.max(0, Math.floor(viewport?.offsetTop || 0));
+      backdrop.style.top = `${offsetTop}px`;
+      backdrop.style.bottom = "auto";
+      backdrop.style.height = `${height}px`;
+      modal.style.maxHeight = `${Math.max(220, height - 24)}px`;
+      keepInputVisible();
+    };
+    const handleFocus = () => {
+      backdrop.classList.add("is-keyboard-editing");
+      requestAnimationFrame(update);
+    };
+    const handleBlur = () => {
+      backdrop.classList.remove("is-keyboard-editing");
+    };
+    const target = viewport || global;
+    target.addEventListener("resize", update);
+    viewport?.addEventListener("scroll", update);
+    input.addEventListener("focus", handleFocus);
+    input.addEventListener("blur", handleBlur);
+    update();
+    profileViewportCleanup = () => {
+      target.removeEventListener?.("resize", update);
+      viewport?.removeEventListener?.("scroll", update);
+      input.removeEventListener("focus", handleFocus);
+      input.removeEventListener("blur", handleBlur);
+      backdrop.classList.remove("is-keyboard-editing");
+      if (typeof backdrop.style.removeProperty === "function") {
+        backdrop.style.removeProperty("top");
+        backdrop.style.removeProperty("bottom");
+        backdrop.style.removeProperty("height");
+        modal.style.removeProperty("max-height");
+      } else {
+        delete backdrop.style.top;
+        delete backdrop.style.bottom;
+        delete backdrop.style.height;
+        delete modal.style.maxHeight;
+      }
+    };
   }
 
   function showProfileError(message = "") {
@@ -525,7 +643,11 @@
     profileOpen = true;
     $("#leaderboardProfileModal")?.classList.remove("hidden");
     updateModalOpenClass();
-    requestAnimationFrame(() => $("#leaderboardProfileName")?.focus());
+    bindProfileKeyboardViewport();
+    requestAnimationFrame(() => {
+      $("#leaderboardProfileName")?.focus();
+      $("#leaderboardProfileName")?.scrollIntoView({ block: "center", inline: "nearest" });
+    });
   }
 
   async function saveProfile(event) {
@@ -780,6 +902,8 @@
     await ensureMembership({ force: true });
     if (membershipStatus === MEMBERSHIP.ERROR) {
       modalOpen = true;
+      profileViewportCleanup?.();
+      profileViewportCleanup = null;
       profileOpen = false;
       $("#leaderboardProfileModal")?.classList.add("hidden");
       modal.classList.remove("hidden");
@@ -829,6 +953,8 @@
       const modal = $("#leaderboardModal");
       if (!modal) return false;
       modalOpen = true;
+      profileViewportCleanup?.();
+      profileViewportCleanup = null;
       profileOpen = false;
       $("#leaderboardProfileModal")?.classList.add("hidden");
       modal.classList.remove("hidden");
@@ -854,6 +980,8 @@
   }
 
   function resetRuntimeState(nextUserId = "") {
+    profileViewportCleanup?.();
+    profileViewportCleanup = null;
     requestGeneration += 1;
     activeUserId = String(nextUserId || "");
     modalOpen = false;
@@ -901,7 +1029,9 @@
         try {
           await syncOwnProfile();
           await flushPendingEvents();
-          if (isCurrentRequest(requestContext(normalizedUserId))) await loadLeaderboard("weekly");
+          if (isCurrentRequest(requestContext(normalizedUserId))) {
+            await loadLeaderboard("weekly", { force: true, showCache: false });
+          }
         } catch (error) {
           if (activeUserId === normalizedUserId) {
             console.warn("Leaderboard account initialization failed.", classifyLeaderboardError(error).kind);
@@ -936,6 +1066,15 @@
   }
 
   function bind() {
+    Array.from(document.querySelectorAll?.("[data-leaderboard-metric]") || []).forEach((button) => {
+      button.addEventListener("click", () => {
+        const metric = core.normalizeMetric(button.dataset.leaderboardMetric);
+        if (metric === activeMetric) return;
+        activeMetric = metric;
+        renderMetricTabs(activeMetric);
+        void loadLeaderboard(activeMetric);
+      });
+    });
     $("#leaderboardModalClose")?.addEventListener("click", close);
     $("#leaderboardModal")?.addEventListener("click", (event) => { if (event.target.id === "leaderboardModal") close(); });
     $("#leaderboardProfileEdit")?.addEventListener("click", () => {
@@ -947,6 +1086,29 @@
     $("#leaderboardProfileModal")?.addEventListener("click", (event) => { if (event.target.id === "leaderboardProfileModal") closeProfileEditor(); });
     $("#leaderboardProfileForm")?.addEventListener("submit", saveProfile);
     $("#leaderboardProfileName")?.addEventListener("input", () => showProfileError());
+    const openAvatarPickerFromGesture = () => {
+      const avatarInput = $("#leaderboardProfileAvatarInput");
+      if (!avatarInput) return;
+      let pickerOpened = false;
+      try {
+        if (typeof avatarInput.showPicker === "function") {
+          avatarInput.showPicker();
+          pickerOpened = true;
+        }
+      } catch {
+        pickerOpened = false;
+      }
+      if (!pickerOpened) avatarInput.click();
+      $("#leaderboardProfileName")?.blur();
+    };
+    $("#leaderboardProfileAvatarChoose")?.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      openAvatarPickerFromGesture();
+    });
+    $("#leaderboardProfileAvatarChoose")?.addEventListener("click", (event) => {
+      if (event.detail !== 0) return;
+      openAvatarPickerFromGesture();
+    });
     $("#leaderboardProfileAvatarInput")?.addEventListener("change", (event) => {
       const file = event.target.files?.[0] || null;
       if (!file) return;
@@ -982,6 +1144,7 @@
     }
     initialized = true;
     bind();
+    renderMetricTabs(activeMetric);
     renderMembership();
     activateAccount(getPublicUserId());
   }

@@ -22,11 +22,14 @@ test("leaderboard rows keep long names podium avatars spirits and scores inside 
     const result = inspect(width);
     assert.ok(result.documentWidth <= result.viewport, `${width}px horizontal overflow`);
     for (const row of result.rows) {
-      assert.equal(row.columnGap, "13px");
+      assert.equal(row.columnGap, "15px");
       assert.ok(row.rankAvatarGap > 0);
-      assert.ok(row.avatarNameGap > 0);
+      assert.ok(row.avatarNameGap >= 15);
       assert.equal(row.nameSpiritAligned, true);
       assert.ok(row.scoreRightInset >= 9);
+      assert.equal(row.scoreBelowContent, true);
+      assert.equal(row.scoreBorderTop, "solid");
+      assert.ok(row.scoreRuleWidth > row.box.width - 24);
       assert.equal(row.nameEllipsis, "ellipsis");
       assert.equal(row.nameOverflowContained, true);
       assert.ok(row.box.left >= 8 && row.box.right <= result.viewport - 8);
@@ -42,5 +45,8 @@ test("leaderboard desktop grid retains the approved sixteen-pixel column gap", (
     assert.ok(row.rankAvatarGap >= 16);
     assert.ok(row.avatarNameGap >= 16);
     assert.ok(row.scoreRightInset >= 9);
+    assert.equal(row.scoreBelowContent, true);
+    assert.equal(row.scoreBorderTop, "solid");
+    assert.ok(row.scoreRuleWidth > row.box.width - 24);
   }
 });

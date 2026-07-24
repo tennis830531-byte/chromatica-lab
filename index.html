@@ -364,10 +364,12 @@
           <button id="leaderboardModalClose" class="calendar-close" type="button" aria-label="關閉全球排行榜">×</button>
         </div>
         <p id="leaderboardLoginPrompt" class="leaderboard-consent-note hidden">請先登入；加入與公開資料設定請前往「設定 → 會員帳號」。</p>
-        <h3 class="leaderboard-board-title">乖乖練習王</h3>
+        <div class="leaderboard-tabs" role="tablist" aria-label="排行榜類別">
+          <button id="leaderboardWeeklyTab" class="active" data-leaderboard-metric="weekly" type="button" role="tab" aria-selected="true" aria-controls="leaderboardList">乖乖練習王</button>
+        </div>
         <p class="leaderboard-board-subtitle">來看看練習循環次數最多的高手！</p>
         <p id="leaderboardStatus" class="leaderboard-status" role="status" aria-live="polite">正在載入排行榜…</p>
-        <ol id="leaderboardList" class="leaderboard-list" aria-label="全球排行榜名次"></ol>
+        <ol id="leaderboardList" class="leaderboard-list" role="tabpanel" aria-labelledby="leaderboardWeeklyTab" aria-label="全球排行榜名次"></ol>
         <p class="leaderboard-refresh-note">開啟時更新，之後最長每 10 分鐘重新整理。</p>
         <p id="leaderboardWeekLabel" class="leaderboard-period-note">每週日 00:00（Asia/Taipei）開始新一週。</p>
       </section>
@@ -385,7 +387,8 @@
         <div class="leaderboard-profile-avatar-editor">
           <img id="leaderboardProfileAvatarPreview" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="頭像預覽" />
           <div>
-            <label class="leaderboard-avatar-upload">選擇頭像<input id="leaderboardProfileAvatarInput" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+            <button id="leaderboardProfileAvatarChoose" class="leaderboard-avatar-upload" type="button">選擇頭像</button>
+            <input id="leaderboardProfileAvatarInput" type="file" accept="image/png,image/jpeg,image/webp" />
             <small>必須自行選擇 JPG、PNG 或 WebP；原始檔最大 2 MB，上傳前會裁成正方形並壓縮。</small>
           </div>
         </div>
@@ -421,6 +424,7 @@
               <div class="hero-copy">
                 <h2 id="homeHeroQaTitle" data-haptic="none">半音階口琴練習室</h2>
                 <p>透過孔位地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p>
+                <p id="homeLeaderboardTitle" class="home-leaderboard-title hidden" aria-live="polite"></p>
               </div>
             </div>
             <div class="hero-actions">
@@ -460,6 +464,7 @@
               <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" /></span><strong>每日目標</strong></button>
               <button class="quick-card" data-jump="garden" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/garden/icons/spirit-garden-icon.png" alt="" /></span><strong>精靈花園</strong></button>
               <button class="quick-card leaderboard-card" data-leaderboard-open type="button" aria-label="開啟排行榜"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/global_leaderboard_icon.png?v=transparent-1" alt="" /></span><strong>排行榜</strong><em>查看本週名次</em></button>
+              <button class="quick-card discussion-card" data-discussion-open type="button" aria-label="討論吧，尚未開放"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/discussion-forum-icon.png" alt="" /></span><strong>討論吧</strong></button>
               <button class="quick-card" data-jump="audio" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/mic_settings_icon.png" alt="" /></span><strong>設定</strong></button>
             </div>
           </section>
@@ -1074,8 +1079,7 @@
           </div>
           <div class="audio-settings-panel">
             <button id="announcementsOpen" class="setting-row settings-action-row announcement-settings-entry paper-card" type="button">
-              <span>公告</span>
-              <strong>查看公告 〉</strong>
+              <strong>查看最新公告 〉</strong>
             </button>
             <details class="audio-setting-card paper-card">
               <summary class="settings-accordion-head"><span><strong>收音設定</strong></span><i aria-hidden="true"></i></summary>
@@ -1226,7 +1230,7 @@
                   <button id="googleLogoutBtn" class="google-logout-btn" type="button">登出</button>
                 </div>
                 <section id="leaderboardAccountSection" class="leaderboard-account-section" aria-labelledby="leaderboardAccountTitle">
-                  <div class="setting-row"><span><strong id="leaderboardAccountTitle">排行榜公開資料</strong></span><strong id="leaderboardAccountMembership">尚未加入</strong></div>
+                  <div class="setting-row leaderboard-account-heading"><strong id="leaderboardAccountTitle">排行榜公開資料</strong><strong id="leaderboardAccountMembership">尚未加入</strong></div>
                   <div id="leaderboardOwnProfile" class="leaderboard-own-profile hidden" aria-label="目前排行榜公開資料"><div><span class="sr-only">目前公開頭像</span><img id="leaderboardOwnAvatar" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="目前公開頭像" /></div><div><span>目前公開名字</span><strong id="leaderboardOwnName">練習者</strong><span>目前展示精靈</span><small id="leaderboardOwnSpirit">尚未設定展示精靈</small></div></div>
                   <div class="leaderboard-account-actions"><button id="leaderboardProfileEdit" type="button" aria-haspopup="dialog">前往排行榜完成首次設定</button></div>
                 </section>

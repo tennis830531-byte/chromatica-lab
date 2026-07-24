@@ -29,12 +29,16 @@ test("announcement image validates magic bytes, decode, pixels and safe WebP out
   assert.match(image, /MagickFormat\.WebP/);
 });
 
-test("announcement image upload is admin-only and has replacement compensation", () => {
+test("announcement image upload and deletion are admin-only with replacement compensation", () => {
   assert.match(image, /get_announcement_admin_status/);
   assert.match(image, /status\?\.is_admin !== true/);
   assert.match(image, /crypto\.randomUUID\(\)/);
-  assert.match(image, /if \(update\.error\)[\s\S]*remove\(\[newPath\]\)/);
-  assert.ok(image.indexOf("update.error") < image.indexOf("remove([oldPath])"));
+  assert.match(image, /replace_announcement_images_service/);
+  assert.match(image, /announcement-image-cleanup-failed/);
+  assert.match(image, /p_image_paths: currentImages\.map/);
+  assert.match(image, /request\.method === "DELETE"/);
+  assert.match(image, /delete_announcement_service/);
+  assert.ok(image.indexOf("storage.from(BUCKET).remove(paths)") < image.indexOf('admin.rpc("delete_announcement_service"'));
 });
 
 test("gateway and custom scheduler authentication are explicit", () => {
