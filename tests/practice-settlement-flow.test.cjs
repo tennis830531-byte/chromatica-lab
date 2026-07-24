@@ -92,6 +92,18 @@ test("13 an improved rank shows old and new rank with an upward animation", () =
   assert.match(css, /data-rank-direction="up"[\s\S]*practiceSettlementRankUp/);
 });
 
+test("13a settlement renders five real ranks on either side and animates overtaken rows", () => {
+  assert.match(html, /id="practiceSettlementLeaderboardList"[^>]*自己前後五名的本週排行榜/);
+  assert.match(leaderboard, /Math\.abs\(row\.position - currentPosition\) <= 5/);
+  assert.match(leaderboard, /nearbyRows,/);
+  assert.match(app, /Math\.abs\(position - currentRank\) <= 5/);
+  assert.match(app, /practice-settlement-rank-row\$\{row\.isCurrentUser \? " is-me" : ""\}/);
+  assert.match(app, /position > currentRank && position <= previousRank/);
+  assert.match(app, /visibleDistance = Math\.min\(5, previousRank - currentRank\)/);
+  assert.match(css, /\.practice-settlement-leaderboard-list \{[^}]*overflow-y: auto;/s);
+  assert.match(css, /\.practice-settlement-rank-row \{[^}]*grid-template-columns:/s);
+});
+
 test("14 an unchanged rank uses the approved stable-rank message", () => {
   assert.match(app, /currentRank === previousRank[\s\S]*本週維持第 \$\{currentRank\} 名/);
 });

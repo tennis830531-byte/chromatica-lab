@@ -137,7 +137,7 @@ test("comment request IDs and disabled submission prevent duplicate fast taps", 
 
 test("card front reveal has one-shot gold expansion with reduced-motion fallback", () => {
   assert.match(app, /harvest-card-reveal-glow/);
-  assert.match(app, /if \(revealed\) return;\s*revealed = true;/);
+  assert.match(app, /if \(!revealReady \|\| revealed\) return;\s*revealed = true;/);
   assert.match(css, /@keyframes harvestCardGoldenReveal/);
   assert.match(css, /1\.35s/);
   assert.match(css, /radial-gradient/);

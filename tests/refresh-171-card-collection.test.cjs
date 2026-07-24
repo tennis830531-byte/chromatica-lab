@@ -54,8 +54,25 @@ test("harvest persists once before the guarded reveal and targets the exact spec
   assert.ok(qa.indexOf("saveState(state); render();") < qa.indexOf("options.presentHarvestCard?.(harvested)"));
   assert.match(qa, /if \(harvested\) void options\.presentHarvestCard\?\.\(harvested\)/);
   assert.match(app, /harvest-card-button" data-haptic="manual"/);
-  assert.match(app, /if \(revealed\) return;\s*revealed = true;\s*void window\.ChromaticaHaptics\?\.reveal\?\.\(\)/);
+  assert.match(app, /if \(!revealReady \|\| revealed\) return;\s*revealed = true;\s*revealReady = false;\s*void window\.ChromaticaHaptics\?\.reveal\?\.\(\)/);
   for (const state of ["spinning-back", "revealing", "revealed", "flying", "completed"]) assert.match(app + css, new RegExp(state));
+});
+
+test("harvest card intro keeps exactly five seconds and unlocks reveal only after playback", () => {
+  const sound = fs.readFileSync(path.join(root, "public/assets/sounds/精靈採收卡牌音效.wav"));
+  assert.equal(sound.subarray(0, 4).toString(), "RIFF");
+  assert.equal(sound.subarray(8, 12).toString(), "WAVE");
+  const channels = sound.readUInt16LE(22);
+  const sampleRate = sound.readUInt32LE(24);
+  const bitsPerSample = sound.readUInt16LE(34);
+  const dataOffset = sound.indexOf(Buffer.from("data"));
+  const dataBytes = sound.readUInt32LE(dataOffset + 4);
+  assert.equal(dataBytes / (channels * bitsPerSample / 8) / sampleRate, 5);
+  assert.match(app, /harvestCardIntro: "精靈採收卡牌音效\.wav"/);
+  assert.match(app, /const introSoundDone = playSoundToCompletion\("harvestCardIntro", HARVEST_CARD_SOUND_TIMEOUT_MS\)/);
+  assert.match(app, /aria-label="卡牌正在甦醒" aria-disabled="true" disabled/);
+  assert.match(app, /await introSoundDone;\s*let revealReady = true;\s*button\.disabled = false;/);
+  assert.match(app, /status\.textContent = "點一下揭曉卡牌"/);
 });
 
 test("first card reveal uses one dedicated one-second haptic", () => {
