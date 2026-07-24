@@ -7479,7 +7479,7 @@ async function submitFeedbackForm(event) {
     try {
       const result = await window.chromaticaAuth?.invokeFunction?.("send-feedback", {
         category, description,
-        appVersion: "refresh-171 / Android 1.0.55 (56)",
+        appVersion: "refresh-172 / Android 1.0.56 (57)",
         platform: isNativeAndroidApp() ? "android" : "web",
         currentView, requestId,
       });
