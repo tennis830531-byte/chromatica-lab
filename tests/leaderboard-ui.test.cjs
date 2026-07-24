@@ -17,6 +17,7 @@ const migration = fs.readFileSync(path.join(root, "supabase/migrations/202607210
 const weeklyMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607210002_create_weekly_leaderboard_announcements.sql"), "utf8");
 const weeklyRankMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607230001_rank_all_joined_weekly_members.sql"), "utf8");
 const leaderboardContextMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607240002_expand_weekly_leaderboard_context.sql"), "utf8");
+const leaderboardContextHotfixMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607240003_fix_weekly_leaderboard_context_greatest.sql"), "utf8");
 const avatarFunction = fs.readFileSync(path.join(root, "supabase/functions/upload-leaderboard-avatar/index.ts"), "utf8");
 
 test("global leaderboard exposes only the weekly 乖乖練習王", () => {
@@ -77,6 +78,19 @@ test("weekly leaderboard context includes five real ranks before and after the c
   assert.match(leaderboardContextMigration, /current_member\.rank_position - 5/);
   assert.match(leaderboardContextMigration, /current_member\.rank_position \+ 5/);
   assert.doesNotMatch(leaderboardContextMigration, /insert into|update public|delete from|truncate/i);
+});
+
+test("weekly leaderboard context hotfix keeps the RPC contract without schema-qualifying greatest", () => {
+  assert.match(leaderboardContextHotfixMigration, /^begin;/);
+  assert.match(leaderboardContextHotfixMigration, /create or replace function public\.get_weekly_leaderboard\(\)/);
+  assert.match(leaderboardContextHotfixMigration, /returns table \([\s\S]*"position" bigint[\s\S]*public_key text[\s\S]*display_name text[\s\S]*custom_avatar_path text[\s\S]*avatar_version bigint[\s\S]*featured_spirit_species text[\s\S]*featured_spirit_name text[\s\S]*featured_spirit_stage smallint[\s\S]*score bigint[\s\S]*is_current_user boolean[\s\S]*week_start date/);
+  assert.match(leaderboardContextHotfixMigration, /greatest\(1::bigint, current_member\.rank_position - 5\)/);
+  assert.doesNotMatch(leaderboardContextHotfixMigration, /pg_catalog\.greatest/);
+  assert.match(leaderboardContextHotfixMigration, /ranked\.rank_position <= 15/);
+  assert.match(leaderboardContextHotfixMigration, /order by selected\.rank_position/);
+  assert.match(leaderboardContextHotfixMigration, /revoke all on function public\.get_weekly_leaderboard\(\) from public, anon/);
+  assert.match(leaderboardContextHotfixMigration, /grant execute on function public\.get_weekly_leaderboard\(\) to authenticated/);
+  assert.match(leaderboardContextHotfixMigration, /commit;\s*$/);
 });
 
 test("successful leaderboard loads have no count announcement or empty layout gap", () => {

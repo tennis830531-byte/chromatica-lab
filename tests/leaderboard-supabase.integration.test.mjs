@@ -158,7 +158,7 @@ before(async () => {
     const removed = await admin.auth.admin.deleteUser(existing.id);
     if (removed.error) throw removed.error;
   }
-  for (let index = 0; index < 20; index += 1) {
+  for (let index = 0; index < 21; index += 1) {
     const email = index === 0 ? "leaderboard-local-admin@example.invalid" : `leaderboard-local-${crypto.randomUUID()}@example.invalid`;
     const created = await admin.auth.admin.createUser({
       email, password, email_confirm: true,
@@ -224,13 +224,13 @@ test("Edge Function decodes JPEG PNG and WebP inputs", async () => {
   assert.ok(Number(lastUploadMetadata?.bytes) <= 300 * 1024);
 });
 
-test("twenty complete public profiles contain no Google or provider identity fields", async () => {
-  for (let index = 0; index < 20; index += 1) {
+test("twenty-one complete public profiles contain no Google or provider identity fields", async () => {
+  for (let index = 0; index < 21; index += 1) {
     await join(index, index >= 18 ? "同名玩家" : `測試玩家${index + 1}`);
   }
   const { data, error } = await admin.from("leaderboard_profiles").select("*").in("user_id", users.map((user) => user.id));
   assert.ifError(error);
-  assert.equal(data.length, 20);
+  assert.equal(data.length, 21);
   for (const row of data) {
     const keys = Object.keys(row).join(" ");
     assert.doesNotMatch(keys, /email|google|provider|metadata/i);
@@ -493,6 +493,44 @@ test("weekly RPC ranks every active joined member including zero cycles without 
       await setProfile(userId, values);
     }
   }
+});
+
+test("weekly context returns top fifteen plus five ranks around a lower-ranked member without duplicates", async () => {
+  await resetScores();
+  await resetWeekly();
+  const week = await rpc(admin, "taipei_leaderboard_week_start");
+  const seeded = users.map((user, index) => ({
+    week_start: week,
+    user_id: user.id,
+    completed_cycles: 210 - index * 10,
+    score_reached_at: new Date(Date.UTC(2026, 6, 1, 0, index, 0)).toISOString(),
+  }));
+  assert.ifError((await admin.from("weekly_leaderboard_scores").upsert(seeded, { onConflict: "week_start,user_id" })).error);
+
+  const top = await rpc(clients[0], "get_weekly_leaderboard");
+  assert.deepEqual(top.map((row) => row.position), Array.from({ length: 15 }, (_, index) => index + 1));
+
+  const context = await rpc(clients[15], "get_weekly_leaderboard");
+  assert.equal(context.find((row) => row.is_current_user)?.position, 16);
+  assert.deepEqual(context.map((row) => row.position), Array.from({ length: 21 }, (_, index) => index + 1));
+  assert.deepEqual(
+    context.filter((row) => row.position >= 11).map((row) => row.position),
+    Array.from({ length: 11 }, (_, index) => index + 11),
+  );
+  assert.equal(new Set(context.map((row) => row.public_key)).size, context.length);
+  assert.deepEqual(Object.keys(context[0]).sort(), [
+    "avatar_version",
+    "custom_avatar_path",
+    "display_name",
+    "featured_spirit_name",
+    "featured_spirit_species",
+    "featured_spirit_stage",
+    "is_current_user",
+    "position",
+    "public_key",
+    "score",
+    "week_start",
+  ]);
 });
 
 test("crossing the top-ten boundary queues one transition and respects cooldown before a later transition", async () => {
