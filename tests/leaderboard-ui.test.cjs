@@ -16,6 +16,7 @@ const sw = fs.readFileSync(path.join(root, "sw.js"), "utf8");
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/202607210001_create_global_leaderboards.sql"), "utf8");
 const weeklyMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607210002_create_weekly_leaderboard_announcements.sql"), "utf8");
 const weeklyRankMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607230001_rank_all_joined_weekly_members.sql"), "utf8");
+const leaderboardContextMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607240002_expand_weekly_leaderboard_context.sql"), "utf8");
 const avatarFunction = fs.readFileSync(path.join(root, "supabase/functions/upload-leaderboard-avatar/index.ts"), "utf8");
 
 test("global leaderboard exposes only the weekly 乖乖練習王", () => {
@@ -68,6 +69,14 @@ test("weekly rank migration includes every active member without creating zero-s
   assert.match(weeklyRankMigration, /coalesce\(ws\.completed_cycles, 0::bigint\)/);
   assert.match(weeklyRankMigration, /row_number\(\) over[\s\S]*completed_cycles, 0::bigint\) desc,[\s\S]*am\.joined_at asc,[\s\S]*am\.user_id asc/);
   assert.doesNotMatch(weeklyRankMigration, /insert into|update public|delete from|truncate|rank\(\)|dense_rank\(\)/i);
+});
+
+test("weekly leaderboard context includes five real ranks before and after the current member", () => {
+  assert.match(leaderboardContextMigration, /create or replace function public\.get_weekly_leaderboard\(\)/);
+  assert.match(leaderboardContextMigration, /ranked\.rank_position <= 15/);
+  assert.match(leaderboardContextMigration, /current_member\.rank_position - 5/);
+  assert.match(leaderboardContextMigration, /current_member\.rank_position \+ 5/);
+  assert.doesNotMatch(leaderboardContextMigration, /insert into|update public|delete from|truncate/i);
 });
 
 test("successful leaderboard loads have no count announcement or empty layout gap", () => {
@@ -127,6 +136,24 @@ test("first entry requires a custom name avatar and explicit consent", () => {
   assert.match(runtime, /profileOnboarding && !pendingAvatarFile/);
   assert.match(runtime, /leaderboardProfileConsent[\s\S]*checked !== true/);
   assert.doesNotMatch(html, /leaderboardUseGoogleAvatar/);
+});
+
+test("profile creation shows one blocking progress state and rejects duplicate submits", () => {
+  assert.match(html, /id="leaderboardProfileSaving"[^>]*role="status"[^>]*aria-live="polite"/);
+  assert.match(html, /id="leaderboardProfileSavingMessage"[^>]*>正在建立排行榜資料…/);
+  assert.match(runtime, /let profileSaving = false/);
+  assert.match(runtime, /if \(profileSaving\) return/);
+  assert.match(runtime, /showProfileError\(\);\s*setProfileSaving\(true\);/);
+  assert.match(runtime, /profileOnboarding \? "正在建立排行榜資料…" : "正在儲存公開資料…"/);
+  assert.match(runtime, /form\?\.setAttribute\("aria-busy", String\(profileSaving\)\)/);
+  assert.match(css, /\.leaderboard-profile-saving \{[^}]*position: absolute;[^}]*inset: 0;[^}]*z-index: 4;/s);
+  assert.match(css, /\.leaderboard-profile-spinner \{[^}]*animation: leaderboard-profile-spin/s);
+});
+
+test("profile editor cannot be dismissed by a keyboard-shifted backdrop tap", () => {
+  assert.match(runtime, /leaderboardProfileClose"\)\?\.addEventListener\("click", closeProfileEditor\)/);
+  assert.match(runtime, /leaderboardProfileCancel"\)\?\.addEventListener\("click", closeProfileEditor\)/);
+  assert.doesNotMatch(runtime, /leaderboardProfileModal"\)\?\.addEventListener\("click"[\s\S]*closeProfileEditor/);
 });
 
 test("unauthenticated and incomplete profiles cannot fetch rankings", () => {

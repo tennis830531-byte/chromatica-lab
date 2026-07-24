@@ -41,6 +41,7 @@
   let requestGeneration = 0;
   let weeklySummary = { loaded: false, weeklyCycles: 0, weeklyRank: null, hasWeeklyEntry: false };
   let profileOnboarding = false;
+  let profileSaving = false;
   let profile = null;
   let dependencies = {};
   let pendingAvatarFile = null;
@@ -535,6 +536,7 @@
   }
 
   function closeProfileEditor() {
+    if (profileSaving) return;
     profileViewportCleanup?.();
     profileViewportCleanup = null;
     profileOpen = false;
@@ -626,6 +628,30 @@
     error.classList.toggle("hidden", !message);
   }
 
+  function setProfileSaving(active) {
+    profileSaving = Boolean(active);
+    const form = $("#leaderboardProfileForm");
+    const progress = $("#leaderboardProfileSaving");
+    const message = $("#leaderboardProfileSavingMessage");
+    form?.setAttribute("aria-busy", String(profileSaving));
+    progress?.classList.toggle("hidden", !profileSaving);
+    if (message) {
+      message.textContent = profileOnboarding ? "正在建立排行榜資料…" : "正在儲存公開資料…";
+    }
+    [
+      "#leaderboardProfileClose",
+      "#leaderboardProfileAvatarChoose",
+      "#leaderboardProfileAvatarInput",
+      "#leaderboardProfileName",
+      "#leaderboardProfileConsent",
+      "#leaderboardProfileCancel",
+      "#leaderboardProfileSubmit",
+    ].forEach((selector) => {
+      const control = $(selector);
+      if (control) control.disabled = profileSaving;
+    });
+  }
+
   function openProfileEditor({ onboarding = false } = {}) {
     if (!getPublicUser() || (!joinedNow() && !onboarding)) return;
     profileOnboarding = onboarding;
@@ -640,6 +666,7 @@
     if ($("#leaderboardProfileConsent")) $("#leaderboardProfileConsent").checked = false;
     if ($("#leaderboardProfileSubmit")) $("#leaderboardProfileSubmit").textContent = onboarding ? "同意並加入排行榜" : "儲存公開資料";
     if ($("#leaderboardProfileTitle")) $("#leaderboardProfileTitle").textContent = onboarding ? "設定排行榜公開資料" : "編輯名字與頭像";
+    setProfileSaving(false);
     profileOpen = true;
     $("#leaderboardProfileModal")?.classList.remove("hidden");
     updateModalOpenClass();
@@ -652,6 +679,7 @@
 
   async function saveProfile(event) {
     event.preventDefault();
+    if (profileSaving) return;
     const context = requestContext();
     if (!isCurrentRequest(context)) return;
     const name = core.normalizeDisplayName($("#leaderboardProfileName")?.value, "");
@@ -668,9 +696,8 @@
       return;
     }
     if (!profileOnboarding && !joinedNow()) return;
-    const submit = event.submitter;
-    if (submit) submit.disabled = true;
     showProfileError();
+    setProfileSaving(true);
     let uploaded = null;
     const oldAvatarPath = profile?.custom_avatar_path || "";
     try {
@@ -719,6 +746,7 @@
         modalOpen = true;
         $("#leaderboardModal")?.classList.remove("hidden");
       }
+      setProfileSaving(false);
       closeProfileEditor();
       await loadLeaderboard(activeMetric, { force: true });
     } catch (error) {
@@ -726,7 +754,7 @@
       showProfileError(profileOnboarding ? "公開資料尚未建立；請確認圖片與網路後再試。" : "公開資料儲存失敗，原本資料已保留；請確認網路後再試。");
       console.warn("Leaderboard profile update failed.", error?.message || error);
     } finally {
-      if (submit && isCurrentRequest(context)) submit.disabled = false;
+      if (isCurrentRequest(context)) setProfileSaving(false);
     }
   }
 
@@ -858,13 +886,28 @@
       const result = practiceSettlementResults.get(event.eventId);
       if (!result) return { status: "queued" };
       const rows = await loadLeaderboard("weekly", { force: true });
-      const currentRow = core.normalizeLeaderboardRows(rows, "weekly").find((row) => row.isCurrentUser);
+      const normalizedRows = core.normalizeLeaderboardRows(rows, "weekly");
+      const currentRow = normalizedRows.find((row) => row.isCurrentUser);
+      const currentPosition = Number(currentRow?.position || result.currentRank);
+      const nearbyRows = normalizedRows
+        .filter((row) => Math.abs(row.position - currentPosition) <= 5)
+        .map((row) => ({
+          position: row.position,
+          displayName: row.displayName,
+          avatarUrl: avatarUrlFor({
+            custom_avatar_path: row.customAvatarPath,
+            avatar_version: row.avatarVersion,
+          }),
+          score: row.score,
+          isCurrentUser: row.isCurrentUser,
+        }));
       const movement = core.createRankMovement(result.previousRank ?? event.previousRank, result.currentRank, event.eventId);
       if (movement) markRankMovementShown(userId, event.eventId);
       return {
         ...result,
         previousRank: result.previousRank ?? event.previousRank,
         weeklyCycles: currentRow?.score ?? 0,
+        nearbyRows,
         eventId: event.eventId,
       };
     } catch (error) {
@@ -1083,7 +1126,6 @@
     });
     $("#leaderboardProfileClose")?.addEventListener("click", closeProfileEditor);
     $("#leaderboardProfileCancel")?.addEventListener("click", closeProfileEditor);
-    $("#leaderboardProfileModal")?.addEventListener("click", (event) => { if (event.target.id === "leaderboardProfileModal") closeProfileEditor(); });
     $("#leaderboardProfileForm")?.addEventListener("submit", saveProfile);
     $("#leaderboardProfileName")?.addEventListener("input", () => showProfileError());
     const openAvatarPickerFromGesture = () => {

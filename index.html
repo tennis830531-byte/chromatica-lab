@@ -146,6 +146,7 @@
             <h3 id="practiceSettlementLeaderboardTitle">本週排行榜</h3>
             <div id="practiceSettlementRankBadge" class="practice-settlement-rank-badge" aria-hidden="true">—</div>
             <strong id="practiceSettlementRankText">正在取得本週名次…</strong>
+            <ol id="practiceSettlementLeaderboardList" class="practice-settlement-leaderboard-list hidden" aria-label="自己前後五名的本週排行榜"></ol>
             <p id="practiceSettlementRankDetail"></p>
           </section>
         </div>
@@ -399,6 +400,11 @@
         </label>
         <p class="leaderboard-fair-play-note">排行榜是友善競賽；系統會防止重送並限制異常頻率，但修改版客戶端仍可能使用不同事件編號灌榜，無法宣稱完全防作弊。</p>
         <p id="leaderboardProfileError" class="leaderboard-profile-error hidden" role="alert"></p>
+        <div id="leaderboardProfileSaving" class="leaderboard-profile-saving hidden" role="status" aria-live="polite">
+          <span class="leaderboard-profile-spinner" aria-hidden="true"></span>
+          <strong id="leaderboardProfileSavingMessage">正在建立排行榜資料…</strong>
+          <small>正在安全儲存，請稍候，不要關閉 App。</small>
+        </div>
         <footer>
           <button id="leaderboardProfileCancel" type="button">取消</button>
           <button id="leaderboardProfileSubmit" class="primary-btn" type="submit">儲存公開資料</button>

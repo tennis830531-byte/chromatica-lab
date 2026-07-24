@@ -42,6 +42,9 @@ const reviewAssetHashes = new Map([
   ["public/assets/garden/cards/melody-sprout-art-card.png", "89449a74699c411d55c996490f65ede5d37e853093cfea8490151559655a595d"],
   ["public/assets/garden/cards/mushroom-spirit-art-card.png", "6ce428e2a445c6910ab5bdc0b448be02fb48e8e6cbb8605e55fe95bfb209c331"],
   ["public/assets/garden/cards/flower-spirit-art-card.png", "2a76be32e4e5ec7c5c7f39eb2bee5e5022d1f37d26319d698342833ed67a450c"],
+  ["public/assets/garden/backgrounds/collection-stage-gravel.jpg", "7b10e1d07d0fa99881f114714681a3e8cf13c981e18df9b1b4706055395a7056"],
+  ["public/assets/garden/backgrounds/starter-selection-grass.jpg", "5725dcc61f9b9203b44ddb85588371ad87a62075ebb80fcbcf2df392d1d2573f"],
+  ["public/assets/sounds/精靈採收卡牌音效.wav", "5595e78ebfb781929c8923d257f68f504556912589aef2cc29ee560af5e14f2f"],
   ["public/assets/fonts/cubic-11/Cubic_11.woff2", "d28e92846e00c3696b30d950d4eddf445dd90b2a970e67cdb629796c1997ef67"],
   ["public/assets/fonts/cubic-11/OFL.txt", "bdd640c94530f5845de621089875aefcaec17585dbd4dab191c97118539bf92f"],
   ["public/assets/fonts/cubic-11/SOURCE.md", "d508cdb665c694306b49f38798ba8023166843217d18d29253e052fda28dc3e3"],
@@ -154,7 +157,7 @@ for (const trackedPath of trackedSourceFiles) {
   }
 }
 for (const reviewedPath of reviewAssetHashes.keys()) {
-  if (reviewedPath.startsWith("public/assets/fonts/")) requiredAssets.add(reviewedPath.split("/").join(path.sep));
+  requiredAssets.add(reviewedPath.split("/").join(path.sep));
 }
 
 for (const assetPath of [...requiredAssets].sort()) {

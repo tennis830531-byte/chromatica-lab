@@ -3756,7 +3756,7 @@ input[type="range"] {
 .leaderboard-profile-backdrop { position: fixed; inset: 0; z-index: 1010; display: grid; place-items: end center; padding: 16px 12px max(16px, env(safe-area-inset-bottom)); background: rgba(36, 25, 17, .46); }
 .leaderboard-profile-backdrop.is-keyboard-editing { place-items: start center; }
 .leaderboard-profile-backdrop.hidden { display: none; }
-.leaderboard-profile-modal { width: min(calc(100vw - 24px), 500px); max-height: 86dvh; overflow-y: auto; padding: 18px; border-radius: 26px; }
+.leaderboard-profile-modal { position: relative; width: min(calc(100vw - 24px), 500px); max-height: 86dvh; overflow-y: auto; padding: 18px; border-radius: 26px; }
 .leaderboard-profile-modal header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .leaderboard-profile-modal h2 { margin: 2px 0 0; font-size: 21px; }
 .leaderboard-profile-avatar-editor { display: grid; grid-template-columns: 82px minmax(0, 1fr); align-items: center; gap: 14px; margin: 18px 0; }
@@ -3769,6 +3769,15 @@ input[type="range"] {
 .leaderboard-name-field { display: grid; gap: 7px; color: #765746; font: 800 13px/1.3 var(--font-sans); }
 .leaderboard-name-field input { width: 100%; min-height: 46px; padding: 9px 12px; border: 1px solid #d2af78; border-radius: 13px; background: #fff; color: #4f3020; font: 800 15px/1 var(--font-sans); }
 .leaderboard-profile-error { margin: 10px 0 0; color: #9a3f32; font: 800 13px/1.4 var(--font-sans); }
+.leaderboard-profile-saving { position: absolute; inset: 0; z-index: 4; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 24px; border-radius: inherit; background: rgba(255, 250, 242, .94); color: #6a4026; text-align: center; }
+.leaderboard-profile-saving.hidden { display: none; }
+.leaderboard-profile-saving strong { font: 900 18px/1.35 var(--font-sans); }
+.leaderboard-profile-saving small { color: var(--text-muted); font: 700 12px/1.5 var(--font-sans); }
+.leaderboard-profile-spinner { width: 34px; height: 34px; border: 4px solid rgba(135, 81, 38, .2); border-top-color: #875126; border-radius: 50%; animation: leaderboard-profile-spin .8s linear infinite; }
+@keyframes leaderboard-profile-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .leaderboard-profile-spinner { animation: none; border-color: #d2af78; border-top-color: #875126; }
+}
 .leaderboard-profile-modal footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
 .leaderboard-profile-modal footer button { min-width: 0; min-height: 46px; border: 1px solid #d2af78; border-radius: 14px; background: #fffaf2; color: #6a4026; font: 900 14px/1.2 var(--font-sans); }
 .leaderboard-profile-modal footer .primary-btn { background: #875126; color: white; }
@@ -5722,9 +5731,12 @@ body.simple-motion .plant-action-layer.is-stage-up {
   padding: 14px 12px 16px;
   border: 1px solid rgba(218, 196, 174, 0.95);
   border-radius: 24px;
-  background:
-    radial-gradient(circle at 50% 20%, rgba(244, 218, 158, 0.18), transparent 44%),
-    linear-gradient(180deg, rgba(255, 253, 249, 0.96), rgba(250, 244, 235, 0.94));
+  background-image:
+    linear-gradient(rgba(255, 253, 249, 0.50), rgba(255, 253, 249, 0.50)),
+    url("public/assets/garden/backgrounds/starter-selection-grass.jpg");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
   color: var(--text-strong);
   text-align: center;
   box-shadow: 0 10px 24px rgba(76, 50, 28, 0.08);
@@ -5738,9 +5750,9 @@ body.simple-motion .plant-action-layer.is-stage-up {
 
 .starter-plant-card.selected {
   border-color: rgba(197, 139, 45, 0.95);
-  background:
-    radial-gradient(circle at 50% 20%, rgba(246, 214, 139, 0.34), transparent 48%),
-    linear-gradient(180deg, #fffaf0, #f8ecd6);
+  background-image:
+    linear-gradient(rgba(255, 253, 249, 0.50), rgba(255, 253, 249, 0.50)),
+    url("public/assets/garden/backgrounds/starter-selection-grass.jpg");
   box-shadow: 0 16px 34px rgba(124, 83, 34, 0.18);
 }
 
@@ -6074,9 +6086,12 @@ body.simple-motion .plant-action-layer.is-stage-up {
   padding: 12px 18px;
   border: 1px solid rgba(231, 216, 200, 0.84);
   border-radius: 22px;
-  background:
-    radial-gradient(circle at 50% 78%, rgba(143, 163, 107, 0.13), transparent 38%),
-    rgba(255, 253, 249, 0.74);
+  background-image:
+    linear-gradient(rgba(255, 253, 249, 0.50), rgba(255, 253, 249, 0.50)),
+    url("public/assets/garden/backgrounds/collection-stage-gravel.jpg");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
   color: var(--text-body);
   font-weight: 900;
   overflow: visible;
@@ -6094,7 +6109,9 @@ body.simple-motion .plant-action-layer.is-stage-up {
 
 .garden-spirit-stage-card.active {
   border-color: var(--accent);
-  background: var(--accent-soft);
+  background-image:
+    linear-gradient(rgba(255, 253, 249, 0.50), rgba(255, 253, 249, 0.50)),
+    url("public/assets/garden/backgrounds/collection-stage-gravel.jpg");
 }
 
 .garden-spirit-stage-card img {
@@ -6515,7 +6532,7 @@ body.simple-motion .plant-action-layer.is-stage-up {
 .practice-settlement-item-copy strong { color: #553520; font: 900 14px/1.35 var(--font-sans); }
 .practice-settlement-item-copy small { margin-top: 2px; color: #8c715e; font: 700 11px/1.4 var(--font-sans); }
 .practice-settlement-item-value { color: #8b5525; font: 900 17px/1 var(--font-number); white-space: nowrap; }
-.practice-settlement-leaderboard { display: grid; align-content: center; }
+.practice-settlement-leaderboard { display: grid; align-content: start; }
 .practice-settlement-rank-badge {
   display: grid;
   place-items: center;
@@ -6532,6 +6549,14 @@ body.simple-motion .plant-action-layer.is-stage-up {
 .practice-settlement-leaderboard[data-rank-direction="up"] .practice-settlement-rank-badge { animation: practiceSettlementRankUp 520ms cubic-bezier(.2,.88,.3,1.2) both; }
 .practice-settlement-leaderboard > strong { display: block; color: #553520; font: 900 18px/1.4 var(--font-sans); }
 .practice-settlement-leaderboard > p:last-child { margin: 7px 0 0; color: #866a55; font: 700 12px/1.5 var(--font-sans); }
+.practice-settlement-leaderboard-list { display: grid; gap: 6px; max-height: min(300px, 42dvh); margin: 14px 0 4px; padding: 2px; overflow-y: auto; overscroll-behavior: contain; list-style: none; text-align: left; }
+.practice-settlement-leaderboard-list.hidden { display: none; }
+.practice-settlement-rank-row { display: grid; grid-template-columns: 30px 38px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 48px; padding: 5px 9px; border: 1px solid rgba(201, 160, 98, .42); border-radius: 14px; background: rgba(255, 251, 241, .84); color: #63422d; box-shadow: 0 4px 10px rgba(91, 58, 31, .06); }
+.practice-settlement-rank-row.is-me { border-color: #b67832; background: #fff0c9; box-shadow: 0 0 0 2px rgba(229, 173, 61, .2); }
+.practice-settlement-rank-position { text-align: center; font: 900 15px/1 var(--font-number); }
+.practice-settlement-rank-avatar { width: 38px; height: 38px; border: 1px solid #d2af78; border-radius: 50%; background: #fffaf2; object-fit: cover; }
+.practice-settlement-rank-name { min-width: 0; overflow: hidden; color: #553520; font: 900 13px/1.25 var(--font-sans); text-overflow: ellipsis; white-space: nowrap; }
+.practice-settlement-rank-score { color: #825326; font: 900 12px/1.2 var(--font-number); white-space: nowrap; }
 .practice-settlement-actions { display: grid; justify-items: center; gap: 6px; padding: 12px 20px max(16px, env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(199, 157, 94, .34); text-align: center; }
 .practice-settlement-actions button { min-width: 132px; min-height: 42px; }
 .practice-settlement-countdown { min-height: 18px; margin: 0; color: #8c715e; font: 900 13px/1.4 var(--font-number); }

@@ -474,9 +474,11 @@ const soundMap = {
   evolveStart: "進化開始音效.mp3",
   evolveComplete: "進化完成音效.mp3",
   harvest: "收成採收音效.mp3",
+  harvestCardIntro: "精靈採收卡牌音效.wav",
   gardenBgm: "花園音樂BGM.wav",
 };
 const STARTER_CONFIRM_ANIMATION_MS = 9560;
+const HARVEST_CARD_SOUND_TIMEOUT_MS = 5500;
 
 const exercises = [
   {
@@ -1130,6 +1132,42 @@ function playSound(soundId) {
   } catch (error) {
     console.warn(`Unable to create sound: ${soundId}`, error);
   }
+}
+
+function playSoundToCompletion(soundId, timeoutMs = 0) {
+  const fileName = soundMap[soundId];
+  if (!fileName || !isSoundAllowed(soundId)) return Promise.resolve();
+  return new Promise((resolve) => {
+    let audio = null;
+    let timeoutId = null;
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (timeoutId) window.clearTimeout(timeoutId);
+      audio?.removeEventListener("ended", finish);
+      audio?.removeEventListener("error", handleError);
+      resolve();
+    };
+    const handleError = () => finish();
+    try {
+      audio = new Audio(getSoundAssetPath(fileName));
+      audio.volume = getSoundVolume(soundId);
+      audio.addEventListener("ended", finish, { once: true });
+      audio.addEventListener("error", handleError, { once: true });
+      if (timeoutMs > 0) timeoutId = window.setTimeout(finish, timeoutMs);
+      const playPromise = audio.play();
+      if (playPromise?.catch) {
+        playPromise.catch((error) => {
+          console.warn(`Unable to play sound: ${soundId}`, error);
+          finish();
+        });
+      }
+    } catch (error) {
+      console.warn(`Unable to create sound: ${soundId}`, error);
+      finish();
+    }
+  });
 }
 
 function getGardenBgmAudio() {
@@ -2701,13 +2739,14 @@ async function presentHarvestCard(spirit, {
   overlay.className = "harvest-card-overlay";
   overlay.dataset.cardState = "spinning-back";
   overlay.innerHTML = `<div class="harvest-card-dialog" role="dialog" aria-modal="true" aria-label="獲得新的植物精靈卡牌">
-    <button class="harvest-card-button" data-haptic="manual" type="button" aria-label="點一下揭曉卡牌">
+    <button class="harvest-card-button" data-haptic="manual" type="button" aria-label="卡牌正在甦醒" aria-disabled="true" disabled>
       <span class="harvest-card-reveal-glow" aria-hidden="true"></span>
       <span class="harvest-card-inner"><span class="harvest-card-back" aria-hidden="true"></span><img class="harvest-card-front" alt="" /></span>
-    </button><p>點一下揭曉卡牌</p>
+    </button><p>卡牌正在甦醒…</p>
   </div>`;
   document.body.append(overlay);
   document.body.classList.add("modal-open");
+  const introSoundDone = playSoundToCompletion("harvestCardIntro", HARVEST_CARD_SOUND_TIMEOUT_MS);
   overlay.addEventListener("keydown", (event) => {
     if (event.key === "Tab") {
       event.preventDefault();
@@ -2716,6 +2755,7 @@ async function presentHarvestCard(spirit, {
   });
   const button = overlay.querySelector(".harvest-card-button");
   const front = overlay.querySelector(".harvest-card-front");
+  const status = overlay.querySelector("p");
   front.src = window.ChromaticaGardenShared?.getGardenCardAsset?.(spirit.species) || "";
   try {
     await waitForHarvestCardImage(front);
@@ -2724,6 +2764,12 @@ async function presentHarvestCard(spirit, {
     front.alt = "卡牌圖片暫時無法載入";
     front.classList.add("is-fallback");
   }
+  await introSoundDone;
+  let revealReady = true;
+  button.disabled = false;
+  button.removeAttribute("aria-disabled");
+  button.setAttribute("aria-label", "點一下揭曉卡牌");
+  status.textContent = "點一下揭曉卡牌";
   button.focus();
   let revealed = false;
   const finish = async () => {
@@ -2757,8 +2803,9 @@ async function presentHarvestCard(spirit, {
     finalTarget?.querySelector("button")?.focus();
   };
   button.addEventListener("click", () => {
-    if (revealed) return;
+    if (!revealReady || revealed) return;
     revealed = true;
+    revealReady = false;
     void window.ChromaticaHaptics?.reveal?.();
     button.setAttribute("aria-disabled", "true");
     overlay.dataset.cardState = "revealing";
@@ -3179,10 +3226,13 @@ function renderPracticeSettlementLeaderboard(result = {}) {
   const badge = $("#practiceSettlementRankBadge");
   const text = $("#practiceSettlementRankText");
   const detail = $("#practiceSettlementRankDetail");
-  if (!panel || !badge || !text || !detail) return;
+  const list = $("#practiceSettlementLeaderboardList");
+  if (!panel || !badge || !text || !detail || !list) return;
   panel.dataset.rankDirection = "none";
   badge.textContent = "—";
   detail.textContent = "";
+  list.replaceChildren();
+  list.classList.add("hidden");
   const currentRank = Math.max(0, Math.floor(Number(result.currentRank) || 0));
   const previousRank = Math.max(0, Math.floor(Number(result.previousRank) || 0));
   if (result.status !== "ranked" || currentRank <= 0) {
@@ -3206,6 +3256,61 @@ function renderPracticeSettlementLeaderboard(result = {}) {
   }
   const weeklyCycles = Math.max(0, Math.floor(Number(result.weeklyCycles) || 0));
   detail.textContent = weeklyCycles > 0 ? `本週累積 ${weeklyCycles} 次循環` : "本週排行已更新";
+  const nearbyRows = (Array.isArray(result.nearbyRows) ? result.nearbyRows : [])
+    .filter((row) => {
+      const position = Math.max(0, Math.floor(Number(row?.position) || 0));
+      return position > 0 && Math.abs(position - currentRank) <= 5;
+    })
+    .sort((left, right) => Number(left.position) - Number(right.position));
+  nearbyRows.forEach((row) => {
+    const item = document.createElement("li");
+    item.className = `practice-settlement-rank-row${row.isCurrentUser ? " is-me" : ""}`;
+    item.dataset.position = String(row.position);
+    const rank = document.createElement("strong");
+    rank.className = "practice-settlement-rank-position";
+    rank.textContent = String(row.position);
+    rank.setAttribute("aria-label", `第 ${row.position} 名`);
+    const avatar = document.createElement("img");
+    avatar.className = "practice-settlement-rank-avatar";
+    avatar.alt = "";
+    avatar.src = String(row.avatarUrl || "./public/assets/chromatic-refresh/brand/chl_brand_badge.png");
+    const name = document.createElement("strong");
+    name.className = "practice-settlement-rank-name";
+    name.textContent = row.isCurrentUser ? `${String(row.displayName || "練習者")}（你）` : String(row.displayName || "練習者");
+    const score = document.createElement("strong");
+    score.className = "practice-settlement-rank-score";
+    score.textContent = `本週 ${Math.max(0, Math.floor(Number(row.score) || 0))} 次`;
+    item.append(rank, avatar, name, score);
+    list.append(item);
+  });
+  if (!nearbyRows.length) return;
+  list.classList.remove("hidden");
+  const selfRow = list.querySelector(".practice-settlement-rank-row.is-me");
+  selfRow?.scrollIntoView?.({ block: "center", inline: "nearest" });
+  if (currentRank >= previousRank || previousRank <= 0 || !selfRow) return;
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+  if (reducedMotion || typeof selfRow.animate !== "function") {
+    selfRow.classList.add("rank-movement-highlight");
+    return;
+  }
+  requestAnimationFrame(() => {
+    const rowStep = Math.max(48, selfRow.getBoundingClientRect().height + 6);
+    const visibleDistance = Math.min(5, previousRank - currentRank);
+    Array.from(list.querySelectorAll(".practice-settlement-rank-row:not(.is-me)")).forEach((row) => {
+      const position = Number(row.dataset.position);
+      if (position > currentRank && position <= previousRank && typeof row.animate === "function") {
+        row.animate([
+          { transform: `translateY(${-rowStep}px)` },
+          { transform: "translateY(0)" },
+        ], { duration: 760, easing: "cubic-bezier(.2,.82,.3,1)", fill: "both" });
+      }
+    });
+    selfRow.animate([
+      { transform: `translateY(${rowStep * visibleDistance}px)`, opacity: .72 },
+      { transform: "translateY(-4px)", opacity: 1, offset: .86 },
+      { transform: "translateY(0)", opacity: 1 },
+    ], { duration: 860, easing: "cubic-bezier(.2,.88,.3,1.12)", fill: "both" });
+  });
 }
 
 async function resolvePracticeSettlementLeaderboard(session, resultPromise) {
