@@ -20,7 +20,7 @@ test("Cubic 11 v1.500 is local, licensed, hashed, and scoped to home and garden 
   const licensePath = path.join(root, "public/assets/fonts/cubic-11/OFL.txt");
   const source = read("public/assets/fonts/cubic-11/SOURCE.md");
   assert.equal(crypto.createHash("sha256").update(fs.readFileSync(fontPath)).digest("hex"), "d28e92846e00c3696b30d950d4eddf445dd90b2a970e67cdb629796c1997ef67");
-  assert.equal(crypto.createHash("sha256").update(fs.readFileSync(licensePath)).digest("hex"), "2b6e5938e5cffa0b9e183bd05f8c363e174e7ebed1a0556e2855fd1707fa2188");
+  assert.equal(crypto.createHash("sha256").update(fs.readFileSync(licensePath)).digest("hex"), "bdd640c94530f5845de621089875aefcaec17585dbd4dab191c97118539bf92f");
   assert.match(source, /Version: 1\.500/);
   assert.match(source, /SIL Open Font License 1\.1/);
   assert.match(css, /@font-face \{[^}]*font-family: "Cubic 11";[^}]*Cubic_11\.woff2/s);
