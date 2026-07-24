@@ -13,7 +13,7 @@
 <body>
   <ol class="leaderboard-list">
     <li class="leaderboard-row is-podium is-gold">
-      <span class="leaderboard-rank">1</span>
+      <span class="leaderboard-rank" aria-label="第 1 名"><img class="leaderboard-podium-icon" src="../../public/assets/leaderboard/podium-flag-gold-1.png" alt="" /></span>
       <img class="leaderboard-avatar" alt="" />
       <strong class="leaderboard-name">這是一個二十字元長度的排行榜測試名字</strong>
       <span class="leaderboard-spirit"><img alt="" /><span>旋律森使</span></span>
@@ -40,6 +40,7 @@
         const spirit = spiritNode.getBoundingClientRect();
         const box = row.getBoundingClientRect();
         const style = getComputedStyle(row);
+        const scoreStyle = getComputedStyle(row.querySelector(".leaderboard-score"));
         return {
           box: { left: box.left, right: box.right, width: box.width },
           columnGap: style.columnGap,
@@ -47,8 +48,11 @@
           avatarNameGap: name.left - avatar.right,
           nameSpiritAligned: Math.abs(name.left - spirit.left) < .5,
           scoreRightInset: box.right - score.right,
+          scoreBelowContent: score.top > Math.max(rank.bottom, avatar.bottom, name.bottom, spirit.bottom),
+          scoreRuleWidth: score.width,
+          scoreBorderTop: scoreStyle.borderTopStyle,
           nameEllipsis: getComputedStyle(nameNode).textOverflow,
-          nameOverflowContained: name.right <= score.left || name.bottom <= score.top,
+          nameOverflowContained: name.right <= box.right,
         };
       });
       return {

@@ -29,7 +29,7 @@ function fakeNode(id = "") {
       contains(name) { return classes.has(name); },
     },
     setAttribute(name, value) { this[name] = String(value); },
-    addEventListener() {}, focus() {}, append(...items) { this.children.push(...items); },
+    addEventListener() {}, removeEventListener() {}, focus() {}, append(...items) { this.children.push(...items); },
     replaceChildren(...items) { this.children = [...items]; },
     getBoundingClientRect() { return { x: 0, y: 0, width: 320, height: 64 }; },
     animate() { return { finished: Promise.resolve() }; },

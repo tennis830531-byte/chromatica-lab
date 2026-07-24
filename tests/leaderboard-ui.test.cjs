@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const sharp = require("sharp");
 
 const root = path.join(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
@@ -19,9 +20,36 @@ const avatarFunction = fs.readFileSync(path.join(root, "supabase/functions/uploa
 
 test("global leaderboard exposes only the weekly 乖乖練習王", () => {
   assert.match(html, /乖乖練習王/);
+  assert.match(html, /role="tablist"[^>]*aria-label="排行榜類別"/);
+  assert.match(html, /data-leaderboard-metric="weekly"[^>]*role="tab"[^>]*aria-selected="true"/);
+  assert.match(runtime, /renderMetricTabs/);
   assert.doesNotMatch(html, /data-leaderboard-metric="streak"|連續學習王|自 refresh-170 起累積|歷史總循環/);
   assert.match(runtime, /本週 \$\{row\.score\} 次/);
   assert.doesNotMatch(runtime, /連續學習 \$\{row\.score\} 天/);
+});
+
+test("home leaderboard title is shown only for the current weekly top ten", () => {
+  assert.match(html, /id="homeLeaderboardTitle" class="home-leaderboard-title hidden" aria-live="polite"/);
+  assert.match(runtime, /TOP_TEN_RANK_LABELS/);
+  assert.match(runtime, /rank >= 1 && rank <= 10/);
+  assert.match(runtime, /`乖乖練習王 第\$\{TOP_TEN_RANK_LABELS\[rank\]\}名`/);
+  assert.match(runtime, /element\.classList\.toggle\("hidden", !isTopTen\)/);
+  assert.match(runtime, /updateWeeklySummary[\s\S]*renderHomeLeaderboardTitle\(\)/);
+  assert.match(runtime, /loadLeaderboard\("weekly", \{ force: true, showCache: false \}\)/);
+});
+
+test("discussion quick-entry artwork is reviewed and transparent", async () => {
+  const file = "public/assets/chromatic-refresh/feature/discussion-forum-icon.png";
+  assert.match(html, /data-discussion-open[\s\S]*discussion-forum-icon\.png/);
+  assert.match(app, /data-discussion-open[\s\S]*尚未開放/);
+  assert.match(build, /public\/assets\/chromatic-refresh\/feature\/discussion-forum-icon\.png/);
+  assert.match(sw, /public\/assets\/chromatic-refresh\/feature\/discussion-forum-icon\.png/);
+  const { data, info } = await sharp(path.join(root, file)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  assert.equal(info.width, 256);
+  assert.equal(info.height, 256);
+  for (const [x, y] of [[0, 0], [info.width - 1, 0], [0, info.height - 1], [info.width - 1, info.height - 1]]) {
+    assert.equal(data[(y * info.width + x) * 4 + 3], 0);
+  }
 });
 
 test("joined zero-cycle members render as formal ranked rows without a duplicate summary", () => {
@@ -63,6 +91,24 @@ test("podium rules and empty state remain explicit", () => {
   }
   assert.match(runtime, /目前還沒有排行成績/);
   assert.match(css, /@media \(max-width: 430px\)[\s\S]*leaderboard-row/);
+  assert.match(runtime, /podium-flag-gold-1\.png/);
+  assert.match(runtime, /podium-flag-silver-2\.png/);
+  assert.match(runtime, /podium-flag-bronze-3\.png/);
+  assert.match(runtime, /leaderboard-podium-icon/);
+});
+
+test("podium flag assets are RGBA images with transparent corners", async () => {
+  for (const file of [
+    "public/assets/leaderboard/podium-flag-gold-1.png",
+    "public/assets/leaderboard/podium-flag-silver-2.png",
+    "public/assets/leaderboard/podium-flag-bronze-3.png",
+  ]) {
+    const { data, info } = await sharp(path.join(root, file)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    assert.equal(info.channels, 4);
+    for (const [x, y] of [[0, 0], [info.width - 1, 0], [0, info.height - 1], [info.width - 1, info.height - 1]]) {
+      assert.equal(data[(y * info.width + x) * 4 + 3], 0, `${file} corner must be transparent`);
+    }
+  }
 });
 
 test("leaderboard public identity never uses Google name avatar or provider metadata", () => {

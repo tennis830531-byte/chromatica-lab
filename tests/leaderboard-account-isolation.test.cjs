@@ -64,6 +64,7 @@ function fakeNode(id = "") {
     removeAttribute(name) { delete this[name]; },
     addEventListener() {},
     focus() {},
+    scrollIntoView() {},
     append(...items) { this.children.push(...items); },
     replaceChildren(...items) { this.children = [...items]; },
     getBoundingClientRect() { return { x: 0, y: 0, width: 320, height: 64 }; },
@@ -95,9 +96,9 @@ function membershipRow(userId, joined = true) {
     : { joined: false };
 }
 
-function weeklyRow(userId, score) {
+function weeklyRow(userId, score, position = 1) {
   return {
-    position: 1,
+    position,
     public_key: `public-${userId}`,
     display_name: `公開-${userId}`,
     custom_avatar_path: "",
@@ -114,6 +115,7 @@ function createHarness({
   initialUserId = "account-a",
   memberships = {},
   weeklyTotals = {},
+  weeklyRanks = {},
   weeklyMissingUsers = [],
   membershipDeferred = {},
   weeklyDeferred = {},
@@ -162,7 +164,7 @@ function createHarness({
         if (weeklyMissingUsers.includes(expectedUserId) && !(Number(totals[expectedUserId]) > 0)) {
           return { data: [], error: null };
         }
-        return { data: [weeklyRow(expectedUserId, totals[expectedUserId] || 0)], error: null };
+        return { data: [weeklyRow(expectedUserId, totals[expectedUserId] || 0, weeklyRanks[expectedUserId] || 1)], error: null };
       }
       if (name === "record_weekly_leaderboard_practice") {
         if (recordDeferred[expectedUserId]) return recordDeferred[expectedUserId].promise;
@@ -198,6 +200,7 @@ function createHarness({
     clearInterval() {},
     requestAnimationFrame(fn) { fn(); return 1; },
     addEventListener() {},
+    removeEventListener() {},
     matchMedia() { return { matches: true }; },
     chromaticaAuth: auth,
   };
@@ -351,6 +354,47 @@ test("joined membership receives a formal highlighted zero-cycle row without any
   assert.equal(harness.nodes.get("#leaderboardProfileModal").classList.contains("hidden"), true);
   assert.equal(harness.calls.some((call) => call.name === "record_weekly_leaderboard_practice"), false);
   assert.equal(harness.localStorage.getItem("chromatica.leaderboard.weekly.pending.v2.account-a"), null);
+});
+
+test("home title follows the signed-in weekly top-ten rank and clears outside the top ten", async () => {
+  const harness = createHarness({
+    memberships: {
+      "account-a": membershipRow("account-a", true),
+      "account-b": membershipRow("account-b", true),
+    },
+    weeklyTotals: { "account-a": 88, "account-b": 0 },
+    weeklyRanks: { "account-a": 3, "account-b": 11 },
+  });
+  await settle();
+  const title = harness.nodes.get("#homeLeaderboardTitle");
+  assert.equal(title.textContent, "乖乖練習王 第三名");
+  assert.equal(title.classList.contains("hidden"), false);
+
+  harness.setUser("account-b");
+  assert.equal(title.classList.contains("hidden"), true);
+  await settle();
+  assert.equal(title.textContent, "");
+  assert.equal(title.classList.contains("hidden"), true);
+});
+
+test("cold startup does not reuse a fresh cached top-ten title across a weekly refresh", async () => {
+  const sessionStorage = createStorage({
+    "chromatica.leaderboard.weekly.cache.v2.account-a.weekly": JSON.stringify({
+      savedAt: Date.now(),
+      rows: [weeklyRow("account-a", 88, 2)],
+    }),
+  });
+  const harness = createHarness({
+    memberships: { "account-a": membershipRow("account-a", true) },
+    weeklyTotals: { "account-a": 0 },
+    weeklyRanks: { "account-a": 11 },
+    sessionStorage,
+  });
+  await settle();
+  const title = harness.nodes.get("#homeLeaderboardTitle");
+  assert.equal(title.textContent, "");
+  assert.equal(title.classList.contains("hidden"), true);
+  assert.equal(harness.api.getMembership().weeklyRank, 11);
 });
 
 test("a joined member omitted by an outdated RPC stays joined and shows service-updating safely", async () => {

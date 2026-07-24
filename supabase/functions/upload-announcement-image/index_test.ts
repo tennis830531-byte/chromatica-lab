@@ -1,5 +1,5 @@
 import { assertEquals, assertGreater, assertLessOrEqual, assertThrows } from "jsr:@std/assert@1";
-import { handler, processAnnouncementImage } from "./index.ts";
+import { corsHeaders, handler, normalizeExistingImages, parseImageOrder, processAnnouncementImage } from "./index.ts";
 
 const VALID_PNG = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="), (value) => value.charCodeAt(0));
 
@@ -34,4 +34,33 @@ Deno.test("unlisted announcement origin is rejected before auth and has no CORS 
   }));
   assertEquals(response.status, 403);
   assertEquals(response.headers.get("Access-Control-Allow-Origin"), null);
+});
+
+Deno.test("announcement CORS declares the authenticated DELETE operation", () => {
+  const headers = corsHeaders("https://tennis830531-byte.github.io");
+  assertEquals(headers["Access-Control-Allow-Origin"], "https://tennis830531-byte.github.io");
+  assertEquals(headers["Access-Control-Allow-Methods"], "POST, DELETE, OPTIONS");
+});
+
+Deno.test("legacy announcement cover becomes a compatible first gallery item", () => {
+  assertEquals(normalizeExistingImages({ image_path: "announcement-a.webp", image_version: 4 }, []), [{
+    image_path: "announcement-a.webp",
+    image_version: 4,
+    sort_order: 0,
+  }]);
+});
+
+Deno.test("explicit mixed image order is stable and duplicate paths are rejected", () => {
+  const existing = [{ image_path: "announcement-a.webp", image_version: 4, sort_order: 0 }];
+  assertEquals(parseImageOrder(JSON.stringify([
+    { kind: "new", index: 0 },
+    { kind: "existing", path: "announcement-a.webp" },
+  ]), existing, 1), [
+    { kind: "new", index: 0 },
+    { kind: "existing", path: "announcement-a.webp" },
+  ]);
+  assertThrows(() => parseImageOrder(JSON.stringify([
+    { kind: "existing", path: "announcement-a.webp" },
+    { kind: "existing", path: "announcement-a.webp" },
+  ]), existing, 0));
 });

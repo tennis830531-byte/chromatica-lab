@@ -1291,8 +1291,13 @@ const LEADERBOARD_RPC_ALLOWLIST = new Set([
   "get_leaderboard_push_preferences",
   "set_leaderboard_push_preferences",
   "get_published_announcements",
+  "get_published_announcements_v2",
   "get_announcement_admin_status",
   "get_admin_announcements",
+  "get_admin_announcement_images",
+  "get_announcement_comments",
+  "create_announcement_comment",
+  "delete_announcement_comment",
   "save_announcement",
   "set_announcement_published",
 ]);
@@ -1369,13 +1374,13 @@ window.chromaticaAuth = {
     if (error) throw error;
     return true;
   },
-  async invokeFunction(name, body) {
+  async invokeFunction(name, body, options = {}) {
     if (!supabaseClient) return { data: null, error: new Error("auth-unavailable") };
     const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
     if (sessionError || !sessionData.session?.user) {
       return { data: null, error: sessionError || new Error("auth-required") };
     }
-    return supabaseClient.functions.invoke(name, { body });
+    return supabaseClient.functions.invoke(name, { body, ...options });
   },
   isNativeAndroid,
   pushNotifications: {

@@ -55,8 +55,14 @@ function fakeElement(...classes) {
     },
     click() { this.dispatch("click"); },
     focus() { this.focusCount += 1; },
-    append(...children) { this.children.push(...children); },
-    replaceChildren(...children) { this.children = children; },
+    append(...children) {
+      this.children.push(...children);
+      this.textContent += children.map((child) => child?.textContent || "").join("");
+    },
+    replaceChildren(...children) {
+      this.children = children;
+      this.textContent = children.map((child) => child?.textContent || "").join("");
+    },
     removeAttribute(name) { delete this[name]; },
     setAttribute(name, value) { this[name] = String(value); },
   };
@@ -93,8 +99,14 @@ function createHarness({
     ["announcementFullTopic", fakeElement()],
     ["announcementFullTitle", fakeElement()],
     ["announcementFullTime", fakeElement()],
-    ["announcementFullImage", fakeElement("hidden")],
+    ["announcementFullImages", fakeElement()],
     ["announcementFullBody", fakeElement()],
+    ["announcementCommentsStatus", fakeElement()],
+    ["announcementCommentsList", fakeElement()],
+    ["announcementCommentForm", fakeElement()],
+    ["announcementCommentBody", fakeElement()],
+    ["announcementCommentHint", fakeElement()],
+    ["announcementCommentSubmit", fakeElement()],
     ["announcementListModal", fakeElement("announcement-backdrop", "hidden")],
     ["announcementListTitle", fakeElement()],
     ["announcementList", fakeElement()],
@@ -146,6 +158,7 @@ function createHarness({
       return [];
     },
     createElement() { return fakeElement(); },
+    createTextNode(text) { return { textContent: String(text) }; },
     addEventListener() {},
   };
   const storage = new Map();
@@ -162,6 +175,7 @@ function createHarness({
     Intl,
     Date,
     FormData: class FormData {},
+    URL,
     chromaticaStartupState: { workspaceStatus: workspaceReady ? "ready" : "pending" },
     chromaticaStartupSplashFinished: splashFinished,
     Capacitor: {
@@ -314,7 +328,7 @@ test("15 Settings About announcements remains manually repeatable", async () => 
 });
 
 test("16 old announcement list remains sorted and supplied by the existing RPC", () => {
-  assert.match(source, /leaderboardRpc\?\.\("get_published_announcements"\)/);
+  assert.match(source, /leaderboardRpc\?\.\("get_published_announcements_v2"\)/);
   assert.match(source, /async function showList\(\)[\s\S]*fetchPublished\(\{ force: true \}\)/);
 });
 

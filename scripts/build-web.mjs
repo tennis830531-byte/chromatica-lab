@@ -42,6 +42,13 @@ const reviewAssetHashes = new Map([
   ["public/assets/garden/cards/melody-sprout-art-card.png", "89449a74699c411d55c996490f65ede5d37e853093cfea8490151559655a595d"],
   ["public/assets/garden/cards/mushroom-spirit-art-card.png", "6ce428e2a445c6910ab5bdc0b448be02fb48e8e6cbb8605e55fe95bfb209c331"],
   ["public/assets/garden/cards/flower-spirit-art-card.png", "2a76be32e4e5ec7c5c7f39eb2bee5e5022d1f37d26319d698342833ed67a450c"],
+  ["public/assets/fonts/cubic-11/Cubic_11.woff2", "d28e92846e00c3696b30d950d4eddf445dd90b2a970e67cdb629796c1997ef67"],
+  ["public/assets/fonts/cubic-11/OFL.txt", "2b6e5938e5cffa0b9e183bd05f8c363e174e7ebed1a0556e2855fd1707fa2188"],
+  ["public/assets/fonts/cubic-11/SOURCE.md", "a026741369c3f79625b2aabb648ed3dd60457470e6ed87afe005a29437c51bc1"],
+  ["public/assets/leaderboard/podium-flag-gold-1.png", "c68f5a548d1039250c116cc91d9753a2e958b01eab4f8039495ac40a42547176"],
+  ["public/assets/leaderboard/podium-flag-silver-2.png", "49bb1ccc6db4f7d0956808021dc73653ffc814f0a21888d3b5504c7a34c8a50b"],
+  ["public/assets/leaderboard/podium-flag-bronze-3.png", "cb5631b9aa93f860b06a3bbbcc0dcf6c641c679240cfba3da71aef8b6a30fb16"],
+  ["public/assets/chromatic-refresh/feature/discussion-forum-icon.png", "7ab08b74038065a96cc33e86c1fc24a58672e82537b6e43d0b41efc3dda2c4d7"],
 ]);
 
 function normalizeRelativePath(relativePath) {
@@ -145,6 +152,9 @@ for (const trackedPath of trackedSourceFiles) {
   if (trackedPath.startsWith("public/assets/sounds/") || trackedPath.startsWith("public/assets/fonts/")) {
     requiredAssets.add(trackedPath.split("/").join(path.sep));
   }
+}
+for (const reviewedPath of reviewAssetHashes.keys()) {
+  if (reviewedPath.startsWith("public/assets/fonts/")) requiredAssets.add(reviewedPath.split("/").join(path.sep));
 }
 
 for (const assetPath of [...requiredAssets].sort()) {

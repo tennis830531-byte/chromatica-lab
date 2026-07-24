@@ -103,7 +103,7 @@ test("leaderboard is read-only and public profile actions live in member setting
 
 test("home and modal use neutral leaderboard labels while onboarding starts from the leaderboard", () => {
   assert.match(html, /data-leaderboard-open[^>]*aria-label="開啟排行榜"[\s\S]*?<strong>排行榜<\/strong><em>查看本週名次<\/em>/);
-  assert.match(html, /id="leaderboardModalTitle">排行榜<\/h2>[\s\S]*class="leaderboard-board-title">乖乖練習王<\/h3>/);
+  assert.match(html, /id="leaderboardModalTitle">排行榜<\/h2>[\s\S]*role="tablist"[^>]*aria-label="排行榜類別"[\s\S]*data-leaderboard-metric="weekly"[^>]*role="tab"[^>]*aria-selected="true"[^>]*>乖乖練習王<\/button>/);
   assert.match(leaderboard, /membershipStatus === MEMBERSHIP\.NOT_JOINED[\s\S]*openProfileEditor\(\{ onboarding: true \}\)/);
   assert.match(leaderboard, /前往排行榜完成首次設定/);
 });
@@ -117,7 +117,7 @@ test("weekly backend absence offline and auth failures have distinct safe messag
 
 test("weekly leaderboard copy removes streak ranking and historic total explanations", () => {
   assert.match(html, /乖乖練習王/);
-  assert.match(html, /乖乖練習王<\/h3>[\s\S]*來看看練習循環次數最多的高手！/);
+  assert.match(html, /乖乖練習王<\/button>[\s\S]*來看看練習循環次數最多的高手！/);
   const modal = html.match(/id="leaderboardModal"[\s\S]*?<\/section>\s*<\/div>/)?.[0] || "";
   assert.ok(modal.indexOf("leaderboardList") < modal.indexOf("leaderboardWeekLabel"));
   assert.doesNotMatch(html, /連續學習王|streak排行|歷史總循環|成績自refresh-170|自refresh-170累積/);
@@ -126,17 +126,31 @@ test("weekly leaderboard copy removes streak ranking and historic total explanat
   assert.doesNotMatch(leaderboard, /更新完成，共顯示/);
 });
 
+test("home reserves a live top-ten title and adds discussion after leaderboard", () => {
+  assert.match(html, /半音階口琴練習室[\s\S]*id="homeLeaderboardTitle"[^>]*aria-live="polite"/);
+  const leaderboardEntry = html.indexOf("data-leaderboard-open");
+  const discussionEntry = html.indexOf("data-discussion-open");
+  const settingsEntry = html.indexOf('data-jump="audio"', discussionEntry);
+  assert.ok(leaderboardEntry >= 0 && discussionEntry > leaderboardEntry && settingsEntry > discussionEntry);
+  assert.match(html, /data-discussion-open[^>]*aria-label="討論吧，尚未開放"[\s\S]*discussion-forum-icon\.png[\s\S]*<strong>討論吧<\/strong>/);
+  assert.match(app, /data-discussion-open[\s\S]*showHomeSpiritRewardToast\("尚未開放"\)/);
+  assert.match(css, /\.home-hero \.home-leaderboard-title\s*\{/);
+});
+
 test("leaderboard rows use explicit grid columns for rank avatar name spirit and score", () => {
   assert.match(css, /\.leaderboard-row\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:/s);
   assert.match(leaderboard, /leaderboard-rank[\s\S]*leaderboard-avatar[\s\S]*leaderboard-name[\s\S]*leaderboard-spirit[\s\S]*leaderboard-score/);
   assert.match(css, /minmax\(0,\s*1fr\)/);
   assert.match(css, /\.leaderboard-row\s*\{[^}]*column-gap:\s*16px;/s);
-  assert.match(css, /@media\s*\(max-width:\s*430px\)[\s\S]*?\.leaderboard-row\s*\{[^}]*column-gap:\s*13px;/s);
+  assert.match(css, /@media\s*\(max-width:\s*430px\)[\s\S]*?\.leaderboard-row\s*\{[^}]*column-gap:\s*15px;/s);
   assert.match(css, /\.leaderboard-name\s*\{[^}]*grid-column:\s*3;[^}]*grid-row:\s*1;/s);
   assert.match(css, /\.leaderboard-spirit\s*\{[^}]*grid-column:\s*3;[^}]*grid-row:\s*2;/s);
-  assert.match(css, /\.leaderboard-row\s*\{[^}]*grid-template-columns:\s*42px 54px minmax\(90px, 1\.4fr\) minmax\(74px, \.9fr\) minmax\(68px, auto\)/s);
-  assert.match(css, /@media\s*\(max-width:\s*430px\)[\s\S]*?grid-template-columns:\s*34px 44px minmax\(0, 1fr\) auto/s);
-  assert.match(css, /\.leaderboard-row\.is-podium \.leaderboard-rank\s*\{[^}]*width:\s*42px;[^}]*height:\s*48px;/s);
+  assert.match(css, /\.leaderboard-row\s*\{[^}]*grid-template-columns:\s*48px 54px minmax\(90px, 1\.4fr\) minmax\(74px, \.9fr\)/s);
+  assert.match(css, /\.leaderboard-score\s*\{[^}]*grid-column:\s*1 \/ -1;[^}]*border-top:\s*1px solid/s);
+  assert.match(css, /@media\s*\(max-width:\s*430px\)[\s\S]*?grid-template-columns:\s*42px 42px minmax\(0, 1fr\)/s);
+  assert.match(css, /@media\s*\(max-width:\s*430px\)[\s\S]*?\.leaderboard-avatar\s*\{[^}]*width:\s*42px;[^}]*height:\s*42px;/s);
+  assert.match(css, /\.leaderboard-row\.is-podium \.leaderboard-rank\s*\{[^}]*width:\s*48px;[^}]*height:\s*48px;[^}]*background:\s*transparent;/s);
+  assert.match(css, /\.leaderboard-podium-icon\s*\{[^}]*width:\s*48px;[^}]*height:\s*48px;[^}]*object-fit:\s*contain;/s);
   assert.match(css, /\.leaderboard-avatar\s*\{[^}]*width:\s*54px;[^}]*height:\s*54px;/s);
 });
 
@@ -148,10 +162,10 @@ test("rank movement waits for successful server sync and never claims an offline
   assert.doesNotMatch(leaderboard.match(/function enqueuePracticeCompletion[\s\S]*?\n\}/)?.[0] || "", /presentRankMovement/);
 });
 
-test("announcement preview truncates ten Unicode graphemes and appears once per runtime", () => {
+test("announcement preview truncates fifteen Unicode graphemes and appears once per runtime", () => {
   assert.match(announcements, /Intl\?\.Segmenter|Intl\.Segmenter/);
   assert.match(announcements, /slice\(0,\s*limit\)/);
-  assert.match(announcements, /truncateGraphemes\(announcement\.body, 10\)/);
+  assert.match(announcements, /truncateGraphemes\(announcement\.body, 15\)/);
   assert.match(announcements, /runtimePreviewShown/);
   assert.match(announcements, /chromaticaStartupState\?\.workspaceStatus === "ready"/);
   assert.match(announcements, /document\.body\.classList\.contains\("auth-authenticated"\)/);
