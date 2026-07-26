@@ -4,6 +4,8 @@ type NotificationType = "weekly_top_ten_result" | "entered_top_ten" | "rank_impr
 type QueueItem = { id: string; week_start: string; user_id: string; notification_type: NotificationType; rank: number; transition_sequence: number; attempts: number };
 type ServiceAccount = { client_email: string; private_key: string; project_id: string };
 const MAX_ATTEMPTS = 3;
+const RANK_MOVEMENT_EXPIRY_MS = 24 * 60 * 60 * 1000;
+const WEEKLY_RESULT_EXPIRY_MS = 72 * 60 * 60 * 1000;
 
 function base64Url(bytes: Uint8Array | string) {
   const binary = typeof bytes === "string" ? new TextEncoder().encode(bytes) : bytes;
@@ -30,6 +32,15 @@ export function classifyFcmResponse(status: number, payload: unknown) {
     if (details.some((detail) => detail?.errorCode === "UNREGISTERED")) return "invalid";
   }
   return classifyFcmStatus(status);
+}
+
+export function notificationExpiryMs(type: NotificationType) {
+  return type === "weekly_top_ten_result" ? WEEKLY_RESULT_EXPIRY_MS : RANK_MOVEMENT_EXPIRY_MS;
+}
+
+export function isNotificationExpired(type: NotificationType, createdAt: string, now = Date.now()) {
+  const created = Date.parse(createdAt);
+  return !Number.isFinite(created) || created <= now - notificationExpiryMs(type);
 }
 
 async function createAccessToken(account: ServiceAccount, fetcher = fetch) {
@@ -68,6 +79,17 @@ export async function handler(request: Request) {
   let accessToken = ""; try { accessToken = await createAccessToken(account); } catch { return Response.json({ error: "push-auth-failed" }, { status: 503 }); }
   let sent = 0; let retried = 0; let skipped = 0;
   for (const item of items) {
+    const queueRow = await admin.from("leaderboard_notification_queue").select("created_at").eq("id", item.id).maybeSingle();
+    if (queueRow.error || !queueRow.data) {
+      await admin.from("leaderboard_notification_queue").update({ status: "failed", processed_at: new Date().toISOString(), last_error_code: "queue-row-unavailable" }).eq("id", item.id).eq("status", "processing");
+      skipped += 1;
+      continue;
+    }
+    if (isNotificationExpired(item.notification_type, queueRow.data.created_at)) {
+      await admin.from("leaderboard_notification_queue").update({ status: "skipped", processed_at: new Date().toISOString(), last_error_code: "expired" }).eq("id", item.id).eq("status", "processing");
+      skipped += 1;
+      continue;
+    }
     const preferenceRows = await admin.from("leaderboard_push_preferences").select("weekly_results,top_ten_changes").eq("user_id", item.user_id).maybeSingle();
     const preferenceEnabled = item.notification_type === "weekly_top_ten_result"
       ? preferenceRows.data?.weekly_results !== false

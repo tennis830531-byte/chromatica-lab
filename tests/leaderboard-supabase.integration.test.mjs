@@ -605,6 +605,76 @@ test("weekly results and top-ten movement preferences default on and disable ind
   assert.equal(queued.data.length, 0, "disabled weekly preference must not enqueue");
 });
 
+test("notification claims skip stale movement and weekly events while claiming valid pending rows once", async () => {
+  await resetWeekly();
+  const week = await rpc(admin, "taipei_leaderboard_week_start");
+  const now = Date.now();
+  const rows = [
+    {
+      week_start: week,
+      user_id: users[0].id,
+      notification_type: "entered_top_ten",
+      rank: 10,
+      transition_sequence: 930001,
+      event_key: `expiry:${week}:${users[0].id}:movement:expired`,
+      created_at: new Date(now - 24 * 60 * 60 * 1000 - 1000).toISOString(),
+    },
+    {
+      week_start: week,
+      user_id: users[0].id,
+      notification_type: "rank_improved",
+      rank: 7,
+      transition_sequence: 930002,
+      event_key: `expiry:${week}:${users[0].id}:movement:valid`,
+      created_at: new Date(now - 23 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      week_start: week,
+      user_id: users[0].id,
+      notification_type: "weekly_top_ten_result",
+      rank: 3,
+      transition_sequence: 930003,
+      event_key: `expiry:${week}:${users[0].id}:weekly:expired`,
+      created_at: new Date(now - 72 * 60 * 60 * 1000 - 1000).toISOString(),
+    },
+    {
+      week_start: week,
+      user_id: users[0].id,
+      notification_type: "weekly_top_ten_result",
+      rank: 4,
+      transition_sequence: 930004,
+      event_key: `expiry:${week}:${users[0].id}:weekly:valid`,
+      created_at: new Date(now - 71 * 60 * 60 * 1000).toISOString(),
+    },
+  ];
+  assert.ifError((await admin.from("leaderboard_notification_queue").insert(rows)).error);
+
+  const claimed = await rpc(admin, "claim_leaderboard_notification_queue", { p_limit: 20 });
+  assert.deepEqual(
+    new Set(claimed.map((row) => row.transition_sequence)),
+    new Set([930002, 930004]),
+  );
+
+  const statusRows = await admin
+    .from("leaderboard_notification_queue")
+    .select("transition_sequence,status,last_error_code,attempts")
+    .in("transition_sequence", rows.map((row) => row.transition_sequence));
+  assert.ifError(statusRows.error);
+  const bySequence = new Map(statusRows.data.map((row) => [row.transition_sequence, row]));
+  for (const sequence of [930001, 930003]) {
+    assert.equal(bySequence.get(sequence)?.status, "skipped");
+    assert.equal(bySequence.get(sequence)?.last_error_code, "expired");
+    assert.equal(bySequence.get(sequence)?.attempts, 0);
+  }
+  for (const sequence of [930002, 930004]) {
+    assert.equal(bySequence.get(sequence)?.status, "processing");
+    assert.equal(bySequence.get(sequence)?.attempts, 1);
+  }
+
+  const repeated = await rpc(admin, "claim_leaderboard_notification_queue", { p_limit: 20 });
+  assert.equal(repeated.length, 0, "expired and already-claimed valid rows are idempotent");
+});
+
 test("announcement drafts and admin writes are protected by server authorization", async () => {
   await resetWeekly();
   assert.equal((await rpc(clients[0], "get_announcement_admin_status"))?.[0]?.is_admin, false);
