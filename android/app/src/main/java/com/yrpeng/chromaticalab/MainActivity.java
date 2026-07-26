@@ -1,5 +1,6 @@
 package com.yrpeng.chromaticalab;
 
+import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.os.Handler;
@@ -36,10 +37,14 @@ public class MainActivity extends BridgeActivity {
     private boolean webWorkspaceReady;
     private boolean webImagesReady;
     private boolean webReadinessCheckPending;
+    private boolean firebaseReady;
+    private boolean nativePushConfigPublished;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        int googleAppIdResource = getResources().getIdentifier("google_app_id", "string", getPackageName());
+        firebaseReady = googleAppIdResource != 0;
         configureStatusBarInsets();
         showFullArtworkSplash();
         applySystemBarMode();
@@ -49,6 +54,12 @@ public class MainActivity extends BridgeActivity {
     public void onResume() {
         super.onResume();
         applySystemBarMode();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        setIntent(intent);
+        super.onNewIntent(intent);
     }
 
     @Override
@@ -133,12 +144,26 @@ public class MainActivity extends BridgeActivity {
                     && webView.getProgress() >= 100;
 
                 if (appPageReady) {
+                    publishNativePushConfig(webView);
                     requestWebStartupState(webView);
                 }
                 finishStartupSplash();
             }
         };
         splashHandler.post(splashReadinessCheck);
+    }
+
+    private void publishNativePushConfig(WebView webView) {
+        if (nativePushConfigPublished) {
+            return;
+        }
+        nativePushConfigPublished = true;
+        webView.evaluateJavascript(
+            "window.ChromaticaNativePushConfig=Object.freeze({firebaseReady:"
+                + (firebaseReady ? "true" : "false")
+                + "});window.dispatchEvent(new CustomEvent('chromatica:native-push-config-ready'));",
+            null
+        );
     }
 
     private void requestWebStartupState(WebView webView) {

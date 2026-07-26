@@ -6,11 +6,13 @@
     movement: Object.freeze({ key: "chromatica.settings.leaderboardTopTenChanges", toggle: "#leaderboardMovementToggle" }),
   });
   const MOVEMENT_TYPES = new Set(["entered_top_ten", "rank_improved", "dropped_out_of_top_ten"]);
-  const OPENABLE_TYPES = new Set(["weekly_top_ten_result", ...MOVEMENT_TYPES]);
   const seenForegroundNotifications = new Set();
   let initialized = false;
   let joined = false;
   let registrationFlight = null;
+  let tokenRegistrationFlight = null;
+  let activeAccountId = "";
+  let registeredTokenKey = "";
 
   const $ = (selector) => document.querySelector(selector);
   const auth = () => global.chromaticaAuth;
@@ -83,21 +85,34 @@
 
   async function registerToken(token) {
     const value = String(token?.value || "").trim();
-    if (!value || !anyEnabled() || !joined) return;
-    await syncServerPreferences();
-    let response;
-    try {
-      response = await auth()?.leaderboardRpc?.("register_leaderboard_push_token", {
-        p_token: value,
-        p_platform: "android",
-        p_enabled: true,
-      }) || {};
-    } catch {
-      response = { error: new Error("push-register-failed") };
-    }
-    const { error } = response;
-    if (error) setStatus("推播裝置登記失敗，稍後會再嘗試；排行榜仍可正常使用。", "error");
-    else setStatus("排行榜通知已依你的兩項偏好開啟。", "success");
+    const accountId = String(auth()?.getLeaderboardAccount?.()?.id || "");
+    const registrationKey = accountId && value ? `${accountId}\u0000${value}` : "";
+    if (!registrationKey || !anyEnabled() || accountId !== activeAccountId) return false;
+    if (registeredTokenKey === registrationKey) return true;
+    if (tokenRegistrationFlight) return tokenRegistrationFlight;
+    tokenRegistrationFlight = (async () => {
+      if (joined) await syncServerPreferences();
+      let response;
+      try {
+        response = await auth()?.leaderboardRpc?.("register_leaderboard_push_token", {
+          p_token: value,
+          p_platform: "android",
+          p_enabled: true,
+        }, { expectedUserId: accountId }) || {};
+      } catch {
+        response = { error: new Error("push-register-failed") };
+      }
+      if (accountId !== activeAccountId) return false;
+      const { error } = response;
+      if (error) {
+        setStatus("推播裝置登記失敗，稍後會再嘗試；排行榜仍可正常使用。", "error");
+        return false;
+      }
+      registeredTokenKey = registrationKey;
+      setStatus(joined ? "排行榜通知已依你的兩項偏好開啟。" : "此裝置已完成通知登記。", "success");
+      return true;
+    })().finally(() => { tokenRegistrationFlight = null; });
+    return tokenRegistrationFlight;
   }
 
   async function requestPermissionFromUserGesture() {
@@ -133,11 +148,15 @@
     catch { response = { error: new Error("push-disable-failed") }; }
     const { error } = response;
     if (error) setStatus("關閉通知的同步尚未完成，稍後會再嘗試。", "error");
+    else registeredTokenKey = "";
     return !error;
   }
 
   async function unregisterForSignOut() {
-    return disableCurrentToken({ preservePreferences: true });
+    const disabled = await disableCurrentToken({ preservePreferences: true });
+    activeAccountId = "";
+    registeredTokenKey = "";
+    return disabled;
   }
 
   function showMovementToast(type, data = {}) {
@@ -156,7 +175,7 @@
   function handleNotificationData(data = {}, { opened = false } = {}) {
     const type = String(data.notification_type || "");
     if (!opened && MOVEMENT_TYPES.has(type)) showMovementToast(type, data);
-    if (opened && OPENABLE_TYPES.has(type)) void global.ChromaticaLeaderboard?.open?.();
+    if (opened) global.chromaticaApp?.openHomeFromPushNotification?.();
   }
 
   async function bindNativeListeners() {
@@ -172,8 +191,10 @@
   }
 
   async function initializeRegistrationIfAllowed() {
-    if (!joined || !anyEnabled() || auth()?.isNativeAndroid?.() !== true) return;
+    if (!anyEnabled() || auth()?.isNativeAndroid?.() !== true) return;
     if (!nativePushConfigured()) return reportUnavailablePushSetup();
+    if (!activeAccountId) return;
+    if (registeredTokenKey.startsWith(`${activeAccountId}\u0000`)) return true;
     if (registrationFlight) return registrationFlight;
     registrationFlight = (async () => {
       const permission = await auth().pushNotifications.checkPermissions();
@@ -186,6 +207,17 @@
       }
     })().finally(() => { registrationFlight = null; });
     return registrationFlight;
+  }
+
+  function setAuthenticatedAccount(userId) {
+    const nextAccountId = String(userId || "");
+    if (activeAccountId !== nextAccountId) registeredTokenKey = "";
+    activeAccountId = nextAccountId;
+    if (activeAccountId) void initializeRegistrationIfAllowed();
+  }
+
+  async function notificationPermissionGranted() {
+    return initializeRegistrationIfAllowed();
   }
 
   async function preferenceChanged(preference, enabled) {
@@ -214,8 +246,19 @@
       });
     });
     void bindNativeListeners();
+    global.addEventListener?.("chromatica:native-push-config-ready", () => {
+      void initializeRegistrationIfAllowed();
+    });
     render();
   }
 
-  global.ChromaticaPushNotifications = Object.freeze({ init, setMembership, disableCurrentToken, unregisterForSignOut, nativePushConfigured });
+  global.ChromaticaPushNotifications = Object.freeze({
+    init,
+    setMembership,
+    setAuthenticatedAccount,
+    notificationPermissionGranted,
+    disableCurrentToken,
+    unregisterForSignOut,
+    nativePushConfigured,
+  });
 })(typeof window !== "undefined" ? window : globalThis);

@@ -17,35 +17,33 @@ test("notification preferences are disabled by default at the app boundary", () 
   assert.equal(false, false);
 });
 
-test("20:00 and 22:00 content uses account names and fallbacks", () => {
-  assert.equal(
-    core.buildReminderContent({ hour: 20, plantName: "旋律芽芽" }).body,
-    "您的「旋律芽芽」正在等待您的澆水～",
-  );
-  assert.equal(
-    core.buildReminderContent({ hour: 22, googleDisplayName: "小明" }).body,
-    "小明，快來完成一次練習，延續連續學習的紀錄吧！",
-  );
-  assert.match(core.buildReminderContent({ hour: 20 }).body, /植物精靈/);
-  assert.match(core.buildReminderContent({ hour: 22 }).body, /^練習者，/);
+test("19:00 and 22:00 use the approved daily practice reminder copy", () => {
+  assert.deepEqual(core.buildReminderContent({ hour: 19 }), {
+    title: "今天還沒練習喔",
+    body: "花幾分鐘完成今天的口琴練習吧！",
+  });
+  assert.deepEqual(core.buildReminderContent({ hour: 22 }), {
+    title: "今天的練習還沒完成",
+    body: "睡前再練一下，別讓今天空白過去。",
+  });
 });
 
 test("completed practice skips today's remaining reminders", () => {
-  const now = new Date(2026, 6, 17, 17, 0);
+  const now = new Date("2026-07-17T17:00:00+08:00");
   const history = { "2026-07-17": { status: "completed" } };
   assert.equal(core.getTodayPracticeCompletion(history, now), true);
   const today = core.buildReminderDates(now).filter(({ dateKey }) => dateKey === "2026-07-17");
   assert.equal(today.some(({ at }) => core.shouldScheduleToday({ at, now, todayCompleted: true })), false);
 });
 
-test("enabling at 21:00 schedules only today's 22:00 reminder", () => {
-  const now = new Date(2026, 6, 17, 21, 0);
+test("enabling after 19:00 schedules only today's 22:00 reminder", () => {
+  const now = new Date("2026-07-17T21:00:00+08:00");
   const today = core.buildReminderDates(now).filter(({ dateKey }) => dateKey === "2026-07-17");
   assert.deepEqual(today.map(({ hour }) => hour), [22]);
 });
 
 test("30 days of reminders have unique Android-safe deterministic IDs", () => {
-  const now = new Date(2026, 6, 17, 12, 0);
+  const now = new Date("2026-07-17T12:00:00+08:00");
   const dates = core.buildReminderDates(now);
   assert.equal(dates.length, 60);
   const ids = dates.map(({ at, hour }) => core.buildReminderIds("account-a", at, hour).id);
@@ -55,16 +53,27 @@ test("30 days of reminders have unique Android-safe deterministic IDs", () => {
 });
 
 test("account hash changes notification identity without exposing user id", () => {
-  const date = new Date(2026, 6, 17, 20, 0);
-  const first = core.buildReminderIds("private-user-a", date, 20);
-  const second = core.buildReminderIds("private-user-b", date, 20);
+  const date = new Date("2026-07-17T19:00:00+08:00");
+  const first = core.buildReminderIds("private-user-a", date, 19);
+  const second = core.buildReminderIds("private-user-b", date, 19);
   assert.notEqual(first.id, second.id);
   assert.equal(JSON.stringify(first).includes("private-user-a"), false);
 });
 
-test("permission is requested only from the explicit toggle handler", () => {
-  assert.equal((appSource.match(/requestPermissions\(\)/g) || []).length, 1);
+test("QA reminders keep the authenticated account cancellation scope", () => {
+  const date = new Date("2026-07-17T19:00:00+08:00");
+  const formal = core.buildReminderIds("private-user-a", date, 19);
+  const qa = core.buildReminderIds("private-user-a", date, 19, "qa");
+  assert.notEqual(qa.id, formal.id);
+  assert.equal(qa.accountHash, formal.accountHash);
+});
+
+test("permission is requested only from explicit formal or QA user actions", () => {
+  assert.equal((appSource.match(/requestPermissions\(\)/g) || []).length, 2);
   assert.match(appSource, /async function handlePracticeReminderToggle[\s\S]*requestPermissions\(\)/);
+  assert.match(appSource, /async function scheduleQaPracticeReminder[\s\S]*requestPermissions\(\)/);
+  assert.match(appSource, /buildReminderIds\(userId,\s*at,\s*hour,\s*"qa"\)/);
+  assert.doesNotMatch(appSource, /qa-notification/);
 });
 
 test("permission denial restores disabled preference and shows system-settings guidance", () => {
@@ -74,8 +83,8 @@ test("permission denial restores disabled preference and shows system-settings g
 
 test("completing practice cancels only today's reminders", () => {
   assert.match(appSource, /isFirstCompletionToday[\s\S]*cancelPracticeRemindersForAccount\(getActiveAccountId\(\), \{ todayOnly: true \}\)/);
-  const now = new Date(2026, 6, 17, 17, 0);
-  const tomorrow = new Date(2026, 6, 18, 18, 0);
+  const now = new Date("2026-07-17T17:00:00+08:00");
+  const tomorrow = new Date("2026-07-18T19:00:00+08:00");
   assert.equal(core.shouldScheduleToday({ at: tomorrow, now, todayCompleted: true }), true);
 });
 
@@ -107,4 +116,25 @@ test("schedule reconciliation is single-flight and generation guarded", () => {
 test("notification click waits for authenticated workspace readiness", () => {
   assert.match(appSource, /auth-authenticated[\s\S]*workspaceStatus === "ready"/);
   assert.match(appSource, /pendingPracticeReminderNavigation = true/);
+});
+
+test("all formal reminder boundaries are calculated in Asia/Taipei", () => {
+  assert.equal(core.TIME_ZONE, "Asia/Taipei");
+  const beforeMidnight = new Date("2026-07-18T15:59:59Z");
+  const afterMidnight = new Date("2026-07-18T16:00:00Z");
+  assert.equal(core.localDateKey(beforeMidnight), "2026-07-18");
+  assert.equal(core.localDateKey(afterMidnight), "2026-07-19");
+  const scheduled = core.buildReminderDates(new Date("2026-07-17T10:00:00Z"), 1);
+  assert.deepEqual(scheduled.map(({ hour }) => hour), [19, 22]);
+  assert.deepEqual(scheduled.map(({ at }) => at.toISOString()), [
+    "2026-07-17T11:00:00.000Z",
+    "2026-07-17T14:00:00.000Z",
+  ]);
+});
+
+test("QA reminder controls exist only inside the existing QA garden view", () => {
+  assert.match(htmlSource, /id="gardenqa"[\s\S]*data-qa-reminder-hour="19"[\s\S]*data-qa-reminder-minutes="1"/);
+  assert.match(htmlSource, /id="gardenqa"[\s\S]*data-qa-reminder-hour="22"[\s\S]*data-qa-reminder-minutes="2"/);
+  assert.match(appSource, /if \(!isGardenQaSessionActive\(\)\) return false/);
+  assert.match(appSource, /Date\.now\(\) \+ delayMinutes \* 60 \* 1000/);
 });
