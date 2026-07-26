@@ -1,5 +1,12 @@
 import { assertEquals, assertMatch } from "jsr:@std/assert@1";
-import { classifyFcmResponse, classifyFcmStatus, notificationCopy, sendFcm } from "./index.ts";
+import {
+  classifyFcmResponse,
+  classifyFcmStatus,
+  isNotificationExpired,
+  notificationCopy,
+  notificationExpiryMs,
+  sendFcm,
+} from "./index.ts";
 
 const account = { client_email: "local@example.invalid", private_key: "unused", project_id: "local-project" };
 const item = {
@@ -30,7 +37,7 @@ Deno.test("FCM status classification bounds retries", () => {
 Deno.test("FCM success request contains only ranking notification data", async () => {
   let requestBody = "";
   const result = await sendFcm(account, "mock-access", "mock-device-token", item, async (_url, init) => {
-    requestBody = String(init?.body || "");
+    requestBody = String((init as { body?: unknown } | undefined)?.body || "");
     return new Response(JSON.stringify({ name: "mock-message" }), { status: 200 });
   });
   assertEquals(result, "success");
@@ -49,4 +56,19 @@ Deno.test("FCM unregister response disables rather than retries", async () => {
 Deno.test("FCM temporary response remains retryable", async () => {
   const result = await sendFcm(account, "mock-access", "mock-temporary-token", item, async () => new Response("", { status: 503 }));
   assertEquals(result, "temporary");
+});
+
+Deno.test("rank movement notifications expire at 24 hours", () => {
+  const now = Date.parse("2026-07-26T12:00:00Z");
+  assertEquals(notificationExpiryMs("entered_top_ten"), 24 * 60 * 60 * 1000);
+  assertEquals(isNotificationExpired("entered_top_ten", "2026-07-25T12:00:01Z", now), false);
+  assertEquals(isNotificationExpired("rank_improved", "2026-07-25T12:00:00Z", now), true);
+  assertEquals(isNotificationExpired("dropped_out_of_top_ten", "2026-07-25T11:59:59Z", now), true);
+});
+
+Deno.test("weekly results expire at 72 hours", () => {
+  const now = Date.parse("2026-07-26T12:00:00Z");
+  assertEquals(notificationExpiryMs("weekly_top_ten_result"), 72 * 60 * 60 * 1000);
+  assertEquals(isNotificationExpired("weekly_top_ten_result", "2026-07-23T12:00:01Z", now), false);
+  assertEquals(isNotificationExpired("weekly_top_ten_result", "2026-07-23T12:00:00Z", now), true);
 });

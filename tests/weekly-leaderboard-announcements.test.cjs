@@ -7,6 +7,7 @@ const root = path.join(__dirname, "..");
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/202607210002_create_weekly_leaderboard_announcements.sql"), "utf8");
 const rankMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607230001_rank_all_joined_weekly_members.sql"), "utf8");
 const pgNetMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607230002_enable_pg_net_for_leaderboard_dispatch.sql"), "utf8");
+const expiryMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607260001_expire_stale_leaderboard_notifications.sql"), "utf8");
 const oldMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607210001_create_global_leaderboards.sql"), "utf8");
 
 test("Taipei weeks begin Sunday 00:00 using server timestamps", () => {
@@ -50,6 +51,19 @@ test("pg_net migration only enables the dormant dispatch dependency", () => {
   assert.match(pgNetMigration, /comment on extension pg_net/);
   assert.match(pgNetMigration, /commit;\s*$/);
   assert.doesNotMatch(pgNetMigration, /pg_cron|cron\.schedule|net\.http_post\s*\(|dispatch_leaderboard_notification_queue\s*\(|vault\.|insert\s+into|update\s+public|delete\s+from|truncate/i);
+});
+
+test("notification expiry migration skips stale events without deleting queue rows", () => {
+  assert.match(expiryMigration, /status\s*=\s*'skipped'/);
+  assert.match(expiryMigration, /last_error_code\s*=\s*'expired'/);
+  assert.match(expiryMigration, /entered_top_ten[\s\S]*rank_improved[\s\S]*dropped_out_of_top_ten/);
+  assert.match(expiryMigration, /interval '24 hours'/);
+  assert.match(expiryMigration, /weekly_top_ten_result/);
+  assert.match(expiryMigration, /interval '72 hours'/);
+  assert.match(expiryMigration, /create or replace function public\.claim_leaderboard_notification_queue/);
+  assert.match(expiryMigration, /for update skip locked/);
+  assert.doesNotMatch(expiryMigration, /delete\s+from\s+public\.leaderboard_notification_queue/i);
+  assert.doesNotMatch(expiryMigration, /truncate/i);
 });
 
 test("finalization preserves results and is idempotent", () => {
