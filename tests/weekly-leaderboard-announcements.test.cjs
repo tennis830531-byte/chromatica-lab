@@ -8,6 +8,7 @@ const migration = fs.readFileSync(path.join(root, "supabase/migrations/202607210
 const rankMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607230001_rank_all_joined_weekly_members.sql"), "utf8");
 const pgNetMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607230002_enable_pg_net_for_leaderboard_dispatch.sql"), "utf8");
 const expiryMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607260001_expire_stale_leaderboard_notifications.sql"), "utf8");
+const scheduleMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607260002_schedule_leaderboard_notification_dispatch.sql"), "utf8");
 const oldMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607210001_create_global_leaderboards.sql"), "utf8");
 
 test("Taipei weeks begin Sunday 00:00 using server timestamps", () => {
@@ -64,6 +65,16 @@ test("notification expiry migration skips stale events without deleting queue ro
   assert.match(expiryMigration, /for update skip locked/);
   assert.doesNotMatch(expiryMigration, /delete\s+from\s+public\.leaderboard_notification_queue/i);
   assert.doesNotMatch(expiryMigration, /truncate/i);
+});
+
+test("notification dispatch cron runs every five minutes without embedding secrets", () => {
+  assert.match(scheduleMigration, /create extension if not exists pg_cron/);
+  assert.match(scheduleMigration, /chromatica-dispatch-leaderboard-notifications/);
+  assert.match(scheduleMigration, /'\*\/5 \* \* \* \*'/);
+  assert.match(scheduleMigration, /select public\.dispatch_leaderboard_notification_queue\(\);/);
+  assert.match(scheduleMigration, /cron\.unschedule\(v_job_id\)/);
+  assert.match(scheduleMigration, /cron\.schedule/);
+  assert.doesNotMatch(scheduleMigration, /x-cron-secret|LEADERBOARD_NOTIFICATION_CRON_SECRET|Bearer\s+|https:\/\/.*functions\/v1/i);
 });
 
 test("finalization preserves results and is idempotent", () => {
