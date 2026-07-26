@@ -4,15 +4,33 @@
   if (root) root.ChromaticaPracticeReminderCore = api;
 }(typeof globalThis !== "undefined" ? globalThis : this, function createPracticeReminderCore() {
   const DAYS_TO_SCHEDULE = 30;
-  const SLOTS = [20, 22];
+  const TIME_ZONE = "Asia/Taipei";
+  const UTC_OFFSET_HOURS = 8;
+  const SLOTS = [19, 22];
   const ID_BASE = 310000000;
   const ID_RANGE = 900000000;
+  const taipeiFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+
+  function taipeiParts(date) {
+    return Object.fromEntries(
+      taipeiFormatter.formatToParts(date)
+        .filter(({ type }) => type !== "literal")
+        .map(({ type, value }) => [type, Number(value)]),
+    );
+  }
 
   function localDateKey(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    const { year, month, day } = taipeiParts(date);
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   }
 
   function shortAccountHash(userId) {
@@ -30,11 +48,14 @@
     return ID_BASE + ((hash >>> 0) % ID_RANGE);
   }
 
-  function buildReminderIds(userId, date, hour) {
+  function buildReminderIds(userId, date, hour, scope = "formal") {
     const accountHash = shortAccountHash(userId);
     const dateKey = localDateKey(date);
+    const identity = scope === "formal"
+      ? `practice-reminder|${accountHash}|${dateKey}|${hour}`
+      : `practice-reminder|${scope}|${accountHash}|${dateKey}|${hour}`;
     return {
-      id: stableId(`practice-reminder|${accountHash}|${dateKey}|${hour}`),
+      id: stableId(identity),
       accountHash,
       dateKey,
       slot: String(hour),
@@ -42,26 +63,35 @@
   }
 
   function buildReminderDates(now = new Date(), days = DAYS_TO_SCHEDULE) {
+    const current = taipeiParts(now);
     const dates = [];
     for (let offset = 0; offset < days; offset += 1) {
       for (const hour of SLOTS) {
-        const at = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset, hour, 0, 0, 0);
+        const at = new Date(Date.UTC(
+          current.year,
+          current.month - 1,
+          current.day + offset,
+          hour - UTC_OFFSET_HOURS,
+          0,
+          0,
+          0,
+        ));
         if (at > now) dates.push({ at, hour, dateKey: localDateKey(at) });
       }
     }
     return dates;
   }
 
-  function buildReminderContent({ hour, googleDisplayName, plantName }) {
-    if (Number(hour) === 20) {
+  function buildReminderContent({ hour }) {
+    if (Number(hour) === 19) {
       return {
-        title: "半音階口琴練習室",
-        body: `您的「${String(plantName || "植物精靈").trim() || "植物精靈"}」正在等待您的澆水～`,
+        title: "今天還沒練習喔",
+        body: "花幾分鐘完成今天的口琴練習吧！",
       };
     }
     return {
-      title: "半音階口琴練習室",
-      body: `${String(googleDisplayName || "練習者").trim() || "練習者"}，快來完成一次練習，延續連續學習的紀錄吧！`,
+      title: "今天的練習還沒完成",
+      body: "睡前再練一下，別讓今天空白過去。",
     };
   }
 
@@ -76,7 +106,9 @@
 
   return {
     DAYS_TO_SCHEDULE,
+    TIME_ZONE,
     SLOTS,
+    taipeiParts,
     localDateKey,
     shortAccountHash,
     buildReminderIds,
