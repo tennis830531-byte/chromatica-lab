@@ -1005,6 +1005,192 @@ body.simple-motion .hero-plant-action {
   }
 }
 
+/* refresh-174 World Boss phase-one presentation. */
+.hero-title-row,
+.world-boss-page-head,
+.world-boss-energy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.world-boss-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 148px;
+  padding: 5px 8px;
+  border: 1px solid rgba(123, 65, 36, 0.4);
+  border-radius: 12px;
+  background: rgba(255, 247, 222, 0.92);
+  color: var(--ink);
+  font-size: 10px;
+  line-height: 1.15;
+}
+
+.world-boss-entry img {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.world-boss-page {
+  position: relative;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 18px;
+  overflow: hidden;
+  text-align: center;
+}
+
+.world-boss-page-head {
+  text-align: left;
+}
+
+.world-boss-image {
+  display: block;
+  width: min(100%, 390px);
+  margin: 12px auto;
+  object-fit: contain;
+}
+
+.world-boss-hp {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.world-boss-energy {
+  justify-content: center;
+  width: max-content;
+  margin: 12px auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 240, 177, 0.75);
+}
+
+.world-boss-energy img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.world-boss-battle-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.world-boss-battle-controls label {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  font-size: 12px;
+}
+
+.world-boss-battle-controls select {
+  min-width: 0;
+}
+
+.world-boss-battle-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.world-boss-battle-controls button img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.garden-spirit-skill-panel {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid rgba(178, 109, 50, 0.48);
+  border-radius: 14px;
+  background: rgba(255, 245, 207, 0.72);
+  text-align: left;
+}
+
+.garden-spirit-skill-panel > img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+.garden-spirit-skill-panel div {
+  display: grid;
+  gap: 3px;
+}
+
+.garden-spirit-skill-panel small,
+.garden-spirit-skill-panel p {
+  margin: 0;
+}
+
+.world-boss-skill-success .feedback-modal {
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  animation: worldBossSkillImpact 520ms cubic-bezier(.2, .9, .25, 1.18) both;
+}
+
+.world-boss-skill-success h2 {
+  position: relative;
+  z-index: 1;
+  margin: 8px 0;
+  color: #b42318;
+  font-size: clamp(26px, 8vw, 38px);
+  text-align: center;
+}
+
+.world-boss-skill-glow {
+  position: absolute;
+  inset: 20% 10%;
+  background: radial-gradient(circle, rgba(255, 209, 74, .65), transparent 70%);
+  animation: worldBossSkillGlow 900ms ease-out both;
+  pointer-events: none;
+}
+
+@keyframes worldBossSkillImpact {
+  0% { opacity: 0; transform: scale(.82); }
+  65% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes worldBossSkillGlow {
+  from { opacity: 0; transform: scale(.7); }
+  50% { opacity: 1; }
+  to { opacity: .35; transform: scale(1.15); }
+}
+
+@media (max-width: 430px) {
+  .hero-title-row { align-items: flex-start; }
+  .world-boss-entry { max-width: 118px; }
+  .garden-spirit-skill-panel { grid-template-columns: 52px minmax(0, 1fr); }
+  .garden-spirit-skill-panel > img { width: 52px; height: 52px; }
+  .garden-spirit-skill-panel > button { grid-column: 1 / -1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .world-boss-skill-success .feedback-modal {
+    animation: worldBossSkillReduced 180ms ease-out both;
+  }
+  .world-boss-skill-glow { animation: none; opacity: .25; }
+}
+
+@keyframes worldBossSkillReduced {
+  from { opacity: 0; transform: scale(.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 .hero-harmonica {
   justify-self: center;
   width: min(100%, 268px);

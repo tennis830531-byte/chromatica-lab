@@ -2400,6 +2400,7 @@ function setGardenSpiritModalOpen(open) {
 
 function createFormalGardenSpiritAdapter() {
   const adapter = {
+    isFormal: true,
     getCollection: getGardenCollection,
     getSpeciesList: () => gardenSpecies,
     getSpirit: getCollectedSpiritById,
@@ -2464,6 +2465,11 @@ function renderGardenSpiritModal() {
       });
     });
   }
+  window.ChromaticaWorldBoss?.renderSkillPanel?.({
+    species: spirit.species,
+    stage: selectedGardenSpiritStage,
+    formal: adapter.isFormal === true,
+  });
 }
 
 function openGardenSpiritModal(id, adapter = null) {
@@ -6974,6 +6980,7 @@ function finishIntervalPractice() {
     completedCycles: state.completedCycles,
     ...getCanonicalLeaderboardStreakEvidence(),
   });
+  void window.ChromaticaWorldBoss?.recordPracticeCompletion?.({ practiceDate: getTodayKey() });
   renderStreakSummary();
   $("#intervalPlayer").classList.add("hidden");
   $("#intervalComplete").classList.add("hidden");
@@ -7298,6 +7305,7 @@ function stepPractice() {
         completedCycles: totalCycles,
         ...getCanonicalLeaderboardStreakEvidence(),
       });
+      void window.ChromaticaWorldBoss?.recordPracticeCompletion?.({ practiceDate: getTodayKey() });
       stopPractice(true);
       showLongToneCompletion({ exercise, averageScore, waterResult, goalResult, bonusMessages, totalWaterGranted, waterBreakdown, leaderboardResultPromise });
       return;
@@ -8238,6 +8246,7 @@ function initializeAuthenticatedApp(options = {}) {
       resolveSpiritImage: resolveLeaderboardSpiritImage,
       isQaActive: isGardenQaSessionActive,
     });
+    window.ChromaticaWorldBoss?.init?.();
     window.ChromaticaPushNotifications?.init?.();
     window.ChromaticaAnnouncements?.init?.();
     window.ChromaticaGardenQA?.init?.({
@@ -8292,6 +8301,9 @@ function initializeAuthenticatedApp(options = {}) {
 
 window.chromaticaApp = {
   initializeForAuthenticatedAccount: initializeAuthenticatedApp,
+  navigate(view, options = {}) {
+    setView(view, options);
+  },
   isPracticeRewardAnimationRunning() {
     return practiceRewardAnimationRunning || practiceSettlementSession?.active === true;
   },

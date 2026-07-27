@@ -1308,6 +1308,12 @@ const LEADERBOARD_RPC_ALLOWLIST = new Set([
   "delete_announcement_comment",
   "save_announcement",
   "set_announcement_published",
+  "get_world_boss_status",
+  "get_my_world_boss_skills",
+  "learn_world_boss_skill",
+  "grant_world_boss_practice_energy",
+  "exchange_world_boss_energy",
+  "attack_world_boss",
 ]);
 
 window.chromaticaAuth = {
