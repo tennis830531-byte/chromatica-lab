@@ -129,7 +129,14 @@
           <section class="practice-settlement-panel practice-settlement-intro-panel hidden" data-settlement-panel="entering" aria-labelledby="practiceSettlementIntroTitle">
             <p class="practice-settlement-panel-kicker">本次練習完成</p>
             <h3 id="practiceSettlementIntroTitle">準備查看本次成果</h3>
-            <div class="practice-settlement-intro-mark" aria-hidden="true">✓</div>
+            <div class="practice-settlement-intro-mark" aria-hidden="true">
+              <svg class="practice-settlement-intro-check" viewBox="0 0 64 64" focusable="false">
+                <path d="M15 33 L27 45 L49 20"></path>
+              </svg>
+              <span class="practice-settlement-intro-particles">
+                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              </span>
+            </div>
             <p>水滴、每日任務與本週排名已安全保存。</p>
           </section>
           <section class="practice-settlement-panel practice-settlement-water-panel" data-settlement-panel="water-slot" aria-labelledby="practiceSettlementWaterTitle">
@@ -367,12 +374,58 @@
         <p id="leaderboardLoginPrompt" class="leaderboard-consent-note hidden">請先登入；加入與公開資料設定請前往「設定 → 會員帳號」。</p>
         <div class="leaderboard-tabs" role="tablist" aria-label="排行榜類別">
           <button id="leaderboardWeeklyTab" class="active" data-leaderboard-metric="weekly" type="button" role="tab" aria-selected="true" aria-controls="leaderboardList">乖乖練習王</button>
+          <button id="leaderboardCultivatorTab" data-leaderboard-metric="cultivator" type="button" role="tab" aria-selected="false" aria-controls="leaderboardList" tabindex="-1">精靈培育師</button>
         </div>
-        <p class="leaderboard-board-subtitle">來看看練習循環次數最多的高手！</p>
+        <p id="leaderboardBoardSubtitle" class="leaderboard-board-subtitle">來看看練習循環次數最多的高手！</p>
+        <button id="leaderboardDetailsOpen" class="leaderboard-details-open" type="button" aria-haspopup="dialog">詳細說明</button>
         <p id="leaderboardStatus" class="leaderboard-status" role="status" aria-live="polite">正在載入排行榜…</p>
         <ol id="leaderboardList" class="leaderboard-list" role="tabpanel" aria-labelledby="leaderboardWeeklyTab" aria-label="全球排行榜名次"></ol>
         <p class="leaderboard-refresh-note">開啟時更新，之後最長每 10 分鐘重新整理。</p>
-        <p id="leaderboardWeekLabel" class="leaderboard-period-note">每週日 00:00（Asia/Taipei）開始新一週。</p>
+        <p id="leaderboardWeekLabel" class="leaderboard-period-note">每週日 12:00（Asia/Taipei）開始新一週。</p>
+      </section>
+    </div>
+
+    <div id="leaderboardWeeklyRewardModal" class="leaderboard-reward-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="leaderboardWeeklyRewardTitle">
+      <section class="leaderboard-reward-modal paper-card">
+        <p class="eyebrow">乖乖練習王</p>
+        <h2 id="leaderboardWeeklyRewardTitle">上週排行獎勵</h2>
+        <p id="leaderboardWeeklyRewardMessage"></p>
+        <button id="leaderboardWeeklyRewardClose" class="primary-btn" type="button">收下水滴</button>
+      </section>
+    </div>
+
+    <div id="leaderboardDetailsModal" class="leaderboard-details-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="leaderboardDetailsTitle">
+      <section class="leaderboard-details-modal paper-card">
+        <header class="leaderboard-details-head">
+          <div>
+            <p class="eyebrow">排行榜規則</p>
+            <h2 id="leaderboardDetailsTitle">乖乖練習王</h2>
+          </div>
+          <button id="leaderboardDetailsClose" class="icon-btn" type="button" aria-label="關閉詳細說明">×</button>
+        </header>
+        <div id="leaderboardWeeklyDetails" class="leaderboard-details-content">
+          <ul>
+            <li>排名依每週完成的有效練習次數計算。</li>
+            <li>每週日中午 12:00（Asia/Taipei）重置。</li>
+            <li>前 10 名可獲得水滴獎勵。</li>
+          </ul>
+          <div class="leaderboard-reward-grid" aria-label="乖乖練習王前十名水滴獎勵">
+            <span>第1名 20💧</span><span>第2名 18💧</span>
+            <span>第3名 16💧</span><span>第4名 14💧</span>
+            <span>第5名 12💧</span><span>第6名 10💧</span>
+            <span>第7名 8💧</span><span>第8名 6💧</span>
+            <span>第9名 4💧</span><span>第10名 2💧</span>
+          </div>
+        </div>
+        <div id="leaderboardCultivatorDetails" class="leaderboard-details-content hidden">
+          <ul>
+            <li>排名先比較已獲得的精靈種類數。</li>
+            <li>種類數相同時，再比較所有精靈的階段總和。</li>
+            <li>第一階段＝1、第二階段＝2、第三階段＝3。</li>
+            <li>永久累積，不會每週重置。</li>
+          </ul>
+        </div>
+        <button id="leaderboardDetailsDone" class="primary-btn" type="button">我知道了</button>
       </section>
     </div>
 

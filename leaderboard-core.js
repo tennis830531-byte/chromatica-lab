@@ -26,8 +26,8 @@
       && !/[\u0000-\u001f\u007f-\u009f]/u.test(normalized);
   }
 
-  function normalizeMetric() {
-    return "weekly";
+  function normalizeMetric(metric) {
+    return metric === "cultivator" ? "cultivator" : "weekly";
   }
 
   function normalizeLeaderboardRow(row = {}, metric = "practice") {
@@ -42,6 +42,8 @@
       featuredSpiritName: typeof row.featured_spirit_name === "string" ? row.featured_spirit_name : "",
       featuredSpiritStage: clampInteger(row.featured_spirit_stage, 1, 3),
       score: clampInteger(row.score, 0, Number.MAX_SAFE_INTEGER),
+      secondaryScore: clampInteger(row.secondary_score, 0, Number.MAX_SAFE_INTEGER),
+      weekStart: /^\d{4}-\d{2}-\d{2}$/.test(String(row.week_start || "")) ? String(row.week_start) : "",
       isCurrentUser: row.is_current_user === true,
       metric: normalizedMetric,
     };
@@ -63,6 +65,24 @@
 
   function isCacheFresh(cache, now = Date.now()) {
     return Boolean(cache && Array.isArray(cache.rows) && Number(cache.savedAt) > 0 && now - Number(cache.savedAt) < CACHE_TTL_MS);
+  }
+
+  function taipeiWeekStartKey(value = new Date()) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Taipei",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(value).reduce((result, part) => {
+      if (part.type !== "literal") result[part.type] = part.value;
+      return result;
+    }, {});
+    const localDate = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)));
+    if (Number(parts.hour) < 12) localDate.setUTCDate(localDate.getUTCDate() - 1);
+    localDate.setUTCDate(localDate.getUTCDate() - localDate.getUTCDay());
+    return localDate.toISOString().slice(0, 10);
   }
 
   function normalizePracticeEvent(event = {}) {
@@ -116,6 +136,7 @@
     normalizeLeaderboardRows,
     shouldInsertSelfSeparator,
     isCacheFresh,
+    taipeiWeekStartKey,
     normalizePracticeEvent,
     shouldShowRankMovement,
     createRankMovement,

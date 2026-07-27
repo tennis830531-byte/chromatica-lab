@@ -12,6 +12,11 @@ test("exit control is Android-only and preserves the signed-in account", () => {
   assert.doesNotMatch(app.match(/async function confirmAppExit\(\)[\s\S]*?\n}/)?.[0] || "", /signOut|clearActiveAccount|cancelPracticeReminder/);
 });
 
+test("exit control is rendered during authenticated app initialization", () => {
+  const initialization = app.match(/function initializeAuthenticatedApp\(options = \{\}\) \{[\s\S]*?\n}/)?.[0] || "";
+  assert.match(initialization, /renderMicrophoneSetting\(\);\s*renderAppExitControl\(\);/);
+});
+
 test("exit flushes locally before bounded best-effort cloud sync and exitApp", () => {
   const body = app.match(/async function confirmAppExit\(\)[\s\S]*?\n}/)?.[0] || "";
   assert.ok(body.indexOf("flushSave") < body.indexOf("syncBestEffort"));

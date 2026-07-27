@@ -880,7 +880,7 @@ const PRACTICE_SETTLEMENT_TIMING = Object.freeze({
   waterSlowSteps: Object.freeze([110, 160, 230]),
   waterResult: 460,
   zeroWaterResult: 520,
-  taskStep: 180,
+  taskStep: 280,
   taskResult: 360,
   leaderboardTimeout: 1600,
   leaderboardResult: 720,
@@ -1639,6 +1639,19 @@ function getWaterDrops() {
 function setWaterDrops(value) {
   localStorage.setItem(gardenStorageKeys.waterDrops, String(Math.max(0, Math.floor(Number(value) || 0))));
   scheduleAccountSnapshotSave();
+}
+
+function getLeaderboardCultivatorProgress() {
+  const progress = new Map();
+  const include = (spirit) => {
+    const species = String(spirit?.species || "");
+    if (!availableGardenSpeciesIds.has(species)) return;
+    const stage = Math.max(1, Math.min(3, Math.floor(Number(spirit?.stage) || 1)));
+    progress.set(species, Math.max(progress.get(species) || 0, stage));
+  };
+  getGardenCollection().forEach(include);
+  include(getCurrentPlant(false));
+  return [...progress.entries()].map(([species, stage]) => ({ species, stage }));
 }
 
 function renderDailyPracticeWater() {
@@ -3092,6 +3105,14 @@ function setPracticeSettlementState(session, state) {
   const overlay = $("#practiceSettlementOverlay");
   if (!overlay) return;
   overlay.dataset.state = state;
+  const introMark = overlay.querySelector(".practice-settlement-intro-mark");
+  if (introMark) {
+    introMark.classList.remove("is-celebrating");
+    if (state === "entering") {
+      void introMark.offsetWidth;
+      introMark.classList.add("is-celebrating");
+    }
+  }
   overlay.classList.toggle("is-closing", state === "closing");
   const panelName = state === "entering"
     ? "entering"
@@ -3253,6 +3274,10 @@ async function revealPracticeSettlementItems(session, cards) {
   const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
   for (let index = 0; index < cards.length; index += 1) {
     cards[index].classList.add("is-visible");
+    if (cards[index].dataset.revealTonePlayed !== "true") {
+      cards[index].dataset.revealTonePlayed = "true";
+      schedulePracticeRewardTone(0, [560 + index * 34], 0.085);
+    }
     await waitForPracticeSettlement(session, reducedMotion ? 35 : PRACTICE_SETTLEMENT_TIMING.taskStep);
   }
   await waitForPracticeSettlement(session, reducedMotion ? 80 : PRACTICE_SETTLEMENT_TIMING.taskResult);
@@ -8194,6 +8219,7 @@ function initializeAuthenticatedApp(options = {}) {
     renderSoundSettings();
     renderDisplaySettings();
     renderMicrophoneSetting();
+    renderAppExitControl();
     applyDisplaySettings();
     registerServiceWorker();
     refreshAllowedNotes();
@@ -8206,6 +8232,9 @@ function initializeAuthenticatedApp(options = {}) {
     window.ChromaticaLeaderboard?.init?.({
       getCurrentStreak: () => calculateCurrentStreak(getPracticeHistory()),
       getFeaturedSpirit: getLeaderboardFeaturedSpirit,
+      getCultivatorProgress: getLeaderboardCultivatorProgress,
+      prepareWeeklyWaterReward: () => window.chromaticaAccountWorkspace?.syncBestEffort?.(),
+      refreshWeeklyWaterReward: () => window.chromaticaAccountWorkspace?.refreshFromCloud?.(),
       resolveSpiritImage: resolveLeaderboardSpiritImage,
       isQaActive: isGardenQaSessionActive,
     });

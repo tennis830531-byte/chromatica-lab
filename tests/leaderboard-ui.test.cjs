@@ -20,14 +20,21 @@ const leaderboardContextMigration = fs.readFileSync(path.join(root, "supabase/mi
 const leaderboardContextHotfixMigration = fs.readFileSync(path.join(root, "supabase/migrations/202607240003_fix_weekly_leaderboard_context_greatest.sql"), "utf8");
 const avatarFunction = fs.readFileSync(path.join(root, "supabase/functions/upload-leaderboard-avatar/index.ts"), "utf8");
 
-test("global leaderboard exposes only the weekly 乖乖練習王", () => {
+test("global leaderboard exposes weekly and permanent cultivator tabs without streak ranking", () => {
   assert.match(html, /乖乖練習王/);
   assert.match(html, /role="tablist"[^>]*aria-label="排行榜類別"/);
   assert.match(html, /data-leaderboard-metric="weekly"[^>]*role="tab"[^>]*aria-selected="true"/);
+  assert.match(html, /data-leaderboard-metric="cultivator"[^>]*role="tab"[^>]*aria-selected="false"/);
+  assert.match(html, /精靈培育師/);
   assert.match(runtime, /renderMetricTabs/);
   assert.doesNotMatch(html, /data-leaderboard-metric="streak"|連續學習王|自 refresh-170 起累積|歷史總循環/);
   assert.match(runtime, /本週 \$\{row\.score\} 次/);
   assert.doesNotMatch(runtime, /連續學習 \$\{row\.score\} 天/);
+  assert.match(html, /id="leaderboardDetailsOpen"[^>]*aria-haspopup="dialog"/);
+  assert.match(html, /id="leaderboardDetailsModal"[^>]*aria-modal="true"/);
+  assert.match(runtime, /openLeaderboardDetails/);
+  assert.match(runtime, /closeLeaderboardDetails/);
+  assert.match(css, /\.leaderboard-details-modal[\s\S]*max-height:[^;]+100dvh[\s\S]*overflow: auto/);
 });
 
 test("home leaderboard title is shown only for the current weekly top ten", () => {
@@ -57,7 +64,7 @@ test("discussion quick-entry artwork is reviewed and transparent", async () => {
 test("joined zero-cycle members render as formal ranked rows without a duplicate summary", () => {
   assert.doesNotMatch(html, /leaderboardOwnWeeklyStatus|leaderboardAccountWeeklyStatus|我的本週狀態/);
   assert.doesNotMatch(runtime, /leaderboardOwnWeeklyStatus|leaderboardAccountWeeklyStatus|我的本週狀態/);
-  assert.match(runtime, /score\.textContent = `本週 \$\{row\.score\} 次`/);
+  assert.match(runtime, /score\.textContent = core\.normalizeMetric\(metric\) === "cultivator"[\s\S]*: `本週 \$\{row\.score\} 次`/);
   assert.match(runtime, /normalized\.some\(\(row\) => row\.isCurrentUser\)/);
   assert.match(runtime, /排行榜服務正在更新中/);
   assert.doesNotMatch(runtime, /weeklyRow\s*==\s*null[\s\S]*MEMBERSHIP\.NOT_JOINED/);
@@ -95,7 +102,7 @@ test("weekly leaderboard context hotfix keeps the RPC contract without schema-qu
 
 test("successful leaderboard loads have no count announcement or empty layout gap", () => {
   assert.doesNotMatch(runtime, /更新完成，共顯示|已顯示最近更新的排行/);
-  assert.match(runtime, /renderLeaderboardRows\(rows, activeMetric\);\s*setStatus\("", ""\)/);
+  assert.match(runtime, /if \(activeMetric === requestedMetric\) renderLeaderboardRows\(rows, requestedMetric\);\s*setStatus\("", ""\)/);
   assert.match(css, /\.leaderboard-status:empty\s*\{\s*display:\s*none;/);
 });
 

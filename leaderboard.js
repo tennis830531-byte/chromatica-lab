@@ -31,6 +31,8 @@
   let activeMetric = "weekly";
   let modalOpen = false;
   let profileOpen = false;
+  let rewardModalOpen = false;
+  let detailsOpen = false;
   let refreshTimer = null;
   let refreshFlight = null;
   let queueFlight = null;
@@ -49,6 +51,9 @@
   let previewObjectUrl = "";
   let pendingRankMovement = null;
   let profileViewportCleanup = null;
+  let rewardClaimFlight = null;
+  let rewardClaimGeneration = -1;
+  const rewardNoticeClaimToken = global.crypto?.randomUUID?.() || `notice-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const practiceSettlementResults = new Map();
   const practiceSettlementEvents = new Set();
 
@@ -101,6 +106,23 @@
       if (isActive) activeTabId = button.id;
     });
     if (activeTabId) $("#leaderboardList")?.setAttribute("aria-labelledby", activeTabId);
+    const cultivator = normalizedMetric === "cultivator";
+    const subtitle = $("#leaderboardBoardSubtitle");
+    const period = $("#leaderboardWeekLabel");
+    if (subtitle) {
+      subtitle.textContent = cultivator
+        ? "來看看精靈種類與成長階段最多的培育高手！"
+        : "來看看練習循環次數最多的高手！";
+    }
+    if (period) {
+      period.textContent = cultivator
+        ? "永久排行榜，不會隨每週重置。"
+        : "每週日 12:00（Asia/Taipei）開始新一週。";
+    }
+    $("#leaderboardDetailsOpen")?.setAttribute(
+      "aria-label",
+      `查看${cultivator ? "精靈培育師" : "乖乖練習王"}詳細說明`,
+    );
   }
 
   function renderHomeLeaderboardTitle() {
@@ -155,7 +177,30 @@
   }
 
   function updateModalOpenClass() {
-    document.body?.classList.toggle("modal-open", modalOpen || profileOpen);
+    document.body?.classList.toggle("modal-open", modalOpen || profileOpen || rewardModalOpen || detailsOpen);
+  }
+
+  function openLeaderboardDetails() {
+    const cultivator = core.normalizeMetric(activeMetric) === "cultivator";
+    const modal = $("#leaderboardDetailsModal");
+    if (!modal) return false;
+    $("#leaderboardDetailsTitle").textContent = cultivator ? "精靈培育師" : "乖乖練習王";
+    $("#leaderboardWeeklyDetails")?.classList.toggle("hidden", cultivator);
+    $("#leaderboardCultivatorDetails")?.classList.toggle("hidden", !cultivator);
+    detailsOpen = true;
+    modal.classList.remove("hidden");
+    updateModalOpenClass();
+    requestAnimationFrame(() => $("#leaderboardDetailsClose")?.focus());
+    return true;
+  }
+
+  function closeLeaderboardDetails() {
+    if (!detailsOpen) return false;
+    detailsOpen = false;
+    $("#leaderboardDetailsModal")?.classList.add("hidden");
+    updateModalOpenClass();
+    requestAnimationFrame(() => $("#leaderboardDetailsOpen")?.focus());
+    return true;
   }
 
   function getFeaturedSpirit() {
@@ -337,13 +382,21 @@
 
   function writeCache(metric, rows, context = requestContext()) {
     if (!isCurrentRequest(context)) return false;
-    sessionStorage.setItem(cacheKey(metric, context.userId), JSON.stringify({ savedAt: Date.now(), rows }));
+    const normalizedMetric = core.normalizeMetric(metric);
+    sessionStorage.setItem(cacheKey(normalizedMetric, context.userId), JSON.stringify({
+      savedAt: Date.now(),
+      weekStart: normalizedMetric === "weekly"
+        ? String(rows?.find?.((row) => row.week_start)?.week_start || core.taipeiWeekStartKey())
+        : "",
+      rows,
+    }));
     return true;
   }
 
   function invalidateCache(context = requestContext()) {
     if (!isCurrentRequest(context)) return false;
     sessionStorage.removeItem(cacheKey("weekly", context.userId));
+    sessionStorage.removeItem(cacheKey("cultivator", context.userId));
     return true;
   }
 
@@ -417,7 +470,9 @@
       spirit.append(spiritImage, spiritName);
       const score = document.createElement("strong");
       score.className = "leaderboard-score";
-      score.textContent = `本週 ${row.score} 次`;
+      score.textContent = core.normalizeMetric(metric) === "cultivator"
+        ? `${row.score} 種・階段 ${row.secondaryScore}`
+        : `本週 ${row.score} 次`;
       item.append(rank, avatar, name, spirit, score);
       list.append(item);
     });
@@ -449,6 +504,7 @@
 
   async function loadLeaderboard(metric = activeMetric, { force = false, showCache = true } = {}) {
     activeMetric = core.normalizeMetric(metric);
+    const requestedMetric = activeMetric;
     renderMetricTabs(activeMetric);
     const userId = getPublicUserId();
     if (!userId) {
@@ -477,11 +533,13 @@
     const cacheHasCurrentUser = Boolean(
       cache?.rows && core.normalizeLeaderboardRows(cache.rows, activeMetric).some((row) => row.isCurrentUser)
     );
-    if (showCache && cacheHasCurrentUser) {
-      updateWeeklySummary(cache.rows, context);
+    const cacheMatchesPeriod = activeMetric !== "weekly"
+      || cache?.weekStart === core.taipeiWeekStartKey();
+    if (showCache && cacheHasCurrentUser && cacheMatchesPeriod) {
+      if (activeMetric === "weekly") updateWeeklySummary(cache.rows, context);
       renderLeaderboardRows(cache.rows, activeMetric);
     }
-    if (!force && showCache && cacheHasCurrentUser && core.isCacheFresh(cache)) {
+    if (!force && showCache && cacheHasCurrentUser && cacheMatchesPeriod && core.isCacheFresh(cache)) {
       setStatus("", "");
       return cache.rows;
     }
@@ -489,22 +547,34 @@
       refreshFlight
       && refreshFlight.userId === userId
       && refreshFlight.generation === context.generation
+      && refreshFlight.metric === requestedMetric
     ) {
       return refreshFlight.promise;
     }
     setStatus("正在更新排行榜…", "");
-    const flight = { ...context, promise: null };
-    flight.promise = rpc("get_weekly_leaderboard", {}, context)
+    const flight = { ...context, metric: requestedMetric, promise: null };
+    flight.promise = (async () => {
+      if (requestedMetric === "cultivator") {
+        await rpc("sync_spirit_cultivator_progress", {
+          p_spirits: dependencies.getCultivatorProgress?.() || [],
+        }, context);
+      }
+      return rpc(
+        requestedMetric === "cultivator" ? "get_spirit_cultivator_leaderboard" : "get_weekly_leaderboard",
+        {},
+        context,
+      );
+    })()
       .then((rows) => {
         if (!isCurrentRequest(context)) return [];
-        const normalized = core.normalizeLeaderboardRows(rows, activeMetric);
+        const normalized = core.normalizeLeaderboardRows(rows, requestedMetric);
         if (!normalized.some((row) => row.isCurrentUser)) {
           renderLeaderboardRows([], activeMetric);
           setStatus("排行榜服務正在更新中", "error");
           return [];
         }
-        updateWeeklySummary(rows, context);
-        writeCache(activeMetric, normalized.map((row) => ({
+        if (requestedMetric === "weekly") updateWeeklySummary(rows, context);
+        writeCache(requestedMetric, normalized.map((row) => ({
           position: row.position,
           public_key: row.userId,
           display_name: row.displayName,
@@ -514,9 +584,11 @@
           featured_spirit_name: row.featuredSpiritName,
           featured_spirit_stage: row.featuredSpiritStage,
           score: row.score,
+          secondary_score: row.secondaryScore,
+          week_start: row.weekStart,
           is_current_user: row.isCurrentUser,
         })), context);
-        renderLeaderboardRows(rows, activeMetric);
+        if (activeMetric === requestedMetric) renderLeaderboardRows(rows, requestedMetric);
         setStatus("", "");
         return rows;
       })
@@ -929,6 +1001,53 @@
     return enqueuePracticeCompletion(completedCycles, practiceDate, protectedDates);
   }
 
+  function closeWeeklyRewardModal() {
+    rewardModalOpen = false;
+    $("#leaderboardWeeklyRewardModal")?.classList.add("hidden");
+    updateModalOpenClass();
+  }
+
+  async function claimWeeklyRewardNotice(context = requestContext()) {
+    if (!isCurrentRequest(context) || !joinedNow() || rewardClaimGeneration === context.generation) return null;
+    if (rewardClaimFlight?.generation === context.generation) return rewardClaimFlight.promise;
+    rewardClaimGeneration = context.generation;
+    const flight = { ...context, promise: null };
+    flight.promise = (async () => {
+      await dependencies.prepareWeeklyWaterReward?.();
+      if (!isCurrentRequest(context)) return null;
+      const reward = unwrapSingle(await rpc("claim_my_weekly_water_reward", {
+        p_notice_claim_token: rewardNoticeClaimToken,
+      }, context));
+      if (!reward || !isCurrentRequest(context)) return null;
+      const rank = Math.max(1, Math.floor(Number(reward.final_rank) || 1));
+      const water = Math.max(0, Math.floor(Number(reward.water_amount) || 0));
+      if (rank > 10 || !water) return null;
+      await dependencies.refreshWeeklyWaterReward?.();
+      if (!isCurrentRequest(context)) return null;
+      const message = $("#leaderboardWeeklyRewardMessage");
+      if (message) message.textContent = `恭喜你上一週在乖乖練習王獲得第 ${rank} 名，獲得 ${water} 水滴！`;
+      rewardModalOpen = true;
+      $("#leaderboardWeeklyRewardModal")?.classList.remove("hidden");
+      updateModalOpenClass();
+      try {
+        await rpc("ack_my_weekly_water_reward_notice", {
+          p_week_start: reward.week_start,
+          p_notice_claim_token: reward.notice_claim_token,
+        }, context);
+      } catch (error) {
+        if (isCurrentRequest(context)) console.warn("Weekly reward notice acknowledgement will retry.", classifyLeaderboardError(error).kind);
+      }
+      return reward;
+    })().catch((error) => {
+      if (isCurrentRequest(context)) console.warn("Weekly leaderboard reward remains available.", classifyLeaderboardError(error).kind);
+      return null;
+    }).finally(() => {
+      if (rewardClaimFlight === flight) rewardClaimFlight = null;
+    });
+    rewardClaimFlight = flight;
+    return flight.promise;
+  }
+
   async function openUnsafe() {
     const modal = $("#leaderboardModal");
     if (!modal) return false;
@@ -1012,6 +1131,7 @@
   }
 
   function close() {
+    if (detailsOpen) { closeLeaderboardDetails(); return true; }
     if (profileOpen) { closeProfileEditor(); return true; }
     if (!modalOpen) return false;
     modalOpen = false;
@@ -1029,6 +1149,8 @@
     activeUserId = String(nextUserId || "");
     modalOpen = false;
     profileOpen = false;
+    rewardModalOpen = false;
+    detailsOpen = false;
     membershipStatus = activeUserId ? MEMBERSHIP.LOADING : MEMBERSHIP.IDLE;
     membershipError = null;
     profile = null;
@@ -1036,6 +1158,8 @@
     membershipFlight = null;
     refreshFlight = null;
     queueFlight = null;
+    rewardClaimFlight = null;
+    rewardClaimGeneration = -1;
     pendingRankMovement = null;
     practiceSettlementResults.clear();
     practiceSettlementEvents.clear();
@@ -1048,6 +1172,8 @@
     profileOnboarding = false;
     $("#leaderboardModal")?.classList.add("hidden");
     $("#leaderboardProfileModal")?.classList.add("hidden");
+    $("#leaderboardWeeklyRewardModal")?.classList.add("hidden");
+    $("#leaderboardDetailsModal")?.classList.add("hidden");
     renderLeaderboardRows([], activeMetric);
     setStatus(activeUserId ? "正在確認排行榜資格…" : "", "");
     renderOwnProfile();
@@ -1072,6 +1198,7 @@
         try {
           await syncOwnProfile();
           await flushPendingEvents();
+          await claimWeeklyRewardNotice(requestContext(normalizedUserId));
           if (isCurrentRequest(requestContext(normalizedUserId))) {
             await loadLeaderboard("weekly", { force: true, showCache: false });
           }
@@ -1094,6 +1221,7 @@
     if (userId && userId === activeUserId) {
       writePendingEvents(userId, []);
       sessionStorage.removeItem(cacheKey("weekly", userId));
+      sessionStorage.removeItem(cacheKey("cultivator", userId));
       localStorage.removeItem(rankShownKey(userId));
     }
     requestGeneration += 1;
@@ -1119,6 +1247,13 @@
       });
     });
     $("#leaderboardModalClose")?.addEventListener("click", close);
+    $("#leaderboardDetailsOpen")?.addEventListener("click", openLeaderboardDetails);
+    $("#leaderboardDetailsClose")?.addEventListener("click", closeLeaderboardDetails);
+    $("#leaderboardDetailsDone")?.addEventListener("click", closeLeaderboardDetails);
+    $("#leaderboardDetailsModal")?.addEventListener("click", (event) => {
+      if (event.target.id === "leaderboardDetailsModal") closeLeaderboardDetails();
+    });
+    $("#leaderboardWeeklyRewardClose")?.addEventListener("click", closeWeeklyRewardModal);
     $("#leaderboardModal")?.addEventListener("click", (event) => { if (event.target.id === "leaderboardModal") close(); });
     $("#leaderboardProfileEdit")?.addEventListener("click", () => {
       if (joinedNow()) openProfileEditor();

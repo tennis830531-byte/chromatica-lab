@@ -541,6 +541,10 @@ window.chromaticaAccountWorkspace = {
       ? cloudSaveService?.noteLocalSnapshot?.(snapshot, { immediate: true }) || Promise.resolve(null)
       : Promise.resolve(null);
   },
+  refreshFromCloud() {
+    if (isGardenQaSessionActive()) return Promise.resolve(null);
+    return cloudSaveService?.handleForeground?.() || Promise.resolve(null);
+  },
 };
 
 function cleanWebCallbackUrl(url) {
@@ -1283,6 +1287,10 @@ const LEADERBOARD_RPC_ALLOWLIST = new Set([
   "sync_leaderboard_profile",
   "get_global_leaderboard",
   "get_weekly_leaderboard",
+  "get_spirit_cultivator_leaderboard",
+  "sync_spirit_cultivator_progress",
+  "claim_my_weekly_water_reward",
+  "ack_my_weekly_water_reward_notice",
   "update_leaderboard_profile",
   "record_leaderboard_practice",
   "record_weekly_leaderboard_practice",
