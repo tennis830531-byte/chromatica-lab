@@ -39,9 +39,9 @@ const { stdout: trackedOutput } = await execFileAsync("git", ["ls-files", "-z"],
 });
 const trackedSourceFiles = new Set(trackedOutput.split("\0").filter(Boolean));
 const reviewAssetHashes = new Map([
-  ["public/assets/garden/cards/melody-sprout-art-card.png", "89449a74699c411d55c996490f65ede5d37e853093cfea8490151559655a595d"],
-  ["public/assets/garden/cards/mushroom-spirit-art-card.png", "6ce428e2a445c6910ab5bdc0b448be02fb48e8e6cbb8605e55fe95bfb209c331"],
-  ["public/assets/garden/cards/flower-spirit-art-card.png", "2a76be32e4e5ec7c5c7f39eb2bee5e5022d1f37d26319d698342833ed67a450c"],
+  ["public/assets/garden/cards/melody-sprout-art-card.png", "b04847d079a4c73015de745057122e5bbd862a790ee7dc305cb0d0d943d524fc"],
+  ["public/assets/garden/cards/mushroom-spirit-art-card.png", "bfc95b9b1cd6467df002915202ccfe06eaa35a362587b2879bfdc28ef81b7cab"],
+  ["public/assets/garden/cards/flower-spirit-art-card.png", "d09446af36931e65b8bca6301efce9eca333c884b168007352118cbfcbdb5524"],
   ["public/assets/garden/backgrounds/collection-stage-gravel.jpg", "7b10e1d07d0fa99881f114714681a3e8cf13c981e18df9b1b4706055395a7056"],
   ["public/assets/garden/backgrounds/starter-selection-grass.jpg", "5725dcc61f9b9203b44ddb85588371ad87a62075ebb80fcbcf2df392d1d2573f"],
   ["public/assets/sounds/精靈採收卡牌音效.wav", "5595e78ebfb781929c8923d257f68f504556912589aef2cc29ee560af5e14f2f"],

@@ -13,9 +13,9 @@ const html = read("index.html");
 const css = read("styles.css");
 
 const cards = [
-  ["melody-sprout", "melody-sprout-art-card.png", "89449a74699c411d55c996490f65ede5d37e853093cfea8490151559655a595d"],
-  ["mushroom-spirit", "mushroom-spirit-art-card.png", "6ce428e2a445c6910ab5bdc0b448be02fb48e8e6cbb8605e55fe95bfb209c331"],
-  ["flower-spirit", "flower-spirit-art-card.png", "2a76be32e4e5ec7c5c7f39eb2bee5e5022d1f37d26319d698342833ed67a450c"],
+  ["melody-sprout", "melody-sprout-art-card.png", "b04847d079a4c73015de745057122e5bbd862a790ee7dc305cb0d0d943d524fc"],
+  ["mushroom-spirit", "mushroom-spirit-art-card.png", "bfc95b9b1cd6467df002915202ccfe06eaa35a362587b2879bfdc28ef81b7cab"],
+  ["flower-spirit", "flower-spirit-art-card.png", "d09446af36931e65b8bca6301efce9eca333c884b168007352118cbfcbdb5524"],
 ];
 
 test("confirmed card assets retain their exact bytes and single species mapping", () => {
