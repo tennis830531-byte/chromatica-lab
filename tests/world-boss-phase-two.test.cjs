@@ -94,6 +94,8 @@ test("battle arena uses the approved fixed background and exposes live ranking w
   assert.match(migration, /'avatar_path', ranked\.custom_avatar_path/);
   assert.match(migration, /'species', ranked\.species/);
   assert.match(migration, /left join lateral \([\s\S]*from public\.world_boss_attacks attack/);
+  assert.match(migration, /select attack\.species, attack\.spirit_stage/);
+  assert.doesNotMatch(migration, /attack\.stage/);
   assert.match(migration, /'first_attacker_display_name'/);
   assert.match(migration, /'final_attacker_display_name'/);
 });

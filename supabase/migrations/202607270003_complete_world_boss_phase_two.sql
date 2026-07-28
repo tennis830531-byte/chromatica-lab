@@ -537,7 +537,7 @@ begin
           live_profile.custom_avatar_path,
           live_profile.avatar_version,
           coalesce(latest_attack.species, live_profile.featured_spirit_species) as species,
-          coalesce(latest_attack.stage, live_profile.featured_spirit_stage) as stage,
+          coalesce(latest_attack.spirit_stage, live_profile.featured_spirit_stage) as stage,
           live_profile.featured_spirit_name as spirit_name,
           live_player.total_effective_damage,
           live_player.attack_count
@@ -545,7 +545,7 @@ begin
         left join public.leaderboard_profiles live_profile
           on live_profile.user_id = live_player.user_id
         left join lateral (
-          select attack.species, attack.stage
+          select attack.species, attack.spirit_stage
           from public.world_boss_attacks attack
           where attack.event_id = live_player.event_id
             and attack.user_id = live_player.user_id
