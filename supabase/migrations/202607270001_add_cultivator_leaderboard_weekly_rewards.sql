@@ -109,7 +109,23 @@ begin
     raise exception 'completed leaderboard profile required';
   end if;
   if pg_catalog.jsonb_typeof(coalesce(p_spirits, '[]'::jsonb)) <> 'array'
-     or pg_catalog.jsonb_array_length(coalesce(p_spirits, '[]'::jsonb)) > 3 then
+     or pg_catalog.jsonb_array_length(coalesce(p_spirits, '[]'::jsonb)) > 6 then
+    raise exception 'invalid spirit progress';
+  end if;
+  if exists (
+    select 1
+    from pg_catalog.jsonb_array_elements(coalesce(p_spirits, '[]'::jsonb)) item
+    where pg_catalog.jsonb_typeof(item) <> 'object'
+      or item->>'species' not in (
+        'melody-sprout',
+        'mushroom-spirit',
+        'flower-spirit',
+        'lucky-clover-spirit',
+        'lotus-spirit',
+        'cactus-spirit'
+      )
+      or coalesce(item->>'stage', '') !~ '^[1-3]$'
+  ) then
     raise exception 'invalid spirit progress';
   end if;
 

@@ -401,6 +401,45 @@ test("cultivator ranking is permanent and sorts species count before stage total
   assert.equal((await admin.from("leaderboard_weekly_water_rewards").select("*", { count: "exact", head: true })).count, 0);
 });
 
+test("cultivator sync accepts all six species, rejects malformed progress, and never regresses", async () => {
+  await resetWeekly();
+  const allSpecies = [
+    "melody-sprout",
+    "mushroom-spirit",
+    "flower-spirit",
+    "lucky-clover-spirit",
+    "lotus-spirit",
+    "cactus-spirit",
+  ];
+  assert.equal(await rpc(clients[0], "sync_spirit_cultivator_progress", {
+    p_spirits: allSpecies.map((species, index) => ({ species, stage: (index % 3) + 1 })),
+  }), true);
+  let stored = await admin.from("leaderboard_spirit_progress")
+    .select("species,stage").eq("user_id", users[0].id).order("species");
+  assert.ifError(stored.error);
+  assert.equal(stored.data.length, 6);
+
+  assert.equal(await rpc(clients[0], "sync_spirit_cultivator_progress", {
+    p_spirits: [{ species: "melody-sprout", stage: 3 }, { species: "melody-sprout", stage: 1 }],
+  }), true);
+  assert.equal(await rpc(clients[0], "sync_spirit_cultivator_progress", { p_spirits: [] }), true);
+  stored = await admin.from("leaderboard_spirit_progress")
+    .select("species,stage").eq("user_id", users[0].id).order("species");
+  assert.ifError(stored.error);
+  assert.equal(stored.data.length, 6);
+  assert.equal(stored.data.find((row) => row.species === "melody-sprout")?.stage, 3);
+
+  await expectFailure(() => rpc(clients[0], "sync_spirit_cultivator_progress", {
+    p_spirits: [{ species: "melody-sprout", stage: 4 }],
+  }), /invalid spirit progress/i);
+  await expectFailure(() => rpc(clients[0], "sync_spirit_cultivator_progress", {
+    p_spirits: [{ species: "unknown-spirit", stage: 1 }],
+  }), /invalid spirit progress/i);
+  await expectFailure(() => rpc(clients[0], "sync_spirit_cultivator_progress", {
+    p_spirits: [...allSpecies.map((species) => ({ species, stage: 1 })), { species: "melody-sprout", stage: 1 }],
+  }), /invalid spirit progress/i);
+});
+
 test("weekly rewards update cloud water atomically and retry without duplicate application", async (t) => {
   await resetWeekly();
   await resetScores();

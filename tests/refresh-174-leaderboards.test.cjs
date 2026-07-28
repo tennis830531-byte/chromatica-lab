@@ -34,6 +34,8 @@ test("cultivator sync keeps one validated stage per owned species", () => {
   assert.match(leaderboard, /sync_spirit_cultivator_progress[\s\S]*getCultivatorProgress/);
   assert.match(migration, /species in \('melody-sprout', 'mushroom-spirit', 'flower-spirit', 'lucky-clover-spirit', 'lotus-spirit', 'cactus-spirit'\)/);
   assert.match(migration, /stage smallint not null check \(stage between 1 and 3\)/);
+  assert.match(migration, /jsonb_array_length\(coalesce\(p_spirits, '\[\]'::jsonb\)\) > 6/);
+  assert.match(migration, /jsonb_typeof\(item\) <> 'object'[\s\S]*item->>'species' not in[\s\S]*item->>'stage'[\s\S]*!~ '\^\[1-3\]\$'/);
   assert.match(migration, /on conflict \(user_id, species\) do update[\s\S]*greatest\(public\.leaderboard_spirit_progress\.stage, excluded\.stage\)/);
 });
 
