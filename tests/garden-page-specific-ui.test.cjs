@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const root = path.join(__dirname, "..");
+const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
 const shared = fs.readFileSync(path.join(root, "garden-shared.js"), "utf8");
@@ -18,9 +19,9 @@ test("homepage uses alpha-measured per-species per-stage vertical offsets", () =
   assert.match(css, /\.hero-plant-stage img \{[^}]*--hero-visual-y: 0px;[^}]*transform: translateY\(calc\(clamp\(36px, 10vw, 42px\) \+ var\(--hero-visual-y\)\)\);/s);
   assert.match(css, /\.hero-garden-plant-image\.hero-stage-3 \{[^}]*max-width: 102%;[^}]*max-height: 182px;/s);
   assert.match(css, /\.hero-garden-plant-image\.species-melody-sprout\.hero-stage-1,[\s\S]*?\.species-mushroom-spirit\.hero-stage-1,[\s\S]*?\.species-flower-spirit\.hero-stage-1 \{[^}]*max-width: 40%;/s);
-  assert.match(css, /\.hero-garden-plant-image\.species-flower-spirit\.hero-stage-2 \{[^}]*max-width: 85%;[^}]*max-height: 144px;/s);
+  assert.match(css, /\.hero-garden-plant-image\.species-flower-spirit\.hero-stage-2 \{[^}]*max-width: 90%;[^}]*max-height: 152px;/s);
   const expectedOffsets = new Map([
-    ["melody-sprout-1", "3.07px"], ["melody-sprout-2", "2.26px"], ["melody-sprout-3", "-45.21px"],
+    ["melody-sprout-1", "3.07px"], ["melody-sprout-2", "-5.74px"], ["melody-sprout-3", "-53.21px"],
     ["mushroom-spirit-1", "8.30px"], ["mushroom-spirit-2", "6.54px"], ["mushroom-spirit-3", "-33.61px"],
     ["flower-spirit-1", "4.57px"], ["flower-spirit-2", "0px"], ["flower-spirit-3", "-45.52px"],
   ]);
@@ -28,7 +29,7 @@ test("homepage uses alpha-measured per-species per-stage vertical offsets", () =
     const [species, spirit, stage] = key.split("-");
     assert.match(css, new RegExp(`\\.hero-garden-plant-image\\.species-${species}-${spirit}\\.hero-stage-${stage} \\{ --hero-visual-y: ${offset.replace(".", "\\.")}; \\}`));
   }
-  assert.match(css, /\.hero-garden-plant-image\.species-melody-sprout\.hero-stage-3 \{[^}]*max-width: 120%;[^}]*max-height: 214px;/s);
+  assert.match(css, /\.hero-garden-plant-image\.species-melody-sprout\.hero-stage-3 \{[^}]*max-width: 125%;[^}]*max-height: 222px;/s);
   assert.match(css, /\.hero-plant-name-card \{[^}]*transform: translateY\(44px\);[^}]*border-radius: 0;/s);
   assert.match(app, /heroImage\.classList\.remove\("hero-stage-1", "hero-stage-2", "hero-stage-3"\);[\s\S]*setGardenSpeciesClass\(heroImage, plant\?\.species \|\| ""\);/);
   assert.doesNotMatch(app.match(/function renderHeroGarden\(\)[\s\S]*?\n\}/)?.[0] || "", /garden-stage-|garden-plant-image|applyGardenPlantPresentation|style\.(?:transform|top|bottom)/);
@@ -48,6 +49,27 @@ test("detail stage rules stay independent from collection and hero classes", () 
   assert.doesNotMatch(detailMarkup, /collection-|garden-stage-|hero-stage-|style=/);
 });
 
+test("new species hero and cultivation sizing never changes detail-stage geometry", () => {
+  for (const species of ["lucky-clover-spirit", "lotus-spirit", "cactus-spirit"]) {
+    assert.match(css, new RegExp(`hero-garden-plant-image\\.species-${species}`));
+  }
+  assert.match(css, /\.garden-plant-image\.species-lucky-clover-spirit\.garden-stage-2,[\s\S]*?max-height: 218px;/);
+  assert.match(css, /\.hero-garden-plant-image\.species-lotus-spirit\.hero-stage-1 \{[^}]*max-width: 52%;/s);
+  assert.match(css, /\.hero-garden-plant-image\.species-flower-spirit\.hero-stage-2 \{[^}]*max-width: 90%;[^}]*max-height: 152px;/s);
+  assert.match(css, /\.hero-garden-plant-image\.species-melody-sprout\.hero-stage-2 \{[^}]*max-width: 90%;[^}]*max-height: 174px;/s);
+  assert.match(css, /\.hero-garden-plant-image\.species-lucky-clover-spirit\.hero-stage-1 \{[^}]*--hero-visual-y: -2px;/s);
+  assert.match(css, /\.hero-garden-plant-image\.species-lucky-clover-spirit\.hero-stage-2 \{[^}]*--hero-visual-y: -8px;/s);
+  assert.match(css, /\.hero-garden-plant-image\.species-lucky-clover-spirit\.hero-stage-3,[\s\S]*?\.species-lotus-spirit\.hero-stage-3 \{[^}]*max-height: 206px;/s);
+  assert.match(css, /\.hero-garden-plant-image\.species-cactus-spirit\.hero-stage-3 \{[^}]*max-height: 206px;/s);
+  assert.match(css, /\.hero-garden-plant-image\.species-lucky-clover-spirit\.hero-stage-3,[\s\S]*?\.species-lotus-spirit\.hero-stage-3,[\s\S]*?\.species-cactus-spirit\.hero-stage-3 \{[^}]*--hero-visual-y: -42px;/s);
+  assert.match(css, /\.plant-action-layer\.species-flower-spirit\.garden-stage-2 \{[^}]*width: min\(68%, 224px\);/s);
+  assert.match(css, /\.plant-action-layer\.species-lucky-clover-spirit\.garden-stage-2 \{[^}]*width: min\(62%, 204px\);/s);
+  assert.match(css, /\.plant-action-layer\.species-lotus-spirit\.garden-stage-2 \{[^}]*width: min\(66%, 218px\);/s);
+  assert.match(css, /\.garden-plant-image\.species-lucky-clover-spirit\.garden-stage-3,[\s\S]*?\.species-lotus-spirit\.garden-stage-3,[\s\S]*?\.species-cactus-spirit\.garden-stage-3 \{[^}]*--garden-plant-y: -18px;/s);
+  assert.match(css, /\.plant-action-layer\.species-cactus-spirit\.garden-stage-1 \{[^}]*width: min\(43%, 142px\);/s);
+  assert.doesNotMatch(css, /\.garden-spirit-stage-card\.spirit-(?:lucky-clover-spirit|lotus-spirit|cactus-spirit)/);
+});
+
 test("collection uses full 2:3 art cards without legacy plant thumbnail transforms", () => {
   assert.match(css, /\.garden-collection \{[^}]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/s);
   assert.match(css, /\.garden-collection-cell \{[^}]*aspect-ratio: 2 \/ 3;/s);
@@ -58,6 +80,37 @@ test("collection uses full 2:3 art cards without legacy plant thumbnail transfor
   assert.doesNotMatch(shared, /garden-collection-spirit-thumb|collection-stage-/);
   const collectionRenderer = shared.match(/function renderGardenCollection\([\s\S]*?\n  \}/)?.[0] || "";
   assert.doesNotMatch(collectionRenderer, /style\.(?:width|height|transform|left|right)|hero-stage-|garden-stage-/);
+});
+
+test("collection card state is driven only by learned skills, never homepage featured state", () => {
+  assert.doesNotMatch(css, /\.garden-collection-cell\.featured/);
+  assert.doesNotMatch(shared, /collected\?\.id === featuredId/);
+  assert.match(shared, /storeAdapter\?\.isSkillUnlocked\?\.\(collected\.species\)/);
+  assert.match(shared, /garden-collection-cell\$\{skillUnlocked \? " skill-unlocked" : ""\}/);
+  assert.match(app, /artPage\.classList\.toggle\("skill-unlocked", skillUnlocked\)/);
+  assert.match(css, /\.garden-collection-cell\.skill-unlocked \{/);
+  assert.match(css, /\.garden-spirit-art-page\.skill-unlocked img \{/);
+  assert.match(css, /@keyframes gardenSkillCardGlow/);
+  assert.match(css, /prefers-reduced-motion[\s\S]*garden-collection-cell\.skill-unlocked \{[\s\S]*animation: none;/);
+});
+
+test("learned skill glow continuously flows around collection and full art cards", () => {
+  assert.match(css, /\.garden-collection \{[\s\S]*padding: 14px 8px 8px 14px;/);
+  assert.doesNotMatch(css, /\.garden-collection-cell\.skill-unlocked::(?:before|after)/);
+  assert.match(app, /gardenSpiritModal"\)\?\.classList\.toggle\("skill-unlocked-card", skillUnlocked && isCardPage\)/);
+  assert.match(html, /class="garden-skill-energy-streams"[\s\S]*gardenSkillEnergyPath1[\s\S]*gardenSkillEnergyPath4/);
+  assert.match(html, /class="garden-skill-energy-particles"[\s\S]*animateMotion[\s\S]*mpath href="#gardenSkillEnergyPath1"/);
+  assert.match(css, /\.garden-spirit-modal-backdrop\.skill-unlocked-card \.garden-skill-energy-streams \{[\s\S]*display: block/);
+  assert.match(css, /gardenSkillStreamForward 6\.8s linear infinite/);
+  assert.match(css, /gardenSkillStreamForward 8\.6s -3\.1s linear infinite/);
+  assert.match(css, /gardenSkillStreamForward 9\.7s -5\.4s linear infinite/);
+  assert.match(css, /gardenSkillStreamReverse 7\.9s -1\.8s linear infinite/);
+  assert.match(css, /stroke-dasharray: 18 82/);
+  assert.doesNotMatch(css, /\.garden-spirit-modal-backdrop\.skill-unlocked-card \.garden-spirit-modal::(?:before|after)/);
+  assert.doesNotMatch(css, /gardenSkillLiquidMain|gardenSkillLiquidParticles|gardenSkillModalAura/);
+  assert.match(css, /\.garden-spirit-art-page\.skill-unlocked img \{[\s\S]*drop-shadow\(0 0 42px[\s\S]*gardenSkillArtCardGlow/);
+  assert.match(css, /prefers-reduced-motion: reduce[\s\S]*garden-skill-energy-stream \{[\s\S]*animation: none !important/);
+  assert.match(css, /prefers-reduced-motion: reduce[\s\S]*garden-skill-energy-particles \{[\s\S]*display: none/);
 });
 
 test("garden water balance is horizontal and garden position offsets are shared by formal and QA", () => {

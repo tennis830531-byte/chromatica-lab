@@ -299,6 +299,38 @@
 
     <div id="gardenSpiritModal" class="garden-spirit-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="gardenSpiritModalTitle">
       <div class="garden-spirit-modal">
+        <svg class="garden-skill-energy-streams" viewBox="0 0 520 720" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="gardenSkillStreamGoldA" x1="0" y1="1" x2="1" y2="0">
+              <stop offset="0" stop-color="#d9931c" stop-opacity="0" />
+              <stop offset=".42" stop-color="#efbd45" stop-opacity=".42" />
+              <stop offset=".76" stop-color="#fff2a8" stop-opacity=".98" />
+              <stop offset="1" stop-color="#fff8d7" stop-opacity=".08" />
+            </linearGradient>
+            <linearGradient id="gardenSkillStreamGoldB" x1="1" y1="1" x2="0" y2="0">
+              <stop offset="0" stop-color="#c97912" stop-opacity="0" />
+              <stop offset=".5" stop-color="#f5ca5e" stop-opacity=".48" />
+              <stop offset=".82" stop-color="#fff5bf" stop-opacity=".92" />
+              <stop offset="1" stop-color="#fff9df" stop-opacity=".06" />
+            </linearGradient>
+            <filter id="gardenSkillStreamSoft" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="2.4" result="blur" />
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+          </defs>
+          <g class="garden-skill-energy-paths" fill="none" filter="url(#gardenSkillStreamSoft)">
+            <path id="gardenSkillEnergyPath1" class="garden-skill-energy-stream stream-one" pathLength="100" d="M-45 620 C65 540 82 650 190 552 S368 410 565 322" />
+            <path id="gardenSkillEnergyPath2" class="garden-skill-energy-stream stream-two" pathLength="100" d="M-42 352 C86 246 132 392 254 286 S426 132 566 208" />
+            <path id="gardenSkillEnergyPath3" class="garden-skill-energy-stream stream-three" pathLength="100" d="M72 770 C20 628 126 526 68 392 S105 116 288-42" />
+            <path id="gardenSkillEnergyPath4" class="garden-skill-energy-stream stream-four" pathLength="100" d="M548 692 C418 604 526 462 442 358 S342 126 506-48" />
+          </g>
+          <g class="garden-skill-energy-particles">
+            <circle r="3.2"><animateMotion dur="6.8s" begin="-1.4s" repeatCount="indefinite"><mpath href="#gardenSkillEnergyPath1" /></animateMotion></circle>
+            <circle r="2.4"><animateMotion dur="8.6s" begin="-5.1s" repeatCount="indefinite"><mpath href="#gardenSkillEnergyPath2" /></animateMotion></circle>
+            <circle r="2.8"><animateMotion dur="9.7s" begin="-3.8s" repeatCount="indefinite"><mpath href="#gardenSkillEnergyPath3" /></animateMotion></circle>
+            <circle r="2.2"><animateMotion dur="7.9s" begin="-6.2s" repeatCount="indefinite"><mpath href="#gardenSkillEnergyPath4" /></animateMotion></circle>
+          </g>
+        </svg>
         <div class="garden-spirit-modal-head">
           <div>
             <p class="eyebrow">植物精靈圖鑑</p>
@@ -486,15 +518,15 @@
           <div class="home-hero paper-card">
             <div class="hero-top">
               <div class="hero-copy">
-                <div class="hero-title-row">
-                  <h2 id="homeHeroQaTitle" data-haptic="none">半音階口琴練習室</h2>
+                <h2 id="homeHeroQaTitle" data-haptic="none">半音階口琴練習室</h2>
+                <p>透過孔位地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p>
+                <div class="hero-rank-boss-row">
+                  <p id="homeLeaderboardTitle" class="home-leaderboard-title hidden" aria-live="polite"></p>
                   <button id="worldBossEntry" class="world-boss-entry" type="button" aria-label="查看世界 Boss">
                     <img id="worldBossEntryIcon" src="./public/assets/world-boss/boss入口icon.png" alt="" />
-                    <span id="worldBossEntryLabel">世界 Boss 預告</span>
+                    <span id="worldBossEntryLabel">世界 Boss 尚未出沒</span>
                   </button>
                 </div>
-                <p>透過孔位地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p>
-                <p id="homeLeaderboardTitle" class="home-leaderboard-title hidden" aria-live="polite"></p>
               </div>
             </div>
             <div class="hero-actions">
@@ -1136,7 +1168,7 @@
           <div class="garden-qa-banner"><strong>植物測試模式｜不影響正式進度</strong><button data-qa-leave type="button">離開測試模式</button></div>
           <div class="section-head compact no-eyebrow"><img class="section-icon ui-quick-icon" src="./public/assets/garden/icons/watering-can.png" alt="" /><h2>植物精靈測試花園</h2><p>所有操作只保存在本次 session。</p></div>
           <div class="garden-qa-preview-switch" role="tablist" aria-label="植物預覽模式"><button class="active" data-qa-preview="garden" role="tab" aria-selected="true" type="button">測試花園</button><button data-qa-preview="hero" role="tab" aria-selected="false" type="button">首頁展示</button></div>
-          <div class="garden-qa-toolbar" aria-label="植物測試工具"><button data-qa-action="water" data-haptic="manual" type="button">澆水</button><button data-qa-action="fill" data-haptic="manual" type="button">本階段補滿</button><button data-qa-action="mature" data-haptic="manual" type="button">直接成熟</button><button data-qa-action="harvest" type="button">採收</button><button data-qa-action="reset" type="button">重置目前植物</button><button id="gardenQaResetAll" type="button">重置測試花園</button><button id="announcementAdminOpen" type="button">公告管理</button><button data-qa-reminder-hour="19" data-qa-reminder-minutes="1" type="button">1 分鐘後測試 19:00 提醒</button><button data-qa-reminder-hour="22" data-qa-reminder-minutes="2" type="button">2 分鐘後測試 22:00 提醒</button><button data-qa-leave type="button">離開測試模式</button></div>
+          <div class="garden-qa-toolbar" aria-label="植物測試工具"><button data-qa-action="water" data-haptic="manual" type="button">澆水</button><button data-qa-action="fill" data-haptic="manual" type="button">本階段補滿</button><button data-qa-action="mature" data-haptic="manual" type="button">直接成熟</button><button data-qa-action="harvest" type="button">採收</button><button data-qa-action="reset" type="button">重置目前植物</button><button id="gardenQaResetAll" type="button">重置測試花園</button><button id="gardenQaWorldBoss" type="button">World Boss QA</button><button id="announcementAdminOpen" type="button">公告管理</button><button data-qa-reminder-hour="19" data-qa-reminder-minutes="1" type="button">1 分鐘後測試 19:00 提醒</button><button data-qa-reminder-hour="22" data-qa-reminder-minutes="2" type="button">2 分鐘後測試 22:00 提醒</button><button data-qa-leave type="button">離開測試模式</button></div>
           <p id="gardenQaNotificationStatus" class="settings-status-text" aria-live="polite"></p>
           <div id="gardenQaSharedRoot" data-qa-preview-panel="garden" aria-live="polite"></div>
           <div id="gardenQaHeroRoot" data-qa-preview-panel="hero" class="hidden" aria-live="polite"></div>
@@ -1329,17 +1361,87 @@
 
         <section id="worldboss" class="view">
           <div class="world-boss-page paper-card">
-            <div class="world-boss-page-head"><div><p class="eyebrow">每週共同討伐</p><h2>世界 Boss・樹麻雀</h2><strong id="worldBossStatusText">正在確認活動狀態…</strong></div><button class="icon-btn" data-view="intro" type="button" aria-label="返回首頁">×</button></div>
-            <img id="worldBossImage" class="world-boss-image" src="./public/assets/world-boss/第一隻boss 樹麻雀.png" alt="世界 Boss 樹麻雀" />
-            <p id="worldBossHp" class="world-boss-hp" aria-live="polite">世界 Boss 服務準備中</p>
-            <div class="world-boss-energy"><img src="./public/assets/world-boss/光之能量.png" alt="" /><span>光之能量</span><strong id="worldBossEnergyCount">0</strong></div>
-            <button id="worldBossExchangeEnergy" class="secondary-btn" type="button">3 水滴兌換 1 顆光之能量</button>
-            <div id="worldBossBattleControls" class="world-boss-battle-controls hidden">
-              <label>出戰精靈<select id="worldBossSpirit"><option value="melody-sprout">旋律森使</option><option value="mushroom-spirit">菇鳴賢者</option><option value="flower-spirit">花樂仙子</option></select></label>
-              <label>階段<select id="worldBossSpiritStage"><option value="1">第一階段</option><option value="2">第二階段</option><option value="3">第三階段</option></select></label>
-              <button id="worldBossNormalAttack" type="button"><img src="./public/assets/world-boss/攻擊按鈕.png" alt="" />攻擊</button>
-              <button id="worldBossSpecialAttack" type="button"><img src="./public/assets/world-boss/專屬攻擊技能按鈕.png" alt="" />專屬技能</button>
+            <div class="world-boss-page-head"><div><p class="eyebrow">每週共同討伐</p><h2 id="worldBossName">世界 Boss・樹麻雀</h2><strong id="worldBossStatusText">正在確認活動狀態…</strong></div><button class="icon-btn" data-view="intro" type="button" aria-label="返回首頁">×</button></div>
+            <section id="worldBossQaPanel" class="world-boss-qa-panel hidden" aria-label="World Boss QA 測試控制">
+              <div class="world-boss-qa-head"><strong>World Boss QA｜完全隔離</strong><button id="worldBossQaReturn" type="button">返回測試花園</button></div>
+              <p>只使用本次 session，不扣正式水滴、不寫正式戰鬥或通知資料。</p>
+              <div class="world-boss-qa-toggles">
+                <label><input id="worldBossQaUnlimitedEnergy" type="checkbox" checked /> 無限光之能量</label>
+                <label><input id="worldBossQaUnlimitedSpecial" type="checkbox" checked /> 特殊技能次數不受限</label>
+              </div>
+              <div class="world-boss-qa-actions">
+                <button id="worldBossQaZeroEnergy" type="button">將光之能量設為 0</button>
+                <label>QA 水滴 <input id="worldBossQaWater" type="number" min="0" max="9999" step="1" value="300" /></label>
+                <span>本場已兌換 <strong id="worldBossQaExchangeCount">0 / 10</strong></span>
+              </div>
+              <div class="world-boss-qa-actions" aria-label="快速設定 Boss HP">
+                <span>Boss HP</span>
+                <button type="button" data-world-boss-qa-hp="3000">3000</button>
+                <button type="button" data-world-boss-qa-hp="600">600</button>
+                <button type="button" data-world-boss-qa-hp="20">20</button>
+                <button type="button" data-world-boss-qa-hp="0">0</button>
+              </div>
+              <div class="world-boss-qa-actions">
+                <button id="worldBossQaSuccess" type="button">模擬成功結算</button>
+                <button id="worldBossQaFailure" type="button">模擬失敗結算</button>
+                <button id="worldBossQaReset" type="button">重置 QA 活動</button>
+              </div>
+            </section>
+            <div id="worldBossCombatView">
+              <div id="worldBossArena" class="world-boss-arena">
+                <div class="world-boss-energy world-boss-energy-overlay" aria-label="光之能量"><img src="./public/assets/world-boss/光之能量.png" alt="" /><strong id="worldBossEnergyCount">0</strong></div>
+                <img id="worldBossImage" class="world-boss-image" src="./public/assets/world-boss/第一隻boss 樹麻雀.png" alt="世界 Boss 樹麻雀" />
+                <img id="worldBossAttackEffect" class="world-boss-attack-effect hidden" src="./public/assets/world-boss/攻擊特效.png" alt="" aria-hidden="true" />
+                <span id="worldBossCounterMessage" class="world-boss-counter-message hidden">樹麻雀發動反擊！</span>
+              </div>
+              <p id="worldBossHp" class="world-boss-hp" aria-live="polite">世界 Boss 服務準備中</p>
+              <div class="world-boss-hp-track" aria-hidden="true"><span id="worldBossHpFill"></span></div>
+              <p id="worldBossCountdown" class="world-boss-countdown">正在取得伺服器活動時間…</p>
+              <div id="worldBossBattleControls" class="world-boss-battle-controls hidden">
+                <button id="worldBossSpiritPicker" class="world-boss-spirit-picker" type="button">
+                  <img id="worldBossActiveSpirit" class="world-boss-active-spirit" src="./public/assets/garden/plants/melody-sprout-stage1.png?v=hd-20260728b" alt="出戰精靈" />
+                  <span><small>出戰精靈</small><strong id="worldBossActiveSpiritName">旋律芽芽</strong><em id="worldBossActiveSpiritStage">第一階段</em></span>
+                </button>
+                <div class="world-boss-attack-console">
+                  <button id="worldBossAttackModeToggle" class="world-boss-attack-mode hidden" type="button">切換專屬技能</button>
+                  <button id="worldBossAttackAction" class="world-boss-attack-action primary-btn" type="button">
+                    <img id="worldBossAttackActionIcon" src="./public/assets/world-boss/攻擊按鈕.png" alt="" />
+                    <span id="worldBossAttackActionLabel">攻擊</span>
+                    <b id="worldBossSpecialRemaining" class="world-boss-special-badge hidden" aria-label="專屬技能剩餘次數">2</b>
+                  </button>
+                </div>
+                <select id="worldBossSpirit" class="hidden" aria-hidden="true" tabindex="-1"><option value="melody-sprout">旋律森使</option><option value="mushroom-spirit">菇鳴賢者</option><option value="flower-spirit">花樂仙子</option><option value="lucky-clover-spirit">四葉祝使</option><option value="lotus-spirit">蓮華樂仙</option><option value="cactus-spirit">荒漠樂將</option></select>
+                <select id="worldBossSpiritStage" class="hidden" aria-hidden="true" tabindex="-1"><option value="1">第一階段</option><option value="2">第二階段</option><option value="3">第三階段</option></select>
+              </div>
+              <section id="worldBossPlayerStats" class="world-boss-player-stats hidden" aria-label="我的討伐戰績">
+                <div><span>目前累積傷害</span><strong id="worldBossPlayerDamage">0</strong></div>
+                <div><span>攻擊次數</span><strong id="worldBossPlayerAttackCount">0</strong></div>
+              </section>
+              <section id="worldBossLiveRankingSection" class="world-boss-live-ranking-section hidden" aria-labelledby="worldBossLiveRankingTitle">
+                <div class="world-boss-live-ranking-head">
+                  <h3 id="worldBossLiveRankingTitle">即時傷害排行</h3>
+                  <div class="world-boss-hit-highlights">
+                    <span>第一刀<strong id="worldBossFirstHitPlayer">尚未產生</strong></span>
+                    <span>尾刀<strong id="worldBossFinalHitPlayer">尚未產生</strong></span>
+                  </div>
+                </div>
+                <ol id="worldBossLiveRanking" class="world-boss-live-ranking"></ol>
+              </section>
+              <section id="worldBossBattleLogSection" class="world-boss-battle-log-section hidden" aria-labelledby="worldBossBattleLogTitle">
+                <h3 id="worldBossBattleLogTitle">即時戰鬥紀錄</h3>
+                <ol id="worldBossBattleLog" class="world-boss-battle-log"></ol>
+              </section>
             </div>
+            <section id="worldBossSettlement" class="world-boss-settlement hidden" aria-labelledby="worldBossSettlementTitle">
+              <p class="eyebrow">本週討伐結算</p>
+              <div class="world-boss-settlement-scene">
+                <img id="worldBossSettlementBossImage" class="world-boss-settlement-boss-image" src="./public/assets/world-boss/第一隻boss 樹麻雀.png" alt="樹麻雀結算狀態" />
+              </div>
+              <h3 id="worldBossSettlementTitle">結算準備中</h3>
+              <div id="worldBossSettlementSummary" class="world-boss-settlement-summary"></div>
+              <ol id="worldBossSettlementRanking" class="world-boss-settlement-ranking" aria-label="前十名傷害排行榜"></ol>
+              <div id="worldBossMySettlement" class="world-boss-my-settlement"></div>
+            </section>
             <p id="worldBossMessage" role="status" aria-live="polite"></p>
           </div>
         </section>
@@ -1354,7 +1456,7 @@
       </nav>
     </div>
 
-    <div id="worldBossSkillSuccessModal" class="modal-backdrop world-boss-skill-success hidden" role="dialog" aria-modal="true" aria-labelledby="worldBossSkillSuccessName">
+    <div id="worldBossSkillSuccessModal" class="modal-backdrop world-boss-modal-backdrop world-boss-skill-success hidden" role="dialog" aria-modal="true" aria-labelledby="worldBossSkillSuccessName">
       <div class="feedback-modal paper-card">
         <span class="world-boss-skill-glow" aria-hidden="true"></span>
         <p id="worldBossSkillSuccessSpirit">恭喜獲得第三階段精靈的</p>
@@ -1363,6 +1465,45 @@
         <button id="worldBossSkillSuccessClose" class="primary-btn" type="button">太好了</button>
       </div>
     </div>
+
+    <div id="worldBossSkillLearnConfirmModal" class="modal-backdrop world-boss-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="worldBossSkillLearnConfirmTitle">
+      <div class="feedback-modal paper-card">
+        <h2 id="worldBossSkillLearnConfirmTitle">學習專屬攻擊技能？</h2>
+        <p id="worldBossSkillLearnConfirmCopy">將花費 100 水滴學習此精靈的專屬攻擊技能。</p>
+        <div class="feedback-actions"><button id="worldBossSkillLearnCancel" class="secondary-btn" type="button">取消</button><button id="worldBossSkillLearnConfirm" class="primary-btn" type="button">花費 100 水滴學習</button></div>
+      </div>
+    </div>
+
+    <div id="worldBossExchangeAttackModal" class="modal-backdrop world-boss-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="worldBossExchangeAttackTitle">
+      <div class="feedback-modal paper-card">
+        <h2 id="worldBossExchangeAttackTitle">兌換並立即攻擊？</h2>
+        <p id="worldBossExchangeAttackCopy">目前沒有光之能量，是否花費 3 水滴兌換 1 顆光之能量並立即攻擊世界 Boss？</p>
+        <div class="feedback-actions"><button id="worldBossExchangeAttackCancel" class="secondary-btn" type="button">取消</button><button id="worldBossExchangeAttackConfirm" class="primary-btn" type="button">兌換並攻擊</button></div>
+      </div>
+    </div>
+
+    <div id="worldBossSpiritPickerModal" class="modal-backdrop world-boss-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="worldBossSpiritPickerTitle">
+      <div class="feedback-modal paper-card world-boss-spirit-picker-modal">
+        <h2 id="worldBossSpiritPickerTitle">選擇出戰精靈</h2>
+        <p>選擇本次攻擊使用的精靈與階段。</p>
+        <div id="worldBossSpiritPickerList" class="world-boss-spirit-picker-list"></div>
+        <button id="worldBossSpiritPickerClose" class="secondary-btn" type="button">取消</button>
+      </div>
+    </div>
+
+    <div id="worldBossSpecialPresentation" class="modal-backdrop world-boss-modal-backdrop world-boss-special-presentation hidden" role="dialog" aria-modal="true" aria-labelledby="worldBossSpecialPresentationName">
+      <div class="world-boss-special-stage">
+        <span class="world-boss-special-stage-glow" aria-hidden="true"></span>
+        <img id="worldBossSpecialPresentationCard" alt="" />
+        <h2 id="worldBossSpecialPresentationName">森律共鳴・萬葉齊奏</h2>
+      </div>
+    </div>
+
+    <aside id="worldBossTopNotice" class="world-boss-top-notice hidden" role="status" aria-live="polite">
+      <strong id="worldBossTopNoticeTitle">世界 Boss</strong>
+      <span id="worldBossTopNoticeBody"></span>
+      <button id="worldBossTopNoticeClose" type="button" aria-label="關閉通知">×</button>
+    </aside>
 
     <div id="metronomeComplete" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="metronomeCompleteTitle"><div class="feedback-modal paper-card"><h2 id="metronomeCompleteTitle">節拍器練習完成</h2><p>這次節拍器使用不會記錄為正式練習，也不會發放水滴。</p><button id="metronomeCompleteClose" class="primary-btn" type="button">完成</button></div></div>
 

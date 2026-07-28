@@ -32,7 +32,7 @@ test("cultivator metric remains distinct and ranks species before total stages",
 test("cultivator sync keeps one validated stage per owned species", () => {
   assert.match(app, /function getLeaderboardCultivatorProgress\(\)[\s\S]*progress\.set\(species, Math\.max\(progress\.get\(species\) \|\| 0, stage\)\)/);
   assert.match(leaderboard, /sync_spirit_cultivator_progress[\s\S]*getCultivatorProgress/);
-  assert.match(migration, /species in \('melody-sprout', 'mushroom-spirit', 'flower-spirit'\)/);
+  assert.match(migration, /species in \('melody-sprout', 'mushroom-spirit', 'flower-spirit', 'lucky-clover-spirit', 'lotus-spirit', 'cactus-spirit'\)/);
   assert.match(migration, /stage smallint not null check \(stage between 1 and 3\)/);
   assert.match(migration, /on conflict \(user_id, species\) do update[\s\S]*greatest\(public\.leaderboard_spirit_progress\.stage, excluded\.stage\)/);
 });

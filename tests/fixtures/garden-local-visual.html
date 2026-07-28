@@ -31,9 +31,9 @@
   </section>
 
   <section>
-    <div id="thumbCellMelody" class="garden-collection-cell"><span class="slot-number">1</span><button type="button"><img id="thumbMelody" class="garden-collection-spirit-thumb collection-melody-sprout collection-stage-1" src="../../public/assets/garden/plants/melody-sprout-stage1.png" alt=""></button></div>
-    <div id="thumbCellFlower" class="garden-collection-cell"><span class="slot-number">2</span><button type="button"><img id="thumbFlower" class="garden-collection-spirit-thumb collection-flower-spirit collection-stage-1" src="../../public/assets/garden/plants/flower-spirit-stage1.png" alt=""></button></div>
-    <div id="thumbCellMushroom" class="garden-collection-cell"><span class="slot-number">3</span><button type="button"><img id="thumbMushroom" class="garden-collection-spirit-thumb collection-mushroom-spirit collection-stage-1" src="../../public/assets/garden/plants/mushroom-spirit-stage1.png" alt=""></button></div>
+    <div id="thumbCellMelody" class="garden-collection-cell"><span class="slot-number">1</span><button type="button"><img id="thumbMelody" class="garden-collection-spirit-thumb collection-melody-sprout collection-stage-1" src="../../public/assets/garden/plants/melody-sprout-stage1.png?v=hd-20260728b" alt=""></button></div>
+    <div id="thumbCellFlower" class="garden-collection-cell"><span class="slot-number">2</span><button type="button"><img id="thumbFlower" class="garden-collection-spirit-thumb collection-flower-spirit collection-stage-1" src="../../public/assets/garden/plants/flower-spirit-stage1.png?v=hd-20260728b" alt=""></button></div>
+    <div id="thumbCellMushroom" class="garden-collection-cell"><span class="slot-number">3</span><button type="button"><img id="thumbMushroom" class="garden-collection-spirit-thumb collection-mushroom-spirit collection-stage-1" src="../../public/assets/garden/plants/mushroom-spirit-stage1.png?v=hd-20260728b" alt=""></button></div>
   </section>
 
   <pre id="result">pending</pre>
@@ -61,7 +61,7 @@
       const hero = [];
       for (const speciesId of species) for (const stage of [1, 2, 3]) {
         image.className = `hero-garden-plant-image species-${speciesId} hero-stage-${stage}`;
-        const source = `../../public/assets/garden/plants/${speciesId}-stage${stage}.png${speciesId === "melody-sprout" && stage > 1 ? "?v=clean-2" : ""}`;
+        const source = `../../public/assets/garden/plants/${speciesId}-stage${stage}.png?v=hd-20260728b`;
         await new Promise((resolve, reject) => {
           image.onload = resolve;
           image.onerror = () => reject(new Error(`Unable to load ${source}`));

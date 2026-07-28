@@ -13,6 +13,9 @@ const species = [
   { species: "melody-sprout", name: "一", stageNames: ["一", "一", "一"], images: ["1.png"] },
   { species: "mushroom-spirit", name: "二", stageNames: ["二", "二", "二"], images: ["2.png"] },
   { species: "flower-spirit", name: "三", stageNames: ["三", "三", "三"], images: ["3.png"] },
+  { species: "lucky-clover-spirit", name: "四", stageNames: ["四", "四", "四"], images: ["4.png"] },
+  { species: "lotus-spirit", name: "五", stageNames: ["五", "五", "五"], images: ["5.png"] },
+  { species: "cactus-spirit", name: "六", stageNames: ["六", "六", "六"], images: ["6.png"] },
 ];
 
 function loadQa() {
@@ -65,18 +68,28 @@ test("all user-visible note-map wording is renamed without changing internal ide
   assert.match(html, /id="noteMapHoles"/);
 });
 
-test("formal availability remains limited to species one through three", () => {
+test("formal availability includes the three new species while starter selection remains the original three", () => {
   const allowlist = app.match(/const availableGardenSpeciesIds = new Set\(\[([\s\S]*?)\]\);/)?.[1] || "";
   for (const id of species.map((item) => item.species)) assert.match(allowlist, new RegExp(`"${id}"`));
   assert.doesNotMatch(allowlist, /lucky-leaf-spirit|bamboo-sound-child/);
+  const starterAllowlist = app.match(/const starterGardenSpeciesIds = new Set\(\[([\s\S]*?)\]\);/)?.[1] || "";
+  for (const id of ["melody-sprout", "mushroom-spirit", "flower-spirit"]) {
+    assert.match(starterAllowlist, new RegExp(`"${id}"`));
+  }
+  assert.doesNotMatch(starterAllowlist, /lucky-clover-spirit|lotus-spirit|cactus-spirit/);
+  assert.match(app, /return availableGardenSpecies\.filter\(\(species\) => starterGardenSpeciesIds\.has\(species\.species\)\)/);
   assert.match(app, /const availableGardenSpecies = gardenSpecies\.filter/);
   assert.match(app, /species: availableGardenSpecies/);
   assert.match(app, /if \(speciesId && !availableGardenSpeciesIds\.has\(speciesId\)\) return null/);
   assert.match(app, /const canAddToCollection = availableGardenSpeciesIds\.has\(plant\.species\)/);
 });
 
-test("locked species definitions and assets remain in the repository", () => {
+test("old hidden species are removed and replacement species assets are present", () => {
   for (const id of ["lucky-leaf-spirit", "bamboo-sound-child"]) {
+    assert.doesNotMatch(app, new RegExp(`species: "${id}"`));
+    assert.equal(fs.existsSync(path.join(root, "public/assets/garden/plants", `${id}-stage1.png`)), false);
+  }
+  for (const id of ["lucky-clover-spirit", "lotus-spirit", "cactus-spirit"]) {
     assert.match(app, new RegExp(`species: "${id}"`));
     assert.equal(fs.existsSync(path.join(root, "public/assets/garden/plants", `${id}-stage1.png`)), true);
   }
@@ -102,7 +115,7 @@ test("QA sanitize removes locked collection and safely replaces a locked current
   assert.equal(sanitized.featuredSpiritStage, 3);
 });
 
-test("QA with all three available species collected has no fourth plant", () => {
+test("QA with all six available species collected has no seventh plant", () => {
   const qa = loadQa();
   const sanitized = qa.sanitizeState({
     schemaVersion: 1,
@@ -114,5 +127,5 @@ test("QA with all three available species collected has no fourth plant", () => 
     unlimitedWater: true,
   });
   assert.equal(sanitized.currentPlant, null);
-  assert.equal(sanitized.collection.length, 3);
+  assert.equal(sanitized.collection.length, 6);
 });

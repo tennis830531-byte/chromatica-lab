@@ -78,7 +78,7 @@ after(async () => {
 test("skill learning is server-side, costs 100 once, and is idempotent", async () => {
   const requestId = crypto.randomUUID();
   const first = await rpc("learn_world_boss_skill", { p_species: "melody-sprout", p_request_id: requestId });
-  assert.equal(first[0].skill_name, "森靈共鳴曲");
+  assert.equal(first[0].skill_name, "森律共鳴・萬葉齊奏");
   const repeated = await rpc("learn_world_boss_skill", { p_species: "melody-sprout", p_request_id: crypto.randomUUID() });
   assert.equal(repeated[0].applied_revision, first[0].applied_revision);
   const save = await admin.from("game_saves").select("snapshot").eq("user_id", user.id).single();

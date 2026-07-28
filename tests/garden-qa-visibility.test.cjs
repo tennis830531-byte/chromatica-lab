@@ -71,7 +71,10 @@ function loadQa(state, promptValue = null) {
   const document = {
     documentElement: { dataset: {} },
     getElementById(id) { return id === "gardenqa" ? qaRoot : null; },
-    querySelector(selector) { return selector === "#gardenPlantImage" ? formalImage : globalNode(selector); },
+    querySelector(selector) {
+      if (selector === "#intro .home-hero") return null;
+      return selector === "#gardenPlantImage" ? formalImage : globalNode(selector);
+    },
   };
   const shared = {
     renderGardenCollection({ container, storeAdapter }) {

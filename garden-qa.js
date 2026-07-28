@@ -38,6 +38,8 @@
       featuredSpiritStage: 3,
       starterPlantSelected: Boolean(species),
       unlimitedWater: true,
+      qaWaterDrops: 300,
+      worldBossSkillUnlocks: [],
       previewMode: "garden",
       heroSpecies: species?.species || "",
       heroStage: 1,
@@ -66,6 +68,10 @@
     state.schemaVersion = 1;
     state.starterPlantSelected = Boolean(state.currentPlant || state.collection.length);
     state.unlimitedWater = true;
+    state.qaWaterDrops = Math.max(0, Math.min(9999, Number(state.qaWaterDrops ?? 300) || 0));
+    state.worldBossSkillUnlocks = Array.isArray(state.worldBossSkillUnlocks)
+      ? [...new Set(state.worldBossSkillUnlocks.filter((speciesId) => allowedIds.has(speciesId)))]
+      : [];
     if (state.previewMode !== undefined) state.previewMode = state.previewMode === "hero" ? "hero" : "garden";
     if (state.heroSpecies !== undefined && !allowedIds.has(state.heroSpecies)) state.heroSpecies = options.species?.[0]?.species || "";
     if (state.heroStage !== undefined) state.heroStage = Math.max(1, Math.min(3, Number(state.heroStage) || 1));
@@ -163,15 +169,7 @@
     root.innerHTML = `<div class="garden-qa-hero-controls">
       <label>植物<select id="gardenQaHeroSpecies">${(options.species || []).map((item) => `<option value="${item.species}">${item.name}</option>`).join("")}</select></label>
       <label>階段<select id="gardenQaHeroStage"><option value="1">Stage 1</option><option value="2">Stage 2</option><option value="3">Stage 3</option></select></label>
-    </div><div class="garden-qa-hero-preview home-hero paper-card">
-      <div class="hero-top"><div class="hero-copy"><h2>半音階口琴練習室</h2><p>透過孔位地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p></div></div>
-      <div class="hero-actions"><button class="hero-plant-slot" type="button" aria-label="QA首頁植物預覽">
-        <span class="hero-plant-stage"><span class="hero-plant-idle is-idle"><span class="hero-plant-action"><img id="gardenQaHeroPlant" class="hero-garden-plant-image hero-stage-1" alt="" /></span></span></span>
-        <span class="hero-plant-name-card"><b id="gardenQaHeroName">測試植物</b><small hidden></small></span>
-      </button><div class="hero-start-wrap"><button class="primary-btn start-practice-button" type="button" aria-disabled="true" tabindex="-1">
-        <img class="start-practice-button-art" src="./public/assets/chromatic-refresh/feature/start_practice_button_with_bird.png" alt="" aria-hidden="true" /><span class="start-practice-glow" aria-hidden="true"></span><span class="start-practice-ripple" aria-hidden="true"></span><span class="start-practice-content"><span class="start-practice-label">開始練習</span></span>
-      </button></div></div></div>`;
-    root.querySelector?.(".start-practice-button")?.addEventListener("click", (event) => event.preventDefault());
+    </div>`;
     root.querySelector?.("#gardenQaHeroSpecies")?.addEventListener("change", (event) => {
       const state = loadState(); state.heroSpecies = event.target.value; saveState(state); render();
     });
@@ -181,9 +179,39 @@
     if (root.dataset) root.dataset.ready = "true";
   }
 
+  function syncFormalHeroPreview(root) {
+    const formalHero = document.querySelector("#intro .home-hero");
+    if (!root || !formalHero) return null;
+    const preview = formalHero.cloneNode(true);
+    preview.classList.add("garden-qa-hero-preview");
+    preview.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
+    preview.querySelectorAll("[data-jump], [data-start-practice-launch]").forEach((element) => {
+      element.removeAttribute("data-jump");
+      element.removeAttribute("data-start-practice-launch");
+    });
+    const image = preview.querySelector(".hero-garden-plant-image");
+    const name = preview.querySelector(".hero-plant-name-card b");
+    const slot = preview.querySelector(".hero-plant-slot");
+    if (image) image.id = "gardenQaHeroPlant";
+    if (name) name.id = "gardenQaHeroName";
+    if (slot) slot.setAttribute("aria-label", "QA首頁植物預覽");
+    preview.querySelectorAll("button").forEach((button) => {
+      button.setAttribute("aria-disabled", "true");
+      button.tabIndex = -1;
+    });
+    preview.addEventListener("click", (event) => {
+      if (event.target.closest("button")) event.preventDefault();
+    });
+    const existingPreview = root.querySelector(".garden-qa-hero-preview");
+    if (existingPreview) existingPreview.replaceWith(preview);
+    else root.append(preview);
+    return preview;
+  }
+
   function renderHeroPreview(state) {
     mountHeroPreview();
     const root = qa$("#gardenQaHeroRoot");
+    syncFormalHeroPreview(root);
     const species = getSpecies(state.heroSpecies || options.species?.[0]?.species);
     const stage = Math.max(1, Math.min(3, Number(state.heroStage) || 1));
     const image = root?.querySelector?.("#gardenQaHeroPlant");
@@ -214,6 +242,7 @@
 
   function createDetailAdapter() {
     const adapter = {
+      isFormal: false,
       getCollection() { return loadState().collection; },
       getSpeciesList() { return options.species || []; },
       getSpirit(id) { return loadState().collection.find((spirit) => spirit.id === id) || null; },
@@ -223,6 +252,24 @@
       getDisplayName: plantName,
       getStageName(spirit, stage) { return getSpecies(spirit.species).stageNames?.[stage - 1] || `階段 ${stage}`; },
       getImage: plantImage,
+      isSkillUnlocked(species) {
+        return loadState().worldBossSkillUnlocks.includes(species);
+      },
+      getQaWaterDrops() {
+        return loadState().qaWaterDrops;
+      },
+      learnWorldBossSkill(species, cost = 100) {
+        const state = loadState();
+        const collected = state.collection.some((spirit) => spirit.species === species && spirit.harvested === true);
+        if (!collected) return { ok: false, reason: "not-harvested" };
+        if (state.worldBossSkillUnlocks.includes(species)) return { ok: true, alreadyUnlocked: true };
+        if (state.qaWaterDrops < cost) return { ok: false, reason: "insufficient-water" };
+        state.qaWaterDrops -= cost;
+        state.worldBossSkillUnlocks.push(species);
+        saveState(state);
+        render();
+        return { ok: true, waterDrops: state.qaWaterDrops };
+      },
       updateName(id, name) {
         const state = loadState();
         const spirit = state.collection.find((item) => item.id === id);
@@ -355,6 +402,7 @@
       saveState(state); render();
     }));
     $("#gardenQaResetAll")?.addEventListener("click", resetSandbox);
+    $("#gardenQaWorldBoss")?.addEventListener("click", () => global.ChromaticaWorldBoss?.openQa?.());
     qa$$("[data-qa-leave]").forEach((button) => button.addEventListener("click", leave));
   }
   function init(nextOptions = {}) {
@@ -372,6 +420,7 @@
     render,
     sanitizeState,
     sha256,
+    getDetailAdapter: createDetailAdapter,
     qaResumeRequested,
     constants: Object.freeze({ ACTIVE_KEY, SANDBOX_KEY, EXPECTED_HASH, REQUIRED_CLICKS }),
   });

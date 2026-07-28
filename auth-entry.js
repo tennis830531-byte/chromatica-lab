@@ -1314,6 +1314,11 @@ const LEADERBOARD_RPC_ALLOWLIST = new Set([
   "grant_world_boss_practice_energy",
   "exchange_world_boss_energy",
   "attack_world_boss",
+  "exchange_and_attack_world_boss",
+  "get_world_boss_battle_context",
+  "get_world_boss_settlement",
+  "get_my_world_boss_notifications",
+  "read_world_boss_notification",
 ]);
 
 window.chromaticaAuth = {

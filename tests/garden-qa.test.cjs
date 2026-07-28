@@ -18,13 +18,25 @@ test("stores only the expected password hash", () => {
 });
 test("49 title clicks stay hidden and click 50 opens", () => { assert.match(source, /REQUIRED_CLICKS = 50/); assert.match(source, /titleClicks < REQUIRED_CLICKS/); assert.match(source, /setModal\(true\)/); });
 test("only the visible hero title owns the hidden listener", () => { assert.match(html, /id="homeHeroQaTitle"[^>]*>半音階口琴練習室/); assert.match(source, /#homeHeroQaTitle.*addEventListener\("click"/); });
-test("QA hero preview reuses formal hero classes without owning the hidden entry gesture", () => { assert.match(source, /garden-qa-hero-preview home-hero paper-card/); assert.match(source, /hero-plant-slot/); assert.match(source, /start-practice-button[^>]*aria-disabled="true"/); assert.doesNotMatch(source, /\.home-hero.*addEventListener|\.hero-copy.*addEventListener/); });
+test("QA hero preview clones the formal homepage card and only replaces sandbox plant data", () => {
+  assert.match(source, /document\.querySelector\("#intro \.home-hero"\)/);
+  assert.match(source, /formalHero\.cloneNode\(true\)/);
+  assert.match(source, /preview\.classList\.add\("garden-qa-hero-preview"\)/);
+  assert.match(source, /preview\.querySelectorAll\("\[id\]"\).*removeAttribute\("id"\)/);
+  assert.match(source, /image\.id = "gardenQaHeroPlant"/);
+  assert.match(source, /name\.id = "gardenQaHeroName"/);
+  assert.doesNotMatch(source, /\.home-hero.*addEventListener|\.hero-copy.*addEventListener/);
+});
+test("QA and formal homepage names share the same Cubic 11 selector", () => {
+  assert.match(styles, /\.home-hero \.hero-plant-name-card b \{[^}]*font-family: "Cubic 11", var\(--font-sans\)/s);
+  assert.doesNotMatch(styles, /#intro \.hero-plant-name-card b/);
+});
 test("container blank clicks have no QA listener", () => { assert.doesNotMatch(source, /\.home-hero.*addEventListener|\.hero-copy.*addEventListener/); });
 test("password field is numeric, private and not saved", () => { assert.match(html, /id="gardenQaPassword" type="password" inputmode="numeric" maxlength="8" autocomplete="off"/); assert.doesNotMatch(source, /localStorage/); });
 test("five failures lock for thirty seconds", () => { assert.match(source, /MAX_FAILURES = 5/); assert.match(source, /LOCK_MS = 30000/); assert.match(source, /lockedUntil = Date\.now\(\) \+ LOCK_MS/); });
 test("sandbox uses sessionStorage only", () => { assert.match(source, /sessionStorage/); assert.doesNotMatch(source, /localStorage|indexedDB/); });
 test("sandbox schema has unlimited water and isolated garden fields", () => { for (const field of ["schemaVersion","currentPlant","collection","featuredSpiritId","featuredSpiritStage","starterPlantSelected","unlimitedWater"]) assert.match(source, new RegExp(field)); assert.match(source, /unlimitedWater: true/); });
-test("QA water displays infinity and watering does not decrement", () => { assert.match(source, /qa\$\("#gardenQaWater"\)[\s\S]*water\.textContent = "∞"/); assert.doesNotMatch(source, /waterDrops|setWaterDrops|chromatica\.waterDrops/); });
+test("QA garden watering remains infinite while isolated skill water is session-only", () => { assert.match(source, /qa\$\("#gardenQaWater"\)[\s\S]*water\.textContent = "∞"/); assert.match(source, /qaWaterDrops: 300/); assert.match(source, /worldBossSkillUnlocks: \[\]/); assert.doesNotMatch(source, /setWaterDrops|chromatica\.waterDrops|localStorage/); });
 test("QA supports progression mature harvest collection rename and featured", () => { for (const token of ["water","fill","mature","harvest","collection","customName","featuredSpiritId"]) assert.match(source, new RegExp(token)); });
 test("QA module cannot invoke formal save or cloud APIs", () => { assert.doesNotMatch(source, /scheduleAccountSnapshotSave|flushSave|noteLocalSnapshot|syncBestEffort|save_game_state|cloudSaveService/); });
 test("QA keys are not account scoped", () => { assert.doesNotMatch(account, /qaGardenSandbox|qaGardenMode/); });

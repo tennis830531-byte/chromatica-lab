@@ -82,7 +82,7 @@ create unique index world_boss_energy_event_start_uidx
 
 create table public.world_boss_skill_unlocks (
   user_id uuid not null references auth.users(id) on delete cascade,
-  species text not null check (species in ('melody-sprout', 'mushroom-spirit', 'flower-spirit')),
+  species text not null check (species in ('melody-sprout', 'mushroom-spirit', 'flower-spirit', 'lucky-clover-spirit', 'lotus-spirit', 'cactus-spirit')),
   skill_name text not null,
   water_cost integer not null default 100 check (water_cost = 100),
   request_id uuid not null,
@@ -97,7 +97,7 @@ create table public.world_boss_attacks (
   event_id uuid not null references public.world_boss_events(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   request_id uuid not null,
-  species text not null check (species in ('melody-sprout', 'mushroom-spirit', 'flower-spirit')),
+  species text not null check (species in ('melody-sprout', 'mushroom-spirit', 'flower-spirit', 'lucky-clover-spirit', 'lotus-spirit', 'cactus-spirit')),
   spirit_stage smallint not null check (spirit_stage between 1 and 3),
   attack_type text not null check (attack_type in ('normal', 'special')),
   attempted_damage integer not null check (attempted_damage in (10, 30, 60, 100)),
@@ -312,9 +312,12 @@ begin
   if v_user_id is null then raise exception 'authentication required'; end if;
   if p_request_id is null then raise exception 'request id required'; end if;
   v_skill_name := case p_species
-    when 'melody-sprout' then '森靈共鳴曲'
-    when 'mushroom-spirit' then '萬孢迴響陣'
-    when 'flower-spirit' then '百花綻奏舞'
+    when 'melody-sprout' then '森律共鳴・萬葉齊奏'
+    when 'mushroom-spirit' then '菌界低吟・大地回響'
+    when 'flower-spirit' then '花舞天音・百華綻放'
+    when 'lucky-clover-spirit' then '四葉福音・命運盛放'
+    when 'lotus-spirit' then '蓮華天籟・萬瓣淨音'
+    when 'cactus-spirit' then '荒沙戰奏・烈日轟鳴'
     else null end;
   if v_skill_name is null then raise exception 'unsupported spirit'; end if;
 
@@ -527,7 +530,7 @@ begin
      or pg_catalog.now() < v_event.starts_at or pg_catalog.now() >= v_event.ends_at then
     raise exception 'boss is not active';
   end if;
-  if p_species not in ('melody-sprout', 'mushroom-spirit', 'flower-spirit')
+  if p_species not in ('melody-sprout', 'mushroom-spirit', 'flower-spirit', 'lucky-clover-spirit', 'lotus-spirit', 'cactus-spirit')
      or p_stage not between 1 and 3 then raise exception 'invalid spirit'; end if;
   if public.world_boss_harvested_stage(v_user_id, p_species) < p_stage then
     raise exception 'spirit stage not owned';

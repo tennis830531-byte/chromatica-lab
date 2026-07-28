@@ -35,7 +35,7 @@ function loadQa(initial = {}) {
   const document = {
     documentElement: { dataset: {} },
     getElementById(id) { return id === "gardenqa" ? qaRoot : null; },
-    querySelector: node,
+    querySelector(selector) { return selector === "#intro .home-hero" ? null : node(selector); },
     querySelectorAll() { return []; },
   };
   const shared = {

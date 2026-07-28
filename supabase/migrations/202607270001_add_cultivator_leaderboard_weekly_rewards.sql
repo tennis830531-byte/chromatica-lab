@@ -17,7 +17,7 @@ grant select, insert, update, delete on public.game_saves to service_role;
 
 create table if not exists public.leaderboard_spirit_progress (
   user_id uuid not null references auth.users(id) on delete cascade,
-  species text not null check (species in ('melody-sprout', 'mushroom-spirit', 'flower-spirit')),
+  species text not null check (species in ('melody-sprout', 'mushroom-spirit', 'flower-spirit', 'lucky-clover-spirit', 'lotus-spirit', 'cactus-spirit')),
   stage smallint not null check (stage between 1 and 3),
   updated_at timestamptz not null default pg_catalog.now(),
   primary key (user_id, species)
@@ -124,7 +124,7 @@ begin
       item->>'species' as species,
       greatest(1, least(3, (item->>'stage')::integer)) as stage
     from pg_catalog.jsonb_array_elements(coalesce(p_spirits, '[]'::jsonb)) item
-    where item->>'species' in ('melody-sprout', 'mushroom-spirit', 'flower-spirit')
+    where item->>'species' in ('melody-sprout', 'mushroom-spirit', 'flower-spirit', 'lucky-clover-spirit', 'lotus-spirit', 'cactus-spirit')
       and coalesce(item->>'stage', '') ~ '^[1-3]$'
   ) source
   group by source.species
