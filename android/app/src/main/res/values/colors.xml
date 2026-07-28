@@ -4,4 +4,5 @@
     <color name="chromatica_splash_background">#FAD08E</color>
     <color name="chromatica_splash_progress">#B77A32</color>
     <color name="chromatica_splash_progress_track">#5CD8B98E</color>
+    <color name="chromatica_notification_icon_color">#8A5A32</color>
 </resources>

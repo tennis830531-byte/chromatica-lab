@@ -373,7 +373,8 @@ async function reconcilePracticeReminderSchedule({ userId = getActiveAccountId()
         id: identity.id,
         schedule: { at, allowWhileIdle: true },
         channelId: PRACTICE_REMINDER_CHANNEL_ID,
-        smallIcon: "ic_practice_notification",
+        smallIcon: "ic_stat_chromatica_notification",
+        iconColor: "#8A5A32",
         extra: { namespace: PRACTICE_REMINDER_NAMESPACE, ...identity },
       };
     });
@@ -460,7 +461,8 @@ async function scheduleQaPracticeReminder(hour, delayMinutes) {
         id: identity.id,
         schedule: { at, allowWhileIdle: true },
         channelId: PRACTICE_REMINDER_CHANNEL_ID,
-        smallIcon: "ic_practice_notification",
+        smallIcon: "ic_stat_chromatica_notification",
+        iconColor: "#8A5A32",
         extra: {
           namespace: PRACTICE_REMINDER_NAMESPACE,
           ...identity,
