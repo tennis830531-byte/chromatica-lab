@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../../styles.css" />
+</head>
+<body>
+  <main id="appMain"></main>
+  <pre id="result"></pre>
+  <script>
+    const targetViewport = Number(new URLSearchParams(location.search).get("viewport")) || 390;
+    document.body.style.width = `${targetViewport}px`;
+    document.body.style.maxWidth = `${targetViewport}px`;
+    document.body.style.margin = "0";
+    window.ChromaticaGardenQA = { isActive: () => true };
+    window.chromaticaAuth = {
+      getPublicUserProfile: () => ({ id: "qa-user", displayName: "QA 練習者", avatarUrl: "" }),
+      invokeFunction: () => { throw new Error("QA must not call discussion-actions"); },
+    };
+    window.turnstile = {
+      render: (_slot, options) => {
+        window.__discussionTurnstileCallback = options.callback;
+        return 1;
+      },
+      remove: () => {},
+    };
+  </script>
+  <script src="../../discussion-core.js"></script>
+  <script src="../../discussion.js"></script>
+  <script>
+    function bounds(selector) {
+      const element = document.querySelector(selector);
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, width: rect.width };
+    }
+    function setValue(element, value) {
+      element.value = value;
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    setTimeout(() => {
+      window.ChromaticaDiscussion.open();
+      const view = document.querySelector("#discussion");
+      view.classList.add("active");
+
+      document.querySelector(".discussion-new").click();
+      setValue(document.querySelector('[name="category"]'), "harmonica_technique");
+      setValue(document.querySelector('[name="title"]'), "QA 保留標題");
+      setValue(document.querySelector('.discussion-composer [name="body"]'), "QA 保留內文");
+      window.__discussionTurnstileCallback("XXXX.DUMMY.TOKEN.XXXX");
+
+      const postDraftPreserved =
+        document.querySelector('[name="category"]').value === "harmonica_technique"
+        && document.querySelector('[name="title"]').value === "QA 保留標題"
+        && document.querySelector('.discussion-composer [name="body"]').value === "QA 保留內文";
+      document.querySelector("[data-discussion-preview]").click();
+
+      const result = {
+        viewport: targetViewport,
+        appWidth: document.querySelector("#appMain").scrollWidth,
+        viewWidth: view.scrollWidth,
+        shell: bounds(".discussion-shell"),
+        qaPanel: bounds(".discussion-qa-panel"),
+        composer: bounds(".discussion-composer"),
+        tabsClientWidth: document.querySelector(".discussion-tabs").clientWidth,
+        tabsScrollWidth: document.querySelector(".discussion-tabs").scrollWidth,
+        tabCount: document.querySelectorAll("[data-discussion-tab]").length,
+        postDraftPreserved,
+        previewVisible: Boolean(document.querySelector(".discussion-preview")),
+        phase2FakeInputs: document.querySelectorAll('input[type="file"], iframe, video').length,
+      };
+      document.querySelector("#result").textContent = JSON.stringify(result);
+    }, 120);
+  </script>
+</body>
+</html>

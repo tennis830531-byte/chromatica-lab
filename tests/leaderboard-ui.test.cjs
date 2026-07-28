@@ -50,7 +50,7 @@ test("home leaderboard title is shown only for the current weekly top ten", () =
 test("discussion quick-entry artwork is reviewed and transparent", async () => {
   const file = "public/assets/chromatic-refresh/feature/discussion-forum-icon.png";
   assert.match(html, /data-discussion-open[\s\S]*discussion-forum-icon\.png/);
-  assert.match(app, /data-discussion-open[\s\S]*尚未開放/);
+  assert.match(app, /data-discussion-open[\s\S]*setView\("discussion"\)/);
   assert.match(build, /public\/assets\/chromatic-refresh\/feature\/discussion-forum-icon\.png/);
   assert.match(sw, /public\/assets\/chromatic-refresh\/feature\/discussion-forum-icon\.png/);
   const { data, info } = await sharp(path.join(root, file)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });

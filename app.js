@@ -7160,6 +7160,7 @@ function setView(view, options = {}) {
   if (view === "gardenqa") window.ChromaticaGardenQA?.render?.();
   window.ChromaticaGardenQA?.onViewChanged?.(view);
   window.ChromaticaWorldBoss?.onViewChanged?.(view);
+  window.ChromaticaDiscussion?.onViewChanged?.(view);
   if (view === "audio" && changedView && isMicrophoneEnabled() && !micAnalyser) {
     requestMicrophoneFromSettings();
   }
@@ -7827,7 +7828,7 @@ function bindEvents() {
     });
   });
   $$("[data-discussion-open]").forEach((button) => {
-    button.addEventListener("click", () => showHomeSpiritRewardToast("尚未開放"));
+    button.addEventListener("click", () => setView("discussion"));
   });
 
   $("#starterPlantChoices")?.addEventListener("click", (event) => {

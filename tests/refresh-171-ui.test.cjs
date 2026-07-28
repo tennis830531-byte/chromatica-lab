@@ -132,8 +132,8 @@ test("home reserves a live top-ten title and adds discussion after leaderboard",
   const discussionEntry = html.indexOf("data-discussion-open");
   const settingsEntry = html.indexOf('data-jump="audio"', discussionEntry);
   assert.ok(leaderboardEntry >= 0 && discussionEntry > leaderboardEntry && settingsEntry > discussionEntry);
-  assert.match(html, /data-discussion-open[^>]*aria-label="討論吧，尚未開放"[\s\S]*discussion-forum-icon\.png[\s\S]*<strong>討論吧<\/strong>/);
-  assert.match(app, /data-discussion-open[\s\S]*showHomeSpiritRewardToast\("尚未開放"\)/);
+  assert.match(html, /data-discussion-open[^>]*aria-label="開啟討論吧"[\s\S]*discussion-forum-icon\.png[\s\S]*<strong>討論吧<\/strong>/);
+  assert.match(app, /data-discussion-open[\s\S]*setView\("discussion"\)/);
   assert.match(css, /\.home-hero \.home-leaderboard-title\s*\{/);
 });
 
