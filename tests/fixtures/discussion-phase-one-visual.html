@@ -69,7 +69,7 @@
         tabCount: document.querySelectorAll("[data-discussion-tab]").length,
         postDraftPreserved,
         previewVisible: Boolean(document.querySelector(".discussion-preview")),
-        phase2FakeInputs: document.querySelectorAll('input[type="file"], iframe, video').length,
+        phase2Inputs: document.querySelectorAll('input[type="file"]').length,
       };
       document.querySelector("#result").textContent = JSON.stringify(result);
     }, 120);

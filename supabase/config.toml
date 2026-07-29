@@ -115,7 +115,7 @@ port = 54324
 [storage]
 enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
-file_size_limit = "50MiB"
+file_size_limit = "200MiB"
 
 # Uncomment to configure local storage buckets
 # [storage.buckets.images]
@@ -395,6 +395,12 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.discussion-actions]
+verify_jwt = true
+
+[functions.discussion-media-actions]
+verify_jwt = true
+
+[functions.discussion-link-preview]
 verify_jwt = true
 
 # [edge_runtime.secrets]

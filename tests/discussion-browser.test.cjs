@@ -28,9 +28,9 @@ test("discussion uses the shared QA/form presentation without narrow-screen over
       assert.ok(box.right <= width, `${width}px element clips right`);
     }
     assert.equal(result.tabCount, 6);
-    assert.ok(result.tabsScrollWidth > result.tabsClientWidth, "tabs should scroll inside their own row");
+    assert.ok(result.tabsScrollWidth <= result.tabsClientWidth, "connected tab rows should remain inside their container");
     assert.equal(result.postDraftPreserved, true);
     assert.equal(result.previewVisible, true);
-    assert.equal(result.phase2FakeInputs, 0);
+    assert.equal(result.phase2Inputs, 1);
   }
 });

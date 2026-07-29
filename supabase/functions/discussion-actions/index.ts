@@ -131,6 +131,24 @@ function retryAfter(message: string) {
   return match ? Number(match[1]) : 0;
 }
 
+async function enrichDiscussionRows(admin: ReturnType<typeof createClient>, rows: Record<string, unknown>[], ownerType: "post" | "comment") {
+  const ownerIds = rows.map((row) => String(row.id || "")).filter(Boolean);
+  if (!ownerIds.length) return rows;
+  const [attachments, previews] = await Promise.all([
+    admin.from("discussion_attachments")
+      .select("id,owner_id,media_type,mime_type,size_bytes,sort_order,width,height,duration_ms,original_filename")
+      .eq("owner_type", ownerType).eq("upload_status", "bound").in("owner_id", ownerIds).order("sort_order"),
+    admin.from("discussion_link_previews")
+      .select("id,owner_id,original_url,normalized_url,provider,site_name,title,description,thumbnail_url,embed_url,status")
+      .eq("owner_type", ownerType).in("owner_id", ownerIds).neq("status", "deleted"),
+  ]);
+  return rows.map((row) => ({
+    ...row,
+    attachments: (attachments.data || []).filter((item) => item.owner_id === row.id),
+    link_previews: (previews.data || []).filter((item) => item.owner_id === row.id),
+  }));
+}
+
 export async function handler(request: Request) {
   const origin = request.headers.get("Origin");
   if (!origin || !ALLOWED_ORIGINS.has(origin)) return json(origin, 403, { error: "origin-not-allowed" });
@@ -166,7 +184,8 @@ export async function handler(request: Request) {
       p_offset: Math.max(0, Number(payload.offset) || 0),
     });
     if (result.error) return json(origin, 503, { error: "discussion-read-failed" });
-    return json(origin, 200, { posts: result.data || [] });
+    const posts = await enrichDiscussionRows(admin, result.data || [], "post");
+    return json(origin, 200, { posts });
   }
 
   if (action === "get_post") {
@@ -177,7 +196,9 @@ export async function handler(request: Request) {
       userClient.rpc("get_discussion_comments", { p_post_id: postId }),
     ]);
     if (post.error || comments.error) return json(origin, 503, { error: "discussion-read-failed" });
-    return json(origin, 200, { post: post.data?.[0] || null, comments: comments.data || [] });
+    const enrichedPost = await enrichDiscussionRows(admin, post.data || [], "post");
+    const enrichedComments = await enrichDiscussionRows(admin, comments.data || [], "comment");
+    return json(origin, 200, { post: enrichedPost[0] || null, comments: enrichedComments });
   }
 
   if (CREATE_ACTIONS.has(action)) {
@@ -198,6 +219,11 @@ export async function handler(request: Request) {
       p_turnstile_hostname: verified.hostname,
       p_verified_at: verified.verifiedAt,
       p_expires_at: verified.expiresAt,
+      p_draft_id: /^[0-9a-f-]{36}$/i.test(text(payload.draft_id)) ? text(payload.draft_id) : null,
+      p_attachment_ids: Array.isArray(payload.attachment_ids)
+        ? payload.attachment_ids.map(text).filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 10)
+        : [],
+      p_link_previews: Array.isArray(payload.link_previews) ? payload.link_previews.slice(0, 5) : [],
       ...(action === "create_post"
         ? {
           p_category: validation.value.category,
@@ -210,7 +236,7 @@ export async function handler(request: Request) {
         }),
     };
     const result = await admin.rpc(
-      action === "create_post" ? "create_discussion_post_service" : "create_discussion_comment_service",
+      action === "create_post" ? "create_discussion_post_with_media_service" : "create_discussion_comment_with_media_service",
       args,
     );
     if (result.error) {

@@ -82,6 +82,19 @@ test("authenticated QA resume renders and navigates to QA garden", () => {
   assert.deepEqual(calls, [["gardenqa", "bootstrap"], ["gardenqa", "auth-ready"]]);
 });
 
+test("authenticated QA rerender preserves an active Discussion view after a native picker", () => {
+  const calls = [];
+  const { api } = loadQa({ "chromatica.qaGardenMode": "true", "chromatica.qaGardenSandbox.v1": sandbox });
+  api.init({
+    species: [{ species: "sprout", name: "芽芽", stageNames: ["幼苗", "成長", "成熟"], images: ["stage-1.png", "stage-2.png", "stage-3.png"] }],
+    stageRequirements: [100, 180, 250],
+    getCurrentView: () => "discussion",
+    navigate(view, options) { calls.push([view, options.reason]); },
+  });
+  api.resumeGardenQaSession({ reason: "qa-resume", afterAuthReady: true });
+  assert.deepEqual(calls, [["gardenqa", "bootstrap"]]);
+});
+
 test("remote apply QA resume cannot restore map", () => {
   const calls = [];
   const { api } = loadQa({ "chromatica.qaGardenMode": "true", "chromatica.qaGardenSandbox.v1": sandbox });

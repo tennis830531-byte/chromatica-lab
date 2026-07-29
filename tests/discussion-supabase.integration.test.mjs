@@ -19,6 +19,7 @@ let clientA;
 let clientB;
 let postId;
 let firstTokenHash;
+let mediaPostId;
 
 function tokenHash() {
   return crypto.createHash("sha256").update(crypto.randomUUID()).digest("hex");
@@ -185,4 +186,275 @@ test("comment activity, ownership, soft delete, and visible count stay consisten
   const visible = await clientA.rpc("get_discussion_post", { p_post_id: postId });
   assert.ifError(visible.error);
   assert.equal(visible.data.length, 0);
+});
+
+test("Phase 2 media tables remain service-only and the bucket is private", async () => {
+  const directInsert = await clientA.from("discussion_attachments").insert({
+    owner_type: "post",
+    uploader_id: users[0].id,
+    draft_id: crypto.randomUUID(),
+    media_type: "image",
+    storage_path: "discussion/not-allowed.png",
+    mime_type: "image/png",
+    size_bytes: 1,
+    sort_order: 0,
+  });
+  assert.ok(directInsert.error);
+
+  const bucket = await admin.from("buckets").select("public")
+    .eq("id", "discussion-media").maybeSingle();
+  if (bucket.error) {
+    const storageBucket = await admin.storage.getBucket("discussion-media");
+    assert.ifError(storageBucket.error);
+    assert.equal(storageBucket.data.public, false);
+  } else {
+    assert.equal(bucket.data.public, false);
+  }
+});
+
+test("upload drafts enforce MIME, per-file, count, and aggregate limits", async () => {
+  const invalidMime = await admin.rpc("create_discussion_upload_service", {
+    p_user_id: users[0].id,
+    p_draft_id: crypto.randomUUID(),
+    p_owner_type: "post",
+    p_original_filename: "unsafe.svg",
+    p_mime_type: "image/svg+xml",
+    p_size_bytes: 100,
+    p_sort_order: 0,
+  });
+  assert.match(invalidMime.error?.message || "", /invalid-media-type/);
+
+  const oversized = await admin.rpc("create_discussion_upload_service", {
+    p_user_id: users[0].id,
+    p_draft_id: crypto.randomUUID(),
+    p_owner_type: "post",
+    p_original_filename: "large.png",
+    p_mime_type: "image/png",
+    p_size_bytes: 10 * 1024 * 1024 + 1,
+    p_sort_order: 0,
+  });
+  assert.match(oversized.error?.message || "", /media-too-large/);
+
+  const countDraft = crypto.randomUUID();
+  for (let index = 0; index < 10; index += 1) {
+    const created = await admin.rpc("create_discussion_upload_service", {
+      p_user_id: users[0].id,
+      p_draft_id: countDraft,
+      p_owner_type: "post",
+      p_original_filename: `${index}.png`,
+      p_mime_type: "image/png",
+      p_size_bytes: 1,
+      p_sort_order: index,
+    });
+    assert.ifError(created.error);
+  }
+  const eleventh = await admin.rpc("create_discussion_upload_service", {
+    p_user_id: users[0].id,
+    p_draft_id: countDraft,
+    p_owner_type: "post",
+    p_original_filename: "10.png",
+    p_mime_type: "image/png",
+    p_size_bytes: 1,
+    p_sort_order: 10,
+  });
+  assert.match(eleventh.error?.message || "", /attachment-limit/);
+
+  const totalDraft = crypto.randomUUID();
+  for (let index = 0; index < 2; index += 1) {
+    const created = await admin.rpc("create_discussion_upload_service", {
+      p_user_id: users[0].id,
+      p_draft_id: totalDraft,
+      p_owner_type: "post",
+      p_original_filename: `${index}.mp4`,
+      p_mime_type: "video/mp4",
+      p_size_bytes: 100 * 1024 * 1024,
+      p_sort_order: index,
+    });
+    assert.ifError(created.error);
+  }
+  const totalExceeded = await admin.rpc("create_discussion_upload_service", {
+    p_user_id: users[0].id,
+    p_draft_id: totalDraft,
+    p_owner_type: "post",
+    p_original_filename: "extra.png",
+    p_mime_type: "image/png",
+    p_size_bytes: 1,
+    p_sort_order: 2,
+  });
+  assert.match(totalExceeded.error?.message || "", /attachment-total-limit/);
+});
+
+test("upload confirmation marks mismatched metadata failed", async () => {
+  const created = await admin.rpc("create_discussion_upload_service", {
+    p_user_id: users[0].id,
+    p_draft_id: crypto.randomUUID(),
+    p_owner_type: "post",
+    p_original_filename: "image.png",
+    p_mime_type: "image/png",
+    p_size_bytes: 128,
+    p_sort_order: 0,
+  });
+  assert.ifError(created.error);
+  const confirmed = await admin.rpc("confirm_discussion_upload_service", {
+    p_user_id: users[0].id,
+    p_attachment_id: created.data.id,
+    p_actual_size_bytes: 127,
+    p_actual_mime_type: "image/png",
+  });
+  assert.ifError(confirmed.error);
+  assert.equal(confirmed.data.upload_status, "failed");
+});
+
+test("post, uploaded attachments, and safe link previews bind atomically", async () => {
+  await clearCooldown(users[0].id);
+  const draftId = crypto.randomUUID();
+  const upload = await admin.rpc("create_discussion_upload_service", {
+    p_user_id: users[0].id,
+    p_draft_id: draftId,
+    p_owner_type: "post",
+    p_original_filename: "cover.png",
+    p_mime_type: "image/png",
+    p_size_bytes: 256,
+    p_sort_order: 0,
+  });
+  assert.ifError(upload.error);
+  const markedUploaded = await admin.from("discussion_attachments")
+    .update({ upload_status: "uploaded" }).eq("id", upload.data.id);
+  assert.ifError(markedUploaded.error);
+  const cached = await admin.from("discussion_link_metadata_cache").upsert({
+    cache_key: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    normalized_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    provider: "youtube",
+    site_name: "YouTube",
+    title: "YouTube 影片",
+    description: "",
+    thumbnail_url: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+    embed_url: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+    status: "ready",
+    fetched_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 86400000).toISOString(),
+  });
+  assert.ifError(cached.error);
+
+  const created = await admin.rpc("create_discussion_post_with_media_service", {
+    p_user_id: users[0].id,
+    p_category: "music_sharing",
+    p_title: "含媒體整合測試",
+    p_body: "https://youtu.be/dQw4w9WgXcQ",
+    ...turnstile("create_post"),
+    p_draft_id: draftId,
+    p_attachment_ids: [upload.data.id],
+    p_link_previews: [{
+      original_url: "https://youtu.be/dQw4w9WgXcQ",
+      normalized_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      provider: "youtube",
+      title: "不得信任的前端標題",
+      embed_url: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+      status: "ready",
+      fetched_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 86400000).toISOString(),
+    }],
+  });
+  assert.ifError(created.error);
+  mediaPostId = created.data.id;
+
+  const attachment = await admin.from("discussion_attachments")
+    .select("owner_id,upload_status,bound_at").eq("id", upload.data.id).single();
+  assert.ifError(attachment.error);
+  assert.equal(attachment.data.owner_id, mediaPostId);
+  assert.equal(attachment.data.upload_status, "bound");
+  assert.ok(attachment.data.bound_at);
+
+  const preview = await admin.from("discussion_link_previews")
+    .select("provider,title,embed_url,status").eq("owner_id", mediaPostId).single();
+  assert.ifError(preview.error);
+  assert.equal(preview.data.provider, "youtube");
+  assert.equal(preview.data.title, "YouTube 影片");
+  assert.equal(preview.data.embed_url, "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+});
+
+test("failed media binding rolls back post, CAPTCHA ledger, and cooldown", async () => {
+  await clearCooldown(users[1].id);
+  const hash = tokenHash();
+  const args = {
+    p_user_id: users[1].id,
+    p_category: "app_feedback",
+    p_title: "必須完整回滾",
+    p_body: "",
+    ...turnstile("create_post", hash),
+    p_draft_id: crypto.randomUUID(),
+    p_attachment_ids: [crypto.randomUUID()],
+    p_link_previews: [],
+  };
+  const failed = await admin.rpc("create_discussion_post_with_media_service", args);
+  assert.match(failed.error?.message || "", /attachment-validation-failed/);
+  const absent = await admin.from("discussion_posts").select("id", { count: "exact", head: true })
+    .eq("title", "必須完整回滾");
+  assert.ifError(absent.error);
+  assert.equal(absent.count, 0);
+
+  const retried = await admin.rpc("create_discussion_post_with_media_service", {
+    ...args,
+    p_attachment_ids: [],
+  });
+  assert.ifError(retried.error);
+});
+
+test("soft delete hides bound media and queues idempotent cleanup", async () => {
+  const removed = await admin.rpc("delete_discussion_post_service", {
+    p_user_id: users[0].id,
+    p_post_id: mediaPostId,
+  });
+  assert.ifError(removed.error);
+  assert.equal(removed.data, true);
+
+  const attachment = await admin.from("discussion_attachments")
+    .select("id,upload_status,deleted_at").eq("owner_id", mediaPostId).single();
+  assert.ifError(attachment.error);
+  assert.equal(attachment.data.upload_status, "deleted");
+  assert.ok(attachment.data.deleted_at);
+
+  const queue = await admin.from("discussion_media_cleanup_queue")
+    .select("attachment_id,status").eq("attachment_id", attachment.data.id);
+  assert.ifError(queue.error);
+  assert.equal(queue.data.length, 1);
+  assert.equal(queue.data[0].status, "pending");
+
+  const removedAgain = await admin.rpc("delete_discussion_post_service", {
+    p_user_id: users[0].id,
+    p_post_id: mediaPostId,
+  });
+  assert.ifError(removedAgain.error);
+  assert.equal(removedAgain.data, false);
+  const queueAgain = await admin.from("discussion_media_cleanup_queue")
+    .select("attachment_id").eq("attachment_id", attachment.data.id);
+  assert.equal(queueAgain.data.length, 1);
+});
+
+test("expired draft cleanup is claim-safe and completion is idempotent", async () => {
+  const claimed = await admin.rpc("claim_discussion_media_cleanup_service", {
+    p_expired_before: new Date(Date.now() + 60000).toISOString(),
+    p_limit: 100,
+  });
+  assert.ifError(claimed.error);
+  assert.ok(claimed.data.length > 0);
+  assert.equal(
+    new Set(claimed.data.map((item) => item.attachment_id)).size,
+    claimed.data.length,
+  );
+
+  const attachmentId = claimed.data[0].attachment_id;
+  const completed = await admin.rpc("complete_discussion_media_cleanup_service", {
+    p_attachment_id: attachmentId,
+    p_succeeded: true,
+  });
+  assert.ifError(completed.error);
+  assert.equal(completed.data, true);
+
+  const repeated = await admin.rpc("complete_discussion_media_cleanup_service", {
+    p_attachment_id: attachmentId,
+    p_succeeded: true,
+  });
+  assert.ifError(repeated.error);
+  assert.equal(repeated.data, false);
 });

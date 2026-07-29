@@ -8,6 +8,19 @@
     bodyMax: 10000,
     commentMax: 3000,
     cooldownSeconds: 180,
+    attachmentCount: 10,
+    imageBytes: 10 * 1024 * 1024,
+    videoBytes: 100 * 1024 * 1024,
+    attachmentTotalBytes: 200 * 1024 * 1024,
+    linkPreviewCount: 5,
+  });
+  const MEDIA_TYPES = Object.freeze({
+    "image/jpeg": Object.freeze({ kind: "image", extension: "jpg" }),
+    "image/png": Object.freeze({ kind: "image", extension: "png" }),
+    "image/webp": Object.freeze({ kind: "image", extension: "webp" }),
+    "image/gif": Object.freeze({ kind: "image", extension: "gif" }),
+    "video/mp4": Object.freeze({ kind: "video", extension: "mp4" }),
+    "video/webm": Object.freeze({ kind: "video", extension: "webm" }),
   });
   const CATEGORY_LABELS = Object.freeze({
     harmonica_hardware: "口琴硬體",
@@ -74,6 +87,67 @@
     return text.length <= max ? text : `${text.slice(0, max)}…`;
   }
 
+  function validateAttachments(files = []) {
+    const items = Array.from(files);
+    if (items.length > LIMITS.attachmentCount) {
+      return { ok: false, code: "attachment-count", message: `最多只能上傳 ${LIMITS.attachmentCount} 張圖片或影片。` };
+    }
+    let totalBytes = 0;
+    for (const file of items) {
+      const definition = MEDIA_TYPES[String(file?.type || "").toLowerCase()];
+      if (!definition) return { ok: false, code: "attachment-mime", message: "不支援這個檔案格式。" };
+      const bytes = Number(file?.size || 0);
+      const maximum = definition.kind === "image" ? LIMITS.imageBytes : LIMITS.videoBytes;
+      if (!Number.isFinite(bytes) || bytes < 0 || bytes > maximum) {
+        return { ok: false, code: "attachment-size", message: definition.kind === "image" ? "圖片單檔最多 10 MB。" : "影片單檔最多 100 MB。" };
+      }
+      totalBytes += bytes;
+    }
+    if (totalBytes > LIMITS.attachmentTotalBytes) {
+      return { ok: false, code: "attachment-total", message: "單次發表的附件總量最多 200 MB。" };
+    }
+    return { ok: true, value: { files: items, totalBytes } };
+  }
+
+  function parseYouTubeUrl(value) {
+    let url;
+    try { url = new URL(trim(value)); } catch { return null; }
+    if (!["http:", "https:"].includes(url.protocol)) return null;
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    let id = "";
+    if (host === "youtu.be") id = url.pathname.split("/").filter(Boolean)[0] || "";
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      if (url.pathname === "/watch") id = url.searchParams.get("v") || "";
+      else {
+        const parts = url.pathname.split("/").filter(Boolean);
+        if (["shorts", "embed"].includes(parts[0])) id = parts[1] || "";
+      }
+    }
+    if (!/^[A-Za-z0-9_-]{11}$/.test(id)) return null;
+    return {
+      provider: "youtube",
+      videoId: id,
+      normalizedUrl: `https://www.youtube.com/watch?v=${id}`,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${id}`,
+    };
+  }
+
+  function extractPreviewUrls(value) {
+    const matches = trim(value).match(/https?:\/\/[^\s<>"']+/gi) || [];
+    const unique = [];
+    for (const raw of matches) {
+      const candidate = raw.replace(/[),.;!?，。；！？]+$/u, "");
+      let url;
+      try { url = new URL(candidate); } catch { continue; }
+      if (!["http:", "https:"].includes(url.protocol)) continue;
+      url.hash = "";
+      const normalized = url.toString();
+      if (!unique.includes(normalized)) unique.push(normalized);
+      if (unique.length >= LIMITS.linkPreviewCount) break;
+    }
+    return unique;
+  }
+
   global.ChromaticaDiscussionCore = Object.freeze({
     LIMITS,
     CATEGORY_LABELS,
@@ -83,5 +157,9 @@
     sortPosts,
     formatRetryAfter,
     excerpt,
+    MEDIA_TYPES,
+    validateAttachments,
+    parseYouTubeUrl,
+    extractPreviewUrls,
   });
 })(typeof window !== "undefined" ? window : globalThis);

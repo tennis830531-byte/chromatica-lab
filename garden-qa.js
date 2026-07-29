@@ -102,6 +102,12 @@
     syncDocumentMode(true);
     if (!initialized) return true;
     render();
+    const currentView = options.getCurrentView?.();
+    const preserveActiveFeatureView = afterAuthReady
+      && currentView
+      && !["intro", "garden", "gardenqa"].includes(currentView)
+      && !["user-navigation", "remote-apply"].includes(reason);
+    if (preserveActiveFeatureView) return true;
     options.navigate?.(resolveInitialView({ qaActive: true }), { reason, afterAuthReady });
     return true;
   }

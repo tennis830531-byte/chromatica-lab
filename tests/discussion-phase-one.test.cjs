@@ -50,14 +50,12 @@ test("cooldown message formats the required two minute example", () => {
   assert.equal(core.formatRetryAfter(154), "請等待 2 分 34 秒後再發表");
 });
 
-test("database contains Phase 1 tables and reserved-only media schema", () => {
+test("database contains Phase 1 tables and retained media/link schema", () => {
   for (const table of ["discussion_posts", "discussion_comments", "discussion_rate_limits", "discussion_attachments", "discussion_link_previews", "discussion_turnstile_tokens"]) {
     assert.match(migration, new RegExp(`create table public\\.${table}`));
   }
   assert.match(migration, /discussion_attachments[\s\S]*owner_type in \('post', 'comment'\)/);
   assert.match(migration, /discussion_link_previews[\s\S]*normalized_url/);
-  assert.doesNotMatch(runtime, /signed upload|youtube|iframe|metadata fetch/i);
-  assert.doesNotMatch(fn, /storage\.from|signedUpload|youtube|metadata/i);
 });
 
 test("database constraints and indexes implement categories, statuses, hot and latest", () => {
@@ -131,7 +129,9 @@ test("rendering escapes untrusted text instead of accepting HTML", () => {
   assert.match(runtime, /escape\(post\.title\)/);
   assert.match(runtime, /escape\(post\.body/);
   assert.match(runtime, /escape\(item\.body\)/);
-  assert.doesNotMatch(runtime, /javascript:|<iframe/i);
+  assert.match(runtime, /safeHttpUrl/);
+  assert.match(runtime, /youtube-nocookie\.com/);
+  assert.doesNotMatch(runtime, /innerHTML\s*=\s*(post|item)\./);
 });
 
 test("UI has pagination, preview, loading, empty and error states", () => {
@@ -141,7 +141,7 @@ test("UI has pagination, preview, loading, empty and error states", () => {
   assert.match(runtime, /目前還沒有文章/);
   assert.match(runtime, /目前無法載入討論吧/);
   assert.match(runtime, /這是預覽，不會寫入資料庫/);
-  assert.match(runtime, /圖片、影片與網址預覽將於後續版本開放/);
+  assert.match(runtime, /data-discussion-files/);
 });
 
 test("QA and formal UI share rendering and QA remains session-local", () => {
@@ -170,9 +170,22 @@ test("CAPTCHA token is single-operation state and clears on background or naviga
   assert.doesNotMatch(runtime, /TURNSTILE_SECRET_KEY|1x0000000000000000000000000000000AA/);
 });
 
-test("narrow layout scrolls tabs without whole-page horizontal overflow", () => {
+test("publishing and commenting wait for CAPTCHA before enabling submit", () => {
+  assert.match(runtime, /function captchaReady\(action\)/);
+  assert.match(runtime, /postIsBusy \|\| !captchaIsReady \? "disabled"/);
+  assert.match(runtime, /captchaIsReady \? "發表" : "等待驗證"/);
+  assert.match(runtime, /commentIsBusy \|\| !captchaIsReady \? "disabled"/);
+  assert.match(runtime, /captchaIsReady \? "送出留言" : "等待驗證"/);
+});
+
+test("tabs use connected square rows without whole-page horizontal overflow", () => {
   assert.match(styles, /\.discussion-view \{[^}]*overflow-x: clip/);
-  assert.match(styles, /\.discussion-tabs \{[^}]*overflow-x: auto/);
+  assert.match(runtime, /discussion-tab-modes[\s\S]*Core\.TABS\.slice\(0,\s*2\)/);
+  assert.match(runtime, /discussion-tab-categories[\s\S]*Core\.TABS\.slice\(2\)/);
+  assert.match(styles, /\.discussion-tab-modes \{[^}]*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(styles, /\.discussion-tab-categories \{[^}]*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(styles, /\.discussion-tabs button \{[^}]*border-radius:\s*0/);
+  assert.match(styles, /\.discussion-tabs \{[^}]*overflow:\s*hidden/);
   assert.match(styles, /@media \(max-width: 520px\)/);
 });
 
@@ -191,7 +204,10 @@ test("discussion Function keeps JWT verification enabled", () => {
   assert.match(fn, /auth\.getUser\(\)/);
 });
 
-test("Phase 2 work is explicitly absent and left for later", () => {
-  assert.doesNotMatch(runtime, /type="file"|video controls|youtube/i);
-  assert.doesNotMatch(fn, /fetchMetadata|signed upload|discussion-media/i);
+test("Phase 1 text, CAPTCHA, cooldown, and soft delete remain intact after Phase 2", () => {
+  assert.match(runtime, /validatePost/);
+  assert.match(runtime, /validateComment/);
+  assert.match(runtime, /clearCaptcha/);
+  assert.match(runtime, /softDelete/);
+  assert.match(runtime, /cooldownSeconds/);
 });
