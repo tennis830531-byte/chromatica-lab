@@ -174,6 +174,12 @@ export async function handler(request: Request) {
   catch { return json(origin, 400, { error: "invalid-json" }); }
   const action = text(payload.action);
 
+  if (action === "get_admin_status") {
+    const result = await userClient.rpc("get_discussion_admin_status");
+    if (result.error) return json(origin, 503, { error: "discussion-admin-status-failed" });
+    return json(origin, 200, { is_admin: result.data?.[0]?.is_admin === true });
+  }
+
   if (action === "list_posts") {
     const tab = text(payload.tab) || "hot";
     const mode = CATEGORY_VALUES.has(tab) ? "category" : tab === "latest" ? "latest" : "hot";
@@ -267,6 +273,40 @@ export async function handler(request: Request) {
     );
     if (result.error) return json(origin, 409, { error: "discussion-delete-failed" });
     if (result.data !== true) return json(origin, 403, { error: "not-content-owner" });
+    return json(origin, 200, { deleted: true });
+  }
+
+  if (action === "pin_post" || action === "unpin_post") {
+    const postId = text(payload.post_id);
+    if (!/^[0-9a-f-]{36}$/i.test(postId)) return json(origin, 400, { error: "invalid-post-id" });
+    const result = await userClient.rpc("set_discussion_post_pinned", {
+      p_post_id: postId,
+      p_is_pinned: action === "pin_post",
+    });
+    if (result.error) {
+      const forbidden = String(result.error.message || "").includes("admin-required");
+      return json(origin, forbidden ? 403 : 409, { error: forbidden ? "admin-required" : "discussion-pin-failed" });
+    }
+    if (result.data !== true) return json(origin, 404, { error: "post-not-found" });
+    return json(origin, 200, { pinned: action === "pin_post" });
+  }
+
+  if (action === "admin_delete_post" || action === "admin_delete_comment") {
+    const id = text(action === "admin_delete_post" ? payload.post_id : payload.comment_id);
+    const reason = text(payload.reason);
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return json(origin, 400, { error: "invalid-content-id" });
+    if (!reason || reason.length > 500) return json(origin, 400, { error: "invalid-moderation-reason" });
+    const result = await userClient.rpc(
+      action === "admin_delete_post" ? "admin_delete_discussion_post" : "admin_delete_discussion_comment",
+      action === "admin_delete_post"
+        ? { p_post_id: id, p_reason: reason }
+        : { p_comment_id: id, p_reason: reason },
+    );
+    if (result.error) {
+      const forbidden = String(result.error.message || "").includes("admin-required");
+      return json(origin, forbidden ? 403 : 409, { error: forbidden ? "admin-required" : "discussion-moderation-failed" });
+    }
+    if (result.data !== true) return json(origin, 404, { error: "content-not-found" });
     return json(origin, 200, { deleted: true });
   }
 

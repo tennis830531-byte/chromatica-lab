@@ -110,6 +110,88 @@ test("authenticated local client can call discussion-actions without production 
   assert.ok(Array.isArray(result.posts));
 });
 
+test("app_admins exclusively authorizes pinning and moderation", async () => {
+  await clearCooldown(users[1].id);
+  const created = await createPost(users[1].id, {
+    p_title: "管理權限整合測試",
+    ...turnstile("create_post"),
+  });
+  assert.ifError(created.error);
+  const moderationPostId = created.data.id;
+
+  const ordinaryPin = await clientB.rpc("set_discussion_post_pinned", {
+    p_post_id: moderationPostId,
+    p_is_pinned: true,
+  });
+  assert.ok(ordinaryPin.error);
+
+  const granted = await admin.from("app_admins").insert({
+    user_id: users[0].id,
+    granted_by: users[0].id,
+  });
+  assert.ifError(granted.error);
+
+  const adminStatus = await clientA.rpc("get_discussion_admin_status");
+  assert.ifError(adminStatus.error);
+  assert.equal(adminStatus.data[0].is_admin, true);
+
+  const pinned = await clientA.rpc("set_discussion_post_pinned", {
+    p_post_id: moderationPostId,
+    p_is_pinned: true,
+  });
+  assert.ifError(pinned.error);
+  assert.equal(pinned.data, true);
+
+  const listed = await clientA.rpc("get_discussion_posts", {
+    p_mode: "latest", p_category: null, p_limit: 100, p_offset: 0,
+  });
+  assert.ifError(listed.error);
+  assert.equal(listed.data[0].id, moderationPostId);
+  assert.equal(listed.data[0].is_pinned, true);
+
+  await clearCooldown(users[1].id);
+  const comment = await admin.rpc("create_discussion_comment_service", {
+    p_user_id: users[1].id,
+    p_post_id: moderationPostId,
+    p_body: "管理刪除留言",
+    ...turnstile("create_comment"),
+  });
+  assert.ifError(comment.error);
+
+  const removedComment = await clientA.rpc("admin_delete_discussion_comment", {
+    p_comment_id: comment.data.id,
+    p_reason: "本機整合測試",
+  });
+  assert.ifError(removedComment.error);
+  assert.equal(removedComment.data, true);
+
+  const commentAudit = await admin.from("discussion_comments")
+    .select("status,deleted_by,moderation_reason").eq("id", comment.data.id).single();
+  assert.ifError(commentAudit.error);
+  assert.equal(commentAudit.data.status, "deleted");
+  assert.equal(commentAudit.data.deleted_by, users[0].id);
+
+  const removedPost = await clientA.rpc("admin_delete_discussion_post", {
+    p_post_id: moderationPostId,
+    p_reason: "本機整合測試",
+  });
+  assert.ifError(removedPost.error);
+  assert.equal(removedPost.data, true);
+  const repeated = await clientA.rpc("admin_delete_discussion_post", {
+    p_post_id: moderationPostId,
+    p_reason: "重跑仍不可重複處理",
+  });
+  assert.ifError(repeated.error);
+  assert.equal(repeated.data, true);
+
+  const revoked = await admin.from("app_admins")
+    .update({ revoked_at: new Date().toISOString() }).eq("user_id", users[0].id);
+  assert.ifError(revoked.error);
+  const revokedStatus = await clientA.rpc("get_discussion_admin_status");
+  assert.ifError(revokedStatus.error);
+  assert.equal(revokedStatus.data[0].is_admin, false);
+});
+
 test("post and comment cooldowns are independent and retain their own limits", async () => {
   firstTokenHash = tokenHash();
   const created = await createPost(users[0].id, turnstile("create_post", firstTokenHash));

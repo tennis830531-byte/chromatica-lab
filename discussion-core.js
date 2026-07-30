@@ -61,17 +61,25 @@
     const items = posts.filter((post) => post.status === "published");
     const tab = TABS.find((item) => item.id === tabId) || TABS[0];
     const visible = tab.mode === "category" ? items.filter((post) => post.category === tab.id) : items;
+    const pinnedFirst = (a, b) =>
+      Number(Boolean(b.is_pinned)) - Number(Boolean(a.is_pinned))
+      || (Boolean(a.is_pinned)
+        ? new Date(b.pinned_at || b.created_at).getTime() - new Date(a.pinned_at || a.created_at).getTime()
+        : 0);
     if (tab.mode === "hot") {
       const cutoff = now - 7 * 24 * 60 * 60 * 1000;
       return visible
-        .filter((post) => new Date(post.last_activity_at || post.created_at).getTime() >= cutoff)
+        .filter((post) => post.is_pinned || new Date(post.last_activity_at || post.created_at).getTime() >= cutoff)
         .toSorted((a, b) =>
-          Number(b.comment_count || 0) - Number(a.comment_count || 0)
+          pinnedFirst(a, b)
+          || Number(b.comment_count || 0) - Number(a.comment_count || 0)
           || new Date(b.last_activity_at || b.created_at).getTime() - new Date(a.last_activity_at || a.created_at).getTime()
-          || new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          || new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          || String(b.id).localeCompare(String(a.id)));
     }
     return visible.toSorted((a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      pinnedFirst(a, b)
+      || new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       || String(b.id).localeCompare(String(a.id)));
   }
 

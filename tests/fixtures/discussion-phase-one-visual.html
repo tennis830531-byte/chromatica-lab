@@ -62,6 +62,7 @@
         appWidth: document.querySelector("#appMain").scrollWidth,
         viewWidth: view.scrollWidth,
         shell: bounds(".discussion-shell"),
+        newButton: bounds(".discussion-new"),
         qaPanel: bounds(".discussion-qa-panel"),
         composer: bounds(".discussion-composer"),
         tabsClientWidth: document.querySelector(".discussion-tabs").clientWidth,
@@ -70,6 +71,7 @@
         postDraftPreserved,
         previewVisible: Boolean(document.querySelector(".discussion-preview")),
         phase2Inputs: document.querySelectorAll('input[type="file"]').length,
+        headerEnglish: document.querySelector(".discussion-header .eyebrow").textContent,
       };
       document.querySelector("#result").textContent = JSON.stringify(result);
     }, 120);

@@ -16,7 +16,8 @@
     postDraftId: "", commentDraftId: "",
     attachmentError: "",
     qaCommentsByPost: {},
-    qa: false, qaScenario: "populated", initialized: false,
+    qa: false, qaScenario: "populated", qaAdminPreview: false,
+    isAdmin: false, initialized: false,
   };
   let cooldownTimer = 0;
   let turnstileWidgetId = null;
@@ -28,6 +29,9 @@
 
   function isGardenQa() {
     return Boolean(global.ChromaticaGardenQA?.isActive?.());
+  }
+  function showAdminControls() {
+    return state.isAdmin || (state.qa && state.qaAdminPreview);
   }
   function profile() {
     return global.chromaticaAuth?.getPublicUserProfile?.() || null;
@@ -166,6 +170,7 @@
     const now = Date.now();
     return [
       { id: "qa-post-1", author_id: me.id, author_display_name: me.displayName, author_avatar_url: me.avatarUrl, category: "harmonica_technique", title: "如何讓長音更穩定？", body: "最近練習長音時，想請教大家如何控制氣息，讓每個音更穩定。https://youtu.be/dQw4w9WgXcQ", status: "published", comment_count: 3, created_at: new Date(now - 3600000).toISOString(), last_activity_at: new Date(now - 600000).toISOString(),
+        is_pinned: true, pinned_at: new Date(now - 300000).toISOString(),
         attachments: [{ id: "qa-media-1", media_type: "image", original_filename: "練習照片.png", url: "assets/chromatic-refresh/feature/discussion-forum-icon.png" }],
         link_previews: previewLinks("https://youtu.be/dQw4w9WgXcQ") },
       { id: "qa-post-2", author_id: "qa-friend", author_display_name: "口琴旅人", author_avatar_url: "", category: "harmonica_hardware", title: "十六孔口琴清潔心得", body: "整理了日常保養與清潔時會注意的幾個步驟。", status: "published", comment_count: 8, created_at: new Date(now - 86400000).toISOString(), last_activity_at: new Date(now - 120000).toISOString() },
@@ -211,8 +216,8 @@
       <div class="discussion-shell">
         <header class="discussion-header">
           <span class="discussion-header-icon" aria-hidden="true"><img src="./public/assets/chromatic-refresh/feature/discussion-forum-icon.png" alt="" /></span>
-          <div><p class="eyebrow">Chromatica Lab</p><h2>討論吧</h2><p>一起分享口琴、音樂與練習心得。</p></div>
-          <button class="discussion-new primary-btn" type="button">新增文章</button>
+          <div><p class="eyebrow">Chromatic Harmonica Club</p><h2>討論吧</h2><p>一起分享口琴、音樂與練習心得。</p></div>
+          <button class="discussion-new primary-btn" type="button" aria-label="新增文章" title="新增文章">+</button>
         </header>
         <nav class="discussion-tabs" aria-label="討論吧分類"></nav>
         <div class="discussion-qa-panel hidden" aria-label="討論吧 QA 控制"></div>
@@ -258,11 +263,12 @@
       narrow: "窄螢幕",
     };
     panel.innerHTML = `
-      <strong class="discussion-qa-title">討論吧 QA</strong>
+      <strong class="discussion-qa-title">討論吧管理模式</strong>
       <label>情境<select data-discussion-qa-scenario>
         ${Object.entries(scenarioLabels).map(([value, label]) => `<option value="${value}" ${state.qaScenario === value ? "selected" : ""}>${label}</option>`).join("")}
       </select></label>
       <div class="discussion-qa-actions">
+        <button data-discussion-qa-admin-preview type="button" aria-pressed="${state.qaAdminPreview}">${state.qaAdminPreview ? "關閉管理介面預覽" : "顯示管理介面預覽"}</button>
         <button data-discussion-qa-captcha="success" type="button">CAPTCHA 成功</button>
         <button data-discussion-qa-captcha="missing" type="button">CAPTCHA 未完成</button>
         <button data-discussion-qa-reset type="button">重置 QA</button>
@@ -283,12 +289,13 @@
     if (!visible.length) return `<div class="discussion-state paper-card"><strong>目前還沒有文章</strong><p>成為第一個分享練習心得的人吧！</p></div>`;
     return `<div class="discussion-list">${visible.map((post) => `
       <article class="discussion-post-card paper-card" data-discussion-post="${escape(post.id)}" tabindex="0">
-        <span class="discussion-category">${escape(Core.CATEGORY_LABELS[post.category] || "")}</span>
+        <div class="discussion-card-labels"><span class="discussion-category">${escape(Core.CATEGORY_LABELS[post.category] || "")}</span>${post.is_pinned ? `<span class="discussion-pinned-badge">置頂</span>` : ""}</div>
         <h3>${escape(post.title)}</h3>
         <p>${escape(Core.excerpt(post.body || "（無內文）"))}</p>
         ${renderBoundAttachments(post.attachments || [], false, state.qa)}
         ${renderLinkPreviews(post.link_previews || [], false)}
         <footer>${avatarMarkup(post)}<span><strong>${escape(post.author_display_name || "練習者")}</strong><small>${escape(formatTime(post.created_at))}</small></span><b>${Number(post.comment_count || 0)} 則留言</b></footer>
+        ${showAdminControls() ? `<div class="discussion-admin-actions"><button data-discussion-pin-post="${escape(post.id)}" data-pinned="${post.is_pinned ? "true" : "false"}" type="button">${post.is_pinned ? "取消置頂" : "置頂"}</button><button data-discussion-admin-delete-post="${escape(post.id)}" type="button">管理刪除</button></div>` : ""}
       </article>`).join("")}</div>
       ${visible.length < sorted.length ? `<button class="discussion-load-more secondary-btn" type="button">載入更多</button>` : ""}`;
   }
@@ -363,16 +370,17 @@
     const commentIsBusy = state.submitting || commentCooldown > 0 || state.commentAttachments.some((item) => item.status === "uploading");
     return `<article class="discussion-detail paper-card">
       <button data-discussion-list class="discussion-inline-back" type="button">← 返回文章列表</button>
-      <span class="discussion-category">${escape(Core.CATEGORY_LABELS[post.category])}</span>
+      <div class="discussion-card-labels"><span class="discussion-category">${escape(Core.CATEGORY_LABELS[post.category])}</span>${post.is_pinned ? `<span class="discussion-pinned-badge">置頂</span>` : ""}</div>
       <h3>${escape(post.title)}</h3><p class="discussion-body">${escape(post.body || "（無內文）")}</p>
       ${renderBoundAttachments(post.attachments || [], true, true)}
       ${renderLinkPreviews(post.link_previews || [], true)}
       <footer>${avatarMarkup(post)}<span><strong>${escape(post.author_display_name || "練習者")}</strong><small>${escape(formatTime(post.created_at))}</small></span></footer>
       ${me?.id === post.author_id ? `<button class="discussion-delete" data-discussion-delete-post type="button">刪除自己的文章</button>` : ""}
+      ${showAdminControls() ? `<div class="discussion-admin-actions"><button data-discussion-pin-post="${escape(post.id)}" data-pinned="${post.is_pinned ? "true" : "false"}" type="button">${post.is_pinned ? "取消置頂" : "置頂"}</button><button data-discussion-admin-delete-post="${escape(post.id)}" type="button">管理刪除文章</button></div>` : ""}
     </article>
     <section class="discussion-comments">
       <h3>${Number(post.comment_count || state.comments.length)} 則留言</h3>
-      ${state.comments.filter((item) => item.status === "published").map((item) => `<article class="discussion-comment paper-card">${avatarMarkup(item)}<div><header><strong>${escape(item.author_display_name || "練習者")}</strong><small>${escape(formatTime(item.created_at))}</small></header><p>${escape(item.body)}</p>${renderBoundAttachments(item.attachments || [], true, true)}${renderLinkPreviews(item.link_previews || [], true)}${me?.id === item.author_id ? `<button data-discussion-delete-comment="${escape(item.id)}" type="button">刪除</button>` : ""}</div></article>`).join("") || `<p class="discussion-state paper-card">還沒有留言。</p>`}
+      ${state.comments.filter((item) => item.status === "published").map((item) => `<article class="discussion-comment paper-card">${avatarMarkup(item)}<div><header><strong>${escape(item.author_display_name || "練習者")}</strong><small>${escape(formatTime(item.created_at))}</small></header><p>${escape(item.body)}</p>${renderBoundAttachments(item.attachments || [], true, true)}${renderLinkPreviews(item.link_previews || [], true)}${me?.id === item.author_id ? `<button data-discussion-delete-comment="${escape(item.id)}" type="button">刪除</button>` : ""}${showAdminControls() ? `<button class="discussion-admin-delete" data-discussion-admin-delete-comment="${escape(item.id)}" type="button">管理刪除</button>` : ""}</div></article>`).join("") || `<p class="discussion-state paper-card">還沒有留言。</p>`}
     </section>
     <form class="discussion-comment-form paper-card"><label>新增留言<textarea name="body" maxlength="${Core.LIMITS.commentMax}" rows="4">${escape(state.commentDraft)}</textarea></label>${attachmentEditorMarkup(state.commentAttachments)}${renderLinkPreviews(previewLinks(state.commentDraft), true)}${captchaMarkup("create_comment")}<div class="discussion-form-error" role="alert"></div><button class="primary-btn" type="submit" ${commentIsBusy || !captchaIsReady ? "disabled" : ""}>${state.submitting ? "留言送出中…" : commentCooldown ? "冷卻中" : captchaIsReady ? "送出留言" : "等待驗證"}</button>${cooldownMarkup("create_comment")}</form>`;
   }
@@ -694,6 +702,17 @@
     } catch { state.error = profile() ? "目前無法載入討論吧，請確認網路後再試。" : "請先登入才能使用討論吧。"; }
     state.loading = false; render();
   }
+  async function refreshAdminStatus() {
+    state.isAdmin = false;
+    if (state.qa || !profile()) { render(); return; }
+    try {
+      const data = await api("get_admin_status");
+      state.isAdmin = data?.is_admin === true;
+    } catch {
+      state.isAdmin = false;
+    }
+    render();
+  }
   async function openPost(id) {
     state.error = "";
     if (state.qa) {
@@ -806,6 +825,85 @@
     }
     render();
   }
+  async function togglePinned(postId, currentlyPinned) {
+    if (state.qa) {
+      showSuccessModal("QA 僅預覽管理介面，正式操作仍需 app_admins 權限。");
+      return;
+    }
+    try {
+      await api(currentlyPinned ? "unpin_post" : "pin_post", { post_id: postId });
+      const post = state.posts.find((item) => item.id === postId);
+      if (post) {
+        post.is_pinned = !currentlyPinned;
+        post.pinned_at = currentlyPinned ? null : new Date().toISOString();
+      }
+      if (state.currentPost?.id === postId) {
+        state.currentPost.is_pinned = !currentlyPinned;
+        state.currentPost.pinned_at = currentlyPinned ? null : new Date().toISOString();
+      }
+      render();
+    } catch (error) {
+      state.error = error?.message || "置頂狀態更新失敗。";
+      render();
+    }
+  }
+  function openModerationReason(type, id) {
+    if (state.qa) {
+      showSuccessModal("QA 僅預覽管理介面，正式操作仍需 app_admins 權限。");
+      return;
+    }
+    let modal = $("#discussionModerationModal");
+    if (!modal) {
+      modal = document.createElement("dialog");
+      modal.id = "discussionModerationModal";
+      modal.className = "discussion-moderation-modal";
+      modal.innerHTML = `<form method="dialog" class="paper-card">
+        <h3>管理刪除</h3>
+        <p>請填寫管理原因。內容只會 soft delete，不會硬刪除資料。</p>
+        <label>原因<textarea name="reason" maxlength="500" rows="4" required></textarea></label>
+        <p class="discussion-form-error" role="alert"></p>
+        <div class="discussion-actions"><button value="cancel" type="button" data-discussion-moderation-cancel>取消</button><button class="primary-btn" type="submit">確認刪除</button></div>
+      </form>`;
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal || event.target.closest("[data-discussion-moderation-cancel]")) modal.close();
+      });
+      modal.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const reason = String(new FormData(event.target).get("reason") || "").trim();
+        if (!reason) {
+          $(".discussion-form-error", modal).textContent = "請填寫管理原因。";
+          return;
+        }
+        const targetType = modal.dataset.targetType;
+        const targetId = modal.dataset.targetId;
+        const submit = $('button[type="submit"]', modal);
+        submit.disabled = true;
+        try {
+          await api(targetType === "post" ? "admin_delete_post" : "admin_delete_comment",
+            targetType === "post" ? { post_id: targetId, reason } : { comment_id: targetId, reason });
+          modal.close();
+          if (targetType === "post") {
+            state.posts = state.posts.filter((item) => item.id !== targetId);
+            if (state.currentPost?.id === targetId) state.currentPost.status = "deleted";
+          } else {
+            state.comments = state.comments.filter((item) => item.id !== targetId);
+            if (state.currentPost) state.currentPost.comment_count = Math.max(0, Number(state.currentPost.comment_count || 0) - 1);
+          }
+          render();
+        } catch (error) {
+          $(".discussion-form-error", modal).textContent = error?.message || "管理刪除失敗。";
+        } finally {
+          submit.disabled = false;
+        }
+      });
+      document.body.append(modal);
+    }
+    modal.dataset.targetType = type;
+    modal.dataset.targetId = id;
+    modal.querySelector("form").reset();
+    $(".discussion-form-error", modal).textContent = "";
+    modal.showModal();
+  }
   function bind(root) {
     root.addEventListener("click", (event) => {
       if (event.target.closest(".discussion-file-picker")) {
@@ -814,6 +912,26 @@
       }
       const tab = event.target.closest("[data-discussion-tab]");
       if (tab) { state.tab = tab.dataset.discussionTab; state.page = 1; state.screen = "list"; void loadPosts(); return; }
+      if (event.target.closest("[data-discussion-qa-admin-preview]")) {
+        state.qaAdminPreview = !state.qaAdminPreview;
+        render();
+        return;
+      }
+      const pinPost = event.target.closest("[data-discussion-pin-post]");
+      if (pinPost) {
+        void togglePinned(pinPost.dataset.discussionPinPost, pinPost.dataset.pinned === "true");
+        return;
+      }
+      const adminDeletePost = event.target.closest("[data-discussion-admin-delete-post]");
+      if (adminDeletePost) {
+        openModerationReason("post", adminDeletePost.dataset.discussionAdminDeletePost);
+        return;
+      }
+      const adminDeleteComment = event.target.closest("[data-discussion-admin-delete-comment]");
+      if (adminDeleteComment) {
+        openModerationReason("comment", adminDeleteComment.dataset.discussionAdminDeleteComment);
+        return;
+      }
       if (event.target.closest(".discussion-new")) { state.error = ""; state.postDraft = { category: "", title: "", body: "" }; state.screen = "compose"; clearCaptcha(); render(); return; }
       if (event.target.closest("[data-discussion-cancel],[data-discussion-list]")) { stopMedia($("#discussion")); void discardCurrentDraft(); state.screen = "list"; state.error = ""; clearCaptcha(); render(); return; }
       if (event.target.closest(".discussion-load-more")) { state.page += 1; void loadPosts(); return; }
@@ -893,6 +1011,7 @@
         updateCooldownMessages($("#discussion"));
       }
     }, 1000);
+    void refreshAdminStatus();
     void loadPosts();
   }
   function onViewChanged(view) {
