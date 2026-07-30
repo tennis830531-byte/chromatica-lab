@@ -24,7 +24,8 @@ test("Cubic 11 v1.500 is local, licensed, hashed, and scoped to home and garden 
   assert.match(source, /Version: 1\.500/);
   assert.match(source, /SIL Open Font License 1\.1/);
   assert.match(css, /@font-face \{[^}]*font-family: "Cubic 11";[^}]*Cubic_11\.woff2/s);
-  assert.match(css, /#intro \.hero-plant-name-card b \{[^}]*font-family: "Cubic 11", var\(--font-sans\);/s);
+  assert.match(css, /\.home-hero \.hero-plant-name-card b \{[^}]*font-family: "Cubic 11", var\(--font-sans\);/s);
+  assert.doesNotMatch(css, /#intro \.hero-plant-name-card b/);
   assert.match(css, /#gardenPlantName,\s*#gardenQaPlantName\s*\{[^}]*font-family: "Cubic 11", var\(--font-sans\);/s);
   assert.doesNotMatch(css, /(?:announcement|leaderboard|garden-collection)[^{]*\{[^}]*font-family: "Cubic 11"/s);
 });

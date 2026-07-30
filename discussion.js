@@ -527,6 +527,20 @@
     $("[data-discussion-success-message]", modal).textContent = message;
     if (!modal.open) modal.showModal();
   }
+  function preferredScrollBehavior() {
+    return global.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
+  }
+  function scrollDiscussionToTop() {
+    global.requestAnimationFrame?.(() => {
+      $("#discussion")?.scrollIntoView?.({ block: "start", behavior: preferredScrollBehavior() });
+    });
+  }
+  function scrollLatestCommentIntoView() {
+    global.requestAnimationFrame?.(() => {
+      const comments = Array.from($("#discussion")?.querySelectorAll?.(".discussion-comment") || []);
+      comments.at(-1)?.scrollIntoView?.({ block: "center", behavior: preferredScrollBehavior() });
+    });
+  }
   async function api(action, payload = {}) {
     const result = await global.chromaticaAuth?.invokeFunction?.("discussion-actions", { action, ...payload });
     if (!result) throw new Error("discussion-unavailable");
@@ -774,7 +788,10 @@
       clearCaptcha();
     }
     state.submitting = false; render();
-    if (succeeded) showSuccessModal("文章已發佈");
+    if (succeeded) {
+      scrollDiscussionToTop();
+      showSuccessModal("文章已發佈");
+    }
   }
   async function submitComment(form) {
     captureDraft(form);
@@ -806,7 +823,10 @@
       clearCaptcha();
     }
     state.submitting = false; render();
-    if (succeeded) showSuccessModal("留言成功");
+    if (succeeded) {
+      scrollLatestCommentIntoView();
+      showSuccessModal("留言成功");
+    }
   }
   async function softDelete(type, id) {
     if (!confirm("確定刪除這項內容嗎？")) return;

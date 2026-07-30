@@ -42,6 +42,7 @@
   let activeUserId = "";
   let requestGeneration = 0;
   let weeklySummary = { loaded: false, weeklyCycles: 0, weeklyRank: null, hasWeeklyEntry: false };
+  let cultivatorSummary = { loaded: false, cultivatorRank: null };
   let profileOnboarding = false;
   let profileSaving = false;
   let profile = null;
@@ -126,12 +127,33 @@
   }
 
   function renderHomeLeaderboardTitle() {
-    const element = $("#homeLeaderboardTitle");
-    if (!element) return;
-    const rank = Number(weeklySummary.weeklyRank);
-    const isTopTen = joinedNow() && weeklySummary.loaded && Number.isInteger(rank) && rank >= 1 && rank <= 10;
-    element.textContent = isTopTen ? `乖乖練習王 第${TOP_TEN_RANK_LABELS[rank]}名` : "";
-    element.classList.toggle("hidden", !isTopTen);
+    const weeklyElement = $("#homeLeaderboardTitle");
+    const weeklyRank = Number(weeklySummary.weeklyRank);
+    const weeklyTopTen = joinedNow()
+      && weeklySummary.loaded
+      && Number.isInteger(weeklyRank)
+      && weeklyRank >= 1
+      && weeklyRank <= 10;
+    if (weeklyElement) {
+      weeklyElement.textContent = weeklyTopTen
+        ? `乖乖練習王 第${TOP_TEN_RANK_LABELS[weeklyRank]}名`
+        : "";
+      weeklyElement.classList.toggle("hidden", !weeklyTopTen);
+    }
+
+    const cultivatorElement = $("#homeCultivatorTitle");
+    const cultivatorRank = Number(cultivatorSummary.cultivatorRank);
+    const cultivatorTopTen = joinedNow()
+      && cultivatorSummary.loaded
+      && Number.isInteger(cultivatorRank)
+      && cultivatorRank >= 1
+      && cultivatorRank <= 10;
+    if (cultivatorElement) {
+      cultivatorElement.textContent = cultivatorTopTen
+        ? `精靈培育師 第${TOP_TEN_RANK_LABELS[cultivatorRank]}名`
+        : "";
+      cultivatorElement.classList.toggle("hidden", !cultivatorTopTen);
+    }
   }
 
   function cacheKey(metric, userId) {
@@ -295,6 +317,37 @@
     };
     renderHomeLeaderboardTitle();
     return true;
+  }
+
+  function updateCultivatorSummary(rawRows, context = requestContext()) {
+    if (!isCurrentRequest(context) || !joinedNow()) return false;
+    const currentRow = core.normalizeLeaderboardRows(rawRows, "cultivator")
+      .find((row) => row.isCurrentUser) || null;
+    cultivatorSummary = {
+      loaded: true,
+      cultivatorRank: currentRow ? Math.max(1, Number(currentRow.position) || 1) : null,
+    };
+    renderHomeLeaderboardTitle();
+    return Boolean(currentRow);
+  }
+
+  async function updateHomeCultivatorSummary(context = requestContext()) {
+    if (!isCurrentRequest(context) || !joinedNow()) return false;
+    try {
+      await rpc("sync_spirit_cultivator_progress", {
+        p_spirits: dependencies.getCultivatorProgress?.() || [],
+      }, context);
+      const rows = await rpc("get_spirit_cultivator_leaderboard", {}, context);
+      if (!isCurrentRequest(context)) return false;
+      return updateCultivatorSummary(rows, context);
+    } catch (error) {
+      if (isCurrentRequest(context)) {
+        cultivatorSummary = { loaded: false, cultivatorRank: null };
+        renderHomeLeaderboardTitle();
+        console.warn("Cultivator home title refresh failed.", classifyLeaderboardError(error).kind);
+      }
+      return false;
+    }
   }
 
   function renderOwnProfile() {
@@ -537,6 +590,7 @@
       || cache?.weekStart === core.taipeiWeekStartKey();
     if (showCache && cacheHasCurrentUser && cacheMatchesPeriod) {
       if (activeMetric === "weekly") updateWeeklySummary(cache.rows, context);
+      if (activeMetric === "cultivator") updateCultivatorSummary(cache.rows, context);
       renderLeaderboardRows(cache.rows, activeMetric);
     }
     if (!force && showCache && cacheHasCurrentUser && cacheMatchesPeriod && core.isCacheFresh(cache)) {
@@ -574,6 +628,7 @@
           return [];
         }
         if (requestedMetric === "weekly") updateWeeklySummary(rows, context);
+        if (requestedMetric === "cultivator") updateCultivatorSummary(rows, context);
         writeCache(requestedMetric, normalized.map((row) => ({
           position: row.position,
           public_key: row.userId,
@@ -1155,6 +1210,7 @@
     membershipError = null;
     profile = null;
     weeklySummary = { loaded: false, weeklyCycles: 0, weeklyRank: null, hasWeeklyEntry: false };
+    cultivatorSummary = { loaded: false, cultivatorRank: null };
     membershipFlight = null;
     refreshFlight = null;
     queueFlight = null;
@@ -1201,6 +1257,7 @@
           await claimWeeklyRewardNotice(requestContext(normalizedUserId));
           if (isCurrentRequest(requestContext(normalizedUserId))) {
             await loadLeaderboard("weekly", { force: true, showCache: false });
+            await updateHomeCultivatorSummary(requestContext(normalizedUserId));
           }
         } catch (error) {
           if (activeUserId === normalizedUserId) {
@@ -1232,6 +1289,7 @@
     membershipError = null;
     profile = null;
     weeklySummary = { loaded: false, weeklyCycles: 0, weeklyRank: null, hasWeeklyEntry: false };
+    cultivatorSummary = { loaded: false, cultivatorRank: null };
     pendingRankMovement = null;
     renderOwnProfile();
   }

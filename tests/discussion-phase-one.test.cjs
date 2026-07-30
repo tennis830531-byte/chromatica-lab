@@ -161,6 +161,10 @@ test("post and comment cooldown messages render directly below their submit cont
 test("successful post and comment submissions show top-level confirmation modals", () => {
   assert.match(runtime, /showSuccessModal\("文章已發佈"\)/);
   assert.match(runtime, /showSuccessModal\("留言成功"\)/);
+  assert.match(runtime, /function scrollDiscussionToTop\(\)[\s\S]*#discussion[\s\S]*scrollIntoView/);
+  assert.match(runtime, /function scrollLatestCommentIntoView\(\)[\s\S]*\.discussion-comment[\s\S]*scrollIntoView/);
+  assert.match(runtime, /if \(succeeded\) \{\s*scrollDiscussionToTop\(\);\s*showSuccessModal\("文章已發佈"\)/);
+  assert.match(runtime, /if \(succeeded\) \{\s*scrollLatestCommentIntoView\(\);\s*showSuccessModal\("留言成功"\)/);
   assert.match(runtime, /modal\.id = "discussionSuccessModal"/);
   assert.match(runtime, /modal\.showModal\(\)/);
   assert.match(styles, /\.discussion-success-modal::backdrop/);
@@ -235,6 +239,9 @@ test("tabs use connected square rows without whole-page horizontal overflow", ()
   assert.match(styles, /\.discussion-tab-modes \{[^}]*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(styles, /\.discussion-tab-categories \{[^}]*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(styles, /\.discussion-tabs button \{[^}]*border-radius:\s*0/);
+  assert.match(styles, /\.discussion-tab-modes button:first-child\s*\{[^}]*border-radius:\s*12px 0 0 12px/);
+  assert.match(styles, /\.discussion-tab-modes button:last-child\s*\{[^}]*border-radius:\s*0 12px 12px 0/);
+  assert.match(styles, /\.discussion-tab-categories button\s*\{[^}]*border-radius:\s*0/);
   assert.match(styles, /\.discussion-tabs \{[^}]*overflow:\s*hidden/);
   assert.match(styles, /@media \(max-width: 520px\)/);
 });

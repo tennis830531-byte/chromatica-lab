@@ -37,14 +37,17 @@ test("global leaderboard exposes weekly and permanent cultivator tabs without st
   assert.match(css, /\.leaderboard-details-modal[\s\S]*max-height:[^;]+100dvh[\s\S]*overflow: auto/);
 });
 
-test("home leaderboard title is shown only for the current weekly top ten", () => {
-  assert.match(html, /id="homeLeaderboardTitle" class="home-leaderboard-title hidden" aria-live="polite"/);
+test("home leaderboard titles show current weekly and cultivator top-ten ranks", () => {
+  assert.match(html, /class="home-leaderboard-titles" aria-live="polite"[\s\S]*id="homeLeaderboardTitle" class="home-leaderboard-title hidden"[\s\S]*id="homeCultivatorTitle" class="home-leaderboard-title home-cultivator-title hidden"/);
+  assert.match(css, /\.home-hero \.home-cultivator-title\s*\{[^}]*color:\s*#315d7c[^}]*background:\s*linear-gradient/);
   assert.match(runtime, /TOP_TEN_RANK_LABELS/);
-  assert.match(runtime, /rank >= 1 && rank <= 10/);
-  assert.match(runtime, /`乖乖練習王 第\$\{TOP_TEN_RANK_LABELS\[rank\]\}名`/);
-  assert.match(runtime, /element\.classList\.toggle\("hidden", !isTopTen\)/);
+  assert.match(runtime, /weeklyRank >= 1[\s\S]*weeklyRank <= 10/);
+  assert.match(runtime, /cultivatorRank >= 1[\s\S]*cultivatorRank <= 10/);
+  assert.match(runtime, /`乖乖練習王 第\$\{TOP_TEN_RANK_LABELS\[weeklyRank\]\}名`/);
+  assert.match(runtime, /`精靈培育師 第\$\{TOP_TEN_RANK_LABELS\[cultivatorRank\]\}名`/);
   assert.match(runtime, /updateWeeklySummary[\s\S]*renderHomeLeaderboardTitle\(\)/);
   assert.match(runtime, /loadLeaderboard\("weekly", \{ force: true, showCache: false \}\)/);
+  assert.match(runtime, /updateHomeCultivatorSummary\(requestContext\(normalizedUserId\)\)/);
 });
 
 test("discussion quick-entry artwork is reviewed and transparent", async () => {

@@ -111,11 +111,28 @@ function weeklyRow(userId, score, position = 1) {
   };
 }
 
+function cultivatorRow(userId, speciesCount, stageTotal, position = 1) {
+  return {
+    position,
+    public_key: `public-${userId}`,
+    display_name: `公開-${userId}`,
+    custom_avatar_path: "",
+    avatar_version: 0,
+    featured_spirit_species: "melody-sprout",
+    featured_spirit_name: `精靈-${userId}`,
+    featured_spirit_stage: 1,
+    score: speciesCount,
+    secondary_score: stageTotal,
+    is_current_user: true,
+  };
+}
+
 function createHarness({
   initialUserId = "account-a",
   memberships = {},
   weeklyTotals = {},
   weeklyRanks = {},
+  cultivatorRanks = {},
   weeklyMissingUsers = [],
   membershipDeferred = {},
   weeklyDeferred = {},
@@ -165,6 +182,15 @@ function createHarness({
           return { data: [], error: null };
         }
         return { data: [weeklyRow(expectedUserId, totals[expectedUserId] || 0, weeklyRanks[expectedUserId] || 1)], error: null };
+      }
+      if (name === "sync_spirit_cultivator_progress") {
+        return { data: true, error: null };
+      }
+      if (name === "get_spirit_cultivator_leaderboard") {
+        return {
+          data: [cultivatorRow(expectedUserId, 1, 2, cultivatorRanks[expectedUserId] || 1)],
+          error: null,
+        };
       }
       if (name === "record_weekly_leaderboard_practice") {
         if (recordDeferred[expectedUserId]) return recordDeferred[expectedUserId].promise;
@@ -356,7 +382,7 @@ test("joined membership receives a formal highlighted zero-cycle row without any
   assert.equal(harness.localStorage.getItem("chromatica.leaderboard.weekly.pending.v2.account-a"), null);
 });
 
-test("home title follows the signed-in weekly top-ten rank and clears outside the top ten", async () => {
+test("home titles follow signed-in weekly and cultivator top-ten ranks and clear outside the top ten", async () => {
   const harness = createHarness({
     memberships: {
       "account-a": membershipRow("account-a", true),
@@ -364,17 +390,24 @@ test("home title follows the signed-in weekly top-ten rank and clears outside th
     },
     weeklyTotals: { "account-a": 88, "account-b": 0 },
     weeklyRanks: { "account-a": 3, "account-b": 11 },
+    cultivatorRanks: { "account-a": 1, "account-b": 12 },
   });
   await settle();
-  const title = harness.nodes.get("#homeLeaderboardTitle");
-  assert.equal(title.textContent, "乖乖練習王 第三名");
-  assert.equal(title.classList.contains("hidden"), false);
+  const weeklyTitle = harness.nodes.get("#homeLeaderboardTitle");
+  const cultivatorTitle = harness.nodes.get("#homeCultivatorTitle");
+  assert.equal(weeklyTitle.textContent, "乖乖練習王 第三名");
+  assert.equal(weeklyTitle.classList.contains("hidden"), false);
+  assert.equal(cultivatorTitle.textContent, "精靈培育師 第一名");
+  assert.equal(cultivatorTitle.classList.contains("hidden"), false);
 
   harness.setUser("account-b");
-  assert.equal(title.classList.contains("hidden"), true);
+  assert.equal(weeklyTitle.classList.contains("hidden"), true);
+  assert.equal(cultivatorTitle.classList.contains("hidden"), true);
   await settle();
-  assert.equal(title.textContent, "");
-  assert.equal(title.classList.contains("hidden"), true);
+  assert.equal(weeklyTitle.textContent, "");
+  assert.equal(weeklyTitle.classList.contains("hidden"), true);
+  assert.equal(cultivatorTitle.textContent, "");
+  assert.equal(cultivatorTitle.classList.contains("hidden"), true);
 });
 
 test("cold startup does not reuse a fresh cached top-ten title across a weekly refresh", async () => {

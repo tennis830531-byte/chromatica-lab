@@ -23,12 +23,20 @@ test("discussion uses the shared QA/form presentation without narrow-screen over
     assert.equal(result.viewport, width);
     assert.ok(result.appWidth <= width, `${width}px app overflow`);
     assert.ok(result.viewWidth <= width, `${width}px discussion overflow`);
-    for (const box of [result.shell, result.newButton, result.qaPanel, result.composer]) {
+    for (const box of [result.shell, result.qaPanel, result.composer]) {
       assert.ok(box.left >= 0, `${width}px element clips left`);
       assert.ok(box.right <= width, `${width}px element clips right`);
     }
+    assert.ok(result.newButton.left >= 0, `${width}px floating button clips left`);
+    assert.ok(result.newButton.right <= result.browserViewport, `${width}px floating button clips right`);
     assert.equal(result.headerEnglish, "Chromatic Harmonica Club");
-    assert.ok(result.newButton.width <= 44, "square add button stays compact");
+    assert.equal(result.newButton.width, 56, "floating add button keeps its touch target");
+    assert.equal(result.newButton.height, 56, "floating add button stays square");
+    assert.ok(result.newButton.right >= result.browserViewport - 72, "floating add button stays at the right edge");
+    assert.ok(
+      result.newButton.bottom >= result.browserViewportHeight - 120,
+      "floating add button stays near the viewport bottom",
+    );
     assert.equal(result.tabCount, 6);
     assert.ok(result.tabsScrollWidth <= result.tabsClientWidth, "connected tab rows should remain inside their container");
     assert.equal(result.postDraftPreserved, true);

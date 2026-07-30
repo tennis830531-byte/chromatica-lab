@@ -521,7 +521,10 @@
                 <h2 id="homeHeroQaTitle" data-haptic="none">半音階口琴練習室</h2>
                 <p>透過孔位地圖與基礎練習，建立穩定的基本功，讓每一次吹奏都更扎實、更動聽。</p>
                 <div class="hero-rank-boss-row">
-                  <p id="homeLeaderboardTitle" class="home-leaderboard-title hidden" aria-live="polite"></p>
+                  <div class="home-leaderboard-titles" aria-live="polite">
+                    <p id="homeLeaderboardTitle" class="home-leaderboard-title hidden"></p>
+                    <p id="homeCultivatorTitle" class="home-leaderboard-title home-cultivator-title hidden"></p>
+                  </div>
                   <button id="worldBossEntry" class="world-boss-entry" type="button" aria-label="查看世界 Boss">
                     <img id="worldBossEntryIcon" src="./public/assets/world-boss/boss入口icon.png" alt="" />
                     <span id="worldBossEntryLabel">世界 Boss 尚未出沒</span>
@@ -1363,7 +1366,7 @@
 
         <section id="worldboss" class="view">
           <div class="world-boss-page paper-card">
-            <div class="world-boss-page-head"><div><p class="eyebrow">每週共同討伐</p><h2 id="worldBossName">世界 Boss・樹麻雀</h2><strong id="worldBossStatusText">正在確認活動狀態…</strong></div><button id="worldBossInfoOpen" class="icon-btn world-boss-info-open" type="button" aria-label="查看世界 Boss 詳細說明">？</button></div>
+            <div class="world-boss-page-head"><div><div class="world-boss-eyebrow-row"><p class="eyebrow">每週共同討伐</p><button id="worldBossInfoOpen" class="icon-btn world-boss-info-open" type="button" aria-label="查看世界 Boss 詳細說明">？</button></div><h2 id="worldBossName">世界 Boss・樹麻雀</h2><strong id="worldBossStatusText">正在確認活動狀態…</strong></div></div>
             <section id="worldBossQaPanel" class="world-boss-qa-panel hidden" aria-label="World Boss QA 測試控制">
               <div class="world-boss-qa-head"><strong>World Boss QA｜完全隔離</strong><button id="worldBossQaReturn" type="button">返回測試花園</button></div>
               <p>只使用本次 session，不扣正式水滴、不寫正式戰鬥或通知資料。</p>

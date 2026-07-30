@@ -33,7 +33,7 @@
       const element = document.querySelector(selector);
       if (!element) return null;
       const rect = element.getBoundingClientRect();
-      return { left: rect.left, right: rect.right, width: rect.width };
+      return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height };
     }
     function setValue(element, value) {
       element.value = value;
@@ -59,6 +59,8 @@
 
       const result = {
         viewport: targetViewport,
+        browserViewport: window.innerWidth,
+        browserViewportHeight: window.innerHeight,
         appWidth: document.querySelector("#appMain").scrollWidth,
         viewWidth: view.scrollWidth,
         shell: bounds(".discussion-shell"),

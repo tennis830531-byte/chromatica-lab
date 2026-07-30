@@ -653,6 +653,19 @@ li,
   box-shadow: 0 4px 10px rgba(91, 56, 29, 0.1);
 }
 
+.home-hero .home-cultivator-title {
+  border-color: rgba(72, 119, 153, 0.55);
+  color: #315d7c;
+  background: linear-gradient(135deg, rgba(239, 249, 255, 0.96), rgba(151, 200, 229, 0.62));
+  box-shadow: 0 4px 10px rgba(45, 91, 122, 0.14);
+}
+
+.home-leaderboard-titles {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
 .hero-actions {
   display: flex;
   flex-direction: column;
@@ -1150,9 +1163,26 @@ body.simple-motion .hero-plant-action {
   text-align: left;
 }
 
+.world-boss-eyebrow-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.world-boss-eyebrow-row .eyebrow {
+  margin: 0;
+}
+
 .world-boss-info-open {
   flex: 0 0 auto;
-  font-size: 24px;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
   font-weight: 900;
 }
 
@@ -8532,22 +8562,27 @@ body.practice-settlement-open { overflow: hidden; }
 /* Discussion board Phase 1 */
 .discussion-view { padding-bottom: 120px; overflow-x: clip; }
 .discussion-shell { width: 100%; max-width: 900px; box-sizing: border-box; margin: 0 auto; padding: 16px; color: #684126; }
-.discussion-header { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; margin-bottom: 14px; }
+.discussion-header { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; margin-bottom: 14px; }
 .discussion-header-icon { display: grid; place-items: center; width: 58px; height: 58px; }
 .discussion-header-icon img { width: 58px; height: 58px; object-fit: contain; }
 .discussion-header h2 { margin: 0; font-size: clamp(1.7rem, 7vw, 2.5rem); }
 .discussion-header p { margin: 3px 0 0; }
 .discussion-header .discussion-new {
+  position: fixed;
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  z-index: 85;
   display: grid;
   place-items: center;
-  align-self: start;
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
-  min-height: 44px;
+  width: 56px;
+  min-width: 56px;
+  height: 56px;
+  min-height: 56px;
   padding: 0;
-  border-radius: 10px;
-  font-size: 2rem;
+  border: 2px solid rgba(255, 248, 231, 0.92);
+  border-radius: 17px;
+  box-shadow: 0 10px 24px rgba(83, 48, 25, 0.3), 0 2px 7px rgba(83, 48, 25, 0.2);
+  font-size: 2.25rem;
   line-height: 1;
 }
 .discussion-tabs { display: grid; gap: 7px; width: 100%; max-width: 100%; padding: 4px 0 10px; overflow: hidden; }
@@ -8556,6 +8591,9 @@ body.practice-settlement-open { overflow: hidden; }
 .discussion-tab-categories { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .discussion-tabs button { min-width: 0; min-height: 40px; margin-left: -1px; border: 1px solid #b98a54; border-radius: 0; padding: 7px 3px; background: #fff8e8; color: #684126; font: inherit; font-weight: 800; white-space: nowrap; }
 .discussion-tabs button:first-child { margin-left: 0; }
+.discussion-tab-modes button:first-child { border-radius: 12px 0 0 12px; }
+.discussion-tab-modes button:last-child { border-radius: 0 12px 12px 0; }
+.discussion-tab-categories button { border-radius: 0; }
 .discussion-tabs button.active { background: #79441f; color: #fff9e9; border-color: #79441f; }
 .discussion-status { min-height: 24px; margin: 2px 0 8px; font-weight: 800; color: #79532e; }
 .discussion-status[data-kind="error"], .discussion-form-error { color: #a52720; }
@@ -8722,9 +8760,9 @@ body.practice-settlement-open { overflow: hidden; }
 .discussion-media-lightbox button { position: absolute; top: 5px; right: 9px; border: 0; background: transparent; color: white; font-size: 1.8rem; }
 @media (max-width: 520px) {
   .discussion-shell { padding: 10px; }
-  .discussion-header { grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; }
+  .discussion-header { grid-template-columns: auto minmax(0, 1fr); gap: 8px; }
   .discussion-header-icon, .discussion-header-icon img { width: 50px; height: 50px; }
-  .discussion-header .discussion-new { grid-column: 3; width: 42px; min-width: 42px; height: 42px; min-height: 42px; }
+  .discussion-header .discussion-new { right: calc(14px + env(safe-area-inset-right, 0px)); }
   .discussion-post-card footer { align-items: flex-start; }
   .discussion-post-card footer b { margin-left: 0; }
   .discussion-actions > button { flex: 1 1 30%; }

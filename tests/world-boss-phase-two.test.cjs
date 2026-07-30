@@ -57,6 +57,12 @@ test("complete battle page exposes HP, timer, energy, skills, attacks, log, and 
   assert.match(runtime, /window\.setInterval\([^]*void refresh\(\)[^]*5000\)/);
 });
 
+test("World Boss help stays beside the unchanged eyebrow in a compact control", () => {
+  assert.match(html, /class="world-boss-eyebrow-row"[^>]*>[\s\S]*<p class="eyebrow">每週共同討伐<\/p>[\s\S]*id="worldBossInfoOpen"/);
+  assert.match(css, /\.world-boss-eyebrow-row\s*\{[^}]*display:\s*flex[^}]*align-items:\s*center/);
+  assert.match(css, /\.world-boss-info-open\s*\{[^}]*width:\s*24px[^}]*height:\s*24px[^}]*font-size:\s*14px/);
+});
+
 test("battle context returns today's remaining special attacks in Asia/Taipei", () => {
   const context = migration.slice(
     migration.indexOf("create function public.get_world_boss_battle_context"),
@@ -72,7 +78,7 @@ test("battle context returns today's remaining special attacks in Asia/Taipei", 
 test("home boss entry sits to the right of the weekly leaderboard title", () => {
   assert.match(
     html,
-    /<div class="hero-rank-boss-row">\s*<p id="homeLeaderboardTitle"[^>]*><\/p>\s*<button id="worldBossEntry"/,
+    /<div class="hero-rank-boss-row">\s*<div class="home-leaderboard-titles"[^>]*>[\s\S]*?<p id="homeLeaderboardTitle"[^>]*><\/p>[\s\S]*?<p id="homeCultivatorTitle"[^>]*><\/p>\s*<\/div>\s*<button id="worldBossEntry"/,
   );
   const heroTitleStart = html.indexOf('id="homeHeroQaTitle"');
   const heroRankRowStart = html.indexOf('class="hero-rank-boss-row"');

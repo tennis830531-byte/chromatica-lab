@@ -71,6 +71,6 @@ test("formal and QA UI share moderation presentation without granting QA authori
   assert.match(runtime, /api\("get_admin_status"\)/);
   assert.match(runtime, /api\(currentlyPinned \? "unpin_post" : "pin_post"/);
   assert.match(runtime, /discussionModerationModal/);
-  assert.match(styles, /\.discussion-header \.discussion-new[\s\S]*width:\s*44px[\s\S]*height:\s*44px/);
+  assert.match(styles, /\.discussion-header \.discussion-new\s*\{[^}]*position:\s*fixed[^}]*right:\s*calc\([^}]*bottom:\s*calc\([^}]*z-index:\s*85[^}]*width:\s*56px[^}]*height:\s*56px/);
   assert.match(styles, /\.discussion-moderation-modal/);
 });

@@ -127,7 +127,7 @@ test("weekly leaderboard copy removes streak ranking and historic total explanat
 });
 
 test("home reserves a live top-ten title and adds discussion after leaderboard", () => {
-  assert.match(html, /半音階口琴練習室[\s\S]*id="homeLeaderboardTitle"[^>]*aria-live="polite"/);
+  assert.match(html, /半音階口琴練習室[\s\S]*class="home-leaderboard-titles"[^>]*aria-live="polite"[\s\S]*id="homeLeaderboardTitle"[\s\S]*id="homeCultivatorTitle"/);
   const leaderboardEntry = html.indexOf("data-leaderboard-open");
   const discussionEntry = html.indexOf("data-discussion-open");
   const settingsEntry = html.indexOf('data-jump="audio"', discussionEntry);
