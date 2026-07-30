@@ -48,8 +48,8 @@ create table public.world_boss_player_states (
   event_id uuid not null references public.world_boss_events(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   light_energy integer not null default 1 check (light_energy >= 0),
-  purchased_energy_count integer not null default 0 check (purchased_energy_count between 0 and 10),
-  special_attack_count integer not null default 0 check (special_attack_count between 0 and 2),
+  purchased_energy_count integer not null default 0 check (purchased_energy_count >= 0),
+  special_attack_count integer not null default 0 check (special_attack_count between 0 and 6),
   total_effective_damage bigint not null default 0 check (total_effective_damage >= 0),
   attack_count integer not null default 0 check (attack_count >= 0),
   first_attack_at timestamptz,
@@ -115,6 +115,8 @@ create unique index world_boss_attacks_final_hit_uidx
   on public.world_boss_attacks (event_id) where is_final_hit;
 create index world_boss_attacks_damage_idx
   on public.world_boss_attacks (event_id, effective_damage desc, created_at);
+create index world_boss_attacks_daily_special_idx
+  on public.world_boss_attacks (event_id, user_id, attack_type, created_at);
 
 create table public.world_boss_rewards (
   event_id uuid not null references public.world_boss_events(id) on delete cascade,
@@ -249,7 +251,16 @@ begin
   select event.id, event.event_key, definition.display_name, event.status,
     event.starts_at, event.ends_at, event.max_hp, event.remaining_hp,
     coalesce(player.light_energy, 0), coalesce(player.purchased_energy_count, 0),
-    coalesce(player.special_attack_count, 0), coalesce(player.total_effective_damage, 0),
+    coalesce((
+      select pg_catalog.count(*)::integer
+      from public.world_boss_attacks attack
+      where attack.event_id = event.id
+        and attack.user_id = v_user_id
+        and attack.attack_type = 'special'
+        and (attack.created_at at time zone 'Asia/Taipei')::date
+          = (pg_catalog.now() at time zone 'Asia/Taipei')::date
+    ), 0),
+    coalesce(player.total_effective_damage, 0),
     exists (
       select 1 from public.leaderboard_profiles profile
       where profile.user_id = v_user_id and profile.is_active
@@ -295,6 +306,45 @@ begin
     and coalesce((item->>'harvested')::boolean, false)
     and coalesce(item->>'stage', '') ~ '^[1-3]$';
   return coalesce(v_stage, 0);
+end;
+$$;
+
+create function public.world_boss_owned_stage(p_user_id uuid, p_species text)
+returns integer
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_harvested_stage integer := public.world_boss_harvested_stage(p_user_id, p_species);
+  v_raw text;
+  v_current jsonb;
+  v_progress integer;
+  v_current_stage integer := 0;
+begin
+  select save.snapshot #>> '{data,chromatica.currentPlant}' into v_raw
+  from public.game_saves save where save.user_id = p_user_id;
+  if coalesce(v_raw, '') = '' then return v_harvested_stage; end if;
+  begin
+    v_current := v_raw::jsonb;
+  exception when others then
+    return v_harvested_stage;
+  end;
+  if pg_catalog.jsonb_typeof(v_current) <> 'object'
+     or coalesce(v_current->>'id', '') = ''
+     or v_current->>'species' <> p_species then
+    return v_harvested_stage;
+  end if;
+  if coalesce(v_current->>'waterProgress', '') ~ '^[0-9]+$' then
+    v_progress := least(530, greatest(0, (v_current->>'waterProgress')::integer));
+    v_current_stage := case
+      when v_progress >= 280 then 3
+      when v_progress >= 100 then 2
+      else 1
+    end;
+  elsif coalesce(v_current->>'stage', '') ~ '^[1-3]$' then
+    v_current_stage := (v_current->>'stage')::integer;
+  else
+    v_current_stage := 1;
+  end if;
+  return greatest(v_harvested_stage, v_current_stage);
 end;
 $$;
 
@@ -431,7 +481,7 @@ declare
   v_cost integer;
 begin
   if v_user_id is null then raise exception 'authentication required'; end if;
-  if p_quantity < 1 or p_quantity > 10 then raise exception 'invalid energy quantity'; end if;
+  if p_quantity < 1 then raise exception 'invalid energy quantity'; end if;
   if exists (
     select 1 from public.world_boss_energy_grants grant_row
     where grant_row.event_id = p_event_id and grant_row.user_id = v_user_id
@@ -451,9 +501,6 @@ begin
   perform public.initialize_world_boss_player(p_event_id, v_user_id);
   select player.* into strict v_player from public.world_boss_player_states player
   where player.event_id = p_event_id and player.user_id = v_user_id for update;
-  if v_player.purchased_energy_count + p_quantity > 10 then
-    raise exception 'event energy exchange limit reached';
-  end if;
   select save.* into strict v_save from public.game_saves save
   where save.user_id = v_user_id for update;
   v_water := case
@@ -502,6 +549,7 @@ declare
   v_effective integer;
   v_first boolean;
   v_final boolean;
+  v_daily_special_attack_count integer := 0;
 begin
   if v_user_id is null then raise exception 'authentication required'; end if;
   if p_request_id is null then raise exception 'request id required'; end if;
@@ -532,7 +580,7 @@ begin
   end if;
   if p_species not in ('melody-sprout', 'mushroom-spirit', 'flower-spirit', 'lucky-clover-spirit', 'lotus-spirit', 'cactus-spirit')
      or p_stage not between 1 and 3 then raise exception 'invalid spirit'; end if;
-  if public.world_boss_harvested_stage(v_user_id, p_species) < p_stage then
+  if public.world_boss_owned_stage(v_user_id, p_species) < p_stage then
     raise exception 'spirit stage not owned';
   end if;
   perform public.initialize_world_boss_player(p_event_id, v_user_id);
@@ -543,7 +591,16 @@ begin
       select 1 from public.world_boss_skill_unlocks unlock
       where unlock.user_id = v_user_id and unlock.species = p_species
     ) then raise exception 'special skill not learned'; end if;
-    if v_player.special_attack_count >= 2 then raise exception 'special attack limit reached'; end if;
+    select pg_catalog.count(*)::integer into v_daily_special_attack_count
+    from public.world_boss_attacks attack
+    where attack.event_id = p_event_id
+      and attack.user_id = v_user_id
+      and attack.attack_type = 'special'
+      and (attack.created_at at time zone 'Asia/Taipei')::date
+        = (pg_catalog.now() at time zone 'Asia/Taipei')::date;
+    if v_daily_special_attack_count >= 2 then
+      raise exception 'daily special attack limit reached';
+    end if;
     if v_player.light_energy < 1 then raise exception 'insufficient light energy'; end if;
     v_attempted := 100;
   elsif p_attack_type = 'normal' then
@@ -592,6 +649,7 @@ revoke all on function public.world_boss_window(timestamptz),
   public.get_world_boss_status(),
   public.get_my_world_boss_skills(),
   public.world_boss_harvested_stage(uuid, text),
+  public.world_boss_owned_stage(uuid, text),
   public.learn_world_boss_skill(text, uuid),
   public.initialize_world_boss_player(uuid, uuid),
   public.grant_world_boss_practice_energy(date, uuid),
@@ -610,6 +668,7 @@ to authenticated;
 grant execute on function public.world_boss_window(timestamptz),
   public.ensure_world_boss_event(timestamptz),
   public.world_boss_harvested_stage(uuid, text),
+  public.world_boss_owned_stage(uuid, text),
   public.initialize_world_boss_player(uuid, uuid)
 to service_role;
 

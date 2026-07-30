@@ -23,6 +23,40 @@ test("Taipei event is scheduled before Friday 20:00", () => {
   assert.equal(result.eventKey, "2026-07-31");
 });
 
+test("scheduled World Boss page shows the Friday opening countdown card", () => {
+  assert.match(html, /id="worldBossPreviewCountdownCard"[\s\S]*本週五 20:00 開放[\s\S]*樹麻雀即將出沒/);
+  assert.match(runtime, /state\.event\?\.starts_at \|\| fallbackWindow\.startsAt/);
+  assert.match(runtime, /previewCard\?\.classList\.toggle\("hidden", !scheduled\)/);
+  assert.match(runtime, /countdown\?\.classList\.toggle\("hidden", scheduled\)/);
+  assert.match(runtime, /image\.classList\.toggle\("hidden", status === "scheduled"\)/);
+  assert.match(css, /#worldBossCombatView[\s\S]*width:\s*100%/);
+  assert.match(css, /\.world-boss-arena \{[\s\S]*width:\s*100%[\s\S]*world-boss-arena-background\.png/);
+  assert.match(runtime, /previewValue\.textContent = `倒數 \$\{remaining\}`/);
+  assert.match(css, /\.world-boss-preview-countdown-card[\s\S]*grid-template-columns:\s*82px minmax\(0, 1fr\)/);
+});
+
+test("World Boss help explains schedule, damage, energy, exchange, and rewards", () => {
+  assert.match(html, /id="worldBossInfoOpen"[\s\S]*>？<\/button>/);
+  assert.match(html, /id="worldBossInfoModal"[\s\S]*每週五 20:00 開放，週日 22:00 結束/);
+  for (const copy of [
+    "第一階段</b><strong>10 傷害",
+    "第二階段</b><strong>30 傷害",
+    "第三階段</b><strong>60 傷害",
+    "專屬攻擊技能</b><strong>100 傷害",
+    "3 水滴兌換 1 顆",
+    "100／80／60 水滴",
+    "50／40／30 水滴",
+    "週五、週六、週日每日各可使用 2 次",
+  ]) assert.match(html, new RegExp(copy));
+  assert.match(html, /world-boss-info-energy-icon[^>]*光之能量\.png[^>]*\/>光之能量/);
+  assert.equal((html.match(/world-boss-info-water-icon[^>]*water-drop\.png/g) || []).length, 2);
+  assert.match(css, /\.world-boss-info-modal h3[\s\S]*display:\s*flex[\s\S]*align-items:\s*center/);
+  assert.match(css, /\.world-boss-info-energy-icon[\s\S]*width:\s*24px[\s\S]*height:\s*24px/);
+  assert.match(css, /\.world-boss-info-water-icon[\s\S]*width:\s*15px[\s\S]*height:\s*20px/);
+  assert.match(runtime, /worldBossInfoOpen[\s\S]*worldBossInfoModal/);
+  assert.match(runtime, /worldBossInfoClose[\s\S]*worldBossInfoModal/);
+});
+
 test("Taipei event is active from Friday 20:00 through Sunday before 22:00", () => {
   const core = loadCore();
   assert.equal(core.getEventWindow(new Date("2026-07-31T12:00:00Z")).phase, "active");
@@ -83,17 +117,24 @@ test("first and final hits are unique per event", () => {
   assert.match(migration, /world_boss_attacks_final_hit_uidx[\s\S]*where is_final_hit/);
 });
 
-test("special attack is 100, consumes one energy, and is capped twice per event", () => {
-  assert.match(migration, /v_player\.special_attack_count >= 2/);
+test("special attack is 100, consumes one energy, and is capped twice per Taipei day", () => {
+  assert.match(migration, /world_boss_attacks_daily_special_idx/);
+  assert.match(migration, /v_daily_special_attack_count >= 2/);
+  assert.match(migration, /daily special attack limit reached/);
+  assert.match(migration, /attack\.created_at at time zone 'Asia\/Taipei'/);
+  assert.match(migration, /pg_catalog\.now\(\) at time zone 'Asia\/Taipei'/);
+  assert.match(migration, /special_attack_count between 0 and 6/);
+  assert.doesNotMatch(migration, /v_player\.special_attack_count >= 2/);
   assert.match(migration, /v_player\.light_energy < 1/);
   assert.match(migration, /v_attempted := 100/);
   assert.match(migration, /light_energy = player\.light_energy - case when p_attack_type = 'special' then 1/);
 });
 
-test("daily practice energy and ten-energy exchange limit are unique and atomic", () => {
+test("daily practice energy is unique and water exchange has no per-event cap", () => {
   assert.match(migration, /world_boss_energy_daily_practice_uidx/);
-  assert.match(migration, /purchased_energy_count between 0 and 10/);
-  assert.match(migration, /v_player\.purchased_energy_count \+ p_quantity > 10/);
+  assert.match(migration, /purchased_energy_count >= 0/);
+  assert.doesNotMatch(migration, /purchased_energy_count \+ p_quantity > 10/);
+  assert.doesNotMatch(migration, /event energy exchange limit reached/);
   assert.match(migration, /v_cost := p_quantity \* 3/);
 });
 
@@ -114,6 +155,23 @@ test("skill learning requires harvested stage three and deducts water exactly on
   assert.match(skill, /if v_water < 100/);
   assert.match(skill, /v_water - 100/);
   assert.match(migration, /world_boss_skill_unlocks[\s\S]*primary key \(user_id, species\)/);
+});
+
+test("formal attacks accept the current cultivating spirit without weakening harvested skill learning", () => {
+  const ownedStage = migration.slice(
+    migration.indexOf("create function public.world_boss_owned_stage"),
+    migration.indexOf("create function public.learn_world_boss_skill"),
+  );
+  const attack = migration.slice(
+    migration.indexOf("create function public.attack_world_boss"),
+    migration.indexOf("revoke all on function public.world_boss_window"),
+  );
+  assert.match(ownedStage, /chromatica\.currentPlant/);
+  assert.match(ownedStage, /v_current->>'species' <> p_species/);
+  assert.match(ownedStage, /when v_progress >= 280 then 3/);
+  assert.match(ownedStage, /when v_progress >= 100 then 2/);
+  assert.match(attack, /world_boss_owned_stage\(v_user_id, p_species\) < p_stage/);
+  assert.match(migration, /world_boss_harvested_stage\(v_user_id, p_species\) <> 3/);
 });
 
 test("runtime supplies safe unavailable fallback without endless loading", () => {

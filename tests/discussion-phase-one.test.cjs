@@ -12,6 +12,7 @@ const html = read("index.html");
 const app = read("app.js");
 const styles = read("styles.css");
 const migration = read("supabase/migrations/202607280001_create_discussion_phase_one.sql");
+const splitCooldownMigration = read("supabase/migrations/202607290002_split_discussion_post_comment_cooldowns.sql");
 const fn = read("supabase/functions/discussion-actions/index.ts");
 const config = read("supabase/config.toml");
 const build = read("scripts/build-web.mjs");
@@ -48,6 +49,17 @@ test("hot sorts recent interaction by comments then activity and latest has stab
 
 test("cooldown message formats the required two minute example", () => {
   assert.equal(core.formatRetryAfter(154), "請等待 2 分 34 秒後再發表");
+  assert.equal(core.formatRetryAfter(54, "create_comment"), "請等待 54 秒後再留言");
+});
+
+test("discussion header uses its feature icon and home entry tracks unread posts per signed-in user", () => {
+  assert.match(runtime, /discussion-header-icon[\s\S]*discussion-forum-icon\.png/);
+  assert.doesNotMatch(runtime, /discussion-back icon-btn/);
+  assert.match(html, /data-discussion-unread[^>]*hidden/);
+  assert.match(runtime, /chromatica\.discussion\.last-seen\.v1/);
+  assert.match(runtime, /api\("list_posts",\s*\{\s*tab:\s*"latest",\s*limit:\s*100\s*\}\)/);
+  assert.match(runtime, /markDiscussionSeen\(\)[\s\S]*setUnreadBadge\(0\)/);
+  assert.match(styles, /\.discussion-unread-badge[\s\S]*background:\s*#c52f2f/);
 });
 
 test("database contains Phase 1 tables and retained media/link schema", () => {
@@ -89,14 +101,19 @@ test("write RPCs are service-role only and derive ownership from authenticated E
   assert.doesNotMatch(fn, /payload\.author_id/);
 });
 
-test("shared 180-second cooldown is locked and updated only after successful insert", () => {
-  for (const functionName of ["create_discussion_post_service", "create_discussion_comment_service"]) {
-    const body = migration.match(new RegExp(`create function public\\.${functionName}[\\s\\S]*?\\n\\$\\$;`))?.[0] || "";
-    assert.match(body, /for update/);
-    assert.match(body, /discussion-cooldown/);
-    assert.match(body, /interval '180 seconds'/);
-    assert.ok(body.indexOf("insert into public.discussion_") < body.lastIndexOf("next_allowed_at ="));
-  }
+test("post and comment cooldowns are independently locked and updated after successful inserts", () => {
+  const postBody = splitCooldownMigration.match(/create or replace function public\.create_discussion_post_service[\s\S]*?\n\$\$;/)?.[0] || "";
+  const commentBody = splitCooldownMigration.match(/create or replace function public\.create_discussion_comment_service[\s\S]*?\n\$\$;/)?.[0] || "";
+  assert.match(splitCooldownMigration, /next_post_allowed_at[\s\S]*next_comment_allowed_at/);
+  assert.match(postBody, /select next_post_allowed_at[\s\S]*for update/);
+  assert.match(postBody, /interval '180 seconds'/);
+  assert.doesNotMatch(postBody, /select next_comment_allowed_at into v_next/);
+  assert.ok(postBody.indexOf("insert into public.discussion_posts") < postBody.lastIndexOf("next_post_allowed_at ="));
+  assert.match(commentBody, /select next_comment_allowed_at[\s\S]*for update/);
+  assert.match(commentBody, /interval '60 seconds'/);
+  assert.doesNotMatch(commentBody, /select next_post_allowed_at into v_next/);
+  assert.ok(commentBody.indexOf("insert into public.discussion_comments") < commentBody.lastIndexOf("next_comment_allowed_at ="));
+  assert.match(fn, /get_discussion_rate_limit", \{\s*p_action: action/);
 });
 
 test("Turnstile is checked server-side for success action hostname age and errors", () => {
@@ -114,6 +131,39 @@ test("Turnstile replay ledger is consumed in the same transaction", () => {
   assert.match(migration, /discussion_turnstile_tokens[\s\S]*token_hash text primary key/);
   assert.match(migration, /insert into public\.discussion_turnstile_tokens[\s\S]*on conflict do nothing/);
   assert.match(migration, /turnstile-token-replayed/);
+});
+
+test("completed Turnstile widget is removed before rendering the success state", () => {
+  assert.match(runtime, /discussion-captcha-complete[^>]*role="status">驗證完成/);
+  const callback = runtime.match(/callback\(token\) \{[\s\S]*?\n\s*\},\n\s*"expired-callback"/)?.[0] || "";
+  assert.match(callback, /turnstile\?\.remove\?\.\(completedWidgetId\)/);
+  assert.ok(callback.indexOf("turnstile?.remove?.(completedWidgetId)") < callback.indexOf('state.captcha = { status: "success"'));
+  assert.ok(callback.indexOf('state.captcha = { status: "success"') < callback.indexOf("render();"));
+});
+
+test("rerendering after attachment changes remounts Turnstile instead of leaving a stale widget id", () => {
+  assert.match(runtime, /function releaseTurnstileWidget\(\)/);
+  const renderBody = runtime.match(/function render\(\) \{[\s\S]*?\n  \}/)?.[0] || "";
+  assert.ok(renderBody.indexOf("releaseTurnstileWidget();") < renderBody.indexOf('$(".discussion-content", root).innerHTML'));
+  assert.ok(renderBody.indexOf('$(".discussion-content", root).innerHTML') < renderBody.indexOf("mountTurnstile();"));
+  assert.match(runtime, /turnstileWidgetSlot = null/);
+});
+
+test("post and comment cooldown messages render directly below their submit controls", () => {
+  assert.match(runtime, /discussion-actions[\s\S]*cooldownMarkup\("create_post"\)/);
+  assert.match(runtime, /type="submit"[\s\S]*cooldownMarkup\("create_comment"\)/);
+  assert.match(runtime, /data-discussion-cooldown=/);
+  assert.match(runtime, /submit\.disabled = seconds > 0 \|\| uploading \|\| !ready/);
+  assert.match(runtime, /submit\.textContent = seconds > 0 \? "冷卻中"[\s\S]*"發表"[\s\S]*"送出留言"[\s\S]*"等待驗證"/);
+  assert.match(styles, /\.discussion-cooldown-message/);
+});
+
+test("successful post and comment submissions show top-level confirmation modals", () => {
+  assert.match(runtime, /showSuccessModal\("文章已發佈"\)/);
+  assert.match(runtime, /showSuccessModal\("留言成功"\)/);
+  assert.match(runtime, /modal\.id = "discussionSuccessModal"/);
+  assert.match(runtime, /modal\.showModal\(\)/);
+  assert.match(styles, /\.discussion-success-modal::backdrop/);
 });
 
 test("soft delete is owner-only and removes content while preserving rows", () => {
@@ -209,5 +259,6 @@ test("Phase 1 text, CAPTCHA, cooldown, and soft delete remain intact after Phase
   assert.match(runtime, /validateComment/);
   assert.match(runtime, /clearCaptcha/);
   assert.match(runtime, /softDelete/);
-  assert.match(runtime, /cooldownSeconds/);
+  assert.match(coreSource, /postCooldownSeconds:\s*180/);
+  assert.match(coreSource, /commentCooldownSeconds:\s*60/);
 });

@@ -903,7 +903,7 @@ body.simple-motion .hero-plant-action {
 
 .hero-actions .start-practice-button {
   cursor: pointer;
-  animation: startPracticeBreath 3.1s ease-in-out infinite;
+  animation: none;
 }
 
 .hero-start-wrap {
@@ -940,11 +940,11 @@ body.simple-motion .hero-plant-action {
   z-index: 0;
   border-radius: 999px;
   background:
-    radial-gradient(circle at center, rgba(255, 214, 150, 0.28), rgba(217, 119, 6, 0.16) 48%, transparent 72%);
-  filter: blur(12px);
-  opacity: 0.18;
+    radial-gradient(circle at center, rgba(255, 239, 178, 0.72), rgba(232, 169, 53, 0.42) 46%, transparent 74%);
+  filter: blur(15px);
+  opacity: 0.12;
   pointer-events: none;
-  animation: startPracticeGlow 3.1s ease-in-out infinite;
+  animation: startPracticeGlow 3.4s ease-in-out infinite;
 }
 
 .start-practice-content {
@@ -1012,13 +1012,13 @@ body.simple-motion .hero-plant-action {
 @keyframes startPracticeGlow {
   0%,
   100% {
-    opacity: 0.18;
-    transform: scale(0.98);
+    opacity: 0.12;
+    transform: scale(0.94);
   }
 
   50% {
-    opacity: 0.42;
-    transform: scale(1.02);
+    opacity: 0.76;
+    transform: scale(1.07);
   }
 }
 
@@ -1148,6 +1148,62 @@ body.simple-motion .hero-plant-action {
 
 .world-boss-page-head {
   text-align: left;
+}
+
+.world-boss-info-open {
+  flex: 0 0 auto;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.world-boss-preview-countdown-card {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 12px 14px;
+  overflow: hidden;
+  border: 1px solid rgba(166, 115, 61, .5);
+  border-radius: 18px;
+  color: #573824;
+  background:
+    radial-gradient(circle at 10% 15%, rgba(255, 228, 150, .55), transparent 45%),
+    linear-gradient(135deg, #fff5d8, #f4dfb7);
+  box-shadow: 0 8px 18px rgba(94, 58, 30, .12);
+  text-align: left;
+}
+
+.world-boss-preview-countdown-card.hidden {
+  display: none;
+}
+
+.world-boss-preview-countdown-card > img {
+  width: 82px;
+  height: 82px;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 7px rgba(77, 47, 25, .22));
+}
+
+.world-boss-preview-countdown-card > span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.world-boss-preview-countdown-card small {
+  color: #9b6332;
+  font: 800 12px/1.35 var(--font-sans);
+}
+
+.world-boss-preview-countdown-card strong {
+  font: 400 clamp(18px, 5vw, 23px)/1.2 "Cubic 11", var(--font-sans);
+}
+
+.world-boss-preview-countdown-card b {
+  color: #a43b2f;
+  font: 900 clamp(14px, 4vw, 18px)/1.35 var(--font-number);
+  font-variant-numeric: tabular-nums;
 }
 
 #worldBossName {
@@ -1530,10 +1586,17 @@ body.simple-motion .hero-plant-action {
 }
 
 /* refresh-174 World Boss phase-two battle and settlement presentation. */
+#worldBossCombatView {
+  width: 100%;
+  min-width: 0;
+}
+
 .world-boss-arena {
   position: relative;
   display: grid;
   place-items: center;
+  width: 100%;
+  box-sizing: border-box;
   min-height: 250px;
   overflow: hidden;
   border: 1px solid rgba(55, 25, 28, .62);
@@ -2622,6 +2685,87 @@ body.simple-motion .hero-plant-action {
   background: transparent;
 }
 
+.discussion-unread-badge {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border: 2px solid #fff8ea;
+  border-radius: 999px;
+  color: #fff;
+  background: #c52f2f;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 2px 5px rgba(92, 29, 24, .28);
+}
+
+.discussion-unread-badge[hidden] {
+  display: none;
+}
+
+.daily-goal-unfinished-badge {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border: 2px solid #fff8ea;
+  border-radius: 999px;
+  color: #fff;
+  background: #c52f2f;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 2px 5px rgba(92, 29, 24, .28);
+}
+
+.daily-goal-unfinished-badge.complete {
+  background: #3d8b4f;
+  box-shadow: 0 2px 5px rgba(35, 91, 49, .3);
+}
+
+.daily-goal-unfinished-badge[hidden] {
+  display: none;
+}
+
+.garden-water-ready-badge {
+  position: absolute;
+  top: 5px;
+  right: 8px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 12px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.quick-card .garden-water-ready-badge img {
+  width: 10px;
+  height: 14px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 1px rgba(55, 22, 18, .28));
+}
+
+.garden-water-ready-badge[hidden] {
+  display: none;
+}
+
 .leaderboard-card em {
   border-color: #a92f2f;
   color: #fff;
@@ -3512,6 +3656,17 @@ body.hide-featured-spirit .hero-plant-slot {
   font-weight: 800;
 }
 
+.quick-practice-heading-back {
+  float: none;
+  grid-column: 2;
+  grid-row: 4;
+  justify-self: start;
+  width: fit-content;
+  margin: 8px 0 0;
+  white-space: nowrap;
+  writing-mode: horizontal-tb;
+}
+
 .quick-practice-card {
   grid-column: 1 / -1;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -3536,6 +3691,10 @@ body.hide-featured-spirit .hero-plant-slot {
 }
 
 .quick-practice-panel { clear: both; padding: 20px; }
+.quick-practice-primary-actions {
+  display: flex;
+  margin-top: 12px;
+}
 .quick-practice-list { display: grid; gap: 10px; margin: 16px 0; padding: 0; list-style: none; }
 .quick-practice-list li {
   display: grid;
@@ -6563,25 +6722,100 @@ body.simple-motion .plant-action-layer.is-stage-up {
 
 .garden-spirit-art-page.skill-unlocked img {
   filter:
-    drop-shadow(0 0 10px rgba(255, 244, 176, .96))
-    drop-shadow(0 0 24px rgba(255, 202, 54, .88))
-    drop-shadow(0 0 42px rgba(224, 145, 22, .64));
-  animation: gardenSkillArtCardGlow 3.8s ease-in-out infinite;
+    drop-shadow(0 0 7px rgba(255, 241, 166, .64))
+    drop-shadow(0 0 18px rgba(255, 194, 42, .54))
+    drop-shadow(0 0 30px rgba(224, 135, 14, .34));
+  animation: gardenSkillArtCardGlow 3.6s ease-in-out infinite;
 }
 
 @keyframes gardenSkillArtCardGlow {
   0%, 100% {
     filter:
-      drop-shadow(0 0 8px rgba(255, 240, 158, .82))
-      drop-shadow(0 0 20px rgba(255, 194, 47, .7))
-      drop-shadow(0 0 34px rgba(224, 145, 22, .5));
+      drop-shadow(0 0 4px rgba(255, 240, 158, .42))
+      drop-shadow(0 0 11px rgba(255, 194, 47, .34))
+      drop-shadow(0 0 20px rgba(224, 145, 22, .2));
   }
   50% {
     filter:
-      drop-shadow(0 0 14px rgba(255, 250, 207, 1))
-      drop-shadow(0 0 32px rgba(255, 211, 72, .96))
-      drop-shadow(0 0 52px rgba(224, 145, 22, .72));
+      drop-shadow(0 0 18px rgba(255, 252, 218, 1))
+      drop-shadow(0 0 42px rgba(255, 214, 72, 1))
+      drop-shadow(0 0 70px rgba(224, 145, 22, .84));
   }
+}
+
+.world-boss-info-modal {
+  width: min(calc(100vw - 24px), 520px);
+  max-height: min(82vh, 720px);
+  overflow-y: auto;
+  text-align: left;
+}
+
+.world-boss-info-modal h2 {
+  text-align: center;
+}
+
+.world-boss-info-modal section {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgba(166, 115, 61, .32);
+  border-radius: 16px;
+  background: rgba(255, 250, 236, .72);
+}
+
+.world-boss-info-modal h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 6px;
+  color: #6f3f22;
+}
+
+.world-boss-info-heading-icon {
+  display: block;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.world-boss-info-energy-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.world-boss-info-water-icon {
+  width: 15px;
+  height: 20px;
+}
+
+.world-boss-info-modal p,
+.world-boss-info-modal ul {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+.world-boss-info-modal ul {
+  padding-left: 1.25em;
+}
+
+.world-boss-info-table {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.world-boss-info-table span {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  background: rgba(239, 217, 174, .48);
+}
+
+.world-boss-info-modal > .primary-btn {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
 }
 
 .garden-spirit-art-page.hidden,
@@ -8299,6 +8533,8 @@ body.practice-settlement-open { overflow: hidden; }
 .discussion-view { padding-bottom: 120px; overflow-x: clip; }
 .discussion-shell { width: 100%; max-width: 900px; box-sizing: border-box; margin: 0 auto; padding: 16px; color: #684126; }
 .discussion-header { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; margin-bottom: 14px; }
+.discussion-header-icon { display: grid; place-items: center; width: 58px; height: 58px; }
+.discussion-header-icon img { width: 58px; height: 58px; object-fit: contain; }
 .discussion-header h2 { margin: 0; font-size: clamp(1.7rem, 7vw, 2.5rem); }
 .discussion-header p { margin: 3px 0 0; }
 .discussion-tabs { display: grid; gap: 7px; width: 100%; max-width: 100%; padding: 4px 0 10px; overflow: hidden; }
@@ -8329,8 +8565,10 @@ body.practice-settlement-open { overflow: hidden; }
 .discussion-composer label, .discussion-comment-form label { display: grid; gap: 6px; margin: 12px 0; font-weight: 900; }
 .discussion-composer input, .discussion-composer select, .discussion-composer textarea, .discussion-comment-form textarea, .discussion-qa-panel select { width: 100%; max-width: 100%; box-sizing: border-box; border: 1px solid #b68a5d; border-radius: 12px; background: #fffdf7; color: #4d321d; padding: 11px; font: inherit; }
 .discussion-composer textarea, .discussion-comment-form textarea { resize: vertical; }
+.discussion-file-picker-hint { display: block; margin: 7px 0 0; color: #80684e; font-weight: 700; line-height: 1.45; }
 .discussion-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .discussion-actions button:disabled, .discussion-comment-form button[type="submit"]:disabled { opacity: .58; cursor: not-allowed; }
+.discussion-cooldown-message { margin: 8px 0 0; color: #a52720; font-weight: 900; text-align: right; }
 .discussion-phase2-note, .discussion-captcha { padding: 12px; border-radius: 13px; background: #f3ead6; }
 .discussion-captcha { display: grid; gap: 6px; border: 1px dashed #aa7a49; }
 .discussion-captcha.is-ready { border-style: solid; background: #eef3d9; }
@@ -8382,6 +8620,18 @@ body.practice-settlement-open { overflow: hidden; }
 }
 .discussion-preview-modal::backdrop { background: rgba(35, 24, 15, .68); backdrop-filter: blur(3px); }
 .discussion-preview-modal .discussion-preview { margin: 0; padding-top: 48px; }
+.discussion-success-modal {
+  width: min(86vw, 360px);
+  padding: 0;
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+  z-index: 10040;
+}
+.discussion-success-modal::backdrop { background: rgba(35, 24, 15, .62); backdrop-filter: blur(3px); }
+.discussion-success-modal > div { display: grid; gap: 18px; padding: 26px 22px 20px; text-align: center; }
+.discussion-success-modal strong { color: #684126; font-size: 1.35rem; }
+.discussion-success-modal button { justify-self: center; min-width: 120px; }
 .discussion-preview-close {
   position: absolute;
   top: 8px;
@@ -8407,6 +8657,8 @@ body.practice-settlement-open { overflow: hidden; }
 .discussion-attachment-item > button img { width: 100%; height: 100%; object-fit: cover; }
 .discussion-attachment-item > div { min-width: 0; }
 .discussion-attachment-item strong, .discussion-attachment-item small, .discussion-attachment-item span { display: block; overflow-wrap: anywhere; }
+.discussion-attachment-meta { display: grid; gap: 4px; align-content: center; }
+.discussion-attachment-meta small { color: #80684e; }
 .discussion-attachment-item progress { width: 100%; }
 .discussion-attachment-controls { display: grid; grid-template-columns: repeat(2, minmax(34px, auto)); gap: 4px; }
 .discussion-attachment-controls button { min-height: 34px; border: 1px solid #b98a54; border-radius: 8px; color: #684126; background: #fffaf0; }

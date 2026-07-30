@@ -30,7 +30,7 @@ async function failure(action, pattern) {
 }
 
 before(async () => {
-  await admin.from("world_boss_events").delete().in("event_key", ["2099-01-02", "2099-01-09", "2099-01-16"]);
+  await admin.from("world_boss_events").delete().in("event_key", ["2099-01-02", "2099-01-09", "2099-01-16", "2099-01-23"]);
   const email = `world-boss-${crypto.randomUUID()}@example.test`;
   const created = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   assert.ifError(created.error);
@@ -57,6 +57,13 @@ before(async () => {
         { species: "mushroom-spirit", stage: 3, harvested: true },
         { species: "flower-spirit", stage: 3, harvested: true },
       ]),
+      "chromatica.currentPlant": JSON.stringify({
+        id: "current-lucky-clover",
+        species: "lucky-clover-spirit",
+        stage: 2,
+        waterProgress: 150,
+        harvested: false,
+      }),
     } },
   })).error);
   const event = await admin.from("world_boss_events").insert({
@@ -72,7 +79,7 @@ before(async () => {
 
 after(async () => {
   if (user?.id) await admin.auth.admin.deleteUser(user.id);
-  await admin.from("world_boss_events").delete().in("event_key", ["2099-01-02", "2099-01-09", "2099-01-16"]);
+  await admin.from("world_boss_events").delete().in("event_key", ["2099-01-02", "2099-01-09", "2099-01-16", "2099-01-23"]);
 });
 
 test("skill learning is server-side, costs 100 once, and is idempotent", async () => {
@@ -83,6 +90,45 @@ test("skill learning is server-side, costs 100 once, and is idempotent", async (
   assert.equal(repeated[0].applied_revision, first[0].applied_revision);
   const save = await admin.from("game_saves").select("snapshot").eq("user_id", user.id).single();
   assert.equal(save.data.snapshot.data["chromatica.waterDrops"], "150");
+});
+
+test("formal attacks accept a cultivating spirit only through its unlocked stage", async () => {
+  const ownedEvent = await admin.from("world_boss_events").insert({
+    event_key: "2099-01-23", boss_key: "tree-sparrow", scheduled_at: new Date().toISOString(),
+    starts_at: new Date(Date.now() - 60_000).toISOString(),
+    ends_at: new Date(Date.now() + 3_600_000).toISOString(),
+    status: "active", max_hp: 3000, remaining_hp: 3000,
+  }).select("id").single();
+  assert.ifError(ownedEvent.error);
+  const currentPlantAttack = await rpc("attack_world_boss", {
+    p_event_id: ownedEvent.data.id,
+    p_species: "lucky-clover-spirit",
+    p_stage: 2,
+    p_attack_type: "normal",
+    p_request_id: crypto.randomUUID(),
+  });
+  assert.equal(currentPlantAttack[0].effective_damage, 30);
+  await failure(() => rpc("attack_world_boss", {
+    p_event_id: ownedEvent.data.id,
+    p_species: "lucky-clover-spirit",
+    p_stage: 3,
+    p_attack_type: "normal",
+    p_request_id: crypto.randomUUID(),
+  }), /spirit stage not owned/);
+  await failure(() => rpc("attack_world_boss", {
+    p_event_id: ownedEvent.data.id,
+    p_species: "lotus-spirit",
+    p_stage: 1,
+    p_attack_type: "normal",
+    p_request_id: crypto.randomUUID(),
+  }), /spirit stage not owned/);
+  await failure(() => rpc("attack_world_boss", {
+    p_event_id: ownedEvent.data.id,
+    p_species: "flower-spirit",
+    p_stage: 3,
+    p_attack_type: "special",
+    p_request_id: crypto.randomUUID(),
+  }), /special skill not learned/);
 });
 
 test("normal damage, special damage, effective overkill, first/final hit, and dead-boss safety", async () => {
@@ -120,7 +166,7 @@ test("normal damage, special damage, effective overkill, first/final hit, and de
   assert.equal(hits.data.filter((row) => row.is_final_hit).length, 1);
 });
 
-test("special skill usage is shared and limited to two per event", async () => {
+test("special skill usage is shared, limited to two per Taipei day, and ignores prior-day uses", async () => {
   const secondEvent = await admin.from("world_boss_events").insert({
     event_key: "2099-01-09", boss_key: "tree-sparrow", scheduled_at: new Date().toISOString(),
     starts_at: new Date(Date.now() - 60_000).toISOString(),
@@ -131,6 +177,21 @@ test("special skill usage is shared and limited to two per event", async () => {
   await rpc("exchange_world_boss_energy", {
     p_event_id: secondEvent.data.id, p_quantity: 2, p_request_id: crypto.randomUUID(),
   });
+  const priorTaipeiDay = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  assert.ifError((await admin.from("world_boss_attacks").insert([
+    {
+      event_id: secondEvent.data.id, user_id: user.id, request_id: crypto.randomUUID(),
+      species: "melody-sprout", spirit_stage: 3, attack_type: "special",
+      attempted_damage: 100, effective_damage: 100, energy_spent: 1,
+      created_at: priorTaipeiDay,
+    },
+    {
+      event_id: secondEvent.data.id, user_id: user.id, request_id: crypto.randomUUID(),
+      species: "melody-sprout", spirit_stage: 3, attack_type: "special",
+      attempted_damage: 100, effective_damage: 100, energy_spent: 1,
+      created_at: priorTaipeiDay,
+    },
+  ])).error);
   for (const species of ["melody-sprout", "mushroom-spirit"]) {
     if (species === "mushroom-spirit") await rpc("learn_world_boss_skill", { p_species: species, p_request_id: crypto.randomUUID() });
     const result = await rpc("attack_world_boss", {
@@ -142,7 +203,27 @@ test("special skill usage is shared and limited to two per event", async () => {
   await failure(() => rpc("attack_world_boss", {
     p_event_id: secondEvent.data.id, p_species: "melody-sprout", p_stage: 3,
     p_attack_type: "special", p_request_id: crypto.randomUUID(),
-  }), /special attack limit reached/);
+  }), /daily special attack limit reached/);
+  const playerState = await admin.from("world_boss_player_states")
+    .select("special_attack_count")
+    .eq("event_id", secondEvent.data.id)
+    .eq("user_id", user.id)
+    .single();
+  assert.ifError(playerState.error);
+  assert.equal(playerState.data.special_attack_count, 2);
+  const attacks = await admin.from("world_boss_attacks")
+    .select("created_at")
+    .eq("event_id", secondEvent.data.id)
+    .eq("user_id", user.id)
+    .eq("attack_type", "special");
+  assert.ifError(attacks.error);
+  const todayInTaipei = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+  const todayUses = attacks.data.filter((attack) => new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date(attack.created_at)) === todayInTaipei);
+  assert.equal(todayUses.length, 2);
 });
 
 test("concurrent tail attacks produce one final hit and no double deduction", async () => {

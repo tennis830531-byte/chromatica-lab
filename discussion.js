@@ -9,7 +9,8 @@
   const state = {
     tab: "hot", page: 1, posts: [], currentPost: null, comments: [],
     screen: "list", loading: false, error: "", submitting: false,
-    nextAllowedAt: 0, captcha: { status: "missing", token: "", action: "" },
+    nextPostAllowedAt: 0, nextCommentAllowedAt: 0,
+    captcha: { status: "missing", token: "", action: "" },
     postDraft: { category: "", title: "", body: "" }, commentDraft: "",
     postAttachments: [], commentAttachments: [],
     postDraftId: "", commentDraftId: "",
@@ -19,14 +20,51 @@
   };
   let cooldownTimer = 0;
   let turnstileWidgetId = null;
+  let turnstileWidgetSlot = null;
   let turnstileScriptPromise = null;
   let filePickerActive = false;
+  let discussionWasOpen = false;
+  const unreadSeenKeyPrefix = "chromatica.discussion.last-seen.v1";
 
   function isGardenQa() {
     return Boolean(global.ChromaticaGardenQA?.isActive?.());
   }
   function profile() {
     return global.chromaticaAuth?.getPublicUserProfile?.() || null;
+  }
+  function unreadSeenKey() {
+    const userId = String(profile()?.id || "");
+    return userId ? `${unreadSeenKeyPrefix}:${userId}` : "";
+  }
+  function setUnreadBadge(count) {
+    const badge = document.querySelector("[data-discussion-unread]");
+    if (!badge) return;
+    const safeCount = Math.max(0, Number(count) || 0);
+    badge.hidden = safeCount <= 0;
+    badge.textContent = safeCount > 99 ? "99+" : String(safeCount);
+    badge.setAttribute("aria-label", safeCount > 0 ? `${safeCount} 篇新文章` : "沒有新文章");
+  }
+  function markDiscussionSeen() {
+    const key = unreadSeenKey();
+    if (key) {
+      try { localStorage.setItem(key, new Date().toISOString()); } catch {}
+    }
+    setUnreadBadge(0);
+  }
+  async function refreshUnreadBadge() {
+    const key = unreadSeenKey();
+    if (!key || isGardenQa()) { setUnreadBadge(0); return; }
+    let seenAt = 0;
+    try { seenAt = new Date(localStorage.getItem(key) || 0).getTime() || 0; } catch {}
+    try {
+      const data = await api("list_posts", { tab: "latest", limit: 100 });
+      const unreadCount = (Array.isArray(data?.posts) ? data.posts : [])
+        .filter((post) => post.status === "published" && new Date(post.created_at).getTime() > seenAt)
+        .length;
+      setUnreadBadge(unreadCount);
+    } catch {
+      // Keep the last visible count when the network is temporarily unavailable.
+    }
   }
   function escape(value) {
     return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -112,12 +150,13 @@
     const total = items.reduce((sum, item) => sum + Number(item.size || 0), 0);
     return `<section class="discussion-attachment-editor">
       <div class="discussion-attachment-heading"><strong>圖片與影片</strong><span>${items.length} / ${Core.LIMITS.attachmentCount}・${formatBytes(total)}</span></div>
-      <label class="secondary-btn discussion-file-picker">新增圖片或影片<input data-discussion-files type="file" accept="${Object.keys(Core.MEDIA_TYPES).join(",")}" multiple /></label>
+      <label class="secondary-btn discussion-file-picker">新增圖片或影片<input data-discussion-files type="file" accept="image/*,video/*" multiple /></label>
+      <small class="discussion-file-picker-hint">可一次選取多張，圖片與影片合計最多 ${Core.LIMITS.attachmentCount} 個。</small>
       ${state.attachmentError ? `<p class="discussion-attachment-error" role="alert">${escape(state.attachmentError)}</p>` : ""}
       <div class="discussion-attachment-list">${items.map((item, index) => `<article class="discussion-attachment-item" data-attachment-index="${index}">
-        ${item.kind === "video" ? `<video src="${escape(item.objectUrl || "")}" muted playsinline controls preload="metadata"></video>` : `<button type="button" data-discussion-lightbox="${escape(item.objectUrl || "")}"><img src="${escape(item.objectUrl || "")}" alt="" /></button>`}
-        <div><strong>${escape(item.name)}</strong><small>${escape(item.type)}・${formatBytes(item.size)}</small><progress max="100" value="${Number(item.progress || 0)}"></progress><span>${escape(item.statusLabel || "等待上傳")}</span></div>
-        <div class="discussion-attachment-controls"><button type="button" data-attachment-move="-1" aria-label="往前移" ${index === 0 ? "disabled" : ""}>←</button><button type="button" data-attachment-move="1" aria-label="往後移" ${index === items.length - 1 ? "disabled" : ""}>→</button>${item.status === "failed" ? `<button type="button" data-attachment-retry>重試</button>` : ""}<button type="button" data-attachment-remove>刪除</button></div>
+        ${item.kind === "video" ? `<video src="${escape(item.objectUrl || "")}" muted playsinline controls preload="metadata"></video>` : `<button type="button" data-discussion-lightbox="${escape(item.objectUrl || "")}" aria-label="放大查看圖片"><img src="${escape(item.objectUrl || "")}" alt="" /></button>`}
+        <div class="discussion-attachment-meta">${item.kind === "video" ? `<strong>${escape(item.name)}</strong>` : ""}<small>${item.kind === "image" ? "圖片" : escape(item.type)}・${formatBytes(item.size)}</small><progress max="100" value="${Number(item.progress || 0)}"></progress><span>${escape(item.statusLabel || "等待上傳")}</span></div>
+        <div class="discussion-attachment-controls">${item.status === "failed" ? `<button type="button" data-attachment-retry>重試</button>` : ""}<button type="button" data-attachment-remove>刪除</button></div>
       </article>`).join("")}</div>
       ${items.length ? `<p>已上傳 ${items.filter((item) => item.status === "uploaded").length} / ${items.length}</p>` : ""}
     </section>`;
@@ -171,7 +210,7 @@
     section.innerHTML = `
       <div class="discussion-shell">
         <header class="discussion-header">
-          <button class="discussion-back icon-btn" type="button" aria-label="返回首頁">←</button>
+          <span class="discussion-header-icon" aria-hidden="true"><img src="./public/assets/chromatic-refresh/feature/discussion-forum-icon.png" alt="" /></span>
           <div><p class="eyebrow">Chromatica Lab</p><h2>討論吧</h2><p>一起分享口琴、音樂與練習心得。</p></div>
           <button class="discussion-new primary-btn" type="button">新增文章</button>
         </header>
@@ -231,9 +270,8 @@
   }
   function renderStatus(root) {
     const status = $(".discussion-status", root);
-    const seconds = Math.max(0, Math.ceil((state.nextAllowedAt - Date.now()) / 1000));
     status.dataset.kind = state.error ? "error" : "";
-    status.textContent = state.error || (seconds ? Core.formatRetryAfter(seconds) : "");
+    status.textContent = state.error || "";
   }
   function renderList(root) {
     const source = state.qa ? (state.qaScenario === "empty" ? [] : state.posts) : state.posts;
@@ -260,7 +298,11 @@
     return `<section class="discussion-captcha ${ready ? "is-ready" : ""}">
       <strong>Cloudflare Turnstile 驗證${state.qa ? "（官方測試模式）" : ""}</strong>
       <p>${ready ? "驗證完成，本次送出後即失效。" : "每次發表都需要完成新的驗證。"}</p>
-      ${useWidget ? `<div class="discussion-turnstile-slot" data-turnstile-action="${escape(action)}"><span>驗證元件準備中</span></div>` : `<p class="discussion-captcha-unavailable">驗證服務尚未設定。</p>`}
+      ${ready
+        ? `<div class="discussion-captcha-complete" role="status">驗證完成</div>`
+        : useWidget
+          ? `<div class="discussion-turnstile-slot" data-turnstile-action="${escape(action)}"><span>驗證元件準備中</span></div>`
+          : `<p class="discussion-captcha-unavailable">驗證服務尚未設定。</p>`}
     </section>`;
   }
   function captchaReady(action) {
@@ -268,19 +310,31 @@
       && state.captcha.action === action
       && Boolean(state.captcha.token);
   }
+  function cooldownSeconds(action) {
+    const nextAllowedAt = action === "create_post"
+      ? state.nextPostAllowedAt
+      : state.nextCommentAllowedAt;
+    return Math.max(0, Math.ceil((nextAllowedAt - Date.now()) / 1000));
+  }
+  function cooldownMarkup(action) {
+    const seconds = cooldownSeconds(action);
+    return `<p class="discussion-cooldown-message" data-discussion-cooldown="${escape(action)}" ${seconds ? "" : "hidden"}>${seconds ? escape(Core.formatRetryAfter(seconds, action)) : ""}</p>`;
+  }
   function renderComposer() {
     const captchaIsReady = captchaReady("create_post");
-    const postIsBusy = state.submitting || state.postAttachments.some((item) => item.status === "uploading");
+    const postCooldown = cooldownSeconds("create_post");
+    const postIsBusy = state.submitting || postCooldown > 0 || state.postAttachments.some((item) => item.status === "uploading");
     return `<form class="discussion-composer paper-card">
       <h3>新增文章</h3>
       <label>分類<select name="category" required><option value="">請選擇</option>${Object.entries(Core.CATEGORY_LABELS).map(([id, label]) => `<option value="${id}" ${state.postDraft.category === id ? "selected" : ""}>${escape(label)}</option>`).join("")}</select></label>
       <label>標題<input name="title" value="${escape(state.postDraft.title)}" minlength="${Core.LIMITS.titleMin}" maxlength="${Core.LIMITS.titleMax}" required /></label>
-      <label>純文字內文<textarea name="body" maxlength="${Core.LIMITS.bodyMax}" rows="8">${escape(state.postDraft.body)}</textarea></label>
+      <label>內文<textarea name="body" maxlength="${Core.LIMITS.bodyMax}" rows="8">${escape(state.postDraft.body)}</textarea></label>
       ${attachmentEditorMarkup(state.postAttachments)}
       ${renderLinkPreviews(previewLinks(state.postDraft.body), true)}
       ${captchaMarkup("create_post")}
       <div class="discussion-form-error" role="alert"></div>
-      <div class="discussion-actions"><button class="secondary-btn" data-discussion-cancel type="button">取消</button><button class="secondary-btn" data-discussion-preview type="button">預覽</button><button class="primary-btn" type="submit" ${postIsBusy || !captchaIsReady ? "disabled" : ""}>${state.submitting ? "發表中…" : captchaIsReady ? "發表" : "等待驗證"}</button></div>
+      <div class="discussion-actions"><button class="secondary-btn" data-discussion-cancel type="button">取消</button><button class="secondary-btn" data-discussion-preview type="button">預覽</button><button class="primary-btn" type="submit" ${postIsBusy || !captchaIsReady ? "disabled" : ""}>${state.submitting ? "發表中…" : postCooldown ? "冷卻中" : captchaIsReady ? "發表" : "等待驗證"}</button></div>
+      ${cooldownMarkup("create_post")}
     </form>`;
   }
   function renderPreview(root, values) {
@@ -305,21 +359,22 @@
     if (!post || post.status !== "published") return `<div class="discussion-state paper-card"><strong>文章不存在或已刪除</strong><button data-discussion-list type="button">返回文章列表</button></div>`;
     const me = profile();
     const captchaIsReady = captchaReady("create_comment");
-    const commentIsBusy = state.submitting || state.commentAttachments.some((item) => item.status === "uploading");
+    const commentCooldown = cooldownSeconds("create_comment");
+    const commentIsBusy = state.submitting || commentCooldown > 0 || state.commentAttachments.some((item) => item.status === "uploading");
     return `<article class="discussion-detail paper-card">
       <button data-discussion-list class="discussion-inline-back" type="button">← 返回文章列表</button>
       <span class="discussion-category">${escape(Core.CATEGORY_LABELS[post.category])}</span>
       <h3>${escape(post.title)}</h3><p class="discussion-body">${escape(post.body || "（無內文）")}</p>
-      ${renderBoundAttachments(post.attachments || [], true, state.qa)}
+      ${renderBoundAttachments(post.attachments || [], true, true)}
       ${renderLinkPreviews(post.link_previews || [], true)}
       <footer>${avatarMarkup(post)}<span><strong>${escape(post.author_display_name || "練習者")}</strong><small>${escape(formatTime(post.created_at))}</small></span></footer>
       ${me?.id === post.author_id ? `<button class="discussion-delete" data-discussion-delete-post type="button">刪除自己的文章</button>` : ""}
     </article>
     <section class="discussion-comments">
       <h3>${Number(post.comment_count || state.comments.length)} 則留言</h3>
-      ${state.comments.filter((item) => item.status === "published").map((item) => `<article class="discussion-comment paper-card">${avatarMarkup(item)}<div><header><strong>${escape(item.author_display_name || "練習者")}</strong><small>${escape(formatTime(item.created_at))}</small></header><p>${escape(item.body)}</p>${renderBoundAttachments(item.attachments || [], true, state.qa)}${renderLinkPreviews(item.link_previews || [], true)}${me?.id === item.author_id ? `<button data-discussion-delete-comment="${escape(item.id)}" type="button">刪除</button>` : ""}</div></article>`).join("") || `<p class="discussion-state paper-card">還沒有留言。</p>`}
+      ${state.comments.filter((item) => item.status === "published").map((item) => `<article class="discussion-comment paper-card">${avatarMarkup(item)}<div><header><strong>${escape(item.author_display_name || "練習者")}</strong><small>${escape(formatTime(item.created_at))}</small></header><p>${escape(item.body)}</p>${renderBoundAttachments(item.attachments || [], true, true)}${renderLinkPreviews(item.link_previews || [], true)}${me?.id === item.author_id ? `<button data-discussion-delete-comment="${escape(item.id)}" type="button">刪除</button>` : ""}</div></article>`).join("") || `<p class="discussion-state paper-card">還沒有留言。</p>`}
     </section>
-    <form class="discussion-comment-form paper-card"><label>新增留言<textarea name="body" maxlength="${Core.LIMITS.commentMax}" rows="4">${escape(state.commentDraft)}</textarea></label>${attachmentEditorMarkup(state.commentAttachments)}${renderLinkPreviews(previewLinks(state.commentDraft), true)}${captchaMarkup("create_comment")}<div class="discussion-form-error" role="alert"></div><button class="primary-btn" type="submit" ${commentIsBusy || !captchaIsReady ? "disabled" : ""}>${state.submitting ? "留言送出中…" : captchaIsReady ? "送出留言" : "等待驗證"}</button></form>`;
+    <form class="discussion-comment-form paper-card"><label>新增留言<textarea name="body" maxlength="${Core.LIMITS.commentMax}" rows="4">${escape(state.commentDraft)}</textarea></label>${attachmentEditorMarkup(state.commentAttachments)}${renderLinkPreviews(previewLinks(state.commentDraft), true)}${captchaMarkup("create_comment")}<div class="discussion-form-error" role="alert"></div><button class="primary-btn" type="submit" ${commentIsBusy || !captchaIsReady ? "disabled" : ""}>${state.submitting ? "留言送出中…" : commentCooldown ? "冷卻中" : captchaIsReady ? "送出留言" : "等待驗證"}</button>${cooldownMarkup("create_comment")}</form>`;
   }
   function captureDraft(form) {
     if (!form) return;
@@ -342,14 +397,19 @@
     const root = $("#discussion");
     if (!root) return;
     renderTabs(root); renderQa(root); renderStatus(root);
+    releaseTurnstileWidget();
     $(".discussion-content", root).innerHTML = state.screen === "compose" ? renderComposer() : state.screen === "detail" ? renderDetail() : renderList(root);
     mountTurnstile();
   }
-  function clearCaptcha() {
+  function releaseTurnstileWidget() {
     if (turnstileWidgetId !== null) {
       try { global.turnstile?.remove?.(turnstileWidgetId); } catch {}
       turnstileWidgetId = null;
     }
+    turnstileWidgetSlot = null;
+  }
+  function clearCaptcha() {
+    releaseTurnstileWidget();
     state.captcha = { status: "missing", token: "", action: "" };
   }
   function loadTurnstileScript() {
@@ -393,11 +453,18 @@
     }
     const action = slot.dataset.turnstileAction;
     try {
+      turnstileWidgetSlot = slot;
       turnstileWidgetId = global.turnstile.render(slot, {
         sitekey,
         action,
         callback(token) {
           captureVisibleDraft();
+          const completedWidgetId = turnstileWidgetId;
+          turnstileWidgetId = null;
+          turnstileWidgetSlot = null;
+          if (completedWidgetId !== null) {
+            try { global.turnstile?.remove?.(completedWidgetId); } catch {}
+          }
           state.captcha = { status: "success", token: String(token || ""), action };
           render();
         },
@@ -415,13 +482,63 @@
         },
       });
     } catch {
+      turnstileWidgetSlot = null;
       state.error = "CAPTCHA 目前無法載入。";
       renderStatus($("#discussion"));
     }
   }
+  function updateCooldownMessages(root = $("#discussion")) {
+    if (!root) return;
+    root.querySelectorAll("[data-discussion-cooldown]").forEach((message) => {
+      const action = message.dataset.discussionCooldown;
+      const seconds = cooldownSeconds(action);
+      message.hidden = seconds <= 0;
+      message.textContent = seconds ? Core.formatRetryAfter(seconds, action) : "";
+      const form = message.closest("form");
+      const submit = form?.querySelector('button[type="submit"]');
+      if (!submit || state.submitting) return;
+      const attachments = action === "create_post" ? state.postAttachments : state.commentAttachments;
+      const uploading = attachments.some((item) => item.status === "uploading");
+      const ready = captchaReady(action);
+      submit.disabled = seconds > 0 || uploading || !ready;
+      submit.textContent = seconds > 0 ? "冷卻中" : ready ? (action === "create_post" ? "發表" : "送出留言") : "等待驗證";
+    });
+  }
+  function showSuccessModal(message) {
+    let modal = $("#discussionSuccessModal");
+    if (!modal) {
+      modal = document.createElement("dialog");
+      modal.id = "discussionSuccessModal";
+      modal.className = "discussion-success-modal";
+      modal.innerHTML = `<div class="paper-card"><strong data-discussion-success-message></strong><button class="primary-btn" data-discussion-close-success type="button">確定</button></div>`;
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal || event.target.closest("[data-discussion-close-success]")) modal.close();
+      });
+      document.body.append(modal);
+    }
+    $("[data-discussion-success-message]", modal).textContent = message;
+    if (!modal.open) modal.showModal();
+  }
   async function api(action, payload = {}) {
     const result = await global.chromaticaAuth?.invokeFunction?.("discussion-actions", { action, ...payload });
-    if (!result || result.error) throw result?.error || new Error("discussion-unavailable");
+    if (!result) throw new Error("discussion-unavailable");
+    if (result.error) {
+      let details = null;
+      try {
+        const response = result.error.context;
+        if (response && typeof response.clone === "function") {
+          details = await response.clone().json();
+        }
+      } catch {}
+      const retryAfter = Math.max(0, Number(details?.retry_after_seconds || 0));
+      if (retryAfter > 0) {
+        const nextAllowedAt = Date.now() + retryAfter * 1000;
+        if (action === "create_post") state.nextPostAllowedAt = nextAllowedAt;
+        if (action === "create_comment") state.nextCommentAllowedAt = nextAllowedAt;
+        throw new Error(Core.formatRetryAfter(retryAfter, action));
+      }
+      throw new Error(String(details?.error || result.error.message || "discussion-unavailable"));
+    }
     return result.data;
   }
   async function functionApi(functionName, action, payload = {}) {
@@ -496,13 +613,6 @@
     if (item?.objectUrl) URL.revokeObjectURL(item.objectUrl);
     render();
   }
-  function moveAttachment(index, direction) {
-    const items = draftAttachments();
-    const next = index + direction;
-    if (next < 0 || next >= items.length) return;
-    [items[index], items[next]] = [items[next], items[index]];
-    render();
-  }
   function showLightbox(src) {
     const safe = safeHttpUrl(src);
     if (!safe) return;
@@ -557,6 +667,20 @@
     } catch {}
     return records;
   }
+  async function hydrateCreatedRecord(record, draftItems, linkPreviews) {
+    const attachments = draftItems.map((item) => ({
+      id: item.id,
+      media_type: item.kind,
+      original_filename: item.name,
+      objectUrl: item.objectUrl,
+    }));
+    const [hydrated] = await hydrateSignedMedia([{
+      ...record,
+      attachments,
+      link_previews: linkPreviews,
+    }]);
+    return hydrated;
+  }
   async function loadPosts() {
     state.error = ""; state.loading = true; render();
     if (state.qa) {
@@ -606,7 +730,9 @@
     const validation = Core.validatePost(values);
     if (!validation.ok) { $(".discussion-form-error", form).textContent = validation.message; return; }
     if (state.postAttachments.some((item) => item.status !== "uploaded")) { $(".discussion-form-error", form).textContent = "請等待所有附件上傳完成，或移除失敗的附件。"; return; }
+    state.error = "";
     state.submitting = true; render();
+    let succeeded = false;
     try {
       let post;
       const links = await resolvedLinkPreviews(validation.value.body);
@@ -615,21 +741,30 @@
         if (state.qaScenario === "post-failed") throw new Error("QA 模擬發文失敗。");
         post = { id: `qa-post-${Date.now()}`, author_id: profile()?.id || "qa-user", author_display_name: profile()?.displayName || "QA 練習者", status: "published", comment_count: 0, created_at: new Date().toISOString(), last_activity_at: new Date().toISOString(), attachments: state.postAttachments.map((item) => ({ id: item.id, media_type: item.kind, original_filename: item.name, objectUrl: item.objectUrl })), link_previews: links, ...validation.value };
         state.qaCommentsByPost[post.id] = [];
-        state.nextAllowedAt = Date.now() + Core.LIMITS.cooldownSeconds * 1000;
+        state.nextPostAllowedAt = Date.now() + Core.LIMITS.postCooldownSeconds * 1000;
       } else {
         const data = await api("create_post", { ...validation.value, turnstile_token: state.captcha.token, draft_id: state.postDraftId || null, attachment_ids: state.postAttachments.map((item) => item.id), link_previews: links });
-        post = data.post; state.nextAllowedAt = new Date(data.next_allowed_at).getTime();
+        post = await hydrateCreatedRecord(data.post, state.postAttachments, links);
+        state.nextPostAllowedAt = new Date(data.next_allowed_at).getTime();
       }
       state.posts.unshift(post); state.screen = "detail"; state.currentPost = post; state.comments = []; state.postDraft = { category: "", title: "", body: "" }; state.postAttachments = []; state.postDraftId = ""; clearCaptcha();
-    } catch (error) { state.error = error?.message || "發文失敗，請稍後再試。"; clearCaptcha(); }
+      markDiscussionSeen();
+      succeeded = true;
+    } catch (error) {
+      state.error = state.nextPostAllowedAt > Date.now() ? "" : error?.message || "發文失敗，請稍後再試。";
+      clearCaptcha();
+    }
     state.submitting = false; render();
+    if (succeeded) showSuccessModal("文章已發佈");
   }
   async function submitComment(form) {
     captureDraft(form);
     const validation = Core.validateComment(state.commentDraft);
     if (!validation.ok) { $(".discussion-form-error", form).textContent = validation.message; return; }
     if (state.commentAttachments.some((item) => item.status !== "uploaded")) { $(".discussion-form-error", form).textContent = "請等待所有附件上傳完成，或移除失敗的附件。"; return; }
+    state.error = "";
     state.submitting = true; render();
+    let succeeded = false;
     try {
       let comment;
       const links = await resolvedLinkPreviews(validation.value.body);
@@ -637,16 +772,22 @@
         requireQaCaptcha("create_comment");
         if (state.qaScenario === "comment-failed") throw new Error("QA 模擬留言失敗。");
         comment = { id: `qa-comment-${Date.now()}`, post_id: state.currentPost.id, author_id: profile()?.id || "qa-user", author_display_name: profile()?.displayName || "QA 練習者", body: validation.value.body, status: "published", created_at: new Date().toISOString(), attachments: state.commentAttachments.map((item) => ({ id: item.id, media_type: item.kind, original_filename: item.name, objectUrl: item.objectUrl })), link_previews: links };
-        state.nextAllowedAt = Date.now() + Core.LIMITS.cooldownSeconds * 1000;
+        state.nextCommentAllowedAt = Date.now() + Core.LIMITS.commentCooldownSeconds * 1000;
       } else {
         const data = await api("create_comment", { post_id: state.currentPost.id, body: validation.value.body, turnstile_token: state.captcha.token, draft_id: state.commentDraftId || null, attachment_ids: state.commentAttachments.map((item) => item.id), link_previews: links });
-        comment = data.comment; state.nextAllowedAt = new Date(data.next_allowed_at).getTime();
+        comment = await hydrateCreatedRecord(data.comment, state.commentAttachments, links);
+        state.nextCommentAllowedAt = new Date(data.next_allowed_at).getTime();
       }
       state.comments.push(comment);
       if (state.qa) state.qaCommentsByPost[state.currentPost.id] = state.comments;
       state.currentPost.comment_count = Number(state.currentPost.comment_count || 0) + 1; state.commentDraft = ""; state.commentAttachments = []; state.commentDraftId = ""; clearCaptcha();
-    } catch (error) { state.error = error?.message || "留言失敗，請稍後再試。"; clearCaptcha(); }
+      succeeded = true;
+    } catch (error) {
+      state.error = state.nextCommentAllowedAt > Date.now() ? "" : error?.message || "留言失敗，請稍後再試。";
+      clearCaptcha();
+    }
     state.submitting = false; render();
+    if (succeeded) showSuccessModal("留言成功");
   }
   async function softDelete(type, id) {
     if (!confirm("確定刪除這項內容嗎？")) return;
@@ -673,7 +814,6 @@
       }
       const tab = event.target.closest("[data-discussion-tab]");
       if (tab) { state.tab = tab.dataset.discussionTab; state.page = 1; state.screen = "list"; void loadPosts(); return; }
-      if (event.target.closest(".discussion-back")) { document.querySelector('[data-view="intro"]')?.click(); return; }
       if (event.target.closest(".discussion-new")) { state.error = ""; state.postDraft = { category: "", title: "", body: "" }; state.screen = "compose"; clearCaptcha(); render(); return; }
       if (event.target.closest("[data-discussion-cancel],[data-discussion-list]")) { stopMedia($("#discussion")); void discardCurrentDraft(); state.screen = "list"; state.error = ""; clearCaptcha(); render(); return; }
       if (event.target.closest(".discussion-load-more")) { state.page += 1; void loadPosts(); return; }
@@ -683,8 +823,6 @@
       const attachment = event.target.closest("[data-attachment-index]");
       if (attachment) {
         const index = Number(attachment.dataset.attachmentIndex);
-        const move = event.target.closest("[data-attachment-move]");
-        if (move) { moveAttachment(index, Number(move.dataset.attachmentMove)); return; }
         if (event.target.closest("[data-attachment-remove]")) { removeAttachment(index); return; }
         if (event.target.closest("[data-attachment-retry]")) {
           const item = draftAttachments()[index];
@@ -709,7 +847,7 @@
         render();
         return;
       }
-      if (event.target.closest("[data-discussion-qa-reset]")) { sessionStorage.removeItem(qaKey); Object.assign(state, { qaScenario: "populated", nextAllowedAt: 0, posts: [], currentPost: null, comments: [], qaCommentsByPost: {}, postDraft: { category: "", title: "", body: "" }, commentDraft: "", screen: "list", error: "" }); clearCaptcha(); void loadPosts(); }
+      if (event.target.closest("[data-discussion-qa-reset]")) { sessionStorage.removeItem(qaKey); Object.assign(state, { qaScenario: "populated", nextPostAllowedAt: 0, nextCommentAllowedAt: 0, posts: [], currentPost: null, comments: [], qaCommentsByPost: {}, postDraft: { category: "", title: "", body: "" }, commentDraft: "", screen: "list", error: "" }); clearCaptcha(); void loadPosts(); }
     });
     root.addEventListener("input", (event) => {
       const form = event.target.closest(".discussion-composer, .discussion-comment-form");
@@ -726,7 +864,8 @@
       }
       if (event.target.matches("[data-discussion-qa-scenario]")) {
         state.qaScenario = event.target.value; sessionStorage.setItem(qaKey, state.qaScenario);
-        state.nextAllowedAt = state.qaScenario === "cooldown" ? Date.now() + 154000 : 0;
+        state.nextPostAllowedAt = state.qaScenario === "cooldown" ? Date.now() + 154000 : 0;
+        state.nextCommentAllowedAt = state.qaScenario === "cooldown" ? Date.now() + 54000 : 0;
         state.error = ""; state.screen = "list"; applyQaMediaScenario(state.qaScenario); render();
       }
     });
@@ -743,11 +882,16 @@
   }
   function open() {
     ensureView();
+    markDiscussionSeen();
+    discussionWasOpen = true;
     state.qaScenario = sessionStorage.getItem(qaKey) || "populated";
     state.screen = "list"; state.page = 1; state.tab = "hot"; state.qa = isGardenQa();
     if (cooldownTimer) window.clearInterval(cooldownTimer);
     cooldownTimer = window.setInterval(() => {
-      if ($("#discussion")?.classList.contains("active")) renderStatus($("#discussion"));
+      if ($("#discussion")?.classList.contains("active")) {
+        renderStatus($("#discussion"));
+        updateCooldownMessages($("#discussion"));
+      }
     }, 1000);
     void loadPosts();
   }
@@ -761,6 +905,11 @@
       clearCaptcha();
       if (cooldownTimer) window.clearInterval(cooldownTimer);
       cooldownTimer = 0;
+      if (discussionWasOpen) {
+        discussionWasOpen = false;
+        markDiscussionSeen();
+      }
+      if (view === "intro") void refreshUnreadBadge();
     }
   }
   document.addEventListener("visibilitychange", () => {
@@ -771,7 +920,9 @@
     }
     if (filePickerActive) return;
     if ($("#discussion")?.classList.contains("active")) render();
+    else void refreshUnreadBadge();
   });
   ensureView();
-  global.ChromaticaDiscussion = Object.freeze({ open, onViewChanged, state });
+  global.setTimeout(() => void refreshUnreadBadge(), 1500);
+  global.ChromaticaDiscussion = Object.freeze({ open, onViewChanged, refreshUnreadBadge, state });
 })(typeof window !== "undefined" ? window : globalThis);

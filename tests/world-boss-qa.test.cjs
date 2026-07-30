@@ -57,11 +57,24 @@ test("QA controls include unlimited resources, exact HP presets, both settlement
   assert.match(runtime, /qa_unlimited_special[\s\S]*"∞"/);
 });
 
-test("QA energy exchange is isolated, immediate, capped at ten, and shared by both attack modes", () => {
+test("QA special attacks reset to two uses on each Taipei calendar day", () => {
+  const qaSession = runtime.slice(
+    runtime.indexOf("function defaultQaSession"),
+    runtime.indexOf("function loadQaSession"),
+  );
+  const qaAttack = functionBody("performQaAttack", "createQaSettlement");
+  assert.match(runtime, /function taipeiDateKey[\s\S]*timeZone: "Asia\/Taipei"/);
+  assert.match(qaSession, /specialAttackDateKey/);
+  assert.match(qaSession, /isSameSpecialAttackDay[\s\S]*special_attack_remaining:[\s\S]*: 2/);
+  assert.match(qaAttack, /今日專屬技能次數已用完/);
+  assert.match(qaAttack, /session\.event\.special_attack_remaining -= 1/);
+});
+
+test("QA energy exchange is isolated, immediate, uncapped, and shared by both attack modes", () => {
   const qaAttack = functionBody("performQaAttack", "createQaSettlement");
   assert.match(runtime, /qaWaterDrops: 300/);
   assert.match(runtime, /exchangedEnergy: 0/);
-  assert.match(qaAttack, /session\.exchangedEnergy >= 10[\s\S]*本場兌換次數已達上限/);
+  assert.doesNotMatch(qaAttack, /session\.exchangedEnergy >= 10|本場兌換次數已達上限/);
   assert.match(qaAttack, /session\.qaWaterDrops < 3[\s\S]*水滴不足/);
   assert.match(qaAttack, /session\.qaWaterDrops -= 3[\s\S]*session\.exchangedEnergy \+= 1[\s\S]*session\.event\.light_energy \+= 1/);
   assert.match(qaAttack, /if \(!session\.unlimitedEnergy\) session\.event\.light_energy -= 1/);

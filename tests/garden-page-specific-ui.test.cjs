@@ -108,7 +108,8 @@ test("learned skill glow continuously flows around collection and full art cards
   assert.match(css, /stroke-dasharray: 18 82/);
   assert.doesNotMatch(css, /\.garden-spirit-modal-backdrop\.skill-unlocked-card \.garden-spirit-modal::(?:before|after)/);
   assert.doesNotMatch(css, /gardenSkillLiquidMain|gardenSkillLiquidParticles|gardenSkillModalAura/);
-  assert.match(css, /\.garden-spirit-art-page\.skill-unlocked img \{[\s\S]*drop-shadow\(0 0 42px[\s\S]*gardenSkillArtCardGlow/);
+  assert.match(css, /\.garden-spirit-art-page\.skill-unlocked img \{[\s\S]*drop-shadow\(0 0 30px[\s\S]*gardenSkillArtCardGlow/);
+  assert.match(css, /@keyframes gardenSkillArtCardGlow[\s\S]*drop-shadow\(0 0 4px[\s\S]*drop-shadow\(0 0 70px/);
   assert.match(css, /prefers-reduced-motion: reduce[\s\S]*garden-skill-energy-stream \{[\s\S]*animation: none !important/);
   assert.match(css, /prefers-reduced-motion: reduce[\s\S]*garden-skill-energy-particles \{[\s\S]*display: none/);
 });

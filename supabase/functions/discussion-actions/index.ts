@@ -247,7 +247,9 @@ export async function handler(request: Request) {
         retry_after_seconds: wait,
       });
     }
-    const cooldown = await userClient.rpc("get_discussion_rate_limit");
+    const cooldown = await userClient.rpc("get_discussion_rate_limit", {
+      p_action: action,
+    });
     const nextAllowedAt = cooldown.data?.[0]?.next_allowed_at || null;
     return json(origin, 200, action === "create_post"
       ? { post: result.data, next_allowed_at: nextAllowedAt }

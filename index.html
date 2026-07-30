@@ -563,10 +563,10 @@
               <button class="quick-card" data-jump="tuner" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/tuner_badge.png" alt="" /></span><strong>調音器</strong></button>
               <button class="quick-card" data-jump="metronome" type="button"><span class="quick-card-icon"><img class="ui-quick-icon metronome-quick-icon" src="./public/assets/chromatic-refresh/feature/metronome-bird.png" alt="" /></span><strong>節拍器</strong></button>
               <button class="quick-card" data-jump="practicehub" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/practice_record_icon.png" alt="" /></span><strong>開始練習</strong></button>
-              <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" /></span><strong>每日目標</strong></button>
-              <button class="quick-card" data-jump="garden" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/garden/icons/spirit-garden-icon.png" alt="" /></span><strong>精靈花園</strong></button>
+              <button class="quick-card" data-jump="daily" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" /><span class="daily-goal-unfinished-badge" data-daily-goal-unfinished hidden>0</span></span><strong>每日目標</strong></button>
+              <button class="quick-card" data-jump="garden" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/garden/icons/spirit-garden-icon.png" alt="" /><span class="garden-water-ready-badge" data-garden-water-ready hidden><img src="./public/assets/garden/icons/water-drop.png" alt="" /></span></span><strong>精靈花園</strong></button>
               <button class="quick-card leaderboard-card" data-leaderboard-open type="button" aria-label="開啟排行榜"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/global_leaderboard_icon.png?v=transparent-1" alt="" /></span><strong>排行榜</strong><em>查看本週名次</em></button>
-              <button class="quick-card discussion-card" data-discussion-open type="button" aria-label="開啟討論吧"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/discussion-forum-icon.png" alt="" /></span><strong>討論吧</strong></button>
+              <button class="quick-card discussion-card" data-discussion-open type="button" aria-label="開啟討論吧"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/feature/discussion-forum-icon.png" alt="" /><span class="discussion-unread-badge" data-discussion-unread hidden>0</span></span><strong>討論吧</strong></button>
               <button class="quick-card" data-jump="audio" type="button"><span class="quick-card-icon"><img class="ui-quick-icon" src="./public/assets/chromatic-refresh/icon/mic_settings_icon.png" alt="" /></span><strong>設定</strong></button>
             </div>
           </section>
@@ -781,16 +781,18 @@
         </section>
 
         <section id="quickpractice" class="view">
-          <button id="quickPracticeBackBtn" class="practice-view-back" type="button" aria-label="返回練習列表">← 返回練習列表</button>
           <div class="section-head compact no-eyebrow">
             <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/daily_goal_badge.png" alt="" aria-hidden="true" />
             <h2>今日快速練習</h2><p id="quickPracticeSummary">讀取今天的每日目標中…</p>
+            <button id="quickPracticeBackBtn" class="practice-view-back quick-practice-heading-back" type="button" aria-label="返回練習列表">← 返回練習列表</button>
           </div>
           <section class="quick-practice-panel paper-card" aria-live="polite">
             <h3 id="quickPracticeStateTitle">今天的任務</h3><p id="quickPracticeStateText"></p>
+            <div class="quick-practice-primary-actions">
+              <button id="quickPracticePrimaryBtn" class="primary-btn" type="button">準備開始！</button>
+            </div>
             <ol id="quickPracticeTaskList" class="quick-practice-list"></ol>
             <div class="quick-practice-actions">
-              <button id="quickPracticePrimaryBtn" class="primary-btn" type="button">準備開始！</button>
               <button id="quickPracticeLaterBtn" class="ghost-btn hidden" type="button">稍後再練</button>
               <button id="quickPracticeResultsBtn" class="ghost-btn hidden" type="button">查看今日成果</button>
               <button id="quickPracticeHomeBtn" class="ghost-btn hidden" type="button">返回首頁</button>
@@ -1361,7 +1363,7 @@
 
         <section id="worldboss" class="view">
           <div class="world-boss-page paper-card">
-            <div class="world-boss-page-head"><div><p class="eyebrow">每週共同討伐</p><h2 id="worldBossName">世界 Boss・樹麻雀</h2><strong id="worldBossStatusText">正在確認活動狀態…</strong></div><button class="icon-btn" data-view="intro" type="button" aria-label="返回首頁">×</button></div>
+            <div class="world-boss-page-head"><div><p class="eyebrow">每週共同討伐</p><h2 id="worldBossName">世界 Boss・樹麻雀</h2><strong id="worldBossStatusText">正在確認活動狀態…</strong></div><button id="worldBossInfoOpen" class="icon-btn world-boss-info-open" type="button" aria-label="查看世界 Boss 詳細說明">？</button></div>
             <section id="worldBossQaPanel" class="world-boss-qa-panel hidden" aria-label="World Boss QA 測試控制">
               <div class="world-boss-qa-head"><strong>World Boss QA｜完全隔離</strong><button id="worldBossQaReturn" type="button">返回測試花園</button></div>
               <p>只使用本次 session，不扣正式水滴、不寫正式戰鬥或通知資料。</p>
@@ -1372,7 +1374,7 @@
               <div class="world-boss-qa-actions">
                 <button id="worldBossQaZeroEnergy" type="button">將光之能量設為 0</button>
                 <label>QA 水滴 <input id="worldBossQaWater" type="number" min="0" max="9999" step="1" value="300" /></label>
-                <span>本場已兌換 <strong id="worldBossQaExchangeCount">0 / 10</strong></span>
+                <span>本場已兌換 <strong id="worldBossQaExchangeCount">0</strong></span>
               </div>
               <div class="world-boss-qa-actions" aria-label="快速設定 Boss HP">
                 <span>Boss HP</span>
@@ -1388,6 +1390,14 @@
               </div>
             </section>
             <div id="worldBossCombatView">
+              <section id="worldBossPreviewCountdownCard" class="world-boss-preview-countdown-card hidden" aria-live="polite">
+                <img src="./public/assets/world-boss/第一隻boss 樹麻雀.png" alt="" aria-hidden="true" />
+                <span>
+                  <small>本週五 20:00 開放</small>
+                  <strong>樹麻雀即將出沒</strong>
+                  <b id="worldBossPreviewCountdownValue">正在計算開放時間…</b>
+                </span>
+              </section>
               <div id="worldBossArena" class="world-boss-arena">
                 <div class="world-boss-energy world-boss-energy-overlay" aria-label="光之能量"><img src="./public/assets/world-boss/光之能量.png" alt="" /><strong id="worldBossEnergyCount">0</strong></div>
                 <img id="worldBossImage" class="world-boss-image" src="./public/assets/world-boss/第一隻boss 樹麻雀.png" alt="世界 Boss 樹麻雀" />
@@ -1479,6 +1489,44 @@
         <h2 id="worldBossExchangeAttackTitle">兌換並立即攻擊？</h2>
         <p id="worldBossExchangeAttackCopy">目前沒有光之能量，是否花費 3 水滴兌換 1 顆光之能量並立即攻擊世界 Boss？</p>
         <div class="feedback-actions"><button id="worldBossExchangeAttackCancel" class="secondary-btn" type="button">取消</button><button id="worldBossExchangeAttackConfirm" class="primary-btn" type="button">兌換並攻擊</button></div>
+      </div>
+    </div>
+
+    <div id="worldBossInfoModal" class="modal-backdrop world-boss-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="worldBossInfoTitle">
+      <div class="feedback-modal paper-card world-boss-info-modal">
+        <h2 id="worldBossInfoTitle">世界 Boss 詳細說明</h2>
+        <section>
+          <h3>活動時間</h3>
+          <p>每週五 20:00 開放，週日 22:00 結束（Asia/Taipei）。未擊倒時，下週同一隻 Boss 會以滿血重新出現。</p>
+        </section>
+        <section>
+          <h3>精靈攻擊力</h3>
+          <div class="world-boss-info-table" role="table" aria-label="精靈攻擊力對照表">
+            <span role="row"><b>第一階段</b><strong>10 傷害</strong></span>
+            <span role="row"><b>第二階段</b><strong>30 傷害</strong></span>
+            <span role="row"><b>第三階段</b><strong>60 傷害</strong></span>
+            <span role="row"><b>專屬攻擊技能</b><strong>100 傷害</strong></span>
+          </div>
+          <p>專屬攻擊技能需先由第三階段精靈習得，週五、週六、週日每日各可使用 2 次，每次消耗 1 顆光之能量。</p>
+        </section>
+        <section>
+          <h3><img class="world-boss-info-heading-icon world-boss-info-energy-icon" src="./public/assets/world-boss/光之能量.png" alt="" aria-hidden="true" />光之能量</h3>
+          <ul>
+            <li>活動開始時免費獲得 1 顆。</li>
+            <li>週五、週六、週日每日首次有效練習，各獲得 1 顆。</li>
+            <li>可用 3 水滴兌換 1 顆光之能量，不設每場兌換上限。</li>
+            <li>活動結束後清除，不會保留到下一週。</li>
+          </ul>
+        </section>
+        <section>
+          <h3><img class="world-boss-info-heading-icon world-boss-info-water-icon" src="./public/assets/garden/icons/water-drop.png" alt="" aria-hidden="true" />討伐成功獎勵</h3>
+          <p>參與 5 水滴、第一刀 30 水滴、傷害第 1～3 名分別為 100／80／60 水滴、最後一擊 30 水滴；成功擊倒時所有參與者另得 10 水滴。符合多個條件時可疊加。</p>
+        </section>
+        <section>
+          <h3><img class="world-boss-info-heading-icon world-boss-info-water-icon" src="./public/assets/garden/icons/water-drop.png" alt="" aria-hidden="true" />討伐失敗獎勵</h3>
+          <p>參與 5 水滴、第一刀 15 水滴、傷害第 1～3 名分別為 50／40／30 水滴；不發放最後一擊與擊倒獎勵。</p>
+        </section>
+        <button id="worldBossInfoClose" class="primary-btn" type="button">我知道了</button>
       </div>
     </div>
 

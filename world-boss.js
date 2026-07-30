@@ -161,10 +161,12 @@
   }
 
   function defaultQaSession() {
+    const specialAttackDateKey = taipeiDateKey();
     return {
       schemaVersion: 1,
       unlimitedEnergy: true,
       unlimitedSpecial: true,
+      specialAttackDateKey,
       qaWaterDrops: 300,
       exchangedEnergy: 0,
       event: {
@@ -191,14 +193,17 @@
   function sanitizeQaSession(value) {
     const fallback = defaultQaSession();
     if (!value || value.schemaVersion !== 1 || !value.event) return fallback;
+    const specialAttackDateKey = taipeiDateKey();
+    const isSameSpecialAttackDay = value.specialAttackDateKey === specialAttackDateKey;
     const remaining = Math.max(0, Math.min(3000, Number(value.event.remaining_hp) || 0));
     const battleLog = Array.isArray(value.event.battle_log) ? value.event.battle_log.slice(0, 30) : [];
     return {
       schemaVersion: 1,
       unlimitedEnergy: value.unlimitedEnergy !== false,
       unlimitedSpecial: value.unlimitedSpecial !== false,
+      specialAttackDateKey,
       qaWaterDrops: Math.max(0, Math.min(9999, Number(value.qaWaterDrops ?? 300) || 0)),
-      exchangedEnergy: Math.max(0, Math.min(10, Number(value.exchangedEnergy) || 0)),
+      exchangedEnergy: Math.max(0, Number(value.exchangedEnergy) || 0),
       event: {
         ...fallback.event,
         ...value.event,
@@ -209,7 +214,9 @@
           ? value.event.status
           : "active",
         light_energy: Math.max(0, Number(value.event.light_energy) || 0),
-        special_attack_remaining: Math.max(0, Number(value.event.special_attack_remaining) || 0),
+        special_attack_remaining: isSameSpecialAttackDay
+          ? Math.max(0, Math.min(2, Number(value.event.special_attack_remaining) || 0))
+          : 2,
         player_damage: Math.max(0, Number(value.event.player_damage) || 0),
         player_attack_count: Math.max(0, Number(value.event.player_attack_count) || 0),
         battle_log: battleLog,
@@ -233,6 +240,17 @@
       sessionStorage.setItem(QA_STORAGE_KEY, JSON.stringify(session));
       return session;
     }
+  }
+
+  function taipeiDateKey(value = Date.now()) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Taipei",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date(value));
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
   }
 
   function saveQaSession(session) {
@@ -443,11 +461,22 @@
   }
 
   function updateCountdown() {
-    const target = state.event?.status === "scheduled" ? state.event?.starts_at : state.event?.ends_at;
+    const fallbackWindow = core()?.getEventWindow?.() || {};
+    const status = state.event?.status || fallbackWindow.phase || "scheduled";
+    const target = status === "scheduled"
+      ? state.event?.starts_at || fallbackWindow.startsAt
+      : state.event?.ends_at || fallbackWindow.endsAt;
     const countdown = $("#worldBossCountdown");
+    const previewCard = $("#worldBossPreviewCountdownCard");
+    const previewValue = $("#worldBossPreviewCountdownValue");
+    const scheduled = status === "scheduled" && Boolean(target);
+    previewCard?.classList.toggle("hidden", !scheduled);
+    countdown?.classList.toggle("hidden", scheduled);
+    const remaining = target ? core()?.formatRemainingTime?.(target) || "—" : "—";
+    if (previewValue && scheduled) previewValue.textContent = `倒數 ${remaining}`;
     if (!countdown || !target) return;
-    const prefix = state.event?.status === "scheduled" ? "距離討伐開始" : "活動剩餘";
-    countdown.textContent = `${prefix} ${core()?.formatRemainingTime?.(target) || "—"}`;
+    const prefix = scheduled ? "距離討伐開始" : "活動剩餘";
+    countdown.textContent = `${prefix} ${remaining}`;
   }
 
   function renderBattleLog(rows = []) {
@@ -602,7 +631,10 @@
     const qaActive = isQaMode();
     initializeSpiritRoster();
     $("#worldBossQaPanel")?.classList.toggle("hidden", !qaActive);
-    if (image) image.src = bossImage();
+    if (image) {
+      image.src = bossImage();
+      image.classList.toggle("hidden", status === "scheduled");
+    }
     if (energy) energy.textContent = qaActive && state.event?.qa_unlimited_energy
       ? "∞"
       : String(state.event?.light_energy ?? state.player?.light_energy ?? 0);
@@ -619,6 +651,7 @@
       battle?.classList.add("hidden");
       $("#worldBossSettlement")?.classList.add("hidden");
       stopBossBreathing();
+      updateCountdown();
       return;
     }
     if (qaActive && statusText) statusText.textContent = `QA 隔離活動｜${status}`;
@@ -684,7 +717,7 @@
       if ($("#worldBossQaUnlimitedEnergy")) $("#worldBossQaUnlimitedEnergy").checked = session?.unlimitedEnergy !== false;
       if ($("#worldBossQaUnlimitedSpecial")) $("#worldBossQaUnlimitedSpecial").checked = session?.unlimitedSpecial !== false;
       if ($("#worldBossQaWater")) $("#worldBossQaWater").value = String(session?.qaWaterDrops ?? 300);
-      if ($("#worldBossQaExchangeCount")) $("#worldBossQaExchangeCount").textContent = `${session?.exchangedEnergy || 0} / 10`;
+      if ($("#worldBossQaExchangeCount")) $("#worldBossQaExchangeCount").textContent = String(session?.exchangedEnergy || 0);
     }
   }
 
@@ -721,6 +754,9 @@
         result = await rpc("get_world_boss_status");
       }
       const row = Array.isArray(result) ? result[0] : result;
+      if (row && row.special_attack_remaining == null && row.special_attack_count != null) {
+        row.special_attack_remaining = Math.max(0, 2 - Number(row.special_attack_count || 0));
+      }
       state.event = row || null;
       state.player = row || null;
       state.status = "ready";
@@ -850,11 +886,10 @@
       throw new Error("QA Boss 已結束，不能再攻擊。");
     }
     if (type === "special" && !session.unlimitedSpecial && session.event.special_attack_remaining <= 0) {
-      throw new Error("本場專屬技能次數已用完。");
+      throw new Error("今日專屬技能次數已用完。");
     }
     if (!session.unlimitedEnergy && session.event.light_energy <= 0) {
       if (!exchange) throw new Error("光之能量不足。");
-      if (session.exchangedEnergy >= 10) throw new Error("本場兌換次數已達上限");
       if (session.qaWaterDrops < 3) throw new Error("水滴不足");
     }
     const attemptedDamage = type === "special" ? 100 : Number(core()?.getNormalDamage?.(stage) || 0);
@@ -1189,6 +1224,12 @@
       $("#worldBossExchangeAttackModal")?.classList.add("hidden");
     });
     $("#worldBossExchangeAttackConfirm")?.addEventListener("click", () => void confirmExchangeAndAttack());
+    $("#worldBossInfoOpen")?.addEventListener("click", () => {
+      $("#worldBossInfoModal")?.classList.remove("hidden");
+    });
+    $("#worldBossInfoClose")?.addEventListener("click", () => {
+      $("#worldBossInfoModal")?.classList.add("hidden");
+    });
     document.querySelectorAll("[data-world-boss-qa-hp]").forEach((button) => {
       button.addEventListener("click", () => setQaHp(button.dataset.worldBossQaHp));
     });

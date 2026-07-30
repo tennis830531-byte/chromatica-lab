@@ -1674,6 +1674,7 @@ function getWaterDrops() {
 function setWaterDrops(value) {
   localStorage.setItem(gardenStorageKeys.waterDrops, String(Math.max(0, Math.floor(Number(value) || 0))));
   scheduleAccountSnapshotSave();
+  renderGardenWaterBadge();
 }
 
 function getLeaderboardCultivatorProgress() {
@@ -2667,6 +2668,7 @@ function getFormalGardenSceneElements() {
 }
 
 function renderEmptyGardenState() {
+  renderGardenWaterBadge(null);
   if ($("#waterDropCount")) $("#waterDropCount").textContent = getWaterDrops();
   renderDailyPracticeWater();
   window.ChromaticaGardenShared?.renderPlantScene?.({
@@ -2689,6 +2691,15 @@ function renderEmptyGardenState() {
   renderHeroGarden();
 }
 
+function renderGardenWaterBadge(plant = getCurrentPlant(false)) {
+  const badge = $("[data-garden-water-ready]");
+  if (!badge) return;
+  const progress = Math.max(0, Math.min(PLANT_WATER_REQUIRED, Number(plant?.waterProgress) || 0));
+  const canWater = Boolean(plant) && progress < PLANT_WATER_REQUIRED && getWaterDrops() > 0;
+  badge.hidden = !canWater;
+  badge.setAttribute("aria-label", canWater ? "目前有水滴可以澆水" : "");
+}
+
 function renderGarden({ persistNormalizedState = true } = {}) {
   syncStarterPlantStateForExistingUser();
   const plant = getCurrentPlant(false);
@@ -2700,6 +2711,7 @@ function renderGarden({ persistNormalizedState = true } = {}) {
   plant.stage = getPlantStage(progress);
   if (persistNormalizedState) setCurrentPlant(plant);
   const ready = progress >= PLANT_WATER_REQUIRED;
+  renderGardenWaterBadge(plant);
   const stageRequired = getStageWaterRequired(plant.stage);
   const stageProgress = getStageProgress(progress, plant.stage);
   if ($("#waterDropCount")) $("#waterDropCount").textContent = getWaterDrops();
@@ -4439,6 +4451,18 @@ function renderDailyGoals() {
   const tasks = getDailyGoalTasks();
   const progressList = tasks.map((task) => getDailyGoalProgress(state, task));
   const doneCount = progressList.filter((progress) => progress.done).length;
+  const unfinishedCount = Math.max(0, tasks.length - doneCount);
+  const dailyGoalBadge = $("[data-daily-goal-unfinished]");
+  if (dailyGoalBadge) {
+    const allDone = tasks.length > 0 && unfinishedCount === 0;
+    dailyGoalBadge.hidden = tasks.length === 0;
+    dailyGoalBadge.classList.toggle("complete", allDone);
+    dailyGoalBadge.textContent = allDone ? "✓" : String(unfinishedCount);
+    dailyGoalBadge.setAttribute(
+      "aria-label",
+      allDone ? "今日每日目標已全部完成" : `尚有 ${unfinishedCount} 個每日目標未完成`,
+    );
+  }
   const summary = `${doneCount} / ${tasks.length}`;
   $("#dailyGoalSummary").textContent = `今日完成 ${summary} 個練習`;
   $$('[data-view="daily"]').forEach((dailyNav) => {

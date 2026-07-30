@@ -49,7 +49,12 @@ async function createLocalUser(label) {
 
 async function clearCooldown(userId) {
   const result = await admin.from("discussion_rate_limits")
-    .upsert({ user_id: userId, next_allowed_at: "1970-01-01T00:00:00Z" });
+    .upsert({
+      user_id: userId,
+      next_allowed_at: "1970-01-01T00:00:00Z",
+      next_post_allowed_at: "1970-01-01T00:00:00Z",
+      next_comment_allowed_at: "1970-01-01T00:00:00Z",
+    });
   assert.ifError(result.error);
 }
 
@@ -105,24 +110,44 @@ test("authenticated local client can call discussion-actions without production 
   assert.ok(Array.isArray(result.posts));
 });
 
-test("service transaction creates a post and starts the shared cooldown", async () => {
+test("post and comment cooldowns are independent and retain their own limits", async () => {
   firstTokenHash = tokenHash();
   const created = await createPost(users[0].id, turnstile("create_post", firstTokenHash));
   assert.ifError(created.error);
   postId = created.data.id;
 
+  const createdComment = await admin.rpc("create_discussion_comment_service", {
+    p_user_id: users[0].id,
+    p_post_id: postId,
+    p_body: "發文後仍可立即留言",
+    ...turnstile("create_comment"),
+  });
+  assert.ifError(createdComment.error);
+
+  const rate = await admin.from("discussion_rate_limits")
+    .select("next_post_allowed_at,next_comment_allowed_at").eq("user_id", users[0].id).single();
+  assert.ifError(rate.error);
+  const postWait = new Date(rate.data.next_post_allowed_at).getTime() - Date.now();
+  const commentWait = new Date(rate.data.next_comment_allowed_at).getTime() - Date.now();
+  assert.ok(postWait > 170000 && postWait <= 180000);
+  assert.ok(commentWait > 50000 && commentWait <= 60000);
+
+  const blockedPost = await createPost(users[0].id, { p_title: "發文仍在冷卻", ...turnstile("create_post") });
+  assert.match(blockedPost.error?.message || "", /discussion-cooldown/);
   const blockedComment = await admin.rpc("create_discussion_comment_service", {
     p_user_id: users[0].id,
     p_post_id: postId,
-    p_body: "同一冷卻內不得留言",
+    p_body: "留言仍在冷卻",
     ...turnstile("create_comment"),
   });
   assert.match(blockedComment.error?.message || "", /discussion-cooldown/);
 
-  const rate = await admin.from("discussion_rate_limits")
-    .select("next_allowed_at").eq("user_id", users[0].id).single();
-  assert.ifError(rate.error);
-  assert.ok(new Date(rate.data.next_allowed_at).getTime() > Date.now());
+  const removed = await admin.rpc("delete_discussion_comment_service", {
+    p_user_id: users[0].id,
+    p_comment_id: createdComment.data.id,
+  });
+  assert.ifError(removed.error);
+  assert.equal(removed.data, true);
 });
 
 test("two concurrent requests for one user allow exactly one success", async () => {
@@ -141,9 +166,9 @@ test("replayed Turnstile token fails without starting cooldown", async () => {
   assert.match(replayed.error?.message || "", /turnstile-token-replayed/);
 
   const rate = await admin.from("discussion_rate_limits")
-    .select("next_allowed_at").eq("user_id", users[0].id).single();
+    .select("next_post_allowed_at").eq("user_id", users[0].id).single();
   assert.ifError(rate.error);
-  assert.ok(new Date(rate.data.next_allowed_at).getTime() <= Date.now());
+  assert.ok(new Date(rate.data.next_post_allowed_at).getTime() <= Date.now());
 });
 
 test("comment activity, ownership, soft delete, and visible count stay consistent", async () => {

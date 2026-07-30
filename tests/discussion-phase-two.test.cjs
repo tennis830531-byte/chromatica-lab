@@ -65,9 +65,12 @@ test("link extraction is http(s)-only, deduplicated, and capped at five", () => 
   assert.equal(new Set(links).size, 5);
 });
 
-test("runtime supplies accessible attachment ordering, previews, progress, cancellation, and cleanup", () => {
-  assert.match(runtime, /data-discussion-files/);
-  assert.match(runtime, /data-attachment-move/);
+test("runtime supplies multi-select attachments, previews, progress, cancellation, and cleanup", () => {
+  assert.match(runtime, /data-discussion-files[^>]*type="file"[^>]*accept="image\/\*,video\/\*"[^>]*multiple/);
+  assert.doesNotMatch(runtime, /data-attachment-move/);
+  assert.match(runtime, /可一次選取多張/);
+  assert.match(runtime, /data-discussion-lightbox="\$\{escape\(item\.objectUrl \|\| ""\)\}" aria-label="放大查看圖片"/);
+  assert.match(runtime, /item\.kind === "video" \? `<strong>\$\{escape\(item\.name\)\}<\/strong>` : ""/);
   assert.match(runtime, /URL\.revokeObjectURL/);
   assert.match(runtime, /XMLHttpRequest/);
   assert.match(runtime, /discussion-media-actions/);
@@ -101,10 +104,18 @@ test("QA publishing keeps the new post and its local media visible", () => {
   assert.match(runtime, /state\.qa\s*\?\s*\(state\.qaScenario\s*===\s*"empty"\s*\?\s*\[\]\s*:\s*state\.posts\)/);
   assert.match(runtime, /if\s*\(!state\.posts\.length\)\s*state\.posts\s*=\s*mockPosts\(\)/);
   assert.match(runtime, /state\.currentPost\s*=\s*state\.posts\.find/);
-  assert.match(runtime, /renderBoundAttachments\(post\.attachments\s*\|\|\s*\[\],\s*true,\s*state\.qa\)/);
+  assert.match(runtime, /renderBoundAttachments\(post\.attachments\s*\|\|\s*\[\],\s*true,\s*true\)/);
   assert.match(runtime, /attachments:\s*state\.postAttachments\.map\(\(item\)\s*=>\s*\(\{[^}]*objectUrl:\s*item\.objectUrl/);
   assert.match(runtime, /attachments:\s*state\.commentAttachments\.map\(\(item\)\s*=>\s*\(\{[^}]*objectUrl:\s*item\.objectUrl/);
   assert.doesNotMatch(runtime, /attachments:\s*state\.(?:post|comment)Attachments\.map\(\(item\)\s*=>\s*\(\{[^}]*url:\s*item\.objectUrl/);
+});
+
+test("formal publishing immediately hydrates newly bound post and comment media", () => {
+  assert.match(runtime, /async function hydrateCreatedRecord\(record, draftItems, linkPreviews\)/);
+  assert.match(runtime, /attachments = draftItems\.map\(\(item\) => \(\{[\s\S]*objectUrl: item\.objectUrl/);
+  assert.match(runtime, /post = await hydrateCreatedRecord\(data\.post, state\.postAttachments, links\)/);
+  assert.match(runtime, /comment = await hydrateCreatedRecord\(data\.comment, state\.commentAttachments, links\)/);
+  assert.match(runtime, /renderBoundAttachments\(item\.attachments \|\| \[\], true, true\)/);
 });
 
 test("QA comments remain isolated to their own article", () => {

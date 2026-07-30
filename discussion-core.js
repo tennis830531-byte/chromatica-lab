@@ -7,7 +7,8 @@
     titleMax: 80,
     bodyMax: 10000,
     commentMax: 3000,
-    cooldownSeconds: 180,
+    postCooldownSeconds: 180,
+    commentCooldownSeconds: 60,
     attachmentCount: 10,
     imageBytes: 10 * 1024 * 1024,
     videoBytes: 100 * 1024 * 1024,
@@ -74,12 +75,13 @@
       || String(b.id).localeCompare(String(a.id)));
   }
 
-  function formatRetryAfter(seconds) {
+  function formatRetryAfter(seconds, action = "create_post") {
     const safe = Math.max(0, Math.ceil(Number(seconds) || 0));
     const minutes = Math.floor(safe / 60);
     const remainder = safe % 60;
-    if (!minutes) return `請等待 ${remainder} 秒後再發表`;
-    return `請等待 ${minutes} 分 ${String(remainder).padStart(2, "0")} 秒後再發表`;
+    const verb = action === "create_comment" ? "留言" : "發表";
+    if (!minutes) return `請等待 ${remainder} 秒後再${verb}`;
+    return `請等待 ${minutes} 分 ${String(remainder).padStart(2, "0")} 秒後再${verb}`;
   }
 
   function excerpt(value, max = 110) {

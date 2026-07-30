@@ -498,7 +498,15 @@ begin
     'max_hp', event.max_hp, 'remaining_hp', event.remaining_hp,
     'light_energy', coalesce(player.light_energy, 0),
     'special_attack_count', coalesce(player.special_attack_count, 0),
-    'special_attack_remaining', 2 - coalesce(player.special_attack_count, 0),
+    'special_attack_remaining', greatest(0, 2 - (
+      select pg_catalog.count(*)::integer
+      from public.world_boss_attacks daily_special
+      where daily_special.event_id = event.id
+        and daily_special.user_id = v_user_id
+        and daily_special.attack_type = 'special'
+        and (daily_special.created_at at time zone 'Asia/Taipei')::date
+          = (pg_catalog.now() at time zone 'Asia/Taipei')::date
+    )),
     'player_damage', coalesce(player.total_effective_damage, 0),
     'player_attack_count', coalesce(player.attack_count, 0),
     'first_attacker_display_name', (

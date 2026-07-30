@@ -57,6 +57,18 @@ test("complete battle page exposes HP, timer, energy, skills, attacks, log, and 
   assert.match(runtime, /window\.setInterval\([^]*void refresh\(\)[^]*5000\)/);
 });
 
+test("battle context returns today's remaining special attacks in Asia/Taipei", () => {
+  const context = migration.slice(
+    migration.indexOf("create function public.get_world_boss_battle_context"),
+    migration.indexOf("create function public.get_world_boss_settlement"),
+  );
+  assert.match(context, /'special_attack_count', coalesce\(player\.special_attack_count, 0\)/);
+  assert.match(context, /'special_attack_remaining', greatest\(0, 2 - \(/);
+  assert.match(context, /daily_special\.created_at at time zone 'Asia\/Taipei'/);
+  assert.match(context, /pg_catalog\.now\(\) at time zone 'Asia\/Taipei'/);
+  assert.match(runtime, /row\.special_attack_remaining == null[\s\S]*2 - Number\(row\.special_attack_count/);
+});
+
 test("home boss entry sits to the right of the weekly leaderboard title", () => {
   assert.match(
     html,
