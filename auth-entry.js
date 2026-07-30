@@ -541,6 +541,10 @@ window.chromaticaAccountWorkspace = {
       ? cloudSaveService?.noteLocalSnapshot?.(snapshot, { immediate: true }) || Promise.resolve(null)
       : Promise.resolve(null);
   },
+  refreshFromCloud() {
+    if (isGardenQaSessionActive()) return Promise.resolve(null);
+    return cloudSaveService?.handleForeground?.() || Promise.resolve(null);
+  },
 };
 
 function cleanWebCallbackUrl(url) {
@@ -1283,6 +1287,10 @@ const LEADERBOARD_RPC_ALLOWLIST = new Set([
   "sync_leaderboard_profile",
   "get_global_leaderboard",
   "get_weekly_leaderboard",
+  "get_spirit_cultivator_leaderboard",
+  "sync_spirit_cultivator_progress",
+  "claim_my_weekly_water_reward",
+  "ack_my_weekly_water_reward_notice",
   "update_leaderboard_profile",
   "record_leaderboard_practice",
   "record_weekly_leaderboard_practice",
@@ -1300,6 +1308,17 @@ const LEADERBOARD_RPC_ALLOWLIST = new Set([
   "delete_announcement_comment",
   "save_announcement",
   "set_announcement_published",
+  "get_world_boss_status",
+  "get_my_world_boss_skills",
+  "learn_world_boss_skill",
+  "grant_world_boss_practice_energy",
+  "exchange_world_boss_energy",
+  "attack_world_boss",
+  "exchange_and_attack_world_boss",
+  "get_world_boss_battle_context",
+  "get_world_boss_settlement",
+  "get_my_world_boss_notifications",
+  "read_world_boss_notification",
 ]);
 
 window.chromaticaAuth = {

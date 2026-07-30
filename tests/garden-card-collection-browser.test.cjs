@@ -27,5 +27,5 @@ test("430px garden collection renders four uncropped 2:3 art cards and equal car
     assert.equal(image.objectFit, "contain");
     assert.ok(Math.abs(image.rect.width / image.rect.height - 2 / 3) < 0.01);
   }
-  assert.equal(data.cells.filter((cell) => cell.featured).length, 1);
+  assert.equal(data.cells.filter((cell) => cell.featured).length, 0);
 });

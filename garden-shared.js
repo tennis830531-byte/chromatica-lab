@@ -22,6 +22,9 @@
     "melody-sprout": "./public/assets/garden/cards/melody-sprout-art-card.png",
     "mushroom-spirit": "./public/assets/garden/cards/mushroom-spirit-art-card.png",
     "flower-spirit": "./public/assets/garden/cards/flower-spirit-art-card.png",
+    "lucky-clover-spirit": "./public/assets/garden/cards/lucky-clover-spirit-art-card.jpeg",
+    "lotus-spirit": "./public/assets/garden/cards/lotus-spirit-art-card.jpeg",
+    "cactus-spirit": "./public/assets/garden/cards/cactus-spirit-art-card.jpeg",
   });
 
   function getGardenCardAsset(speciesId = "") {
@@ -125,7 +128,6 @@
     storeAdapter = null,
     species = storeAdapter?.getSpeciesList?.() || [],
     collection = storeAdapter?.getCollection?.() || [],
-    featuredId = storeAdapter?.getFeaturedId?.() || "",
     getDisplayName = storeAdapter?.getDisplayName || ((plant) => plant?.name || "植物精靈"),
     getImage = storeAdapter?.getImage || (() => ""),
     slots = 50,
@@ -138,7 +140,8 @@
       const speciesForSlot = species[index];
       const collected = speciesForSlot ? collectionBySpecies.get(speciesForSlot.species) : null;
       const cell = document.createElement("div");
-      cell.className = `garden-collection-cell${collected?.id === featuredId ? " featured" : ""}`;
+      const skillUnlocked = Boolean(collected && storeAdapter?.isSkillUnlocked?.(collected.species));
+      cell.className = `garden-collection-cell${skillUnlocked ? " skill-unlocked" : ""}`;
       cell.dataset.collectionSlot = String(slot);
       if (speciesForSlot?.species) cell.dataset.collectionSpecies = speciesForSlot.species;
       if (collected) {

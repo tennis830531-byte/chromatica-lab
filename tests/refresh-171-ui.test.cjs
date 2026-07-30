@@ -127,13 +127,13 @@ test("weekly leaderboard copy removes streak ranking and historic total explanat
 });
 
 test("home reserves a live top-ten title and adds discussion after leaderboard", () => {
-  assert.match(html, /半音階口琴練習室[\s\S]*id="homeLeaderboardTitle"[^>]*aria-live="polite"/);
+  assert.match(html, /半音階口琴練習室[\s\S]*class="home-leaderboard-titles"[^>]*aria-live="polite"[\s\S]*id="homeLeaderboardTitle"[\s\S]*id="homeCultivatorTitle"/);
   const leaderboardEntry = html.indexOf("data-leaderboard-open");
   const discussionEntry = html.indexOf("data-discussion-open");
   const settingsEntry = html.indexOf('data-jump="audio"', discussionEntry);
   assert.ok(leaderboardEntry >= 0 && discussionEntry > leaderboardEntry && settingsEntry > discussionEntry);
-  assert.match(html, /data-discussion-open[^>]*aria-label="討論吧，尚未開放"[\s\S]*discussion-forum-icon\.png[\s\S]*<strong>討論吧<\/strong>/);
-  assert.match(app, /data-discussion-open[\s\S]*showHomeSpiritRewardToast\("尚未開放"\)/);
+  assert.match(html, /data-discussion-open[^>]*aria-label="開啟討論吧"[\s\S]*discussion-forum-icon\.png[\s\S]*<strong>討論吧<\/strong>/);
+  assert.match(app, /data-discussion-open[\s\S]*setView\("discussion"\)/);
   assert.match(css, /\.home-hero \.home-leaderboard-title\s*\{/);
 });
 

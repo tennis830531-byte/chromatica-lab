@@ -11,9 +11,9 @@
 </head>
 <body class="simple-motion">
   <div hidden aria-hidden="true">
-    <img src="../../public/assets/garden/plants/melody-sprout-stage1.png"><img src="../../public/assets/garden/plants/melody-sprout-stage2.png?v=clean-2"><img src="../../public/assets/garden/plants/melody-sprout-stage3.png?v=clean-2">
-    <img src="../../public/assets/garden/plants/mushroom-spirit-stage1.png"><img src="../../public/assets/garden/plants/mushroom-spirit-stage2.png"><img src="../../public/assets/garden/plants/mushroom-spirit-stage3.png">
-    <img src="../../public/assets/garden/plants/flower-spirit-stage1.png"><img src="../../public/assets/garden/plants/flower-spirit-stage2.png"><img src="../../public/assets/garden/plants/flower-spirit-stage3.png">
+    <img src="../../public/assets/garden/plants/melody-sprout-stage1.png?v=hd-20260728b"><img src="../../public/assets/garden/plants/melody-sprout-stage2.png?v=hd-20260728b"><img src="../../public/assets/garden/plants/melody-sprout-stage3.png?v=hd-20260728b">
+    <img src="../../public/assets/garden/plants/mushroom-spirit-stage1.png?v=hd-20260728b"><img src="../../public/assets/garden/plants/mushroom-spirit-stage2.png?v=hd-20260728b"><img src="../../public/assets/garden/plants/mushroom-spirit-stage3.png?v=hd-20260728b">
+    <img src="../../public/assets/garden/plants/flower-spirit-stage1.png?v=hd-20260728b"><img src="../../public/assets/garden/plants/flower-spirit-stage2.png?v=hd-20260728b"><img src="../../public/assets/garden/plants/flower-spirit-stage3.png?v=hd-20260728b">
   </div>
   <div id="gardenSharedRoot"></div>
   <div id="gardenQaSharedRoot"></div>
@@ -54,7 +54,7 @@
       const boxesEqual = (left, right, tolerance = 0.05) => left.every((value, index) => Math.abs(value - right[index]) <= tolerance);
       const result = [];
       for (const speciesId of species) for (const stage of [1, 2, 3]) {
-        const suffix = speciesId === "melody-sprout" && stage > 1 ? "?v=clean-2" : "";
+        const suffix = "?v=hd-20260728b";
         const source = `../../public/assets/garden/plants/${speciesId}-stage${stage}.png${suffix}`;
         const formal = ids.formal;
         const qa = ids.qa;
@@ -121,7 +121,7 @@
       for (const stage of [1, 2, 3, 1, 2, 3]) {
         const qa = ids.qa;
         const qaImage = byId(qa.plantImage);
-        const suffix = stage > 1 ? "?v=clean-2" : "";
+        const suffix = "?v=hd-20260728b";
         window.ChromaticaGardenShared.applyGardenPlantPresentation({
           plant: { species: "melody-sprout", stage }, plantImage: qaImage,
           idleLayer: byId(qa.idleLayer), actionLayer: byId(qa.actionLayer), scene: byId(qa.scene),

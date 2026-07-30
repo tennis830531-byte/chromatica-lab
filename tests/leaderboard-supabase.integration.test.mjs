@@ -126,6 +126,7 @@ async function recordWeekly(index, cycles, dates = streakDates(1), eventId = cry
 
 async function resetWeekly() {
   const targets = [
+    ["leaderboard_weekly_water_rewards", "user_id"], ["leaderboard_spirit_progress", "user_id"],
     ["leaderboard_notification_deliveries", "user_id"], ["leaderboard_notification_queue", "user_id"],
     ["leaderboard_weekly_rank_state", "user_id"], ["weekly_leaderboard_results", "user_id"],
     ["weekly_leaderboard_scores", "user_id"], ["leaderboard_push_device_tokens", "user_id"],
@@ -372,10 +373,162 @@ test("database catalog confirms RLS constraints grants safe search_path and buck
   assert.equal(output, "t,t,t,t,t,t,t,t");
 });
 
-test("Taipei server week changes exactly at Sunday 00:00", async () => {
-  assert.equal(await rpc(admin, "taipei_leaderboard_week_start", { p_timestamp: "2026-07-25T15:59:59Z" }), "2026-07-19");
-  assert.equal(await rpc(admin, "taipei_leaderboard_week_start", { p_timestamp: "2026-07-25T16:00:00Z" }), "2026-07-26");
+test("Taipei server week changes exactly at Sunday 12:00", async () => {
+  assert.equal(await rpc(admin, "taipei_leaderboard_week_start", { p_timestamp: "2026-07-26T03:59:59Z" }), "2026-07-19");
+  assert.equal(await rpc(admin, "taipei_leaderboard_week_start", { p_timestamp: "2026-07-26T04:00:00Z" }), "2026-07-26");
   await expectFailure(() => recordWeekly(0, 1, streakDates(1), crypto.randomUUID(), { p_week_start: "1999-01-03" }), /function|parameter|schema cache/i);
+});
+
+test("cultivator ranking is permanent and sorts species count before stage total", async () => {
+  await resetWeekly();
+  assert.equal(await rpc(clients[0], "sync_spirit_cultivator_progress", {
+    p_spirits: [{ species: "melody-sprout", stage: 3 }, { species: "flower-spirit", stage: 1 }],
+  }), true);
+  assert.equal(await rpc(clients[1], "sync_spirit_cultivator_progress", {
+    p_spirits: [{ species: "melody-sprout", stage: 2 }, { species: "flower-spirit", stage: 3 }],
+  }), true);
+  assert.equal(await rpc(clients[2], "sync_spirit_cultivator_progress", {
+    p_spirits: [{ species: "mushroom-spirit", stage: 3 }],
+  }), true);
+  const rows = await rpc(clients[0], "get_spirit_cultivator_leaderboard");
+  assert.deepEqual(rows.slice(0, 3).map((row) => [row.position, row.score, row.secondary_score]), [
+    [1, 2, 5],
+    [2, 2, 4],
+    [3, 1, 3],
+  ]);
+  assert.equal(Object.prototype.hasOwnProperty.call(rows[0], "week_start"), false);
+  assert.equal((await admin.from("leaderboard_notification_queue").select("*", { count: "exact", head: true })).count, 0);
+  assert.equal((await admin.from("leaderboard_weekly_water_rewards").select("*", { count: "exact", head: true })).count, 0);
+});
+
+test("cultivator sync accepts all six species, rejects malformed progress, and never regresses", async () => {
+  await resetWeekly();
+  const allSpecies = [
+    "melody-sprout",
+    "mushroom-spirit",
+    "flower-spirit",
+    "lucky-clover-spirit",
+    "lotus-spirit",
+    "cactus-spirit",
+  ];
+  assert.equal(await rpc(clients[0], "sync_spirit_cultivator_progress", {
+    p_spirits: allSpecies.map((species, index) => ({ species, stage: (index % 3) + 1 })),
+  }), true);
+  let stored = await admin.from("leaderboard_spirit_progress")
+    .select("species,stage").eq("user_id", users[0].id).order("species");
+  assert.ifError(stored.error);
+  assert.equal(stored.data.length, 6);
+
+  assert.equal(await rpc(clients[0], "sync_spirit_cultivator_progress", {
+    p_spirits: [{ species: "melody-sprout", stage: 3 }, { species: "melody-sprout", stage: 1 }],
+  }), true);
+  assert.equal(await rpc(clients[0], "sync_spirit_cultivator_progress", { p_spirits: [] }), true);
+  stored = await admin.from("leaderboard_spirit_progress")
+    .select("species,stage").eq("user_id", users[0].id).order("species");
+  assert.ifError(stored.error);
+  assert.equal(stored.data.length, 6);
+  assert.equal(stored.data.find((row) => row.species === "melody-sprout")?.stage, 3);
+
+  await expectFailure(() => rpc(clients[0], "sync_spirit_cultivator_progress", {
+    p_spirits: [{ species: "melody-sprout", stage: 4 }],
+  }), /invalid spirit progress/i);
+  await expectFailure(() => rpc(clients[0], "sync_spirit_cultivator_progress", {
+    p_spirits: [{ species: "unknown-spirit", stage: 1 }],
+  }), /invalid spirit progress/i);
+  await expectFailure(() => rpc(clients[0], "sync_spirit_cultivator_progress", {
+    p_spirits: [...allSpecies.map((species) => ({ species, stage: 1 })), { species: "melody-sprout", stage: 1 }],
+  }), /invalid spirit progress/i);
+});
+
+test("weekly rewards update cloud water atomically and retry without duplicate application", async (t) => {
+  await resetWeekly();
+  await resetScores();
+  const week = await rpc(admin, "taipei_leaderboard_week_start");
+  const activeIds = users.slice(0, 11).map((user) => user.id);
+  const originalProfiles = await admin.from("leaderboard_profiles").select("user_id,is_active");
+  assert.ifError(originalProfiles.error);
+  t.after(async () => {
+    for (const row of originalProfiles.data) {
+      assert.ifError((await admin.from("leaderboard_profiles").update({ is_active: row.is_active }).eq("user_id", row.user_id)).error);
+    }
+    await resetWeekly();
+  });
+  assert.ifError((await admin.from("leaderboard_profiles").update({ is_active: false }).not("user_id", "is", null)).error);
+  assert.ifError((await admin.from("leaderboard_profiles").update({ is_active: true }).in("user_id", activeIds)).error);
+  const snapshots = activeIds.map((userId) => ({
+    user_id: userId,
+    schema_version: 1,
+    revision: 1,
+    snapshot: {
+      schemaVersion: 1,
+      userId,
+      updatedAt: new Date().toISOString(),
+      data: { "chromatica.waterDrops": "5" },
+    },
+    client_updated_at: new Date().toISOString(),
+  }));
+  assert.ifError((await admin.from("game_saves").upsert(snapshots, { onConflict: "user_id" })).error);
+  const scores = activeIds.map((userId, index) => ({
+    week_start: week,
+    user_id: userId,
+    completed_cycles: 100 - index,
+    score_reached_at: new Date(Date.UTC(2026, 6, 1, 0, index)).toISOString(),
+  }));
+  assert.ifError((await admin.from("weekly_leaderboard_scores").upsert(scores, { onConflict: "week_start,user_id" })).error);
+
+  await rpc(admin, "finalize_weekly_leaderboard", { p_week_start: week });
+  await rpc(admin, "finalize_weekly_leaderboard", { p_week_start: week });
+  const rewards = await admin.from("leaderboard_weekly_water_rewards")
+    .select("user_id,final_rank,water_amount,status").eq("week_start", week).order("final_rank");
+  assert.ifError(rewards.error);
+  assert.deepEqual(rewards.data.map((row) => [row.final_rank, row.water_amount, row.status]), [
+    [1,20,"pending"], [2,18,"pending"], [3,16,"pending"], [4,14,"pending"], [5,12,"pending"],
+    [6,10,"pending"], [7,8,"pending"], [8,6,"pending"], [9,4,"pending"], [10,2,"pending"],
+  ]);
+  assert.equal(rewards.data.some((row) => row.user_id === users[10].id), false);
+
+  const firstToken = crypto.randomUUID();
+  const first = await rpc(clients[0], "claim_my_weekly_water_reward", { p_notice_claim_token: firstToken });
+  assert.equal(first[0].water_amount, 20);
+  let save = await admin.from("game_saves").select("revision,snapshot").eq("user_id", users[0].id).single();
+  assert.equal(save.data.revision, 2);
+  assert.equal(save.data.snapshot.data["chromatica.waterDrops"], "25");
+  const replay = await rpc(clients[0], "claim_my_weekly_water_reward", { p_notice_claim_token: firstToken });
+  assert.equal(replay[0].water_amount, 20);
+  save = await admin.from("game_saves").select("revision,snapshot").eq("user_id", users[0].id).single();
+  assert.equal(save.data.revision, 2);
+  assert.equal(save.data.snapshot.data["chromatica.waterDrops"], "25");
+  assert.equal(await rpc(clients[0], "ack_my_weekly_water_reward_notice", {
+    p_week_start: week,
+    p_notice_claim_token: firstToken,
+  }), true);
+  assert.deepEqual(await rpc(clients[0], "claim_my_weekly_water_reward", {
+    p_notice_claim_token: crypto.randomUUID(),
+  }), []);
+
+  const interruptedToken = crypto.randomUUID();
+  assert.equal((await rpc(clients[1], "claim_my_weekly_water_reward", {
+    p_notice_claim_token: interruptedToken,
+  }))[0].water_amount, 18);
+  assert.ifError((await admin.from("leaderboard_weekly_water_rewards").update({
+    notice_claimed_at: new Date(Date.now() - 31_000).toISOString(),
+  }).eq("week_start", week).eq("user_id", users[1].id)).error);
+  const retryToken = crypto.randomUUID();
+  assert.equal((await rpc(clients[1], "claim_my_weekly_water_reward", {
+    p_notice_claim_token: retryToken,
+  }))[0].water_amount, 18);
+  save = await admin.from("game_saves").select("revision,snapshot").eq("user_id", users[1].id).single();
+  assert.equal(save.data.revision, 2);
+  assert.equal(save.data.snapshot.data["chromatica.waterDrops"], "23");
+
+  const raceTokens = [crypto.randomUUID(), crypto.randomUUID()];
+  const raced = await Promise.all(raceTokens.map((token) => rpc(clients[2], "claim_my_weekly_water_reward", {
+    p_notice_claim_token: token,
+  })));
+  assert.equal(raced.flat().length, 1);
+  save = await admin.from("game_saves").select("revision,snapshot").eq("user_id", users[2].id).single();
+  assert.equal(save.data.revision, 2);
+  assert.equal(save.data.snapshot.data["chromatica.waterDrops"], "21");
 });
 
 test("weekly RPC accumulates accepted events once and returns server ranks", async () => {

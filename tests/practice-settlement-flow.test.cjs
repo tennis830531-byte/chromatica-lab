@@ -60,9 +60,19 @@ test("7 settlement item builder contains only water, daily-task, and first-daily
   for (const forbidden of ["練習時間", "個人紀錄", "植物成長", "植物採收", "藝術卡牌"]) assert.doesNotMatch(itemBuilder, new RegExp(forbidden));
 });
 
-test("8 result cards reveal one by one using the central 180ms cadence", () => {
-  assert.match(app, /taskStep: 180/);
-  assert.match(app, /for \(let index = 0; index < cards\.length; index \+= 1\)[\s\S]*cards\[index\]\.classList\.add\("is-visible"\)[\s\S]*PRACTICE_SETTLEMENT_TIMING\.taskStep/);
+test("8 result cards reveal one by one with a non-overlapping short tone", () => {
+  assert.match(app, /taskStep: 280/);
+  assert.match(app, /for \(let index = 0; index < cards\.length; index \+= 1\)[\s\S]*cards\[index\]\.classList\.add\("is-visible"\)[\s\S]*revealTonePlayed[\s\S]*schedulePracticeRewardTone\(0, \[560 \+ index \* 34\], 0\.085\)[\s\S]*PRACTICE_SETTLEMENT_TIMING\.taskStep/);
+  assert.match(app, /dataset\.revealTonePlayed !== "true"[\s\S]*dataset\.revealTonePlayed = "true"/);
+});
+
+test("8a completion check draws, bounces, and celebrates with reduced-motion fallback", () => {
+  assert.match(html, /practice-settlement-intro-check[\s\S]*path d="M15 33 L27 45 L49 20"/);
+  assert.match(app, /introMark\.classList\.remove\("is-celebrating"\)[\s\S]*state === "entering"[\s\S]*introMark\.classList\.add\("is-celebrating"\)/);
+  assert.match(css, /practiceSettlementCheckDraw/);
+  assert.match(css, /practiceSettlementCheckBounce/);
+  assert.match(css, /practiceSettlementConfetti/);
+  assert.match(css, /prefers-reduced-motion: reduce[\s\S]*practice-settlement-intro-mark\.is-celebrating[\s\S]*stroke-dashoffset: 0/s);
 });
 
 test("9 no completed-task card is invented when nothing newly completes", () => {

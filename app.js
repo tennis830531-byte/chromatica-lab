@@ -57,9 +57,9 @@ const gardenSpecies = [
     stageNames: ["旋律芽芽", "旋律葉靈", "旋律森使"],
     description: "一株剛從音符泥土裡冒出的口琴小芽，葉片會隨著練習聲音輕輕搖晃。個性溫和，喜歡穩定的長音，是陪伴初學者累積基本功的小精靈。",
     images: [
-      "./public/assets/garden/plants/melody-sprout-stage1.png",
-      "./public/assets/garden/plants/melody-sprout-stage2.png?v=clean-2",
-      "./public/assets/garden/plants/melody-sprout-stage3.png?v=clean-2",
+      "./public/assets/garden/plants/melody-sprout-stage1.png?v=hd-20260728b",
+      "./public/assets/garden/plants/melody-sprout-stage2.png?v=hd-20260728b",
+      "./public/assets/garden/plants/melody-sprout-stage3.png?v=hd-20260728b",
     ],
   },
   {
@@ -68,9 +68,9 @@ const gardenSpecies = [
     stageNames: ["菇鳴靈", "菇鳴樂手", "菇鳴賢者"],
     description: "住在濕潤音樂土壤裡的菇系口琴精靈，菇帽像小小的口琴共鳴箱，能聽見細微的氣息變化。個性安靜但很有靈氣，適合代表專注、耐心與穩定成長。",
     images: [
-      "./public/assets/garden/plants/mushroom-spirit-stage1.png",
-      "./public/assets/garden/plants/mushroom-spirit-stage2.png",
-      "./public/assets/garden/plants/mushroom-spirit-stage3.png",
+      "./public/assets/garden/plants/mushroom-spirit-stage1.png?v=hd-20260728b",
+      "./public/assets/garden/plants/mushroom-spirit-stage2.png?v=hd-20260728b",
+      "./public/assets/garden/plants/mushroom-spirit-stage3.png?v=hd-20260728b",
     ],
   },
   {
@@ -79,36 +79,70 @@ const gardenSpecies = [
     stageNames: ["花樂精靈", "花樂舞靈", "花樂仙子"],
     description: "由旋律盛開而成的花系口琴精靈，花瓣裡藏著明亮的音色與節奏感。個性開朗，澆水後會灑出小音符，象徵練習慢慢開花。",
     images: [
-      "./public/assets/garden/plants/flower-spirit-stage1.png",
-      "./public/assets/garden/plants/flower-spirit-stage2.png",
-      "./public/assets/garden/plants/flower-spirit-stage3.png",
+      "./public/assets/garden/plants/flower-spirit-stage1.png?v=hd-20260728b",
+      "./public/assets/garden/plants/flower-spirit-stage2.png?v=hd-20260728b",
+      "./public/assets/garden/plants/flower-spirit-stage3.png?v=hd-20260728b",
     ],
   },
   {
-    species: "lucky-leaf-spirit",
-    name: "幸葉靈",
-    stageNames: ["幸葉芽", "幸葉靈", "幸葉祭司"],
-    description: "從幸運葉片中誕生的口琴精靈，會用柔和旋律陪伴練習者，讓每一次練習都多一點好心情。",
+    species: "lucky-clover-spirit",
+    name: "幸芽靈",
+    stageNames: ["幸芽靈", "幸葉樂童", "四葉祝使"],
+    stageDescriptions: [
+      "剛從土壤裡冒出的幸運草幼靈，頭頂的小葉會隨著口琴聲輕輕搖晃。據說聽見牠演奏的人，當天會遇到一件小小的好事。",
+      "活潑好動的幸運草樂童，總是一邊踏著輕快步伐，一邊吹奏清亮的旋律。身旁長出的幸運草藤蔓，會跟著節拍擺動。",
+      "能將音樂化為祝福的成熟精靈，巨大的四葉草會收集四周的好運。當牠張開雙手演奏時，幸運草便會像音符般向外生長。",
+    ],
+    description: "能將音樂化為祝福的幸運草精靈，巨大的四葉草會收集四周的好運。",
     images: [
-      "./public/assets/garden/plants/lucky-leaf-spirit-stage1.png",
-      "./public/assets/garden/plants/lucky-leaf-spirit-stage2.png",
-      "./public/assets/garden/plants/lucky-leaf-spirit-stage3.png",
+      "./public/assets/garden/plants/lucky-clover-spirit-stage1.png",
+      "./public/assets/garden/plants/lucky-clover-spirit-stage2.png",
+      "./public/assets/garden/plants/lucky-clover-spirit-stage3.png",
     ],
   },
   {
-    species: "bamboo-sound-child",
-    name: "竹音童",
-    stageNames: ["竹芽童", "竹音童", "竹音翁"],
-    description: "住在竹林深處的植物精靈，竹葉與竹節會隨著旋律輕輕共鳴，音色清新又安定。",
+    species: "lotus-spirit",
+    name: "蓮苞靈",
+    stageNames: ["蓮苞靈", "蓮音舞靈", "蓮華樂仙"],
+    stageDescriptions: [
+      "尚未完全盛開的小蓮花精靈，性格安靜而溫柔。牠吹出的聲音細小柔和，像清晨落在池面上的第一滴露水。",
+      "花瓣逐漸展開後，開始隨著旋律在空中輕輕旋轉。牠擅長演奏柔美的長音，飄落的花瓣也會跟著音樂舞動。",
+      "完全盛放的蓮花精靈，能以悠長而平靜的樂聲安撫周圍的生物。頭頂的蓮蓬會感應旋律，讓花瓣與藤蔓化為流動的舞姿。",
+    ],
+    description: "完全盛放的蓮花精靈，能以悠長而平靜的樂聲安撫周圍的生物。",
     images: [
-      "./public/assets/garden/plants/bamboo-sound-child-stage1.png",
-      "./public/assets/garden/plants/bamboo-sound-child-stage2.png",
-      "./public/assets/garden/plants/bamboo-sound-child-stage3.png",
+      "./public/assets/garden/plants/lotus-spirit-stage1.png",
+      "./public/assets/garden/plants/lotus-spirit-stage2.png",
+      "./public/assets/garden/plants/lotus-spirit-stage3.png",
+    ],
+  },
+  {
+    species: "cactus-spirit",
+    name: "刺芽球",
+    stageNames: ["刺芽球", "刺奏舞者", "荒漠樂將"],
+    stageDescriptions: [
+      "圓滾滾的仙人掌幼靈，雖然身上長滿小刺，個性卻非常親人。牠總抱著短小口琴，吹出有點笨拙但十分有精神的聲音。",
+      "長出分枝手臂後，開始喜歡邊踏步邊演奏。牠的節奏明快有力，頭頂盛開的小花會在每個重拍時微微彈動。",
+      "擁有巨大身軀與渾厚音色的沙漠精靈，寬厚的口琴能吹出低沉而有力量的和聲。雖然外表看似威風，實際上是相當熱情豪爽。",
+    ],
+    description: "擁有巨大身軀與渾厚音色的沙漠精靈，外表威風，個性熱情豪爽。",
+    images: [
+      "./public/assets/garden/plants/cactus-spirit-stage1.png",
+      "./public/assets/garden/plants/cactus-spirit-stage2.png",
+      "./public/assets/garden/plants/cactus-spirit-stage3.png",
     ],
   },
 ];
 
 const availableGardenSpeciesIds = new Set([
+  "melody-sprout",
+  "mushroom-spirit",
+  "flower-spirit",
+  "lucky-clover-spirit",
+  "lotus-spirit",
+  "cactus-spirit",
+]);
+const starterGardenSpeciesIds = new Set([
   "melody-sprout",
   "mushroom-spirit",
   "flower-spirit",
@@ -136,8 +170,6 @@ const starterPlantDescriptions = {
   "melody-sprout": "喜歡在葉間跳動的小精靈，會陪你用穩定的長音慢慢長大。",
   "mushroom-spirit": "森林裡的快樂歌手，適合陪你用溫暖的聲音開始練習。",
   "flower-spirit": "從花苞中誕生的演奏精靈，音色明亮，喜歡把練習變成花瓣旋律。",
-  "lucky-leaf-spirit": "帶來幸運與好運的小福星，會陪你一步一步累積練習成果。",
-  "bamboo-sound-child": "竹林裡安靜可靠的小夥伴，旋律清新，適合穩穩打好基本功。",
 };
 
 const PRACTICE_SETTINGS_KEY = "chromatica.settings.practice";
@@ -341,7 +373,8 @@ async function reconcilePracticeReminderSchedule({ userId = getActiveAccountId()
         id: identity.id,
         schedule: { at, allowWhileIdle: true },
         channelId: PRACTICE_REMINDER_CHANNEL_ID,
-        smallIcon: "ic_practice_notification",
+        smallIcon: "ic_stat_chromatica_notification",
+        iconColor: "#8A5A32",
         extra: { namespace: PRACTICE_REMINDER_NAMESPACE, ...identity },
       };
     });
@@ -428,7 +461,8 @@ async function scheduleQaPracticeReminder(hour, delayMinutes) {
         id: identity.id,
         schedule: { at, allowWhileIdle: true },
         channelId: PRACTICE_REMINDER_CHANNEL_ID,
-        smallIcon: "ic_practice_notification",
+        smallIcon: "ic_stat_chromatica_notification",
+        iconColor: "#8A5A32",
         extra: {
           namespace: PRACTICE_REMINDER_NAMESPACE,
           ...identity,
@@ -880,7 +914,7 @@ const PRACTICE_SETTLEMENT_TIMING = Object.freeze({
   waterSlowSteps: Object.freeze([110, 160, 230]),
   waterResult: 460,
   zeroWaterResult: 520,
-  taskStep: 180,
+  taskStep: 280,
   taskResult: 360,
   leaderboardTimeout: 1600,
   leaderboardResult: 720,
@@ -1130,6 +1164,7 @@ function setSoundSettings(patch) {
   saveSoundSettings(nextSettings);
   renderSoundSettings();
   syncGardenBgmWithView();
+  window.ChromaticaWorldBoss?.onViewChanged?.(currentView);
 }
 
 function isSoundAllowed(soundId) {
@@ -1639,6 +1674,20 @@ function getWaterDrops() {
 function setWaterDrops(value) {
   localStorage.setItem(gardenStorageKeys.waterDrops, String(Math.max(0, Math.floor(Number(value) || 0))));
   scheduleAccountSnapshotSave();
+  renderGardenWaterBadge();
+}
+
+function getLeaderboardCultivatorProgress() {
+  const progress = new Map();
+  const include = (spirit) => {
+    const species = String(spirit?.species || "");
+    if (!availableGardenSpeciesIds.has(species)) return;
+    const stage = Math.max(1, Math.min(3, Math.floor(Number(spirit?.stage) || 1)));
+    progress.set(species, Math.max(progress.get(species) || 0, stage));
+  };
+  getGardenCollection().forEach(include);
+  include(getCurrentPlant(false));
+  return [...progress.entries()].map(([species, stage]) => ({ species, stage }));
 }
 
 function renderDailyPracticeWater() {
@@ -2309,7 +2358,7 @@ function setStarterPlantModalOpen(open) {
 }
 
 function getStarterPlantOptions() {
-  return availableGardenSpecies;
+  return availableGardenSpecies.filter((species) => starterGardenSpeciesIds.has(species.species));
 }
 
 function renderStarterPlantChoices() {
@@ -2387,6 +2436,7 @@ function setGardenSpiritModalOpen(open) {
 
 function createFormalGardenSpiritAdapter() {
   const adapter = {
+    isFormal: true,
     getCollection: getGardenCollection,
     getSpeciesList: () => gardenSpecies,
     getSpirit: getCollectedSpiritById,
@@ -2396,6 +2446,7 @@ function createFormalGardenSpiritAdapter() {
     getDisplayName: (spirit, stage) => getPlantDisplayName(spirit, stage),
     getStageName: (spirit, stage) => getPlantStageName(spirit, stage),
     getImage: (spirit, stage) => getPlantImage({ ...spirit, stage }),
+    isSkillUnlocked: (species) => window.ChromaticaWorldBoss?.isSkillUnlocked?.(species) === true,
     updateName: (id, name) => updateCollectedSpirit(id, () => ({ name, customName: true })),
     setFeatured: (id, stage) => {
       setFeaturedSpiritId(id);
@@ -2429,11 +2480,20 @@ function renderGardenSpiritModal() {
   const isCardPage = gardenSpiritModalPage === "card";
   if (title) title.textContent = displayName;
   if (subtitle) subtitle.textContent = isCardPage ? "點一下卡牌翻到完整介紹。" : "左右滑動查看三種形態，選一個放到首頁展示。";
-  if (artPage) artPage.classList.toggle("hidden", !isCardPage);
+  const skillUnlocked = adapter.isSkillUnlocked?.(spirit.species) === true;
+  $("#gardenSpiritModal")?.classList.toggle("skill-unlocked-card", skillUnlocked && isCardPage);
+  if (artPage) {
+    artPage.classList.toggle("hidden", !isCardPage);
+    artPage.classList.toggle("skill-unlocked", skillUnlocked);
+  }
   if (detailPage) detailPage.classList.toggle("hidden", isCardPage);
   if ($("#gardenSpiritEditName")) $("#gardenSpiritEditName").classList.toggle("hidden", isCardPage);
   if (artImage) artImage.src = window.ChromaticaGardenShared?.getGardenCardAsset?.(spirit.species) || "";
-  if (description) description.textContent = species.description || "";
+  if (description) {
+    description.textContent = species.stageDescriptions?.[selectedGardenSpiritStage - 1]
+      || species.description
+      || "";
+  }
   if (list) {
     list.innerHTML = [1, 2, 3].map((stage) => `
       <button class="garden-spirit-stage-card spirit-${species.species} stage-${stage} ${stage === selectedGardenSpiritStage ? "active" : ""}" data-spirit-stage="${stage}" type="button" aria-label="查看${adapter.getStageName(spirit, stage)}">
@@ -2451,6 +2511,44 @@ function renderGardenSpiritModal() {
       });
     });
   }
+  window.ChromaticaWorldBoss?.renderSkillPanel?.({
+    species: spirit.species,
+    stage: selectedGardenSpiritStage,
+    adapter,
+  });
+}
+
+function refreshGardenSpiritSkillPresentation() {
+  const adapter = getGardenSpiritAdapter();
+  adapter.render?.();
+  if (!$("#gardenSpiritModal")?.classList.contains("hidden")) renderGardenSpiritModal();
+}
+
+function getWorldBossSpiritRoster() {
+  const collection = getGardenCollection();
+  const current = getCurrentPlant(false);
+  const featuredId = getFeaturedSpiritId();
+  const featured = collection.find((spirit) => spirit.id === featuredId) || null;
+  const roster = [];
+  const seen = new Set();
+  const append = (spirit, preferredStage = null) => {
+    if (!spirit?.species || seen.has(spirit.species)) return;
+    seen.add(spirit.species);
+    const maxStage = spirit.harvested ? 3 : Math.max(1, Math.min(3, Number(spirit.stage || getPlantStage(spirit.waterProgress || 0))));
+    const stage = Math.max(1, Math.min(maxStage, Number(preferredStage || maxStage)));
+    roster.push({
+      species: spirit.species,
+      stage,
+      maxStage,
+      name: getPlantStageName(spirit, stage),
+      stageNames: getGardenSpecies(spirit.species)?.stageNames || [],
+      image: getPlantImage({ ...spirit, stage }),
+    });
+  };
+  if (featured) append(featured, getFeaturedSpiritStage());
+  if (current) append(current);
+  collection.forEach((spirit) => append(spirit, 3));
+  return roster;
 }
 
 function openGardenSpiritModal(id, adapter = null) {
@@ -2570,6 +2668,7 @@ function getFormalGardenSceneElements() {
 }
 
 function renderEmptyGardenState() {
+  renderGardenWaterBadge(null);
   if ($("#waterDropCount")) $("#waterDropCount").textContent = getWaterDrops();
   renderDailyPracticeWater();
   window.ChromaticaGardenShared?.renderPlantScene?.({
@@ -2592,6 +2691,15 @@ function renderEmptyGardenState() {
   renderHeroGarden();
 }
 
+function renderGardenWaterBadge(plant = getCurrentPlant(false)) {
+  const badge = $("[data-garden-water-ready]");
+  if (!badge) return;
+  const progress = Math.max(0, Math.min(PLANT_WATER_REQUIRED, Number(plant?.waterProgress) || 0));
+  const canWater = Boolean(plant) && progress < PLANT_WATER_REQUIRED && getWaterDrops() > 0;
+  badge.hidden = !canWater;
+  badge.setAttribute("aria-label", canWater ? "目前有水滴可以澆水" : "");
+}
+
 function renderGarden({ persistNormalizedState = true } = {}) {
   syncStarterPlantStateForExistingUser();
   const plant = getCurrentPlant(false);
@@ -2603,6 +2711,7 @@ function renderGarden({ persistNormalizedState = true } = {}) {
   plant.stage = getPlantStage(progress);
   if (persistNormalizedState) setCurrentPlant(plant);
   const ready = progress >= PLANT_WATER_REQUIRED;
+  renderGardenWaterBadge(plant);
   const stageRequired = getStageWaterRequired(plant.stage);
   const stageProgress = getStageProgress(progress, plant.stage);
   if ($("#waterDropCount")) $("#waterDropCount").textContent = getWaterDrops();
@@ -3092,6 +3201,14 @@ function setPracticeSettlementState(session, state) {
   const overlay = $("#practiceSettlementOverlay");
   if (!overlay) return;
   overlay.dataset.state = state;
+  const introMark = overlay.querySelector(".practice-settlement-intro-mark");
+  if (introMark) {
+    introMark.classList.remove("is-celebrating");
+    if (state === "entering") {
+      void introMark.offsetWidth;
+      introMark.classList.add("is-celebrating");
+    }
+  }
   overlay.classList.toggle("is-closing", state === "closing");
   const panelName = state === "entering"
     ? "entering"
@@ -3253,6 +3370,10 @@ async function revealPracticeSettlementItems(session, cards) {
   const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
   for (let index = 0; index < cards.length; index += 1) {
     cards[index].classList.add("is-visible");
+    if (cards[index].dataset.revealTonePlayed !== "true") {
+      cards[index].dataset.revealTonePlayed = "true";
+      schedulePracticeRewardTone(0, [560 + index * 34], 0.085);
+    }
     await waitForPracticeSettlement(session, reducedMotion ? 35 : PRACTICE_SETTLEMENT_TIMING.taskStep);
   }
   await waitForPracticeSettlement(session, reducedMotion ? 80 : PRACTICE_SETTLEMENT_TIMING.taskResult);
@@ -4330,6 +4451,18 @@ function renderDailyGoals() {
   const tasks = getDailyGoalTasks();
   const progressList = tasks.map((task) => getDailyGoalProgress(state, task));
   const doneCount = progressList.filter((progress) => progress.done).length;
+  const unfinishedCount = Math.max(0, tasks.length - doneCount);
+  const dailyGoalBadge = $("[data-daily-goal-unfinished]");
+  if (dailyGoalBadge) {
+    const allDone = tasks.length > 0 && unfinishedCount === 0;
+    dailyGoalBadge.hidden = tasks.length === 0;
+    dailyGoalBadge.classList.toggle("complete", allDone);
+    dailyGoalBadge.textContent = allDone ? "✓" : String(unfinishedCount);
+    dailyGoalBadge.setAttribute(
+      "aria-label",
+      allDone ? "今日每日目標已全部完成" : `尚有 ${unfinishedCount} 個每日目標未完成`,
+    );
+  }
   const summary = `${doneCount} / ${tasks.length}`;
   $("#dailyGoalSummary").textContent = `今日完成 ${summary} 個練習`;
   $$('[data-view="daily"]').forEach((dailyNav) => {
@@ -6949,6 +7082,7 @@ function finishIntervalPractice() {
     completedCycles: state.completedCycles,
     ...getCanonicalLeaderboardStreakEvidence(),
   });
+  void window.ChromaticaWorldBoss?.recordPracticeCompletion?.({ practiceDate: getTodayKey() });
   renderStreakSummary();
   $("#intervalPlayer").classList.add("hidden");
   $("#intervalComplete").classList.add("hidden");
@@ -7051,6 +7185,8 @@ function setView(view, options = {}) {
   if (view === "quickpractice") renderQuickPractice();
   if (view === "gardenqa") window.ChromaticaGardenQA?.render?.();
   window.ChromaticaGardenQA?.onViewChanged?.(view);
+  window.ChromaticaWorldBoss?.onViewChanged?.(view);
+  window.ChromaticaDiscussion?.onViewChanged?.(view);
   if (view === "audio" && changedView && isMicrophoneEnabled() && !micAnalyser) {
     requestMicrophoneFromSettings();
   }
@@ -7273,6 +7409,7 @@ function stepPractice() {
         completedCycles: totalCycles,
         ...getCanonicalLeaderboardStreakEvidence(),
       });
+      void window.ChromaticaWorldBoss?.recordPracticeCompletion?.({ practiceDate: getTodayKey() });
       stopPractice(true);
       showLongToneCompletion({ exercise, averageScore, waterResult, goalResult, bonusMessages, totalWaterGranted, waterBreakdown, leaderboardResultPromise });
       return;
@@ -7406,6 +7543,7 @@ function pauseAudioForAppBackground() {
   pauseLongToneForAppBackground();
   window.ChromaticaMetronome?.stop?.();
   cancelPracticeRewardWaterAnimation();
+  window.ChromaticaWorldBoss?.onAppBackground?.();
 }
 
 function registerAndroidAppLifecycle() {
@@ -7516,7 +7654,7 @@ async function submitFeedbackForm(event) {
     try {
       const result = await window.chromaticaAuth?.invokeFunction?.("send-feedback", {
         category, description,
-        appVersion: "refresh-173 / Android 1.0.57 (58)",
+        appVersion: "refresh-175 / Android 1.0.58 (59)",
         platform: isNativeAndroidApp() ? "android" : "web",
         currentView, requestId,
       });
@@ -7716,7 +7854,7 @@ function bindEvents() {
     });
   });
   $$("[data-discussion-open]").forEach((button) => {
-    button.addEventListener("click", () => showHomeSpiritRewardToast("尚未開放"));
+    button.addEventListener("click", () => setView("discussion"));
   });
 
   $("#starterPlantChoices")?.addEventListener("click", (event) => {
@@ -8194,6 +8332,7 @@ function initializeAuthenticatedApp(options = {}) {
     renderSoundSettings();
     renderDisplaySettings();
     renderMicrophoneSetting();
+    renderAppExitControl();
     applyDisplaySettings();
     registerServiceWorker();
     refreshAllowedNotes();
@@ -8206,9 +8345,13 @@ function initializeAuthenticatedApp(options = {}) {
     window.ChromaticaLeaderboard?.init?.({
       getCurrentStreak: () => calculateCurrentStreak(getPracticeHistory()),
       getFeaturedSpirit: getLeaderboardFeaturedSpirit,
+      getCultivatorProgress: getLeaderboardCultivatorProgress,
+      prepareWeeklyWaterReward: () => window.chromaticaAccountWorkspace?.syncBestEffort?.(),
+      refreshWeeklyWaterReward: () => window.chromaticaAccountWorkspace?.refreshFromCloud?.(),
       resolveSpiritImage: resolveLeaderboardSpiritImage,
       isQaActive: isGardenQaSessionActive,
     });
+    window.ChromaticaWorldBoss?.init?.();
     window.ChromaticaPushNotifications?.init?.();
     window.ChromaticaAnnouncements?.init?.();
     window.ChromaticaGardenQA?.init?.({
@@ -8263,6 +8406,14 @@ function initializeAuthenticatedApp(options = {}) {
 
 window.chromaticaApp = {
   initializeForAuthenticatedAccount: initializeAuthenticatedApp,
+  getWorldBossSpiritRoster,
+  refreshGardenSpiritSkillPresentation,
+  isAppSoundAllowed() {
+    return getSoundSettings().appSound !== false;
+  },
+  navigate(view, options = {}) {
+    setView(view, options);
+  },
   isPracticeRewardAnimationRunning() {
     return practiceRewardAnimationRunning || practiceSettlementSession?.active === true;
   },

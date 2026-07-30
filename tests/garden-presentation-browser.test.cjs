@@ -61,7 +61,7 @@ test("mushroom and flower presentation geometry remains at the approved V5 basel
     "mushroom-spirit:2": { y: "9px", bottom: 287.02, box: [60.8, 68.7, 230.39, 228.3] },
     "mushroom-spirit:3": { y: "0px", bottom: 278.37, box: [16, 18, 320, 270] },
     "flower-spirit:1": { y: "0px", bottom: 270.86, box: [118.41, 122.42, 115.19, 165.58] },
-    "flower-spirit:2": { y: "0px", bottom: 272.25, box: [73.59, 72.81, 204.8, 215.19] },
+    "flower-spirit:2": { y: "0px", bottom: 271.26, box: [67.2, 59.36, 217.59, 228.64] },
     "flower-spirit:3": { y: "-14px", bottom: 260.2, box: [16, 4, 320, 270] },
   };
   for (const row of rows.filter((item) => item.species !== "melody-sprout")) {
@@ -76,15 +76,15 @@ test("alpha-measured homepage water balance and stable layout match the locked V
   const result = readFixtureResult(localFixture);
   assert.equal(result.hero.length, 9);
   const lockedHero = {
-    "melody-sprout:1": { maxWidth: "40%", maxHeight: "146px", transform: "matrix(1, 0, 0, 1, 0, 45.07)", delta: 0 },
-    "melody-sprout:2": { maxWidth: "84%", maxHeight: "162px", transform: "matrix(1, 0, 0, 1, 0, 44.26)", delta: 0 },
-    "melody-sprout:3": { maxWidth: "120%", maxHeight: "214px", transform: "matrix(1, 0, 0, 1, 0, -3.21)", delta: -23.2 },
-    "mushroom-spirit:1": { maxWidth: "40%", maxHeight: "146px", transform: "matrix(1, 0, 0, 1, 0, 50.3)", delta: 16.29 },
-    "mushroom-spirit:2": { maxWidth: "84%", maxHeight: "162px", transform: "matrix(1, 0, 0, 1, 0, 48.54)", delta: 10 },
-    "mushroom-spirit:3": { maxWidth: "112%", maxHeight: "200px", transform: "matrix(1, 0, 0, 1, 0, 8.39)", delta: -18.2 },
-    "flower-spirit:1": { maxWidth: "40%", maxHeight: "146px", transform: "matrix(1, 0, 0, 1, 0, 46.57)", delta: 1.78 },
-    "flower-spirit:2": { maxWidth: "85%", maxHeight: "144px", transform: "matrix(1, 0, 0, 1, 0, 42)", delta: 0 },
-    "flower-spirit:3": { maxWidth: "112%", maxHeight: "200px", transform: "matrix(1, 0, 0, 1, 0, -3.52)", delta: -33.2 },
+    "melody-sprout:1": { maxWidth: "40%", maxHeight: "146px", transform: "matrix(1, 0, 0, 1, 0, 45.07)", delta: 0.59 },
+    "melody-sprout:2": { maxWidth: "90%", maxHeight: "174px", transform: "matrix(1, 0, 0, 1, 0, 36.26)", delta: -8.36 },
+    "melody-sprout:3": { maxWidth: "125%", maxHeight: "222px", transform: "matrix(1, 0, 0, 1, 0, -11.21)", delta: -23.15 },
+    "mushroom-spirit:1": { maxWidth: "40%", maxHeight: "146px", transform: "matrix(1, 0, 0, 1, 0, 50.3)", delta: 16.88 },
+    "mushroom-spirit:2": { maxWidth: "84%", maxHeight: "162px", transform: "matrix(1, 0, 0, 1, 0, 48.54)", delta: 10.59 },
+    "mushroom-spirit:3": { maxWidth: "112%", maxHeight: "200px", transform: "matrix(1, 0, 0, 1, 0, 8.39)", delta: -17.61 },
+    "flower-spirit:1": { maxWidth: "40%", maxHeight: "146px", transform: "matrix(1, 0, 0, 1, 0, 46.57)", delta: 2.37 },
+    "flower-spirit:2": { maxWidth: "90%", maxHeight: "152px", transform: "matrix(1, 0, 0, 1, 0, 42)", delta: 0 },
+    "flower-spirit:3": { maxWidth: "112%", maxHeight: "200px", transform: "matrix(1, 0, 0, 1, 0, -3.52)", delta: -32.61 },
   };
   for (const item of result.hero) {
     assert.ok(item.alpha.width > 0 && item.alpha.height > 0, `${item.species} stage ${item.stage} alpha bounds`);
@@ -121,7 +121,7 @@ test("page-specific garden selectors preserve formal background hero detail and 
   const result = readFixtureResult(pageFixture);
   assert.deepEqual(result.scene, { overflow: "visible", borderRadius: "24px" });
   assert.deepEqual(result.backdrop, { x: -8, y: -8, widthDelta: 16, heightDelta: 16, borderRadius: "0px", clipPath: "none" });
-  assert.deepEqual(result.hero.melody, { maxWidth: "120%", maxHeight: "214px", transform: "matrix(1, 0, 0, 1, 0, -3.21)", className: "hero-garden-plant-image species-melody-sprout hero-stage-3" });
+  assert.deepEqual(result.hero.melody, { maxWidth: "125%", maxHeight: "222px", transform: "matrix(1, 0, 0, 1, 0, -11.21)", className: "hero-garden-plant-image species-melody-sprout hero-stage-3" });
   assert.deepEqual(result.hero.mushroom, { maxWidth: "112%", maxHeight: "200px", transform: "matrix(1, 0, 0, 1, 0, 8.39)", className: "hero-garden-plant-image species-mushroom-spirit hero-stage-3" });
   assert.deepEqual(result.hero.flower, { maxWidth: "112%", maxHeight: "200px", transform: "matrix(1, 0, 0, 1, 0, -3.52)", className: "hero-garden-plant-image species-flower-spirit hero-stage-3" });
   assert.equal(result.detail.melody.maxWidth, "128%");

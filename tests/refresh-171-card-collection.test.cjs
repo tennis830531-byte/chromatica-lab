@@ -13,9 +13,14 @@ const html = read("index.html");
 const css = read("styles.css");
 
 const cards = [
-  ["melody-sprout", "melody-sprout-art-card.png", "89449a74699c411d55c996490f65ede5d37e853093cfea8490151559655a595d"],
-  ["mushroom-spirit", "mushroom-spirit-art-card.png", "6ce428e2a445c6910ab5bdc0b448be02fb48e8e6cbb8605e55fe95bfb209c331"],
-  ["flower-spirit", "flower-spirit-art-card.png", "2a76be32e4e5ec7c5c7f39eb2bee5e5022d1f37d26319d698342833ed67a450c"],
+  ["melody-sprout", "melody-sprout-art-card.png", "b04847d079a4c73015de745057122e5bbd862a790ee7dc305cb0d0d943d524fc"],
+  ["mushroom-spirit", "mushroom-spirit-art-card.png", "bfc95b9b1cd6467df002915202ccfe06eaa35a362587b2879bfdc28ef81b7cab"],
+  ["flower-spirit", "flower-spirit-art-card.png", "d09446af36931e65b8bca6301efce9eca333c884b168007352118cbfcbdb5524"],
+];
+const newCards = [
+  ["lucky-clover-spirit", "lucky-clover-spirit-art-card.jpeg", "28134ec95ad2261a16d11a9a9faa894d3f845cf630e09f2cfe4b2c37d546b2ea"],
+  ["lotus-spirit", "lotus-spirit-art-card.jpeg", "7d8165011f7de4f1c0858d60e7028fd34948712fbc18a547cc3f378f9cb46555"],
+  ["cactus-spirit", "cactus-spirit-art-card.jpeg", "9d1c9f63686ddea9d25d5eefcab6dba110f0e50e028bcfd76d7bd75f317679be"],
 ];
 
 test("confirmed card assets retain their exact bytes and single species mapping", () => {
@@ -26,6 +31,18 @@ test("confirmed card assets retain their exact bytes and single species mapping"
     assert.equal(bytes.subarray(1, 4).toString(), "PNG");
     assert.equal(bytes.readUInt32BE(16), 1024);
     assert.equal(bytes.readUInt32BE(20), 1536);
+  }
+});
+
+test("new species card assets retain their exact supplied JPEG bytes and mappings", () => {
+  for (const [species, file, hash] of newCards) {
+    const bytes = fs.readFileSync(path.join(root, "public/assets/garden/cards", file));
+    assert.equal(crypto.createHash("sha256").update(bytes).digest("hex"), hash);
+    assert.match(shared, new RegExp(`"${species}": "\\./public/assets/garden/cards/${file.replaceAll(".", "\\.")}"`));
+    assert.equal(bytes[0], 0xff);
+    assert.equal(bytes[1], 0xd8);
+    assert.equal(bytes.at(-2), 0xff);
+    assert.equal(bytes.at(-1), 0xd9);
   }
 });
 
@@ -73,6 +90,7 @@ test("harvest card intro keeps exactly five seconds and unlocks reveal only afte
   assert.match(app, /aria-label="卡牌正在甦醒" aria-disabled="true" disabled/);
   assert.match(app, /await introSoundDone;\s*let revealReady = true;\s*button\.disabled = false;/);
   assert.match(app, /status\.textContent = "點一下揭曉卡牌"/);
+  assert.match(css, /\.harvest-card-dialog p \{[\s\S]*color: #fff;[\s\S]*text-shadow:/);
 });
 
 test("first card reveal uses one dedicated one-second haptic", () => {
@@ -108,7 +126,7 @@ test("QA hero supports nine combinations in session and cannot start formal prac
   assert.match(qa, /gardenQaHeroSpecies/);
   assert.match(qa, /gardenQaHeroStage/);
   assert.match(qa, /hero-stage-1", "hero-stage-2", "hero-stage-3/);
-  assert.match(qa, /aria-disabled="true"/);
+  assert.match(qa, /button\.setAttribute\("aria-disabled", "true"\)/);
   assert.doesNotMatch(qa, /localStorage/);
 });
 
