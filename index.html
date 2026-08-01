@@ -1371,6 +1371,12 @@
             <section id="worldBossQaPanel" class="world-boss-qa-panel hidden" aria-label="World Boss QA 測試控制">
               <div class="world-boss-qa-head"><strong>World Boss QA｜完全隔離</strong><button id="worldBossQaReturn" type="button">返回測試花園</button></div>
               <p>只使用本次 session，不扣正式水滴、不寫正式戰鬥或通知資料。</p>
+              <label class="world-boss-qa-boss-picker">測試 Boss
+                <select id="worldBossQaBoss">
+                  <option value="tree-sparrow">樹麻雀｜3000 HP</option>
+                  <option value="hill-myna">嘯八哥｜5000 HP</option>
+                </select>
+              </label>
               <div class="world-boss-qa-toggles">
                 <label><input id="worldBossQaUnlimitedEnergy" type="checkbox" checked /> 無限光之能量</label>
                 <label><input id="worldBossQaUnlimitedSpecial" type="checkbox" checked /> 特殊技能次數不受限</label>
@@ -1383,6 +1389,7 @@
               <div class="world-boss-qa-actions" aria-label="快速設定 Boss HP">
                 <span>Boss HP</span>
                 <button type="button" data-world-boss-qa-hp="3000">3000</button>
+                <button type="button" data-world-boss-qa-hp="5000">5000</button>
                 <button type="button" data-world-boss-qa-hp="600">600</button>
                 <button type="button" data-world-boss-qa-hp="20">20</button>
                 <button type="button" data-world-boss-qa-hp="0">0</button>

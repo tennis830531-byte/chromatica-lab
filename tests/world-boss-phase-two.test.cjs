@@ -34,7 +34,7 @@ test("living boss always uses normal state and zero HP uses defeated state", () 
 
 test("counterattack is a single visual-only one-second presentation", () => {
   const counter = runtime.slice(runtime.indexOf("function playBossCounter"), runtime.indexOf("async function performAttack"));
-  assert.match(counter, /狂暴狀態\.png/);
+  assert.match(counter, /image\.src = bossPresentation\(\)\.counter/);
   assert.match(counter, /if \(state\.counterPromise\) return state\.counterPromise/);
   assert.match(counter, /window\.setTimeout\(finishBossCounter, 1000\)/);
   assert.match(counter, /remaining_hp[^]*<= 0/);
@@ -119,7 +119,7 @@ test("battle arena uses the approved fixed background and exposes live ranking w
 });
 
 test("living Boss alternates the two approved idle images while counter and death remain exclusive", () => {
-  assert.match(runtime, /BOSS_IDLE_IMAGES = Object\.freeze\(\[[\s\S]*第一隻boss 樹麻雀\.png[\s\S]*ChatGPT Image 2026年7月27日 下午05_48_36\.png/);
+  assert.match(runtime, /BOSS_PRESENTATIONS = Object\.freeze\(\{[\s\S]*"tree-sparrow"[\s\S]*第一隻boss 樹麻雀\.png[\s\S]*ChatGPT Image 2026年7月27日 下午05_48_36\.png/);
   assert.match(runtime, /function startBossBreathing\(\)[\s\S]*prefersReducedMotion\(\) \? 2000 : 500/);
   assert.match(runtime, /if \(state\.busy \|\| state\.counterPromise/);
   assert.match(runtime, /第一隻boss 樹麻雀 狂暴狀態\.png/);
@@ -150,7 +150,7 @@ test("QA success and failure settlements enter a dedicated result view with corr
   assert.match(html, /id="worldBossSettlementBossImage"/);
   assert.match(css, /\.world-boss-settlement-scene \{[\s\S]*world-boss-arena-background\.png/);
   assert.match(runtime, /worldBossCombatView"\)\?\.classList\.toggle\("hidden", settlementView\)/);
-  assert.match(runtime, /success[\s\S]*第一隻boss樹麻雀 死亡狀態\.png[\s\S]*BOSS_IDLE_IMAGES\[0\]/);
+  assert.match(runtime, /success[\s\S]*presentation\.defeated[\s\S]*presentation\.idle\[0\]/);
   assert.match(runtime, /worldBossSettlement"\)\?\.scrollIntoView/);
 });
 

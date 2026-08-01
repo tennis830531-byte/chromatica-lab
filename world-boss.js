@@ -6,10 +6,28 @@
   const NORMAL_ATTACK_SOUND_PATH = "./public/assets/sounds/精靈普通攻擊_1秒.wav";
   const SPECIAL_ATTACK_SOUND_PATH = "./public/assets/sounds/Arcane Surge.wav";
   const LEADERBOARD_AVATAR_FALLBACK = "./public/assets/chromatic-refresh/brand/chl_brand_badge.png";
-  const BOSS_IDLE_IMAGES = Object.freeze([
-    `${ASSET_ROOT}第一隻boss 樹麻雀.png`,
-    `${ASSET_ROOT}ChatGPT Image 2026年7月27日 下午05_48_36.png`,
-  ]);
+  const BOSS_PRESENTATIONS = Object.freeze({
+    "tree-sparrow": Object.freeze({
+      name: "樹麻雀",
+      maxHp: 3000,
+      idle: Object.freeze([
+        `${ASSET_ROOT}第一隻boss 樹麻雀.png`,
+        `${ASSET_ROOT}ChatGPT Image 2026年7月27日 下午05_48_36.png`,
+      ]),
+      counter: `${ASSET_ROOT}第一隻boss 樹麻雀 狂暴狀態.png`,
+      defeated: `${ASSET_ROOT}第一隻boss樹麻雀 死亡狀態.png`,
+    }),
+    "hill-myna": Object.freeze({
+      name: "嘯八哥",
+      maxHp: 5000,
+      idle: Object.freeze([
+        `${ASSET_ROOT}第二隻boss 嘯八哥.png`,
+        `${ASSET_ROOT}第二隻boss 嘯八哥 呼吸狀態.png`,
+      ]),
+      counter: `${ASSET_ROOT}第二隻boss 嘯八哥 反擊狀態.png`,
+      defeated: `${ASSET_ROOT}第二隻boss 嘯八哥 死亡狀態.png`,
+    }),
+  });
   const SPECIAL_CARD_ASSETS = Object.freeze({
     "melody-sprout": "./public/assets/garden/cards/melody-sprout-art-card.png",
     "mushroom-spirit": "./public/assets/garden/cards/mushroom-spirit-art-card.png",
@@ -160,7 +178,19 @@
     return Boolean(window.ChromaticaGardenQA?.isGardenQaSessionActive?.());
   }
 
-  function defaultQaSession() {
+  function bossKey(event = state.event) {
+    if (BOSS_PRESENTATIONS[event?.boss_key]) return event.boss_key;
+    if (event?.boss_name === "嘯八哥") return "hill-myna";
+    return "tree-sparrow";
+  }
+
+  function bossPresentation(event = state.event) {
+    return BOSS_PRESENTATIONS[bossKey(event)];
+  }
+
+  function defaultQaSession(selectedBossKey = "tree-sparrow") {
+    const resolvedBossKey = BOSS_PRESENTATIONS[selectedBossKey] ? selectedBossKey : "tree-sparrow";
+    const boss = BOSS_PRESENTATIONS[resolvedBossKey];
     const specialAttackDateKey = taipeiDateKey();
     return {
       schemaVersion: 1,
@@ -171,10 +201,11 @@
       exchangedEnergy: 0,
       event: {
         event_id: QA_EVENT_ID,
-        boss_key: "tree-sparrow",
+        boss_key: resolvedBossKey,
+        boss_name: boss.name,
         status: "active",
-        remaining_hp: 3000,
-        max_hp: 3000,
+        remaining_hp: boss.maxHp,
+        max_hp: boss.maxHp,
         starts_at: new Date(Date.now() - 60_000).toISOString(),
         ends_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
         light_energy: 1,
@@ -191,11 +222,12 @@
   }
 
   function sanitizeQaSession(value) {
-    const fallback = defaultQaSession();
+    const selectedBossKey = BOSS_PRESENTATIONS[value?.event?.boss_key] ? value.event.boss_key : "tree-sparrow";
+    const fallback = defaultQaSession(selectedBossKey);
     if (!value || value.schemaVersion !== 1 || !value.event) return fallback;
     const specialAttackDateKey = taipeiDateKey();
     const isSameSpecialAttackDay = value.specialAttackDateKey === specialAttackDateKey;
-    const remaining = Math.max(0, Math.min(3000, Number(value.event.remaining_hp) || 0));
+    const remaining = Math.max(0, Math.min(fallback.event.max_hp, Number(value.event.remaining_hp) || 0));
     const battleLog = Array.isArray(value.event.battle_log) ? value.event.battle_log.slice(0, 30) : [];
     return {
       schemaVersion: 1,
@@ -208,7 +240,9 @@
         ...fallback.event,
         ...value.event,
         event_id: QA_EVENT_ID,
-        max_hp: 3000,
+        boss_key: selectedBossKey,
+        boss_name: fallback.event.boss_name,
+        max_hp: fallback.event.max_hp,
         remaining_hp: remaining,
         status: ["active", "defeated", "expired", "settling", "closed"].includes(value.event.status)
           ? value.event.status
@@ -287,7 +321,8 @@
   function renderBossIdleImage() {
     const image = $("#worldBossImage");
     if (!image || state.counterPromise || Number(state.event?.remaining_hp || 0) <= 0) return;
-    image.src = BOSS_IDLE_IMAGES[state.breathingFrame % BOSS_IDLE_IMAGES.length];
+    const idleImages = bossPresentation().idle;
+    image.src = idleImages[state.breathingFrame % idleImages.length];
   }
 
   function startBossBreathing() {
@@ -307,8 +342,9 @@
       state.event?.max_hp,
       state.event?.status,
     ) || "normal";
-    if (visual === "defeated") return `${ASSET_ROOT}第一隻boss樹麻雀 死亡狀態.png`;
-    return BOSS_IDLE_IMAGES[state.breathingFrame % BOSS_IDLE_IMAGES.length];
+    const presentation = bossPresentation();
+    if (visual === "defeated") return presentation.defeated;
+    return presentation.idle[state.breathingFrame % presentation.idle.length];
   }
 
   function initializeSpiritRoster() {
@@ -469,11 +505,16 @@
     const countdown = $("#worldBossCountdown");
     const previewCard = $("#worldBossPreviewCountdownCard");
     const previewValue = $("#worldBossPreviewCountdownValue");
+    const presentation = bossPresentation();
     const scheduled = status === "scheduled" && Boolean(target);
     previewCard?.classList.toggle("hidden", !scheduled);
     countdown?.classList.toggle("hidden", scheduled);
     const remaining = target ? core()?.formatRemainingTime?.(target) || "—" : "—";
     if (previewValue && scheduled) previewValue.textContent = `倒數 ${remaining}`;
+    const previewImage = $("#worldBossPreviewCountdownCard img");
+    const previewName = $("#worldBossPreviewCountdownCard strong");
+    if (previewImage) previewImage.src = presentation.idle[0];
+    if (previewName) previewName.textContent = `${presentation.name}即將出沒`;
     if (!countdown || !target) return;
     const prefix = scheduled ? "距離討伐開始" : "活動剩餘";
     countdown.textContent = `${prefix} ${remaining}`;
@@ -560,12 +601,11 @@
     panel?.classList.toggle("hidden", !data);
     if (!panel || !data) return;
     const success = data.snapshot?.success === true;
+    const presentation = bossPresentation();
     const settlementBoss = $("#worldBossSettlementBossImage");
     if (settlementBoss) {
-      settlementBoss.src = success
-        ? `${ASSET_ROOT}第一隻boss樹麻雀 死亡狀態.png`
-        : BOSS_IDLE_IMAGES[0];
-      settlementBoss.alt = success ? "已被擊倒的樹麻雀" : "仍站立的樹麻雀";
+      settlementBoss.src = success ? presentation.defeated : presentation.idle[0];
+      settlementBoss.alt = success ? `已被擊倒的${presentation.name}` : `仍站立的${presentation.name}`;
     }
     $("#worldBossSettlementTitle").textContent = success ? "討伐成功！" : "討伐未成功";
     const summary = $("#worldBossSettlementSummary");
@@ -629,8 +669,13 @@
     const energy = $("#worldBossEnergyCount");
     const status = state.event?.status || "scheduled";
     const qaActive = isQaMode();
+    const presentation = bossPresentation();
     initializeSpiritRoster();
     $("#worldBossQaPanel")?.classList.toggle("hidden", !qaActive);
+    if ($("#worldBossQaBoss")) $("#worldBossQaBoss").value = bossKey();
+    if ($("#worldBossName")) $("#worldBossName").textContent = `世界 Boss・${presentation.name}`;
+    if ($("#worldBossCounterMessage")) $("#worldBossCounterMessage").textContent = `${presentation.name}發動反擊！`;
+    if (image) image.alt = `世界 Boss ${presentation.name}`;
     if (image) {
       image.src = bossImage();
       image.classList.toggle("hidden", status === "scheduled");
@@ -664,7 +709,7 @@
                 : "下一場預告";
     }
     const remaining = Number(state.event?.remaining_hp || 0);
-    const maximum = Number(state.event?.max_hp || 3000);
+    const maximum = Number(state.event?.max_hp || presentation.maxHp);
     if (remaining <= 0 && state.counterPromise) finishBossCounter();
     if (hp) hp.textContent = `HP ${remaining} / ${maximum}`;
     const ratio = maximum > 0 ? Math.max(0, Math.min(1, remaining / maximum)) : 0;
@@ -802,7 +847,7 @@
     const message = $("#worldBossCounterMessage");
     if (!image || !arena || Number(state.event?.remaining_hp || 0) <= 0) return Promise.resolve();
     if (state.counterPromise) return state.counterPromise;
-    image.src = `${ASSET_ROOT}第一隻boss 樹麻雀 狂暴狀態.png`;
+    image.src = bossPresentation().counter;
     arena.classList.add("is-countering");
     $("#worldBossBattleControls")?.classList.add("is-countering");
     message?.classList.remove("hidden");
@@ -1021,13 +1066,28 @@
     if (!isQaMode() || state.busy) return;
     const session = loadQaSession();
     if (!session) return;
-    session.event.remaining_hp = Math.max(0, Math.min(3000, Number(value) || 0));
+    session.event.remaining_hp = Math.max(0, Math.min(session.event.max_hp, Number(value) || 0));
     session.event.status = session.event.remaining_hp === 0 ? "defeated" : "active";
     session.settlement = null;
     saveQaSession(session);
     applyQaSession(session);
     renderPage();
     $("#worldBossMessage").textContent = `QA：Boss HP 已設為 ${session.event.remaining_hp}。`;
+  }
+
+  function setQaBoss(selectedBossKey) {
+    if (!isQaMode() || state.busy || !BOSS_PRESENTATIONS[selectedBossKey]) return;
+    finishBossCounter();
+    const current = loadQaSession();
+    const session = defaultQaSession(selectedBossKey);
+    session.unlimitedEnergy = current?.unlimitedEnergy !== false;
+    session.unlimitedSpecial = current?.unlimitedSpecial !== false;
+    session.qaWaterDrops = current?.qaWaterDrops ?? 300;
+    saveQaSession(session);
+    applyQaSession(session);
+    renderEntry();
+    renderPage();
+    $("#worldBossMessage").textContent = `QA：已切換為${bossPresentation().name}，活動資料已獨立重置。`;
   }
 
   function updateQaOption(option, enabled) {
@@ -1065,7 +1125,8 @@
   function resetQaSession() {
     if (!isQaMode()) return;
     finishBossCounter();
-    sessionStorage.removeItem(QA_STORAGE_KEY);
+    const selectedBossKey = bossKey(loadQaSession()?.event);
+    saveQaSession(defaultQaSession(selectedBossKey));
     state.spiritRoster = [];
     state.spiritRosterQa = null;
     state.attackMode = "normal";
@@ -1238,6 +1299,7 @@
     $("#worldBossQaUnlimitedSpecial")?.addEventListener("change", (event) => updateQaOption("special", event.target.checked));
     $("#worldBossQaZeroEnergy")?.addEventListener("click", () => setQaEnergy(0));
     $("#worldBossQaWater")?.addEventListener("change", (event) => setQaWater(event.target.value));
+    $("#worldBossQaBoss")?.addEventListener("change", (event) => setQaBoss(event.target.value));
     $("#worldBossQaSuccess")?.addEventListener("click", () => void simulateQaSettlement(true));
     $("#worldBossQaFailure")?.addEventListener("click", () => void simulateQaSettlement(false));
     $("#worldBossQaReset")?.addEventListener("click", resetQaSession);

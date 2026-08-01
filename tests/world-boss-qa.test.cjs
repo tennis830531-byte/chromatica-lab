@@ -41,6 +41,7 @@ test("QA session is sessionStorage-only and never uses formal RPC or account per
 
 test("QA controls include unlimited resources, exact HP presets, both settlements, and reset", () => {
   for (const id of [
+    "worldBossQaBoss",
     "worldBossQaUnlimitedEnergy",
     "worldBossQaUnlimitedSpecial",
     "worldBossQaSuccess",
@@ -50,11 +51,26 @@ test("QA controls include unlimited resources, exact HP presets, both settlement
     "worldBossQaWater",
     "worldBossQaExchangeCount",
   ]) assert.match(html, new RegExp(`id="${id}"`));
-  for (const hp of [3000, 600, 20, 0]) {
+  for (const hp of [5000, 3000, 600, 20, 0]) {
     assert.match(html, new RegExp(`data-world-boss-qa-hp="${hp}"`));
   }
   assert.match(runtime, /qa_unlimited_energy[\s\S]*"∞"/);
   assert.match(runtime, /qa_unlimited_special[\s\S]*"∞"/);
+});
+
+test("QA can switch between the two Boss definitions without touching formal data", () => {
+  assert.match(html, /id="worldBossQaBoss"[\s\S]*value="tree-sparrow"[\s\S]*樹麻雀｜3000 HP/);
+  assert.match(html, /id="worldBossQaBoss"[\s\S]*value="hill-myna"[\s\S]*嘯八哥｜5000 HP/);
+  const switchBoss = functionBody("setQaBoss", "updateQaOption");
+  assert.match(switchBoss, /defaultQaSession\(selectedBossKey\)/);
+  assert.match(switchBoss, /saveQaSession\(session\)/);
+  assert.match(switchBoss, /renderEntry\(\)/);
+  assert.match(switchBoss, /renderPage\(\)/);
+  assert.doesNotMatch(switchBoss, /rpc\(|leaderboardRpc|fetch\(|game_saves/);
+  assert.match(runtime, /worldBossQaBoss"\)\?\.addEventListener\("change", \(event\) => setQaBoss\(event\.target\.value\)\)/);
+  const reset = functionBody("resetQaSession", "openQa");
+  assert.match(reset, /selectedBossKey = bossKey\(loadQaSession\(\)\?\.event\)/);
+  assert.match(reset, /defaultQaSession\(selectedBossKey\)/);
 });
 
 test("QA special attacks reset to two uses on each Taipei calendar day", () => {
@@ -154,7 +170,7 @@ test("QA success and failure screens include formal reward-detail shapes without
 });
 
 test("zero HP immediately uses the death image and disables formal battle controls", () => {
-  assert.match(runtime, /if \(visual === "defeated"\) return `\$\{ASSET_ROOT\}第一隻boss樹麻雀 死亡狀態\.png`/);
+  assert.match(runtime, /if \(visual === "defeated"\) return presentation\.defeated/);
   assert.match(functionBody("setQaHp", "updateQaOption"), /remaining_hp === 0 \? "defeated" : "active"/);
   assert.match(runtime, /battle\?\.classList\.toggle\("hidden", status !== "active" \|\| remaining <= 0\)/);
 });

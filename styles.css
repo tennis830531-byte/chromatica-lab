@@ -1287,6 +1287,24 @@ body.simple-motion .hero-plant-action {
   font: 800 11px/1.2 var(--font-sans);
 }
 
+.world-boss-qa-boss-picker {
+  display: grid;
+  gap: 5px;
+  color: #644329;
+  font-weight: 800;
+}
+
+.world-boss-qa-boss-picker select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(123, 77, 40, 0.48);
+  border-radius: 10px;
+  padding: 7px 10px;
+  color: #563820;
+  background: #fffaf0;
+  font: inherit;
+}
+
 .world-boss-qa-actions button,
 .world-boss-qa-head button {
   min-height: 34px;
