@@ -23,6 +23,11 @@
     <link rel="stylesheet" href="./styles.css?v=refresh-175" />
   </head>
   <body class="auth-checking">
+    <div id="openingVideoOverlay" class="opening-video-overlay hidden" aria-hidden="true">
+      <video id="openingVideo" class="opening-video" preload="auto" playsinline webkit-playsinline disablepictureinpicture aria-label="Chromatica Lab 開場影片"></video>
+      <button id="openingVideoSkip" class="opening-video-skip hidden" type="button">略過</button>
+    </div>
+
     <div id="authGate" class="auth-gate" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
       <div class="auth-gate-card paper-card">
         <img class="auth-gate-logo" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="" aria-hidden="true" />
@@ -1581,6 +1586,7 @@
 
 
     <script src="./supabase-config.js?v=refresh-175"></script>
+    <script src="./opening-video.js?v=refresh-175"></script>
     <script src="./haptic-feedback.js?v=refresh-175"></script>
     <script src="./practice-reminders.js?v=refresh-175"></script>
     <script src="./daily-login-bonus.js?v=refresh-175"></script>

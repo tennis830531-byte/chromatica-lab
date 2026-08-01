@@ -36,6 +36,7 @@ public class MainActivity extends BridgeActivity {
     private boolean webAuthReady;
     private boolean webWorkspaceReady;
     private boolean webImagesReady;
+    private boolean webVideoReady;
     private boolean webReadinessCheckPending;
     private boolean firebaseReady;
     private boolean nativePushConfigPublished;
@@ -46,6 +47,7 @@ public class MainActivity extends BridgeActivity {
         int googleAppIdResource = getResources().getIdentifier("google_app_id", "string", getPackageName());
         firebaseReady = googleAppIdResource != 0;
         configureStatusBarInsets();
+        bridge.getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false);
         showFullArtworkSplash();
         applySystemBarMode();
     }
@@ -172,9 +174,10 @@ public class MainActivity extends BridgeActivity {
         }
         webReadinessCheckPending = true;
         webView.evaluateJavascript(
-            "(function(){var s=window.chromaticaStartupState;if(!s){return ['pending','pending','pending',0];}"
+            "(function(){var s=window.chromaticaStartupState;if(!s){return ['pending','pending','pending',0,'pending',0];}"
                 + "return [String(s.authStatus||'pending'),String(s.workspaceStatus||'pending'),"
-                + "String(s.imagesStatus||'pending'),Math.max(0,Math.min(100,Number(s.imageProgress)||0))];})()",
+                + "String(s.imagesStatus||'pending'),Math.max(0,Math.min(100,Number(s.imageProgress)||0)),"
+                + "String(s.videoStatus||'pending'),Math.max(0,Math.min(100,Number(s.videoProgress)||0))];})()",
             value -> {
                 webReadinessCheckPending = false;
                 if (splashDismissStarted || value == null) {
@@ -185,6 +188,7 @@ public class MainActivity extends BridgeActivity {
                     String authStatus = readiness.optString(0, "pending");
                     String workspaceStatus = readiness.optString(1, "pending");
                     String imagesStatus = readiness.optString(2, "pending");
+                    String videoStatus = readiness.optString(4, "pending");
                     webAuthReady = "authenticated".equals(authStatus)
                         || "unauthenticated".equals(authStatus)
                         || "error".equals(authStatus);
@@ -194,13 +198,15 @@ public class MainActivity extends BridgeActivity {
                     webImagesReady = "ready".equals(imagesStatus)
                         || "timeout".equals(imagesStatus)
                         || "error".equals(imagesStatus);
+                    webVideoReady = "ready".equals(videoStatus) || "error".equals(videoStatus);
                     if (startupProgressBar != null) {
-                        startupProgressBar.setProgress(readiness.optInt(3, 0), true);
+                        startupProgressBar.setProgress(Math.min(readiness.optInt(3, 0), readiness.optInt(5, 0)), true);
                     }
                 } catch (JSONException ignored) {
                     webAuthReady = false;
                     webWorkspaceReady = false;
                     webImagesReady = false;
+                    webVideoReady = false;
                 }
             }
         );
@@ -213,7 +219,7 @@ public class MainActivity extends BridgeActivity {
         long elapsed = SystemClock.uptimeMillis() - splashShownAt;
         boolean minimumReached = elapsed >= SPLASH_MINIMUM_MS;
         boolean destinationReady = appPageReady && webAuthReady && webWorkspaceReady;
-        if (!minimumReached || !destinationReady || !webImagesReady) {
+        if (!minimumReached || !destinationReady || !webImagesReady || !webVideoReady) {
             splashHandler.removeCallbacks(splashReadinessCheck);
             splashHandler.postDelayed(splashReadinessCheck, 50L);
             return;

@@ -8274,6 +8274,29 @@ window.chromaticDebug = {
 let chromaticaAppInitialized = false;
 let gardenBgmMetadataPrepared = false;
 let pendingPushNotificationHomeNavigation = false;
+let ordinaryOpeningVideoRequested = false;
+let ordinaryOpeningVideoPromise = null;
+let ordinaryStartupContinuationRequested = false;
+
+function startOrdinaryOpeningVideoAfterSplash() {
+  if (ordinaryOpeningVideoPromise) return ordinaryOpeningVideoPromise;
+  ordinaryOpeningVideoRequested = true;
+  ordinaryOpeningVideoPromise = new Promise((resolve) => {
+    const play = () => {
+      Promise.resolve(window.ChromaticaOpeningVideo?.playForOrdinaryStartup?.() || "unavailable")
+        .then(resolve, () => resolve("error"));
+    };
+    if (window.chromaticaStartupSplashFinished === true || !window.Capacitor?.isNativePlatform?.()) play();
+    else window.addEventListener("chromatica:startup-splash-finished", play, { once: true });
+  });
+  return ordinaryOpeningVideoPromise;
+}
+
+function continueOrdinaryStartupAfterOpeningVideo() {
+  if (ordinaryStartupContinuationRequested) return;
+  ordinaryStartupContinuationRequested = true;
+  void ensureInitialProfileBeforeAnnouncements();
+}
 
 function renderAuthenticatedAccountWorkspace({ allowDailyLoginBonus = false, initializationReason = "rerender" } = {}) {
   const userId = getActiveAccountId();
@@ -8347,7 +8370,11 @@ function renderAuthenticatedAccountWorkspace({ allowDailyLoginBonus = false, ini
     completeMicGate();
     setView("intro");
   }
-  void ensureInitialProfileBeforeAnnouncements();
+  if (initializationReason === "authenticated-ready" || (ordinaryOpeningVideoRequested && !ordinaryStartupContinuationRequested)) {
+    void startOrdinaryOpeningVideoAfterSplash().then(continueOrdinaryStartupAfterOpeningVideo);
+  } else {
+    void ensureInitialProfileBeforeAnnouncements();
+  }
 }
 
 function initializeAuthenticatedApp(options = {}) {
@@ -8460,6 +8487,7 @@ window.chromaticaApp = {
     showHomeSpiritRewardToast(String(message || ""));
   },
   openHomeFromPushNotification() {
+    window.ChromaticaOpeningVideo?.bypassForDeepLink?.();
     if (
       document.body.classList.contains("auth-authenticated")
       && window.chromaticaStartupState?.workspaceStatus === "ready"

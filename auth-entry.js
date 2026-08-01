@@ -71,10 +71,16 @@ const startupState = {
   totalImages: 0,
   completedImages: 0,
   failedImages: 0,
+  videoStatus: window.ChromaticaOpeningVideo?.getPreloadStatus?.() || "pending",
+  videoProgress: window.ChromaticaOpeningVideo?.getPreloadProgress?.() || 0,
   destination: "checking",
 };
 
 window.chromaticaStartupState = startupState;
+window.ChromaticaOpeningVideo?.onPreloadStatus?.(({ status, progress }) => {
+  startupState.videoStatus = status;
+  startupState.videoProgress = progress;
+});
 
 const oauthDiagnostics = createOAuthDiagnostics({
   platform: isNativeAndroid() ? "android" : "web",

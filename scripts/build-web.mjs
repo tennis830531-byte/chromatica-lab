@@ -14,6 +14,7 @@ const webSourceFiles = [
   "styles.css",
   "manifest.webmanifest",
   "supabase-config.js",
+  "opening-video.js",
   "haptic-feedback.js",
   "practice-reminders.js",
   "daily-login-bonus.js",
@@ -47,6 +48,7 @@ const approvedUncommittedQaSources = new Set([
   "discussion.js",
 ]);
 const reviewAssetHashes = new Map([
+  ["public/assets/video/chromatica-opening-0801.mp4", "d55339f098fc34e1c7027c323402ac8509bf3b8142122a941a7847fa5f630563"],
   ["public/assets/garden/cards/melody-sprout-art-card.png", "b04847d079a4c73015de745057122e5bbd862a790ee7dc305cb0d0d943d524fc"],
   ["public/assets/garden/cards/mushroom-spirit-art-card.png", "bfc95b9b1cd6467df002915202ccfe06eaa35a362587b2879bfdc28ef81b7cab"],
   ["public/assets/garden/cards/flower-spirit-art-card.png", "d09446af36931e65b8bca6301efce9eca333c884b168007352118cbfcbdb5524"],
