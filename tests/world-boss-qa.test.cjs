@@ -101,7 +101,9 @@ test("QA energy exchange is isolated, immediate, uncapped, and shared by both at
 });
 
 test("QA collection skill learning shares formal UI but keeps water and unlocks in session storage", () => {
-  assert.match(gardenQa, /qaWaterDrops: 300/);
+  assert.match(gardenQa, /QA_SKILL_TEST_WATER = 600/);
+  assert.match(gardenQa, /qaWaterDrops: QA_SKILL_TEST_WATER/);
+  assert.match(gardenQa, /legacySkillBudget \? 300 : 0/);
   assert.match(gardenQa, /worldBossSkillUnlocks: \[\]/);
   assert.match(gardenQa, /learnWorldBossSkill\(species, cost = 100\)/);
   assert.match(gardenQa, /spirit\.species === species && spirit\.harvested === true/);
