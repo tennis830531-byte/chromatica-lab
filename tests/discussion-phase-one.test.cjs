@@ -159,11 +159,11 @@ test("post and comment cooldown messages render directly below their submit cont
 });
 
 test("successful post and comment submissions show top-level confirmation modals", () => {
-  assert.match(runtime, /showSuccessModal\("文章已發佈"\)/);
+  assert.match(runtime, /showSuccessModal\(editing \? "文章已更新" : "文章已發佈"\)/);
   assert.match(runtime, /showSuccessModal\("留言成功"\)/);
   assert.match(runtime, /function scrollDiscussionToTop\(\)[\s\S]*#discussion[\s\S]*scrollIntoView/);
   assert.match(runtime, /function scrollLatestCommentIntoView\(\)[\s\S]*\.discussion-comment[\s\S]*scrollIntoView/);
-  assert.match(runtime, /if \(succeeded\) \{\s*scrollDiscussionToTop\(\);\s*showSuccessModal\("文章已發佈"\)/);
+  assert.match(runtime, /if \(succeeded\) \{\s*scrollDiscussionToTop\(\);\s*showSuccessModal\(editing \? "文章已更新" : "文章已發佈"\)/);
   assert.match(runtime, /if \(succeeded\) \{\s*scrollLatestCommentIntoView\(\);\s*showSuccessModal\("留言成功"\)/);
   assert.match(runtime, /modal\.id = "discussionSuccessModal"/);
   assert.match(runtime, /modal\.showModal\(\)/);

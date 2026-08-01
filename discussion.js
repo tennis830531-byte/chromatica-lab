@@ -14,6 +14,7 @@
     postDraft: { category: "", title: "", body: "" }, commentDraft: "",
     postAttachments: [], commentAttachments: [],
     postDraftId: "", commentDraftId: "",
+    editingPostId: "",
     attachmentError: "",
     qaCommentsByPost: {},
     qa: false, qaScenario: "populated", qaAdminPreview: false,
@@ -88,6 +89,11 @@
     return url
       ? `<img class="discussion-avatar" src="${escape(url)}" alt="" />`
       : `<span class="discussion-avatar discussion-avatar-fallback" aria-hidden="true">♪</span>`;
+  }
+  function heartMarkup(type, item) {
+    const hearted = item?.is_hearted === true;
+    const count = Math.max(0, Number(item?.heart_count || 0));
+    return `<button class="discussion-heart ${hearted ? "is-hearted" : ""}" data-discussion-heart-${type}="${escape(item?.id || "")}" type="button" aria-pressed="${hearted}" aria-label="${hearted ? "取消愛心" : "按愛心"}"><span aria-hidden="true">♥</span><b>${count}</b></button>`;
   }
   function draftAttachments() {
     return state.screen === "compose" ? state.postAttachments : state.commentAttachments;
@@ -169,7 +175,7 @@
     const me = profile() || { id: "qa-user", displayName: "QA 練習者", avatarUrl: "" };
     const now = Date.now();
     return [
-      { id: "qa-post-1", author_id: me.id, author_display_name: me.displayName, author_avatar_url: me.avatarUrl, category: "harmonica_technique", title: "如何讓長音更穩定？", body: "最近練習長音時，想請教大家如何控制氣息，讓每個音更穩定。https://youtu.be/dQw4w9WgXcQ", status: "published", comment_count: 3, created_at: new Date(now - 3600000).toISOString(), last_activity_at: new Date(now - 600000).toISOString(),
+      { id: "qa-post-1", author_id: me.id, author_display_name: me.displayName, author_avatar_url: me.avatarUrl, category: "harmonica_technique", title: "如何讓長音更穩定？", body: "最近練習長音時，想請教大家如何控制氣息，讓每個音更穩定。https://youtu.be/dQw4w9WgXcQ", status: "published", comment_count: 3, heart_count: 4, is_hearted: false, created_at: new Date(now - 3600000).toISOString(), last_activity_at: new Date(now - 600000).toISOString(),
         is_pinned: true, pinned_at: new Date(now - 300000).toISOString(),
         attachments: [{ id: "qa-media-1", media_type: "image", original_filename: "練習照片.png", url: "assets/chromatic-refresh/feature/discussion-forum-icon.png" }],
         link_previews: previewLinks("https://youtu.be/dQw4w9WgXcQ") },
@@ -179,7 +185,7 @@
   }
   function mockComments(postId) {
     return [
-      { id: `${postId}-comment-1`, post_id: postId, author_id: "qa-friend", author_display_name: "口琴旅人", body: "先把速度放慢，專注讓每次吸吐氣維持一致。", status: "published", created_at: new Date(Date.now() - 300000).toISOString(), attachments: [], link_previews: [] },
+      { id: `${postId}-comment-1`, post_id: postId, author_id: "qa-friend", author_display_name: "口琴旅人", body: "先把速度放慢，專注讓每次吸吐氣維持一致。", status: "published", heart_count: 2, is_hearted: false, created_at: new Date(Date.now() - 300000).toISOString(), attachments: [], link_previews: [] },
       { id: `${postId}-comment-2`, post_id: postId, author_id: profile()?.id || "qa-user", author_display_name: profile()?.displayName || "QA 練習者", body: "謝謝分享，我會試試看！", status: "published", created_at: new Date(Date.now() - 120000).toISOString() },
     ];
   }
@@ -294,7 +300,7 @@
         <p>${escape(Core.excerpt(post.body || "（無內文）"))}</p>
         ${renderBoundAttachments(post.attachments || [], false, state.qa)}
         ${renderLinkPreviews(post.link_previews || [], false)}
-        <footer>${avatarMarkup(post)}<span><strong>${escape(post.author_display_name || "練習者")}</strong><small>${escape(formatTime(post.created_at))}</small></span><b>${Number(post.comment_count || 0)} 則留言</b></footer>
+        <footer>${avatarMarkup(post)}<span><strong>${escape(post.author_display_name || "Google 使用者")}</strong><small>${escape(formatTime(post.created_at))}</small></span><b>${Number(post.comment_count || 0)} 則留言</b>${heartMarkup("post", post)}</footer>
         ${showAdminControls() ? `<div class="discussion-admin-actions"><button data-discussion-pin-post="${escape(post.id)}" data-pinned="${post.is_pinned ? "true" : "false"}" type="button">${post.is_pinned ? "取消置頂" : "置頂"}</button><button data-discussion-admin-delete-post="${escape(post.id)}" type="button">管理刪除</button></div>` : ""}
       </article>`).join("")}</div>
       ${visible.length < sorted.length ? `<button class="discussion-load-more secondary-btn" type="button">載入更多</button>` : ""}`;
@@ -328,20 +334,21 @@
     return `<p class="discussion-cooldown-message" data-discussion-cooldown="${escape(action)}" ${seconds ? "" : "hidden"}>${seconds ? escape(Core.formatRetryAfter(seconds, action)) : ""}</p>`;
   }
   function renderComposer() {
-    const captchaIsReady = captchaReady("create_post");
+    const editing = Boolean(state.editingPostId);
+    const captchaIsReady = editing || captchaReady("create_post");
     const postCooldown = cooldownSeconds("create_post");
-    const postIsBusy = state.submitting || postCooldown > 0 || state.postAttachments.some((item) => item.status === "uploading");
+    const postIsBusy = state.submitting || (!editing && (postCooldown > 0 || state.postAttachments.some((item) => item.status === "uploading")));
     return `<form class="discussion-composer paper-card">
-      <h3>新增文章</h3>
+      <h3>${editing ? "編輯文章" : "新增文章"}</h3>
       <label>分類<select name="category" required><option value="">請選擇</option>${Object.entries(Core.CATEGORY_LABELS).map(([id, label]) => `<option value="${id}" ${state.postDraft.category === id ? "selected" : ""}>${escape(label)}</option>`).join("")}</select></label>
       <label>標題<input name="title" value="${escape(state.postDraft.title)}" minlength="${Core.LIMITS.titleMin}" maxlength="${Core.LIMITS.titleMax}" required /></label>
       <label>內文<textarea name="body" maxlength="${Core.LIMITS.bodyMax}" rows="8">${escape(state.postDraft.body)}</textarea></label>
-      ${attachmentEditorMarkup(state.postAttachments)}
-      ${renderLinkPreviews(previewLinks(state.postDraft.body), true)}
-      ${captchaMarkup("create_post")}
-      <div class="discussion-form-error" role="alert"></div>
-      <div class="discussion-actions"><button class="secondary-btn" data-discussion-cancel type="button">取消</button><button class="secondary-btn" data-discussion-preview type="button">預覽</button><button class="primary-btn" type="submit" ${postIsBusy || !captchaIsReady ? "disabled" : ""}>${state.submitting ? "發表中…" : postCooldown ? "冷卻中" : captchaIsReady ? "發表" : "等待驗證"}</button></div>
-      ${cooldownMarkup("create_post")}
+      ${editing ? `<p class="discussion-edit-note">既有圖片、影片與網址預覽會保留；本次只更新分類、標題與內文。</p>` : attachmentEditorMarkup(state.postAttachments)}
+      ${editing ? "" : renderLinkPreviews(previewLinks(state.postDraft.body), true)}
+      ${editing ? "" : captchaMarkup("create_post")}
+      <div class="discussion-form-error" role="alert">${escape(state.error || "")}</div>
+      <div class="discussion-actions"><button class="secondary-btn" data-discussion-cancel type="button">取消</button><button class="secondary-btn" data-discussion-preview type="button">預覽</button><button class="primary-btn" type="submit" ${postIsBusy || !captchaIsReady ? "disabled" : ""}>${state.submitting ? (editing ? "儲存中…" : "發表中…") : editing ? "儲存修改" : postCooldown ? "冷卻中" : captchaIsReady ? "發表" : "等待驗證"}</button></div>
+      ${editing ? "" : cooldownMarkup("create_post")}
     </form>`;
   }
   function renderPreview(root, values) {
@@ -374,13 +381,13 @@
       <h3>${escape(post.title)}</h3><p class="discussion-body">${escape(post.body || "（無內文）")}</p>
       ${renderBoundAttachments(post.attachments || [], true, true)}
       ${renderLinkPreviews(post.link_previews || [], true)}
-      <footer>${avatarMarkup(post)}<span><strong>${escape(post.author_display_name || "練習者")}</strong><small>${escape(formatTime(post.created_at))}</small></span></footer>
-      ${me?.id === post.author_id ? `<button class="discussion-delete" data-discussion-delete-post type="button">刪除自己的文章</button>` : ""}
+      <footer>${avatarMarkup(post)}<span><strong>${escape(post.author_display_name || "Google 使用者")}</strong><small>${escape(formatTime(post.created_at))}${post.updated_at && post.updated_at !== post.created_at ? "・已編輯" : ""}</small></span>${heartMarkup("post", post)}</footer>
+      ${me?.id === post.author_id ? `<div class="discussion-owner-actions"><button data-discussion-edit-post type="button">編輯文章</button><button class="discussion-delete" data-discussion-delete-post type="button">刪除自己的文章</button></div>` : ""}
       ${showAdminControls() ? `<div class="discussion-admin-actions"><button data-discussion-pin-post="${escape(post.id)}" data-pinned="${post.is_pinned ? "true" : "false"}" type="button">${post.is_pinned ? "取消置頂" : "置頂"}</button><button data-discussion-admin-delete-post="${escape(post.id)}" type="button">管理刪除文章</button></div>` : ""}
     </article>
     <section class="discussion-comments">
       <h3>${Number(post.comment_count || state.comments.length)} 則留言</h3>
-      ${state.comments.filter((item) => item.status === "published").map((item) => `<article class="discussion-comment paper-card">${avatarMarkup(item)}<div><header><strong>${escape(item.author_display_name || "練習者")}</strong><small>${escape(formatTime(item.created_at))}</small></header><p>${escape(item.body)}</p>${renderBoundAttachments(item.attachments || [], true, true)}${renderLinkPreviews(item.link_previews || [], true)}${me?.id === item.author_id ? `<button data-discussion-delete-comment="${escape(item.id)}" type="button">刪除</button>` : ""}${showAdminControls() ? `<button class="discussion-admin-delete" data-discussion-admin-delete-comment="${escape(item.id)}" type="button">管理刪除</button>` : ""}</div></article>`).join("") || `<p class="discussion-state paper-card">還沒有留言。</p>`}
+      ${state.comments.filter((item) => item.status === "published").map((item) => `<article class="discussion-comment paper-card">${avatarMarkup(item)}<div><header><strong>${escape(item.author_display_name || "Google 使用者")}</strong><small>${escape(formatTime(item.created_at))}</small>${heartMarkup("comment", item)}</header><p>${escape(item.body)}</p>${renderBoundAttachments(item.attachments || [], true, true)}${renderLinkPreviews(item.link_previews || [], true)}${me?.id === item.author_id ? `<button data-discussion-delete-comment="${escape(item.id)}" type="button">刪除</button>` : ""}${showAdminControls() ? `<button class="discussion-admin-delete" data-discussion-admin-delete-comment="${escape(item.id)}" type="button">管理刪除</button>` : ""}</div></article>`).join("") || `<p class="discussion-state paper-card">還沒有留言。</p>`}
     </section>
     <form class="discussion-comment-form paper-card"><label>新增留言<textarea name="body" maxlength="${Core.LIMITS.commentMax}" rows="4">${escape(state.commentDraft)}</textarea></label>${attachmentEditorMarkup(state.commentAttachments)}${renderLinkPreviews(previewLinks(state.commentDraft), true)}${captchaMarkup("create_comment")}<div class="discussion-form-error" role="alert"></div><button class="primary-btn" type="submit" ${commentIsBusy || !captchaIsReady ? "disabled" : ""}>${state.submitting ? "留言送出中…" : commentCooldown ? "冷卻中" : captchaIsReady ? "送出留言" : "等待驗證"}</button>${cooldownMarkup("create_comment")}</form>`;
   }
@@ -762,14 +769,24 @@
     captureDraft(form);
     const validation = Core.validatePost(values);
     if (!validation.ok) { $(".discussion-form-error", form).textContent = validation.message; return; }
-    if (state.postAttachments.some((item) => item.status !== "uploaded")) { $(".discussion-form-error", form).textContent = "請等待所有附件上傳完成，或移除失敗的附件。"; return; }
+    const editing = Boolean(state.editingPostId);
+    if (!editing && state.postAttachments.some((item) => item.status !== "uploaded")) { $(".discussion-form-error", form).textContent = "請等待所有附件上傳完成，或移除失敗的附件。"; return; }
     state.error = "";
     state.submitting = true; render();
     let succeeded = false;
     try {
       let post;
-      const links = await resolvedLinkPreviews(validation.value.body);
-      if (state.qa) {
+      const links = editing ? (state.currentPost?.link_previews || []) : await resolvedLinkPreviews(validation.value.body);
+      if (editing) {
+        const previous = state.currentPost;
+        if (!previous || previous.id !== state.editingPostId) throw new Error("找不到要編輯的文章。");
+        if (state.qa) {
+          post = { ...previous, ...validation.value, updated_at: new Date().toISOString() };
+        } else {
+          const data = await api("update_post", { post_id: state.editingPostId, ...validation.value });
+          post = { ...previous, ...(data.post || {}), ...validation.value };
+        }
+      } else if (state.qa) {
         requireQaCaptcha("create_post");
         if (state.qaScenario === "post-failed") throw new Error("QA 模擬發文失敗。");
         post = { id: `qa-post-${Date.now()}`, author_id: profile()?.id || "qa-user", author_display_name: profile()?.displayName || "QA 練習者", status: "published", comment_count: 0, created_at: new Date().toISOString(), last_activity_at: new Date().toISOString(), attachments: state.postAttachments.map((item) => ({ id: item.id, media_type: item.kind, original_filename: item.name, objectUrl: item.objectUrl })), link_previews: links, ...validation.value };
@@ -780,17 +797,25 @@
         post = await hydrateCreatedRecord(data.post, state.postAttachments, links);
         state.nextPostAllowedAt = new Date(data.next_allowed_at).getTime();
       }
-      state.posts.unshift(post); state.screen = "detail"; state.currentPost = post; state.comments = []; state.postDraft = { category: "", title: "", body: "" }; state.postAttachments = []; state.postDraftId = ""; clearCaptcha();
+      if (editing) {
+        state.posts = state.posts.map((item) => item.id === post.id ? post : item);
+      } else {
+        state.posts.unshift(post);
+        state.comments = [];
+      }
+      state.screen = "detail"; state.currentPost = post; state.postDraft = { category: "", title: "", body: "" }; state.postAttachments = []; state.postDraftId = ""; state.editingPostId = ""; clearCaptcha();
       markDiscussionSeen();
       succeeded = true;
     } catch (error) {
-      state.error = state.nextPostAllowedAt > Date.now() ? "" : error?.message || "發文失敗，請稍後再試。";
+      state.error = state.nextPostAllowedAt > Date.now()
+        ? ""
+        : (editing ? "文章修改失敗，請確認後端已更新並稍後再試。" : error?.message || "發文失敗，請稍後再試。");
       clearCaptcha();
     }
     state.submitting = false; render();
     if (succeeded) {
       scrollDiscussionToTop();
-      showSuccessModal("文章已發佈");
+      showSuccessModal(editing ? "文章已更新" : "文章已發佈");
     }
   }
   async function submitComment(form) {
@@ -864,6 +889,30 @@
       render();
     } catch (error) {
       state.error = error?.message || "置頂狀態更新失敗。";
+      render();
+    }
+  }
+  async function toggleHeart(type, id) {
+    const collection = type === "post" ? state.posts : state.comments;
+    const current = type === "post"
+      ? (state.currentPost?.id === id ? state.currentPost : collection.find((item) => item.id === id))
+      : collection.find((item) => item.id === id);
+    if (!current) return;
+    try {
+      const data = state.qa
+        ? { hearted: current.is_hearted !== true, heart_count: Math.max(0, Number(current.heart_count || 0) + (current.is_hearted ? -1 : 1)) }
+        : await api(type === "post" ? "toggle_post_heart" : "toggle_comment_heart", type === "post" ? { post_id: id } : { comment_id: id });
+      const apply = (item) => item.id === id ? { ...item, is_hearted: data.hearted === true, heart_count: Number(data.heart_count || 0) } : item;
+      if (type === "post") {
+        state.posts = state.posts.map(apply);
+        if (state.currentPost?.id === id) state.currentPost = apply(state.currentPost);
+      } else {
+        state.comments = state.comments.map(apply);
+        if (state.qa && state.currentPost) state.qaCommentsByPost[state.currentPost.id] = state.comments;
+      }
+      render();
+    } catch (error) {
+      state.error = error?.message || "愛心更新失敗。";
       render();
     }
   }
@@ -942,6 +991,10 @@
         void togglePinned(pinPost.dataset.discussionPinPost, pinPost.dataset.pinned === "true");
         return;
       }
+      const postHeart = event.target.closest("[data-discussion-heart-post]");
+      if (postHeart) { void toggleHeart("post", postHeart.dataset.discussionHeartPost); return; }
+      const commentHeart = event.target.closest("[data-discussion-heart-comment]");
+      if (commentHeart) { void toggleHeart("comment", commentHeart.dataset.discussionHeartComment); return; }
       const adminDeletePost = event.target.closest("[data-discussion-admin-delete-post]");
       if (adminDeletePost) {
         openModerationReason("post", adminDeletePost.dataset.discussionAdminDeletePost);
@@ -952,8 +1005,23 @@
         openModerationReason("comment", adminDeleteComment.dataset.discussionAdminDeleteComment);
         return;
       }
-      if (event.target.closest(".discussion-new")) { state.error = ""; state.postDraft = { category: "", title: "", body: "" }; state.screen = "compose"; clearCaptcha(); render(); return; }
-      if (event.target.closest("[data-discussion-cancel],[data-discussion-list]")) { stopMedia($("#discussion")); void discardCurrentDraft(); state.screen = "list"; state.error = ""; clearCaptcha(); render(); return; }
+      if (event.target.closest(".discussion-new")) { state.error = ""; state.editingPostId = ""; state.postDraft = { category: "", title: "", body: "" }; state.screen = "compose"; clearCaptcha(); render(); return; }
+      if (event.target.closest("[data-discussion-edit-post]")) {
+        if (!state.currentPost) return;
+        state.editingPostId = state.currentPost.id;
+        state.postDraft = { category: state.currentPost.category, title: state.currentPost.title, body: state.currentPost.body || "" };
+        state.screen = "compose"; state.error = ""; clearCaptcha(); render(); return;
+      }
+      if (event.target.closest("[data-discussion-cancel]")) {
+        stopMedia($("#discussion"));
+        if (state.editingPostId && state.currentPost) {
+          state.editingPostId = ""; state.postDraft = { category: "", title: "", body: "" }; state.screen = "detail";
+        } else {
+          void discardCurrentDraft(); state.screen = "list";
+        }
+        state.error = ""; clearCaptcha(); render(); return;
+      }
+      if (event.target.closest("[data-discussion-list]")) { stopMedia($("#discussion")); void discardCurrentDraft(); state.editingPostId = ""; state.screen = "list"; state.error = ""; clearCaptcha(); render(); return; }
       if (event.target.closest(".discussion-load-more")) { state.page += 1; void loadPosts(); return; }
       if (event.target.closest("[data-discussion-retry]")) { void loadPosts(); return; }
       const card = event.target.closest("[data-discussion-post]"); if (card) { void openPost(card.dataset.discussionPost); return; }

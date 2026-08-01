@@ -207,6 +207,35 @@ export async function handler(request: Request) {
     return json(origin, 200, { post: enrichedPost[0] || null, comments: enrichedComments });
   }
 
+  if (action === "update_post") {
+    const postId = text(payload.post_id);
+    if (!/^[0-9a-f-]{36}$/i.test(postId)) return json(origin, 400, { error: "invalid-post-id" });
+    const validation = validatePostPayload(payload);
+    if (!validation.ok) return json(origin, 400, { error: validation.error });
+    const result = await userClient.rpc("update_discussion_post", {
+      p_post_id: postId,
+      p_category: validation.value.category,
+      p_title: validation.value.title,
+      p_body: validation.value.body,
+    });
+    if (result.error) {
+      const forbidden = String(result.error.message || "").includes("not-content-owner");
+      return json(origin, forbidden ? 403 : 409, { error: forbidden ? "not-content-owner" : "discussion-update-failed" });
+    }
+    return json(origin, 200, { post: result.data });
+  }
+
+  if (action === "toggle_post_heart" || action === "toggle_comment_heart") {
+    const targetId = text(action === "toggle_post_heart" ? payload.post_id : payload.comment_id);
+    if (!/^[0-9a-f-]{36}$/i.test(targetId)) return json(origin, 400, { error: "invalid-content-id" });
+    const result = await userClient.rpc(
+      action === "toggle_post_heart" ? "toggle_discussion_post_heart" : "toggle_discussion_comment_heart",
+      action === "toggle_post_heart" ? { p_post_id: targetId } : { p_comment_id: targetId },
+    );
+    if (result.error) return json(origin, 409, { error: "discussion-heart-failed" });
+    return json(origin, 200, result.data?.[0] || { hearted: false, heart_count: 0 });
+  }
+
   if (CREATE_ACTIONS.has(action)) {
     const validation = action === "create_post" ? validatePostPayload(payload) : validateCommentPayload(payload);
     if (!validation.ok) return json(origin, 400, { error: validation.error });

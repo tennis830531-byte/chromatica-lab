@@ -36,9 +36,14 @@ function turnstile(action, hash = tokenHash()) {
   };
 }
 
-async function createLocalUser(label) {
+async function createLocalUser(label, userMetadata = {}) {
   const email = `discussion-${label}-${crypto.randomUUID()}@example.test`;
-  const created = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  const created = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: userMetadata,
+  });
   assert.ifError(created.error);
   users.push(created.data.user);
   const client = createClient(apiUrl, anonKey, options);
@@ -70,8 +75,14 @@ async function createPost(userId, overrides = {}) {
 }
 
 before(async () => {
-  clientA = await createLocalUser("a");
-  clientB = await createLocalUser("b");
+  clientA = await createLocalUser("a", {
+    full_name: "Google 測試使用者甲",
+    avatar_url: "https://example.test/google-avatar-a.png",
+  });
+  clientB = await createLocalUser("b", {
+    name: "Google 測試使用者乙",
+    picture: "https://example.test/google-avatar-b.png",
+  });
 });
 
 after(async () => {
@@ -105,9 +116,78 @@ test("authenticated local client can call discussion-actions without production 
     },
     body: JSON.stringify({ action: "list_posts", tab: "latest", limit: 20 }),
   });
-  assert.equal(response.status, 200);
   const result = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(result));
   assert.ok(Array.isArray(result.posts));
+});
+
+test("Google Auth identity, owner editing, and post/comment hearts stay server-authoritative", async () => {
+  await clearCooldown(users[0].id);
+  const created = await createPost(users[0].id, {
+    p_title: "Google 身分與愛心整合測試",
+    ...turnstile("create_post"),
+  });
+  assert.ifError(created.error);
+  const identityPostId = created.data.id;
+
+  const initial = await clientA.rpc("get_discussion_post", { p_post_id: identityPostId });
+  assert.ifError(initial.error);
+  assert.equal(initial.data[0].author_display_name, "Google 測試使用者甲");
+  assert.equal(initial.data[0].author_avatar_url, "https://example.test/google-avatar-a.png");
+  assert.equal(initial.data[0].heart_count, 0);
+  assert.equal(initial.data[0].is_hearted, false);
+
+  const deniedEdit = await clientB.rpc("update_discussion_post", {
+    p_post_id: identityPostId,
+    p_category: "music_sharing",
+    p_title: "他人不得修改",
+    p_body: "這次更新必須失敗。",
+  });
+  assert.match(deniedEdit.error?.message || "", /not-content-owner/);
+
+  const edited = await clientA.rpc("update_discussion_post", {
+    p_post_id: identityPostId,
+    p_category: "music_sharing",
+    p_title: "作者已更新標題",
+    p_body: "既有媒體關聯不受影響。",
+  });
+  assert.ifError(edited.error);
+  assert.equal(edited.data.title, "作者已更新標題");
+  assert.equal(edited.data.category, "music_sharing");
+
+  const postHeartA = await clientA.rpc("toggle_discussion_post_heart", { p_post_id: identityPostId });
+  assert.ifError(postHeartA.error);
+  assert.deepEqual(postHeartA.data[0], { hearted: true, heart_count: 1 });
+  const postHeartB = await clientB.rpc("toggle_discussion_post_heart", { p_post_id: identityPostId });
+  assert.ifError(postHeartB.error);
+  assert.deepEqual(postHeartB.data[0], { hearted: true, heart_count: 2 });
+  const postUnheartA = await clientA.rpc("toggle_discussion_post_heart", { p_post_id: identityPostId });
+  assert.ifError(postUnheartA.error);
+  assert.deepEqual(postUnheartA.data[0], { hearted: false, heart_count: 1 });
+
+  await clearCooldown(users[1].id);
+  const comment = await admin.rpc("create_discussion_comment_service", {
+    p_user_id: users[1].id,
+    p_post_id: identityPostId,
+    p_body: "Google 留言身分與愛心",
+    ...turnstile("create_comment"),
+  });
+  assert.ifError(comment.error);
+  const commentHeart = await clientA.rpc("toggle_discussion_comment_heart", { p_comment_id: comment.data.id });
+  assert.ifError(commentHeart.error);
+  assert.deepEqual(commentHeart.data[0], { hearted: true, heart_count: 1 });
+
+  const comments = await clientA.rpc("get_discussion_comments", { p_post_id: identityPostId });
+  assert.ifError(comments.error);
+  assert.equal(comments.data[0].author_display_name, "Google 測試使用者乙");
+  assert.equal(comments.data[0].author_avatar_url, "https://example.test/google-avatar-b.png");
+  assert.equal(comments.data[0].heart_count, 1);
+  assert.equal(comments.data[0].is_hearted, true);
+
+  const cleanup = await admin.from("discussion_posts").delete().eq("id", identityPostId);
+  assert.ifError(cleanup.error);
+  await clearCooldown(users[0].id);
+  await clearCooldown(users[1].id);
 });
 
 test("app_admins exclusively authorizes pinning and moderation", async () => {
