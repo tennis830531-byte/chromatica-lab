@@ -32,6 +32,7 @@ const webSourceFiles = [
   "push-notifications.js",
   "garden-shared.js",
   "garden-qa.js",
+  "button-practice.js",
   "auth-runtime.js",
 ];
 const assetReferencePattern = /\.\/public\/assets\/[^"'`()<>$\r\n]+/g;

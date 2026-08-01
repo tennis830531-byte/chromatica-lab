@@ -10,6 +10,7 @@ export const ACCOUNT_SCOPED_KEYS = Object.freeze([
   "chromatica.settings.leaderboardWeeklyResults",
   "chromatica.settings.leaderboardTopTenChanges",
   "chromatica.intervalPracticeHistory",
+  "chromatica.buttonPracticeHistory",
   "chromatica.homeSpiritTapReward",
   "chromatica.waterDrops",
   "chromatica.currentPlant",

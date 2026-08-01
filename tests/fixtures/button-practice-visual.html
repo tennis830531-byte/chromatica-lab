@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>按鍵練習室窄螢幕驗證</title>
+    <link rel="stylesheet" href="../../styles.css" />
+    <style>body{padding:12px}.visual-fixture{width:min(100%,680px);margin:auto}</style>
+  </head>
+  <body>
+    <main class="visual-fixture button-practice-view">
+      <section class="interval-player" aria-label="按鍵練習測試畫面">
+        <div class="interval-player-top paper-card">
+          <div><p class="eyebrow">目前練習</p><h3>半音階穿梭｜普通</h3></div>
+          <div class="interval-progress-pills"><span>循環 <b>1 / 4</b></span><span><b>60</b> BPM</span><span>16 孔</span></div>
+        </div>
+        <div class="interval-score-card paper-card button-practice-score-card">
+          <div class="interval-score-heading"><div><span>目前音與下一音</span><small>第 3 / 12 個提示</small></div></div>
+          <div class="interval-staff" role="img" aria-label="五線譜測試"><svg viewBox="0 0 640 140"><line x1="18" y1="70" x2="622" y2="70" stroke="#6f4b32"/><line x1="18" y1="82" x2="622" y2="82" stroke="#6f4b32"/><line x1="18" y1="94" x2="622" y2="94" stroke="#6f4b32"/><line x1="18" y1="106" x2="622" y2="106" stroke="#6f4b32"/><line x1="18" y1="118" x2="622" y2="118" stroke="#6f4b32"/><text x="250" y="95" font-size="32">♯ ●　○</text></svg></div>
+          <div class="interval-note-help button-practice-number-help" aria-label="簡譜測試"><span class="active"><small>目前音</small><em><b class="jianpu-note active"><i class="jianpu-accidental">♯</i>1</b></em></span><span><small>下一音</small><em><b class="jianpu-note">2</b></em></span></div>
+          <div class="button-practice-display">
+            <div class="button-practice-current"><small>目前音</small><strong>C♯5</strong><span>第 8 孔 · 吹音</span></div>
+            <div class="button-practice-slide-wrap"><div class="button-practice-slide is-pressed"><i></i></div><strong>按鍵</strong><small>按鍵推入</small></div>
+            <div class="button-practice-next"><small>下一個音</small><strong>D5</strong><span>第 9 孔 · 吸音 · 放鍵</span></div>
+          </div>
+        </div>
+        <div class="interval-metronome paper-card"><div><span class="metronome-dot is-playing"></span><strong>節拍引導</strong><small>4 拍預備後開始</small></div><span class="interval-metronome-status is-playing">練習中</span></div>
+        <div class="interval-practice-actions"><button id="buttonPracticeStartPause" class="primary-btn">暫停練習</button><button class="ghost-btn">重新開始</button><button class="ghost-btn">練習設定</button></div>
+      </section>
+    </main>
+  </body>
+</html>

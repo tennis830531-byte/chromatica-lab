@@ -88,7 +88,7 @@ test("formal and quick completion paths use the same concrete-task classificatio
 test("reward dialog appears once per formal or quick completion and closing has no side effects", () => {
   const fs = require("node:fs");
   const app = fs.readFileSync(require.resolve("../app.js"), "utf8");
-  assert.equal((app.match(/showPracticeCompletionRewardDialog\(/g) || []).length, 3, "definition plus two completion calls");
+  assert.equal((app.match(/showPracticeCompletionRewardDialog\(/g) || []).length, 4, "definition plus long-tone, interval, and button-practice completion calls");
   const closeHandler = app.match(/goalToastClose"\)\.addEventListener\("click",[\s\S]*?\n  \}\);/)?.[0] || "";
   assert.match(closeHandler, /closeGoalToast\(\)/);
   assert.match(app, /function closeGoalToast\(\)[\s\S]*classList\.add\("hidden"\)/);

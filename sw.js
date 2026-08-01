@@ -19,6 +19,7 @@ const APP_SHELL = [
   "./push-notifications.js?v=refresh-176",
   "./garden-shared.js?v=refresh-176",
   "./garden-qa.js?v=refresh-176",
+  "./button-practice.js?v=refresh-176",
   "./app.js?v=refresh-176",
   "./auth-runtime.js?v=refresh-176",
   "./manifest.webmanifest",

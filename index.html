@@ -764,10 +764,13 @@
                 </div>
                 <button class="room-action" data-view="interval" data-interval-intro="true" type="button">開始音程練習</button>
               </article>
-              <article class="practice-room-card">
-                <span class="room-badge">準備中</span>
-                <h4>按鍵練習室</h4>
-                <p>熟悉按鍵音與半音切換。</p>
+              <article class="practice-room-card available">
+                <div>
+                  <span class="room-badge open">已開啟</span>
+                  <h4>按鍵練習室</h4>
+                  <p>熟悉放鍵、按鍵、半音穿梭與實際孔位移動。</p>
+                </div>
+                <button class="room-action" data-view="buttonpractice" type="button">開始按鍵練習</button>
               </article>
               <article class="practice-room-card">
                 <span class="room-badge">準備中</span>
@@ -785,6 +788,60 @@
                 <p>練習聲部進入、聽感與合奏默契。</p>
               </article>
             </div>
+          </section>
+        </section>
+
+        <section id="buttonpractice" class="view interval-practice-view button-practice-view">
+          <button class="practice-view-back" data-practice-back="buttonpractice" type="button" aria-label="返回練習列表">← 返回</button>
+          <div class="section-head compact">
+            <img class="section-icon ui-quick-icon" src="./public/assets/chromatic-refresh/feature/long_tone_bird.png" alt="" aria-hidden="true" />
+            <p class="eyebrow">按鍵與孔位協調</p>
+            <h2>按鍵練習室</h2>
+            <p>跟著節拍辨識放鍵與按鍵，第一版由你自行聆聽與判斷。</p>
+          </div>
+
+          <section id="buttonPracticeSetup" class="interval-setup paper-card" aria-labelledby="buttonPracticeSetupTitle">
+            <div class="interval-card-heading">
+              <p class="eyebrow">練習設定</p>
+              <h3 id="buttonPracticeSetupTitle">今天想練哪一種按鍵動作？</h3>
+            </div>
+            <div class="interval-settings-grid">
+              <label class="interval-setting"><span>練習模式</span><select id="buttonPracticeMode" aria-label="按鍵練習模式"><option value="toggle">按放切換</option><option value="random">隨機按鍵反應</option><option value="chromatic">半音階穿梭</option><option value="shift">按鍵移位</option></select></label>
+              <label class="interval-setting"><span>難度</span><select id="buttonPracticeDifficulty" aria-label="按鍵練習難度"><option value="beginner">入門</option><option value="normal" selected>普通</option><option value="advanced">進階</option></select></label>
+              <label class="interval-setting interval-setting-wide"><span id="buttonPracticePatternLabel">每個狀態維持</span><select id="buttonPracticePattern" aria-label="按鍵練習類型"></select></label>
+              <label class="interval-setting"><span class="interval-range-heading">BPM <b id="buttonPracticeBpmValue">60</b></span><input id="buttonPracticeBpm" type="range" min="40" max="180" step="1" value="60" aria-label="按鍵練習速度" /></label>
+              <label class="interval-setting"><span>循環次數</span><select id="buttonPracticeCycles" aria-label="按鍵練習循環次數"><option value="1">1 次</option><option value="2">2 次</option><option value="4" selected>4 次</option><option value="6">6 次</option></select></label>
+              <label class="interval-setting"><span>音域範圍</span><select id="buttonPracticeRange" aria-label="按鍵練習音域"><option value="full">完整音域</option><option value="low">低音域</option><option value="middle" selected>中音域</option><option value="high">高音域</option></select></label>
+              <label class="interval-setting"><span>琴型</span><select id="buttonPracticeHoles" aria-label="按鍵練習琴型"><option value="12">12 孔</option><option value="14">14 孔</option><option value="16" selected>16 孔</option></select></label>
+              <label class="interval-setting"><span>開始前倒數</span><select id="buttonPracticeCountdown" aria-label="按鍵練習開始倒數"><option value="0">不倒數</option><option value="2">2 拍</option><option value="4" selected>4 拍</option></select></label>
+              <label class="interval-setting button-practice-toggle-setting"><span><strong>節拍音</strong><small>只播放節拍提示，不使用麥克風判定。</small></span><input id="buttonPracticeMetronome" type="checkbox" checked /></label>
+            </div>
+            <button id="buttonPracticeStart" class="primary-btn interval-start-btn" type="button">開始按鍵練習</button>
+          </section>
+
+          <section id="buttonPracticePlayer" class="interval-player hidden" aria-live="polite">
+            <div class="interval-player-top paper-card">
+              <div><p class="eyebrow">目前練習</p><h3 id="buttonPracticeTitle">按放切換</h3></div>
+              <div class="interval-progress-pills"><span>循環 <b id="buttonPracticeCycleProgress">0 / 4</b></span><span><b id="buttonPracticeBpmStatus">60</b> BPM</span><span id="buttonPracticeModelStatus">16 孔</span></div>
+            </div>
+            <div class="interval-score-card paper-card button-practice-score-card">
+              <div class="interval-score-heading"><div><span id="buttonPracticeScoreLabel">目前音與下一音</span><small id="buttonPracticeStepStatus">第 1 / 8 個提示</small></div></div>
+              <div id="buttonPracticeStaff" class="interval-staff" role="img" aria-label="按鍵練習五線譜"></div>
+              <div id="buttonPracticeNumberHelp" class="interval-note-help button-practice-number-help" aria-label="按鍵練習簡譜"></div>
+              <div class="button-practice-display">
+                <div class="button-practice-current"><small>目前音</small><strong id="buttonPracticeCurrentNote">C4</strong><span id="buttonPracticeHole">第 1 孔 · 吹音</span></div>
+                <div class="button-practice-slide-wrap"><div id="buttonPracticeSlide" class="button-practice-slide" aria-hidden="true"><i></i></div><strong id="buttonPracticeButtonState">放鍵</strong><small id="buttonPracticeButtonHint">按鍵縮回</small></div>
+                <div class="button-practice-next"><small>下一個音</small><strong id="buttonPracticeNextNote">C♯4</strong><span id="buttonPracticeNextDetail">第 1 孔 · 吹音 · 按鍵</span></div>
+              </div>
+            </div>
+            <div class="interval-metronome paper-card"><div><span class="metronome-dot" id="buttonPracticeMetronomeDot" aria-hidden="true"></span><strong>節拍引導</strong><small id="buttonPracticeMetronomeHelp">4 拍預備後開始</small></div><span id="buttonPracticeStatus" class="interval-metronome-status">等待開始</span></div>
+            <div class="interval-practice-actions"><button id="buttonPracticeStartPause" class="primary-btn" type="button">開始練習</button><button id="buttonPracticeRestart" class="ghost-btn" type="button">重新開始</button><button id="buttonPracticeSettings" class="ghost-btn" type="button">練習設定</button></div>
+          </section>
+
+          <section id="buttonPracticeComplete" class="interval-complete paper-card hidden" aria-live="polite">
+            <div class="interval-complete-mark" aria-hidden="true">♯</div><p class="eyebrow">練習紀錄已保存</p><h2>按鍵練習完成！</h2>
+            <dl class="interval-complete-summary"><div><dt>模式</dt><dd id="buttonPracticeCompleteMode">按放切換</dd></div><div><dt>難度</dt><dd id="buttonPracticeCompleteDifficulty">普通</dd></div><div><dt>琴型／音域</dt><dd id="buttonPracticeCompleteRange">16 孔 · 中音域</dd></div><div><dt>完成循環</dt><dd id="buttonPracticeCompleteCycles">4 / 4</dd></div></dl>
+            <div class="interval-complete-actions"><button id="buttonPracticeAgain" class="primary-btn" type="button">再練一次</button><button id="buttonPracticeBack" class="ghost-btn" type="button">回到練習列表</button></div>
           </section>
         </section>
 
@@ -1604,6 +1661,7 @@
     <script src="./push-notifications.js?v=refresh-176"></script>
     <script src="./garden-shared.js?v=refresh-176"></script>
     <script src="./garden-qa.js?v=refresh-176"></script>
+    <script src="./button-practice.js?v=refresh-176"></script>
     <script src="./app.js?v=refresh-176"></script>
     <script src="./auth-runtime.js?v=refresh-176"></script>
   </body>
