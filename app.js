@@ -6752,19 +6752,20 @@ function renderIntervalLedgerLines(x, y) {
   return lines.join("");
 }
 
-function renderIntervalNote(noteName, x, isActive = false, duration = 1) {
+function renderIntervalNote(noteName, x, isActive = false, duration = 1, isCompleted = false) {
   const y = getIntervalStaffY(noteName);
   const accidental = String(noteName).match(/^[A-G]([#b])/)?.[1] || "";
   const stemDown = y < 92;
   const stemX = stemDown ? x - 7 : x + 7;
   const stemEndY = stemDown ? y + 34 : y - 34;
   const activeClass = isActive ? " active-note" : "";
+  const completedClass = isCompleted ? " completed-note" : "";
   const durationClass = duration === 2 ? " half-note" : "";
   return `
     ${renderIntervalLedgerLines(x, y)}
-    ${accidental ? `<text x="${x - 18}" y="${y + 6}" class="note-accidental${activeClass}">${accidental === "#" ? "♯" : "♭"}</text>` : ""}
-    <ellipse cx="${x}" cy="${y}" rx="8" ry="5.5" transform="rotate(-16 ${x} ${y})" class="staff-note${durationClass}${activeClass}" />
-    <line x1="${stemX}" y1="${y}" x2="${stemX}" y2="${stemEndY}" class="note-stem${activeClass}" />
+    ${accidental ? `<text x="${x - 18}" y="${y + 6}" class="note-accidental${completedClass}${activeClass}">${accidental === "#" ? "♯" : "♭"}</text>` : ""}
+    <ellipse cx="${x}" cy="${y}" rx="8" ry="5.5" transform="rotate(-16 ${x} ${y})" class="staff-note${durationClass}${completedClass}${activeClass}" />
+    <line x1="${stemX}" y1="${y}" x2="${stemX}" y2="${stemEndY}" class="note-stem${completedClass}${activeClass}" />
   `;
 }
 
@@ -6780,7 +6781,7 @@ function renderIntervalKeySignature(keyName) {
   }).join("");
 }
 
-function createIntervalStaffSvg(groups, keyName, activeGroupIndex = -1, activeNoteIndex = -1) {
+function createIntervalStaffSvg(groups, keyName, activeGroupIndex = -1, activeNoteIndex = -1, completedNoteCount = 0) {
   const staffLines = [70, 82, 94, 106, 118]
     .map((y) => `<line x1="18" y1="${y}" x2="622" y2="${y}" class="staff-line" />`)
     .join("");
@@ -6799,6 +6800,7 @@ function createIntervalStaffSvg(groups, keyName, activeGroupIndex = -1, activeNo
         centerX + offsets[noteIndex],
         groupIndex === activeGroupIndex && noteIndex === activeNoteIndex,
         group.durations?.[noteIndex] || 1,
+        groupIndex * 4 + noteIndex < completedNoteCount,
       ))
       .join("");
     const barX = groupStartX + (groupIndex + 1) * groupWidth;
@@ -6808,7 +6810,7 @@ function createIntervalStaffSvg(groups, keyName, activeGroupIndex = -1, activeNo
     <svg viewBox="0 0 640 140" role="img" aria-label="${INTERVAL_KEYS[keyName].label}音程練習五線譜" xmlns="http://www.w3.org/2000/svg">
       <title>${INTERVAL_KEYS[keyName].label}音程練習五線譜</title>
       <style>
-        .staff-line,.bar-line,.ledger-line,.note-stem{stroke:#6f4b32;stroke-width:1.5}.bar-line{stroke-width:1.8}.ledger-line{stroke-width:1.4}.staff-note{fill:#543822;stroke:#543822;stroke-width:1.5;transition:fill .16s ease,stroke .16s ease,filter .16s ease}.staff-note.half-note{fill:#fffdf7;stroke-width:2}.staff-note.active-note{fill:#d34f45;stroke:#d34f45;filter:drop-shadow(0 0 5px rgba(211,79,69,.88))}.staff-note.half-note.active-note{fill:#fffdf7;stroke:#d34f45;stroke-width:2.6}.note-stem.active-note{stroke:#d34f45;stroke-width:2.4;filter:drop-shadow(0 0 3px rgba(211,79,69,.68))}.note-accidental{fill:#543822;font:700 20px Georgia,serif}.note-accidental.active-note{fill:#d34f45}.key-signature{fill:#543822;font:700 25px Georgia,serif}.treble-clef{fill:#543822;font:62px Georgia,serif}
+        .staff-line,.bar-line,.ledger-line,.note-stem{stroke:#6f4b32;stroke-width:1.5}.bar-line{stroke-width:1.8}.ledger-line{stroke-width:1.4}.staff-note{fill:#543822;stroke:#543822;stroke-width:1.5;transition:fill .16s ease,stroke .16s ease,filter .16s ease}.staff-note.half-note{fill:#fffdf7;stroke-width:2}.staff-note.completed-note{fill:#9b806b;stroke:#9b806b}.note-stem.completed-note{stroke:#9b806b}.note-accidental.completed-note{fill:#9b806b}.staff-note.active-note{fill:#d34f45;stroke:#d34f45;filter:drop-shadow(0 0 5px rgba(211,79,69,.88))}.staff-note.half-note.active-note{fill:#fffdf7;stroke:#d34f45;stroke-width:2.6}.note-stem.active-note{stroke:#d34f45;stroke-width:2.4;filter:drop-shadow(0 0 3px rgba(211,79,69,.68))}.note-accidental{fill:#543822;font:700 20px Georgia,serif}.note-accidental.active-note{fill:#d34f45}.key-signature{fill:#543822;font:700 25px Georgia,serif}.treble-clef{fill:#543822;font:62px Georgia,serif}
       </style>
       ${staffLines}
       <text x="18" y="119" class="treble-clef">𝄞</text>
@@ -7049,25 +7051,31 @@ function saveIntervalPracticeRecord(record) {
   scheduleAccountSnapshotSave();
 }
 
-function renderButtonPracticeStaff(notes, activeNoteIndex = 0) {
-  const playableNotes = Array.isArray(notes) ? notes.filter((note) => /^([A-G])([#b]?)(\d)$/.test(String(note))) : [];
-  if (!playableNotes.length) return "";
-  return createIntervalStaffSvg([{
-    notes: playableNotes.slice(0, 2),
-    durations: playableNotes.slice(0, 2).map(() => 1),
-    label: playableNotes.join(" → "),
-  }], "C", 0, Math.max(0, Math.min(activeNoteIndex, playableNotes.length - 1)));
+function renderButtonPracticeStaff(measures, activeMeasureIndex = -1, activeNoteIndex = -1, completedNoteCount = 0) {
+  const groups = (Array.isArray(measures) ? measures : []).map((measure) => ({
+    notes: measure.notes.map((entry) => entry.note),
+    durations: [1, 1, 1, 1],
+    label: measure.notes.map((entry) => entry.note).join(" → "),
+  }));
+  if (!groups.length) return "";
+  return createIntervalStaffSvg(groups, "C", activeMeasureIndex, activeNoteIndex, completedNoteCount);
 }
 
-function renderButtonPracticeNumberHelp(notes, activeNoteIndex = 0) {
-  const playableNotes = Array.isArray(notes) ? notes.filter((note) => /^([A-G])([#b]?)(\d)$/.test(String(note))) : [];
-  if (!playableNotes.length) return "";
-  return playableNotes.slice(0, 2).map((noteName, noteIndex) => `
-    <span class="${noteIndex === activeNoteIndex ? "active" : ""}">
-      <small>${noteIndex === 0 ? "目前音" : "下一音"}</small>
-      <em>${renderIntervalNumberNote(noteName, noteIndex === activeNoteIndex)}</em>
-    </span>
-  `).join("");
+function renderButtonPracticeNumberHelp(measures, startIndex, activeMeasureIndex = -1, activeNoteIndex = -1, completedNoteCount = 0) {
+  return (Array.isArray(measures) ? measures : []).map((measure, localMeasureIndex) => {
+    const measureIndex = startIndex + localMeasureIndex;
+    const notes = measure.notes.map((entry, noteIndex) => {
+      const flatIndex = measureIndex * 4 + noteIndex;
+      const active = measureIndex === activeMeasureIndex && noteIndex === activeNoteIndex;
+      const completed = flatIndex < completedNoteCount;
+      return `<i class="button-score-note${active ? " active" : ""}${completed ? " completed" : ""}">
+        ${renderIntervalNumberNote(entry.note, active)}
+        <strong class="button-note-action">${entry.pressed ? "按" : "放"}</strong>
+        <small>${entry.hole}孔 · ${entry.breath.replace("音", "")}</small>
+      </i>`;
+    }).join("");
+    return `<span data-button-measure="${measureIndex}" class="${measureIndex === activeMeasureIndex ? "active" : ""}${measureIndex * 4 + 4 <= completedNoteCount ? " completed" : ""}"><small>第 ${measureIndex + 1} 小節</small><em>${notes}</em></span>`;
+  }).join("");
 }
 
 function saveButtonPracticeRecord(record) {
@@ -8496,6 +8504,9 @@ function initializeAuthenticatedApp(options = {}) {
       getLayout: (holes) => chromaticLayouts[holes],
       renderStaff: renderButtonPracticeStaff,
       renderNumberHelp: renderButtonPracticeNumberHelp,
+      scrollActiveMeasure: (measureIndex) => {
+        document.querySelector(`[data-button-measure="${measureIndex}"]`)?.scrollIntoView?.({ block: "nearest", inline: "center", behavior: "smooth" });
+      },
       playBeat: (accent) => playClick(accent),
       complete: completeButtonPractice,
       navigate: (view) => setView(view),
