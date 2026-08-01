@@ -155,8 +155,8 @@ test("first entry requires a custom name avatar and explicit consent", () => {
   assert.match(html, /id="leaderboardProfileName"[^>]*minlength="2"[^>]*maxlength="20"/);
   assert.match(html, /id="leaderboardProfileAvatarInput"/);
   assert.match(html, /id="leaderboardProfileConsent" type="checkbox"/);
-  assert.match(html, /你的排行榜名字、頭像、展示精靈與排行成績，將公開顯示給其他排行榜使用者/);
-  assert.match(html, /id="leaderboardProfileSubmit"[^>]*>儲存公開資料/);
+  assert.match(html, /你的個人暱稱、頭像與展示精靈會應用在排行榜及世界 Boss 互動/);
+  assert.match(html, /id="leaderboardProfileSubmit"[^>]*>儲存個人檔案/);
   assert.match(runtime, /profileOnboarding && !pendingAvatarFile/);
   assert.match(runtime, /leaderboardProfileConsent[\s\S]*checked !== true/);
   assert.doesNotMatch(html, /leaderboardUseGoogleAvatar/);
@@ -164,11 +164,11 @@ test("first entry requires a custom name avatar and explicit consent", () => {
 
 test("profile creation shows one blocking progress state and rejects duplicate submits", () => {
   assert.match(html, /id="leaderboardProfileSaving"[^>]*role="status"[^>]*aria-live="polite"/);
-  assert.match(html, /id="leaderboardProfileSavingMessage"[^>]*>正在建立排行榜資料…/);
+  assert.match(html, /id="leaderboardProfileSavingMessage"[^>]*>正在建立個人檔案…/);
   assert.match(runtime, /let profileSaving = false/);
   assert.match(runtime, /if \(profileSaving\) return/);
   assert.match(runtime, /showProfileError\(\);\s*setProfileSaving\(true\);/);
-  assert.match(runtime, /profileOnboarding \? "正在建立排行榜資料…" : "正在儲存公開資料…"/);
+  assert.match(runtime, /profileOnboarding \? "正在建立個人檔案…" : "正在儲存個人檔案…"/);
   assert.match(runtime, /form\?\.setAttribute\("aria-busy", String\(profileSaving\)\)/);
   assert.match(css, /\.leaderboard-profile-saving \{[^}]*position: absolute;[^}]*inset: 0;[^}]*z-index: 4;/s);
   assert.match(css, /\.leaderboard-profile-spinner \{[^}]*animation: leaderboard-profile-spin/s);
@@ -182,21 +182,24 @@ test("profile editor cannot be dismissed by a keyboard-shifted backdrop tap", ()
 
 test("unauthenticated and incomplete profiles cannot fetch rankings", () => {
   assert.match(runtime, /if \(!userId\)[\s\S]*請先登入/);
-  assert.match(runtime, /membershipStatus === MEMBERSHIP\.NOT_JOINED[\s\S]*請先完成排行榜公開資料設定/);
+  assert.match(runtime, /membershipStatus === MEMBERSHIP\.NOT_JOINED[\s\S]*請先完成個人檔案設定/);
   assert.match(migration, /completed leaderboard profile required/);
   assert.match(migration, /is_active = true and profile_completed = true and consented_at is not null/);
 });
 
-test("an incomplete account enters onboarding from the leaderboard while member settings only links there", () => {
+test("an incomplete account enters mandatory personal-profile onboarding after login", () => {
   assert.match(runtime, /membershipStatus === MEMBERSHIP\.NOT_JOINED[\s\S]*openProfileEditor\(\{ onboarding: true \}\)/);
-  assert.match(html, /id="leaderboardAccountSection"[\s\S]*排行榜公開資料/);
-  assert.match(html, /id="leaderboardProfileEdit"[^>]*>前往排行榜完成首次設定/);
+  assert.match(runtime, /openProfileEditor\(\{ onboarding: true, required: true \}\)/);
+  assert.match(runtime, /ensureInitialProfile/);
+  assert.match(runtime, /profileRequiredAtStartup && !force/);
+  assert.match(html, /id="leaderboardAccountSection"[\s\S]*個人檔案設定/);
+  assert.match(html, /id="leaderboardProfileEdit"[^>]*>完成個人檔案設定/);
   assert.match(runtime, /leaderboardProfileEdit[\s\S]*if \(joinedNow\(\)\) openProfileEditor\(\);[\s\S]*else void open\(\)/);
   assert.match(runtime, /onboarding \? "" : core\.normalizeDisplayName/);
 });
 
-test("member settings public-profile action stays on one line in both states", () => {
-  assert.match(runtime, /joined \? "編輯公開資料／更換頭像" : "前往排行榜完成首次設定"/);
+test("member settings personal-profile action stays on one line in both states", () => {
+  assert.match(runtime, /joined \? "編輯個人檔案／更換頭像" : "完成個人檔案設定"/);
   assert.match(css, /\.leaderboard-account-actions \{[^}]*grid-template-columns: minmax\(0, 1fr\);/s);
   assert.match(css, /\.leaderboard-account-actions button \{[^}]*white-space: nowrap;/s);
 });

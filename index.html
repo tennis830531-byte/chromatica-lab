@@ -408,7 +408,7 @@
           </div>
           <button id="leaderboardModalClose" class="calendar-close" type="button" aria-label="關閉全球排行榜">×</button>
         </div>
-        <p id="leaderboardLoginPrompt" class="leaderboard-consent-note hidden">請先登入；加入與公開資料設定請前往「設定 → 會員帳號」。</p>
+        <p id="leaderboardLoginPrompt" class="leaderboard-consent-note hidden">請先登入；個人檔案設定請前往「設定 → 會員帳號」。</p>
         <div class="leaderboard-tabs" role="tablist" aria-label="排行榜類別">
           <button id="leaderboardWeeklyTab" class="active" data-leaderboard-metric="weekly" type="button" role="tab" aria-selected="true" aria-controls="leaderboardList">乖乖練習王</button>
           <button id="leaderboardCultivatorTab" data-leaderboard-metric="cultivator" type="button" role="tab" aria-selected="false" aria-controls="leaderboardList" tabindex="-1">精靈培育師</button>
@@ -470,10 +470,10 @@
       <form id="leaderboardProfileForm" class="leaderboard-profile-modal paper-card">
         <header>
           <div>
-            <p class="eyebrow">排行榜公開資料</p>
-            <h2 id="leaderboardProfileTitle">編輯乖乖練習王公開資料</h2>
+            <p class="eyebrow">個人檔案設定</p>
+            <h2 id="leaderboardProfileTitle">編輯個人檔案</h2>
           </div>
-          <button id="leaderboardProfileClose" class="calendar-close" type="button" aria-label="關閉公開資料編輯">×</button>
+          <button id="leaderboardProfileClose" class="calendar-close" type="button" aria-label="關閉個人檔案設定">×</button>
         </header>
         <div class="leaderboard-profile-avatar-editor">
           <img id="leaderboardProfileAvatarPreview" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="頭像預覽" />
@@ -483,21 +483,21 @@
             <small>必須自行選擇 JPG、PNG 或 WebP；原始檔最大 2 MB，上傳前會裁成正方形並壓縮。</small>
           </div>
         </div>
-        <label class="leaderboard-name-field">排行榜名字<input id="leaderboardProfileName" type="text" minlength="2" maxlength="20" autocomplete="nickname" placeholder="例如：口琴小芽" required /></label>
+        <label class="leaderboard-name-field">個人暱稱<input id="leaderboardProfileName" type="text" minlength="2" maxlength="20" autocomplete="nickname" placeholder="例如：口琴小芽" required /></label>
         <label id="leaderboardConsentWrap" class="leaderboard-consent-check hidden">
           <input id="leaderboardProfileConsent" type="checkbox" />
-          <span>你的排行榜名字、頭像、展示精靈與排行成績，將公開顯示給其他排行榜使用者。</span>
+          <span>你的個人暱稱、頭像與展示精靈會應用在排行榜及世界 Boss 互動，並顯示給其他玩家。</span>
         </label>
         <p class="leaderboard-fair-play-note">排行榜是友善競賽；系統會防止重送並限制異常頻率，但修改版客戶端仍可能使用不同事件編號灌榜，無法宣稱完全防作弊。</p>
         <p id="leaderboardProfileError" class="leaderboard-profile-error hidden" role="alert"></p>
         <div id="leaderboardProfileSaving" class="leaderboard-profile-saving hidden" role="status" aria-live="polite">
           <span class="leaderboard-profile-spinner" aria-hidden="true"></span>
-          <strong id="leaderboardProfileSavingMessage">正在建立排行榜資料…</strong>
+          <strong id="leaderboardProfileSavingMessage">正在建立個人檔案…</strong>
           <small>正在安全儲存，請稍候，不要關閉 App。</small>
         </div>
         <footer>
           <button id="leaderboardProfileCancel" type="button">取消</button>
-          <button id="leaderboardProfileSubmit" class="primary-btn" type="submit">儲存公開資料</button>
+          <button id="leaderboardProfileSubmit" class="primary-btn" type="submit">儲存個人檔案</button>
         </footer>
       </form>
     </div>
@@ -1338,9 +1338,10 @@
                   <button id="googleLogoutBtn" class="google-logout-btn" type="button">登出</button>
                 </div>
                 <section id="leaderboardAccountSection" class="leaderboard-account-section" aria-labelledby="leaderboardAccountTitle">
-                  <div class="setting-row leaderboard-account-heading"><strong id="leaderboardAccountTitle">排行榜公開資料</strong><strong id="leaderboardAccountMembership">尚未加入</strong></div>
-                  <div id="leaderboardOwnProfile" class="leaderboard-own-profile hidden" aria-label="目前排行榜公開資料"><div><span class="sr-only">目前公開頭像</span><img id="leaderboardOwnAvatar" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="目前公開頭像" /></div><div><span>目前公開名字</span><strong id="leaderboardOwnName">練習者</strong><span>目前展示精靈</span><small id="leaderboardOwnSpirit">尚未設定展示精靈</small></div></div>
-                  <div class="leaderboard-account-actions"><button id="leaderboardProfileEdit" type="button" aria-haspopup="dialog">前往排行榜完成首次設定</button></div>
+                  <div class="setting-row leaderboard-account-heading"><strong id="leaderboardAccountTitle">個人檔案設定</strong><strong id="leaderboardAccountMembership">尚未設定</strong></div>
+                  <div id="leaderboardOwnProfile" class="leaderboard-own-profile hidden" aria-label="目前個人檔案"><div><span class="sr-only">目前個人頭像</span><img id="leaderboardOwnAvatar" src="./public/assets/chromatic-refresh/brand/chl_brand_badge.png" alt="目前個人頭像" /></div><div><span>個人暱稱</span><strong id="leaderboardOwnName">練習者</strong><span>目前展示精靈</span><small id="leaderboardOwnSpirit">尚未設定展示精靈</small></div></div>
+                  <p class="settings-card-copy">個人暱稱、頭像與展示精靈會應用在排行榜及世界 Boss 互動。</p>
+                  <div class="leaderboard-account-actions"><button id="leaderboardProfileEdit" type="button" aria-haspopup="dialog">完成個人檔案設定</button></div>
                 </section>
                 <button id="resetAccountDataBtn" class="account-reset-btn" type="button">清除所有紀錄</button>
                 <p class="settings-card-copy">遊戲進度會保留在本機，並在網路可用時同步到此 Google 帳號。</p>

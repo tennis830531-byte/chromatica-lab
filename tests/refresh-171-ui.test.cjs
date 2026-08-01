@@ -92,20 +92,21 @@ test("formal and QA gardens share the same card, scene, progress, and collection
   assert.match(html, /class="garden-qa-toolbar"[\s\S]*id="gardenQaSharedRoot"/);
 });
 
-test("leaderboard is read-only and public profile actions live in member settings", () => {
+test("leaderboard is read-only and personal profile actions live in member settings", () => {
   const rankingDialog = html.match(/id="leaderboardModal"[\s\S]*?<\/section>\s*<\/div>/)?.[0] || "";
   assert.doesNotMatch(rankingDialog, /編輯公開資料|退出排行榜|leaderboardProfileName/);
-  assert.match(html, /會員帳號[\s\S]*排行榜公開資料/);
-  assert.match(html, /目前公開頭像[\s\S]*目前公開名字[\s\S]*目前展示精靈/);
+  assert.match(html, /會員帳號[\s\S]*個人檔案設定/);
+  assert.match(html, /目前個人頭像[\s\S]*個人暱稱[\s\S]*目前展示精靈/);
   assert.doesNotMatch(html, /退出排行榜|離開排行榜|停止參加|leaderboardAccountLeave|leaderboardLeaveModal/);
   assert.doesNotMatch(leaderboard, /leave_global_leaderboard|leaveLeaderboard|openLeaveConfirmation/);
 });
 
-test("home and modal use neutral leaderboard labels while onboarding starts from the leaderboard", () => {
+test("home and modal use neutral leaderboard labels while login enforces profile onboarding", () => {
   assert.match(html, /data-leaderboard-open[^>]*aria-label="開啟排行榜"[\s\S]*?<strong>排行榜<\/strong><em>查看本週名次<\/em>/);
   assert.match(html, /id="leaderboardModalTitle">排行榜<\/h2>[\s\S]*role="tablist"[^>]*aria-label="排行榜類別"[\s\S]*data-leaderboard-metric="weekly"[^>]*role="tab"[^>]*aria-selected="true"[^>]*>乖乖練習王<\/button>/);
   assert.match(leaderboard, /membershipStatus === MEMBERSHIP\.NOT_JOINED[\s\S]*openProfileEditor\(\{ onboarding: true \}\)/);
-  assert.match(leaderboard, /前往排行榜完成首次設定/);
+  assert.match(leaderboard, /ensureInitialProfile/);
+  assert.match(leaderboard, /完成個人檔案設定/);
 });
 
 test("weekly backend absence offline and auth failures have distinct safe messages", () => {

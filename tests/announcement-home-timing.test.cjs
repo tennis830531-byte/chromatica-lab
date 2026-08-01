@@ -373,7 +373,9 @@ test("22 completing the microphone entry gate allows the announcement on home", 
 });
 
 test("23 microphone choices hide the gate before requesting the announcement", () => {
-  assert.match(app, /function completeMicGate\(\) \{\s*\$\("#micGate"\)\?\.classList\.add\("hidden"\);\s*void window\.ChromaticaAnnouncements\?\.maybeShowLatestOnHome\?\.\(\);/);
+  assert.match(app, /function completeMicGate\(\) \{\s*\$\("#micGate"\)\?\.classList\.add\("hidden"\);\s*void ensureInitialProfileBeforeAnnouncements\(\);/);
+  assert.match(app, /ChromaticaLeaderboard\?\.ensureInitialProfile\?\.\(\)[\s\S]*ChromaticaAnnouncements\?\.maybeShowLatestOnHome/);
+  assert.match(source, /initial-profile-gate-pending/);
   assert.match(app, /if \(started\) \{\s*await calibrateMic\(\);\s*completeMicGate\(\);/);
   assert.match(app, /\$\("#micGateSkip"\)\.addEventListener\("click", \(\) => \{\s*completeMicGate\(\);/);
 });

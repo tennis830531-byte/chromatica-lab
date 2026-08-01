@@ -44,6 +44,9 @@
   let weeklySummary = { loaded: false, weeklyCycles: 0, weeklyRank: null, hasWeeklyEntry: false };
   let cultivatorSummary = { loaded: false, cultivatorRank: null };
   let profileOnboarding = false;
+  let profileRequiredAtStartup = false;
+  let initialProfileFlight = null;
+  let initialProfileResolve = null;
   let profileSaving = false;
   let profile = null;
   let dependencies = {};
@@ -290,9 +293,9 @@
       membership.textContent = !signedIn
         ? "請先登入"
         : joined
-          ? "已加入"
+          ? "已設定"
           : notJoined
-            ? "尚未加入"
+            ? "尚未設定"
             : membershipStatus === MEMBERSHIP.ERROR
               ? "暫時無法確認"
               : "確認中";
@@ -300,7 +303,7 @@
     const edit = $("#leaderboardProfileEdit");
     if (edit) {
       edit.disabled = !signedIn || pending || membershipStatus === MEMBERSHIP.ERROR;
-      edit.textContent = joined ? "編輯公開資料／更換頭像" : "前往排行榜完成首次設定";
+      edit.textContent = joined ? "編輯個人檔案／更換頭像" : "完成個人檔案設定";
     }
     global.ChromaticaPushNotifications?.setMembership?.(joined);
     renderHomeLeaderboardTitle();
@@ -416,6 +419,29 @@
       });
     membershipFlight = flight;
     return flight.promise;
+  }
+
+  async function ensureInitialProfile() {
+    if (isQaActive()) return true;
+    const userId = getPublicUserId();
+    if (!userId) return false;
+    if (initialProfileFlight) return initialProfileFlight;
+    initialProfileFlight = (async () => {
+      const joined = await ensureMembership({ force: membershipStatus === MEMBERSHIP.ERROR });
+      if (joinedNow() || joined === true) {
+        initialProfileFlight = null;
+        return true;
+      }
+      if (membershipStatus !== MEMBERSHIP.NOT_JOINED || userId !== getPublicUserId()) {
+        initialProfileFlight = null;
+        return false;
+      }
+      openProfileEditor({ onboarding: true, required: true });
+      return new Promise((resolve) => {
+        initialProfileResolve = resolve;
+      });
+    })();
+    return initialProfileFlight;
   }
 
   async function syncOwnProfile() {
@@ -578,7 +604,7 @@
     }
     if (membershipStatus === MEMBERSHIP.NOT_JOINED) {
       renderLeaderboardRows([], activeMetric);
-      setStatus("請先完成排行榜公開資料設定。", "");
+      setStatus("請先完成個人檔案設定。", "");
       return [];
     }
     const context = requestContext(userId);
@@ -662,8 +688,8 @@
     return flight.promise;
   }
 
-  function closeProfileEditor() {
-    if (profileSaving) return;
+  function closeProfileEditor({ force = false } = {}) {
+    if (profileSaving || (profileRequiredAtStartup && !force)) return false;
     profileViewportCleanup?.();
     profileViewportCleanup = null;
     profileOpen = false;
@@ -673,8 +699,10 @@
     pendingAvatarFile = null;
     resetCustomAvatar = false;
     profileOnboarding = false;
+    profileRequiredAtStartup = false;
     updateModalOpenClass();
     requestAnimationFrame(() => $("#leaderboardProfileEdit")?.focus());
+    return true;
   }
 
   function bindProfileKeyboardViewport() {
@@ -763,7 +791,7 @@
     form?.setAttribute("aria-busy", String(profileSaving));
     progress?.classList.toggle("hidden", !profileSaving);
     if (message) {
-      message.textContent = profileOnboarding ? "正在建立排行榜資料…" : "正在儲存公開資料…";
+      message.textContent = profileOnboarding ? "正在建立個人檔案…" : "正在儲存個人檔案…";
     }
     [
       "#leaderboardProfileClose",
@@ -779,9 +807,10 @@
     });
   }
 
-  function openProfileEditor({ onboarding = false } = {}) {
+  function openProfileEditor({ onboarding = false, required = false } = {}) {
     if (!getPublicUser() || (!joinedNow() && !onboarding)) return;
     profileOnboarding = onboarding;
+    profileRequiredAtStartup = onboarding && required;
     pendingAvatarFile = null;
     resetCustomAvatar = false;
     showProfileError();
@@ -791,8 +820,10 @@
     $("#leaderboardProfileAvatarInput").value = "";
     $("#leaderboardConsentWrap")?.classList.toggle("hidden", !onboarding);
     if ($("#leaderboardProfileConsent")) $("#leaderboardProfileConsent").checked = false;
-    if ($("#leaderboardProfileSubmit")) $("#leaderboardProfileSubmit").textContent = onboarding ? "同意並加入排行榜" : "儲存公開資料";
-    if ($("#leaderboardProfileTitle")) $("#leaderboardProfileTitle").textContent = onboarding ? "設定排行榜公開資料" : "編輯名字與頭像";
+    if ($("#leaderboardProfileSubmit")) $("#leaderboardProfileSubmit").textContent = onboarding ? "完成設定" : "儲存個人檔案";
+    if ($("#leaderboardProfileTitle")) $("#leaderboardProfileTitle").textContent = onboarding ? "完成個人檔案設定" : "編輯個人檔案";
+    $("#leaderboardProfileClose")?.classList.toggle("hidden", profileRequiredAtStartup);
+    $("#leaderboardProfileCancel")?.classList.toggle("hidden", profileRequiredAtStartup);
     setProfileSaving(false);
     profileOpen = true;
     $("#leaderboardProfileModal")?.classList.remove("hidden");
@@ -811,15 +842,15 @@
     if (!isCurrentRequest(context)) return;
     const name = core.normalizeDisplayName($("#leaderboardProfileName")?.value, "");
     if (!core.isValidDisplayName(name)) {
-      showProfileError("排行榜名字需為 2～20 個可見字元，且不能包含控制字元。");
+      showProfileError("個人暱稱需為 2～20 個可見字元，且不能包含控制字元。");
       return;
     }
     if (profileOnboarding && !pendingAvatarFile) {
-      showProfileError("請自行選擇一張排行榜頭像。");
+      showProfileError("請自行選擇一張個人頭像。");
       return;
     }
     if (profileOnboarding && $("#leaderboardProfileConsent")?.checked !== true) {
-      showProfileError("請先確認公開資料說明。");
+      showProfileError("請先確認個人檔案使用說明。");
       return;
     }
     if (!profileOnboarding && !joinedNow()) return;
@@ -869,16 +900,22 @@
       invalidateCache(context);
       renderOwnProfile();
       const completedOnboarding = profileOnboarding;
-      if (completedOnboarding) {
+      const completedRequiredProfile = profileRequiredAtStartup;
+      if (completedOnboarding && !completedRequiredProfile) {
         modalOpen = true;
         $("#leaderboardModal")?.classList.remove("hidden");
       }
       setProfileSaving(false);
-      closeProfileEditor();
+      closeProfileEditor({ force: true });
+      if (completedRequiredProfile && initialProfileResolve) {
+        initialProfileResolve(true);
+        initialProfileResolve = null;
+        initialProfileFlight = null;
+      }
       await loadLeaderboard(activeMetric, { force: true });
     } catch (error) {
       if (!isCurrentRequest(context)) return;
-      showProfileError(profileOnboarding ? "公開資料尚未建立；請確認圖片與網路後再試。" : "公開資料儲存失敗，原本資料已保留；請確認網路後再試。");
+      showProfileError(profileOnboarding ? "個人檔案尚未建立；請確認圖片與網路後再試。" : "個人檔案儲存失敗，原本資料已保留；請確認網路後再試。");
       console.warn("Leaderboard profile update failed.", error?.message || error);
     } finally {
       if (isCurrentRequest(context)) setProfileSaving(false);
@@ -1226,6 +1263,10 @@
     pendingAvatarFile = null;
     resetCustomAvatar = false;
     profileOnboarding = false;
+    profileRequiredAtStartup = false;
+    if (initialProfileResolve) initialProfileResolve(false);
+    initialProfileResolve = null;
+    initialProfileFlight = null;
     $("#leaderboardModal")?.classList.add("hidden");
     $("#leaderboardProfileModal")?.classList.add("hidden");
     $("#leaderboardWeeklyRewardModal")?.classList.add("hidden");
@@ -1390,6 +1431,7 @@
     close,
     recordPracticeCompletion,
     flushPendingEvents,
+    ensureInitialProfile,
     activateAccount,
     resetForSignedOutAccount,
     resetAfterAccountDataClear,

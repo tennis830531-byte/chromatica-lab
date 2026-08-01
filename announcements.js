@@ -246,13 +246,13 @@
       const membership = Array.isArray(membershipResult.data) ? membershipResult.data[0] : membershipResult.data;
       const canComment = !membershipResult.error && membership?.joined === true;
       form?.classList.toggle("hidden", !canComment);
-      $("#announcementCommentHint").textContent = canComment ? "" : "請先完成排行榜公開資料後再留言";
-      if (!canComment) status.textContent = `${status.textContent}${status.textContent ? " " : ""}請先完成排行榜公開資料後再留言`;
+      $("#announcementCommentHint").textContent = canComment ? "" : "請先完成個人檔案設定後再留言";
+      if (!canComment) status.textContent = `${status.textContent}${status.textContent ? " " : ""}請先完成個人檔案設定後再留言`;
     } catch (error) {
       renderComments([]);
       form?.classList.add("hidden");
       status.textContent = /public profile required/i.test(String(error?.message || ""))
-        ? "請先完成排行榜公開資料後再留言"
+        ? "請先完成個人檔案設定後再留言"
         : "留言暫時無法載入。";
     }
   }
@@ -281,7 +281,7 @@
       await loadComments(activeAnnouncement);
     } catch (error) {
       $("#announcementCommentHint").textContent = /public profile required/i.test(String(error?.message || ""))
-        ? "請先完成排行榜公開資料後再留言"
+        ? "請先完成個人檔案設定後再留言"
         : "留言送出失敗，請稍後再試。";
     } finally {
       commentSubmitting = false;
@@ -410,7 +410,8 @@
     const nativeAndroid = Boolean(global.Capacitor?.isNativePlatform?.() && global.Capacitor?.getPlatform?.() === "android");
     const startupSplashFinished = !nativeAndroid || global.chromaticaStartupSplashFinished === true;
     const presentationBlocked = document.body.classList.contains("modal-open")
-      || document.body.classList.contains("practice-settlement-open");
+      || document.body.classList.contains("practice-settlement-open")
+      || document.body.classList.contains("initial-profile-gate-pending");
     return authenticated
       && workspaceReady
       && homeActive

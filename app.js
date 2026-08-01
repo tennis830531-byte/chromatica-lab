@@ -7152,9 +7152,29 @@ function editIntervalPracticeSettings() {
   scrollToSection("intervalSetup");
 }
 
+let initialProfilePresentationFlight = null;
+
+function ensureInitialProfileBeforeAnnouncements() {
+  if (isGardenQaSessionActive()) return Promise.resolve(true);
+  if (!$("#micGate")?.classList.contains("hidden")) return Promise.resolve(false);
+  if (initialProfilePresentationFlight) return initialProfilePresentationFlight;
+  document.body.classList.add("initial-profile-gate-pending");
+  initialProfilePresentationFlight = Promise.resolve(window.ChromaticaLeaderboard?.ensureInitialProfile?.())
+    .then((ready) => {
+      if (ready !== true) return false;
+      document.body.classList.remove("initial-profile-gate-pending");
+      void window.ChromaticaAnnouncements?.maybeShowLatestOnHome?.();
+      return true;
+    })
+    .finally(() => {
+      initialProfilePresentationFlight = null;
+    });
+  return initialProfilePresentationFlight;
+}
+
 function completeMicGate() {
   $("#micGate")?.classList.add("hidden");
-  void window.ChromaticaAnnouncements?.maybeShowLatestOnHome?.();
+  void ensureInitialProfileBeforeAnnouncements();
 }
 
 function setView(view, options = {}) {
@@ -8257,6 +8277,7 @@ function renderAuthenticatedAccountWorkspace({ allowDailyLoginBonus = false, ini
     });
     return;
   }
+  document.body.classList.add("initial-profile-gate-pending");
   dailyLoginBonusController.record("authenticated workspace initial render", {
     userId,
     date: getTodayKey(),
@@ -8318,6 +8339,7 @@ function renderAuthenticatedAccountWorkspace({ allowDailyLoginBonus = false, ini
     completeMicGate();
     setView("intro");
   }
+  void ensureInitialProfileBeforeAnnouncements();
 }
 
 function initializeAuthenticatedApp(options = {}) {
@@ -8472,6 +8494,7 @@ window.chromaticaApp = {
   },
   prepareForSignedOutAccount() {
     if (!chromaticaAppInitialized) return;
+    document.body.classList.remove("initial-profile-gate-pending");
     stopGardenBgm();
     stopIntervalMetronome();
     stopPractice(false);

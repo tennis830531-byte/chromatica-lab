@@ -124,7 +124,7 @@ test("comments use server-owned leaderboard identity and enforce author/admin de
   assert.match(migration, /user_id = auth\.uid\(\)/);
   assert.match(migration, /ac\.user_id = v_user_id or public\.is_app_admin\(v_user_id\)/);
   assert.match(migration, /char_length\(v_body\) not between 1 and 300/);
-  assert.match(announcements, /請先完成排行榜公開資料後再留言/);
+  assert.match(announcements, /請先完成個人檔案設定後再留言/);
   assert.match(announcements, /commentAvatarUrl/);
 });
 
