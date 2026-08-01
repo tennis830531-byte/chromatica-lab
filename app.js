@@ -2447,13 +2447,20 @@ function createFormalGardenSpiritAdapter() {
     getStageName: (spirit, stage) => getPlantStageName(spirit, stage),
     getImage: (spirit, stage) => getPlantImage({ ...spirit, stage }),
     isSkillUnlocked: (species) => window.ChromaticaWorldBoss?.isSkillUnlocked?.(species) === true,
-    updateName: (id, name) => updateCollectedSpirit(id, () => ({ name, customName: true })),
+    updateName: (id, name) => updateCollectedSpirit(id, (spirit) => ({
+      name,
+      customName: isCustomGardenName({ ...spirit, name, customName: false }),
+    })),
     setFeatured: (id, stage) => {
       setFeaturedSpiritId(id);
       setFeaturedSpiritStage(stage);
     },
     render: () => renderGarden(),
-    afterRename: () => void reconcilePracticeReminderSchedule(),
+    afterRename: () => {
+      void reconcilePracticeReminderSchedule();
+      void window.ChromaticaLeaderboard?.syncFeaturedSpirit?.();
+      window.ChromaticaWorldBoss?.refreshSpiritRoster?.();
+    },
   };
   adapter.openSpirit = (id) => openGardenSpiritModal(id, adapter);
   return adapter;
@@ -2540,7 +2547,8 @@ function getWorldBossSpiritRoster() {
       species: spirit.species,
       stage,
       maxStage,
-      name: getPlantStageName(spirit, stage),
+      name: getPlantDisplayName(spirit, stage),
+      customName: isCustomGardenName(spirit),
       stageNames: getGardenSpecies(spirit.species)?.stageNames || [],
       image: getPlantImage({ ...spirit, stage }),
     });
@@ -2628,7 +2636,7 @@ function saveGardenSpiritName() {
   adapter.render();
   renderGardenSpiritModal();
   closeGardenRenameModal();
-  adapter.afterRename?.();
+  adapter.afterRename?.(updated);
   showGardenToast("名字已更新", `已改名為「${adapter.getDisplayName(updated, selectedGardenSpiritStage)}」。`);
 }
 

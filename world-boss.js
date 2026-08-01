@@ -383,6 +383,30 @@
     return { ...rosterSpirit, species, stage, skill: core()?.getSkill?.(species) || null };
   }
 
+  function rosterSpiritName(spirit, stage = spirit?.stage) {
+    if (spirit?.customName && spirit?.name) return spirit.name;
+    return spirit?.stageNames?.[Math.max(1, Math.min(3, Number(stage) || 1)) - 1]
+      || spirit?.name
+      || spirit?.skill?.spiritName
+      || "出戰精靈";
+  }
+
+  function refreshSpiritRoster() {
+    const previous = selectedSpirit();
+    state.spiritRoster = [];
+    state.spiritRosterQa = null;
+    initializeSpiritRoster();
+    const matchingIndex = state.spiritRoster.findIndex((spirit) => spirit.species === previous.species);
+    if (matchingIndex >= 0) {
+      state.spiritIndex = matchingIndex;
+      state.spiritRoster[matchingIndex].stage = Math.max(
+        1,
+        Math.min(Number(state.spiritRoster[matchingIndex].maxStage || 1), Number(previous.stage) || 1),
+      );
+    }
+    if (document.querySelector("#worldboss.view.active")) renderPage();
+  }
+
   function isSkillUnlocked(species) {
     if (isQaMode()) {
       const adapter = window.ChromaticaGardenQA?.getDetailAdapter?.();
@@ -413,7 +437,7 @@
         button.classList.toggle("is-selected", rosterIndex === state.spiritIndex && stage === Number(spirit.stage));
         image.src = `./public/assets/garden/plants/${spirit.species}-stage${stage}.png`;
         image.alt = "";
-        name.textContent = spirit.stageNames?.[stage - 1] || spirit.name || spirit.skill?.spiritName || "出戰精靈";
+        name.textContent = rosterSpiritName(spirit, stage);
         stageLabel.textContent = `第 ${stage} 階段`;
         button.setAttribute("aria-label", `選擇${name.textContent}，${stageLabel.textContent}`);
         button.append(image, name, stageLabel);
@@ -576,9 +600,9 @@
       spiritImage.alt = "";
       if (species) spiritImage.src = `./public/assets/garden/plants/${species}-stage${stage}.png`;
       else spiritImage.classList.add("hidden");
-      spiritName.textContent = QA_STAGE_NAMES[species]?.[stage - 1]
-        || row.spirit_name
+      spiritName.textContent = row.spirit_name
         || row.featured_spirit_name
+        || QA_STAGE_NAMES[species]?.[stage - 1]
         || "尚未展示精靈";
       spirit.append(spiritImage, spiritName);
       identity.append(name, spirit);
@@ -728,9 +752,7 @@
       activeSpirit.alt = `${selected.skill?.spiritName || "出戰精靈"}出戰中`;
     }
     if ($("#worldBossActiveSpiritName")) {
-      $("#worldBossActiveSpiritName").textContent = selected.stage === 3
-        ? selected.skill?.spiritName || selected.name || "出戰精靈"
-        : selected.stageNames?.[selected.stage - 1] || selected.name || selected.skill?.spiritName || "出戰精靈";
+      $("#worldBossActiveSpiritName").textContent = rosterSpiritName(selected, selected.stage);
     }
     if ($("#worldBossActiveSpiritStage")) $("#worldBossActiveSpiritStage").textContent = `第 ${selected.stage} 階段`;
     if ($("#worldBossSpirit")) $("#worldBossSpirit").value = selected.species;
@@ -1329,6 +1351,7 @@
     onAppBackground,
     renderSkillPanel,
     isSkillUnlocked,
+    refreshSpiritRoster,
     recordPracticeCompletion,
   });
 })();

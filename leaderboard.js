@@ -454,6 +454,19 @@
     return profile;
   }
 
+  async function syncFeaturedSpirit() {
+    if (!getPublicUser() || isQaActive()) return null;
+    if (!joinedNow() && !await ensureMembership({ force: true })) return null;
+    try {
+      const nextProfile = await syncOwnProfile();
+      if (nextProfile) invalidateCache(requestContext());
+      return nextProfile;
+    } catch (error) {
+      console.warn("Leaderboard featured spirit sync failed.", classifyLeaderboardError(error).kind);
+      return null;
+    }
+  }
+
   function readCache(metric, userId = activeUserId) {
     if (!userId || userId !== getPublicUserId()) return null;
     return readJson(sessionStorage, cacheKey(metric, userId), null);
@@ -1431,6 +1444,7 @@
     close,
     recordPracticeCompletion,
     flushPendingEvents,
+    syncFeaturedSpirit,
     ensureInitialProfile,
     activateAccount,
     resetForSignedOutAccount,

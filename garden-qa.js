@@ -6,6 +6,7 @@
   const REQUIRED_CLICKS = 50;
   const MAX_FAILURES = 5;
   const LOCK_MS = 30000;
+  const QA_SKILL_TEST_WATER = 600;
   let options = {};
   let titleClicks = 0;
   let failedAttempts = 0;
@@ -31,14 +32,14 @@
   function defaultState() {
     const species = options.species?.[0];
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       currentPlant: species ? createPlant(species.species) : null,
       collection: [],
       featuredSpiritId: "",
       featuredSpiritStage: 3,
       starterPlantSelected: Boolean(species),
       unlimitedWater: true,
-      qaWaterDrops: 300,
+      qaWaterDrops: QA_SKILL_TEST_WATER,
       worldBossSkillUnlocks: [],
       previewMode: "garden",
       heroSpecies: species?.species || "",
@@ -50,9 +51,14 @@
     return { id: `qa-plant-${Date.now()}`, species: species.species, name: species.name, customName: false, stage: 1, waterProgress: 0 };
   }
   function getSpecies(id) { return options.species?.find((item) => item.species === id) || options.species?.[0] || { species: "", name: "測試植物", stageNames: ["幼苗", "成長", "成熟"], images: [] }; }
+  function isDefaultSpeciesName(speciesId, name) {
+    const species = getSpecies(speciesId);
+    return [species.name, ...(species.stageNames || [])].filter(Boolean).includes(name);
+  }
   function sanitizeState(rawState) {
     const allowedIds = new Set((options.species || []).map((species) => species.species));
-    const state = rawState?.schemaVersion === 1 ? { ...rawState } : defaultState();
+    const legacySkillBudget = rawState?.schemaVersion === 1;
+    const state = [1, 2].includes(rawState?.schemaVersion) ? { ...rawState } : defaultState();
     state.collection = Array.isArray(state.collection)
       ? state.collection.filter((spirit) => allowedIds.has(spirit?.species))
       : [];
@@ -65,10 +71,13 @@
       state.featuredSpiritId = "";
       state.featuredSpiritStage = 3;
     }
-    state.schemaVersion = 1;
+    state.schemaVersion = 2;
     state.starterPlantSelected = Boolean(state.currentPlant || state.collection.length);
     state.unlimitedWater = true;
-    state.qaWaterDrops = Math.max(0, Math.min(9999, Number(state.qaWaterDrops ?? 300) || 0));
+    state.qaWaterDrops = Math.max(
+      0,
+      Math.min(9999, (Number(state.qaWaterDrops ?? QA_SKILL_TEST_WATER) || 0) + (legacySkillBudget ? 300 : 0)),
+    );
     state.worldBossSkillUnlocks = Array.isArray(state.worldBossSkillUnlocks)
       ? [...new Set(state.worldBossSkillUnlocks.filter((speciesId) => allowedIds.has(speciesId)))]
       : [];
@@ -281,7 +290,7 @@
         const spirit = state.collection.find((item) => item.id === id);
         if (!spirit) return null;
         spirit.name = name;
-        spirit.customName = true;
+        spirit.customName = !isDefaultSpeciesName(spirit.species, name);
         saveState(state);
         return spirit;
       },
