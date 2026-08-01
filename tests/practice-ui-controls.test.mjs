@@ -101,3 +101,7 @@ test("refresh-176 web and Android release metadata stay aligned", () => {
   assert.match(androidBuild, /versionCode 60/);
   assert.match(androidBuild, /versionName "1\.0\.59"/);
 });
+
+test("an empty practice reminder status does not create a gap before ranking notifications", () => {
+  assert.match(css, /#practiceReminderStatus:empty\s*\{\s*display: none;/);
+});

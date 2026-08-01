@@ -5145,8 +5145,9 @@ input[type="range"] {
 .announcement-list-item { display: grid; grid-template-columns: 64px minmax(0,1fr); align-items: center; gap: 12px; width: 100%; min-height: 70px; padding: 9px; border: 1px solid #dfc8a8; border-radius: 15px; background: #fffaf2; color: #5c3926; text-align: left; }
 .announcement-list-item > img { width: 64px; height: 52px; border-radius: 10px; background: #f1e8dc; object-fit: cover; }
 .announcement-list-item > img.hidden { visibility: hidden; }
+.announcement-list-item > img.hidden + span { grid-column: 1 / -1; }
 .announcement-list-item span { display: grid; gap: 3px; min-width: 0; }
-.announcement-list-item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.announcement-list-item strong { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
 .announcement-list-item small, .announcement-list-item time { color: var(--text-muted); font-size: 11px; }
 .announcement-admin { width: min(calc(100vw - 24px), 680px); }
 .announcement-admin form, .announcement-admin label { display: grid; gap: 7px; }
@@ -5701,6 +5702,10 @@ input[type="range"] {
   min-height: 20px;
   color: var(--primary);
   font-weight: 900;
+}
+
+#practiceReminderStatus:empty {
+  display: none;
 }
 
 .setting-number-wrap,

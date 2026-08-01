@@ -88,6 +88,11 @@ test("admin draft list shows the complete large topic without truncation", () =>
   assert.match(css, /\.announcement-admin-list-item strong \{[^}]*white-space: normal;[^}]*text-overflow: clip;/s);
 });
 
+test("settings announcement titles wrap fully without ellipsis", () => {
+  assert.match(css, /\.announcement-list-item strong \{[^}]*overflow: visible;[^}]*text-overflow: clip;[^}]*white-space: normal;[^}]*overflow-wrap: anywhere;/s);
+  assert.match(css, /\.announcement-list-item > img\.hidden \+ span \{[^}]*grid-column: 1 \/ -1;/s);
+});
+
 test("auto previews queue every announcement not dismissed for the active account", () => {
   assert.match(announcements, /DISMISSED_AUTO_PREVIEW_PREFIX = "chromatica\.announcements\.dismissed-auto\.v1"/);
   assert.match(announcements, /getLeaderboardAccount\?\.\(\)\?\.id/);
