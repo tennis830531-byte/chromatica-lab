@@ -25,6 +25,8 @@ function createPushHarness() {
   const rpcCalls = [];
   const pluginCalls = [];
   const homeOpenCalls = [];
+  const localNotifications = [];
+  const windowListeners = new Map();
   const storage = new Map();
   const elements = new Map([
     ["#leaderboardWeeklyResultToggle", { checked: true, addEventListener() {} }],
@@ -33,11 +35,16 @@ function createPushHarness() {
   ]);
   const user = { id: "account-a" };
   const window = {
+    document: { visibilityState: "visible", addEventListener() {} },
+    Capacitor: { Plugins: { LocalNotifications: {
+      createChannel: async () => {},
+      schedule: async ({ notifications }) => localNotifications.push(...notifications),
+    } } },
     ChromaticaNativePushConfig: { firebaseReady: true },
     chromaticaApp: {
       openHomeFromPushNotification: () => homeOpenCalls.push("home"),
     },
-    addEventListener() {},
+    addEventListener(name, callback) { windowListeners.set(name, callback); },
     dispatchEvent() {},
     chromaticaAuth: {
       isNativeAndroid: () => true,
@@ -71,7 +78,7 @@ function createPushHarness() {
     console,
   };
   vm.runInNewContext(pushSource, context);
-  return { window, user, listeners, rpcCalls, pluginCalls, homeOpenCalls };
+  return { window, user, listeners, rpcCalls, pluginCalls, homeOpenCalls, localNotifications, windowListeners };
 }
 
 test("login registration and token refresh use the existing RPC with runtime deduplication", async () => {
@@ -163,6 +170,34 @@ test("notification taps route once to home while foreground delivery does not na
     data: { notification_type: "weekly_top_ten_result" },
   });
   assert.equal(harness.homeOpenCalls.length, 1, "foreground receipt must not perform navigation");
+});
+
+test("foreground World Boss FCM becomes one visible local system notification", async () => {
+  const harness = createPushHarness();
+  harness.window.ChromaticaPushNotifications.init();
+  await flush();
+  const received = {
+    title: "世界 Boss 出現！",
+    body: "世界 Boss 已現身",
+    data: { notification_type: "boss_appeared", notification_id: "boss-notification-1", event_id: "event-1" },
+  };
+  harness.listeners.get("pushNotificationReceived")(received);
+  harness.listeners.get("pushNotificationReceived")(received);
+  await flush();
+  assert.equal(harness.localNotifications.length, 1);
+  assert.equal(harness.localNotifications[0].channelId, "world-boss");
+  assert.equal(harness.localNotifications[0].smallIcon, "ic_stat_chromatica_notification");
+});
+
+test("returning to the foreground refreshes FCM registration without exposing the token", async () => {
+  const harness = createPushHarness();
+  harness.window.ChromaticaPushNotifications.init();
+  harness.window.ChromaticaPushNotifications.setAuthenticatedAccount("account-a");
+  await flush();
+  assert.equal(harness.pluginCalls.filter((name) => name === "register").length, 1);
+  harness.windowListeners.get("focus")();
+  await flush();
+  assert.equal(harness.pluginCalls.filter((name) => name === "register").length, 2);
 });
 
 test("home routing waits for authenticated workspace and then returns to intro", () => {

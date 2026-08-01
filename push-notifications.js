@@ -6,6 +6,7 @@
     movement: Object.freeze({ key: "chromatica.settings.leaderboardTopTenChanges", toggle: "#leaderboardMovementToggle" }),
   });
   const MOVEMENT_TYPES = new Set(["entered_top_ten", "rank_improved", "dropped_out_of_top_ten"]);
+  const WORLD_BOSS_TYPES = new Set(["boss_appeared", "below_10", "boss_defeated", "first_hit", "final_hit"]);
   const seenForegroundNotifications = new Set();
   let initialized = false;
   let joined = false;
@@ -13,6 +14,7 @@
   let tokenRegistrationFlight = null;
   let activeAccountId = "";
   let registeredTokenKey = "";
+  let lastResumeRegistrationAt = 0;
 
   const $ = (selector) => document.querySelector(selector);
   const auth = () => global.chromaticaAuth;
@@ -37,6 +39,57 @@
       visibility: 1,
       vibration: true,
     });
+    await auth().pushNotifications.createChannel({
+      id: "world-boss",
+      name: "世界 Boss",
+      description: "世界 Boss 現身與討伐進度通知",
+      importance: 4,
+      visibility: 1,
+      vibration: true,
+    });
+  }
+
+  function worldBossNotificationCopy(type) {
+    if (type === "boss_appeared") return { title: "世界 Boss 出現！", body: "世界 Boss 已現身，快帶精靈一起參加討伐！" };
+    if (type === "below_10") return { title: "世界 Boss 即將被擊倒", body: "世界 Boss 的 HP 已低於 10%，快來完成最後攻勢！" };
+    if (type === "boss_defeated") return { title: "世界 Boss 討伐成功", body: "世界 Boss 已被擊倒，回到 App 查看本週結算。" };
+    if (type === "first_hit") return { title: "世界 Boss 第一擊", body: "本週討伐的第一擊已經出現！" };
+    return { title: "世界 Boss 最後一擊", body: "最後一擊完成，本週討伐成功！" };
+  }
+
+  function foregroundNotificationId(value) {
+    let hash = 2166136261;
+    for (const character of String(value || "world-boss")) {
+      hash ^= character.charCodeAt(0);
+      hash = Math.imul(hash, 16777619);
+    }
+    return 200000000 + (Math.abs(hash) % 100000000);
+  }
+
+  async function showForegroundWorldBossNotification(type, data, notification = {}) {
+    const notificationId = String(data.notification_id || `${type}:${data.event_id || ""}`);
+    if (seenForegroundNotifications.has(notificationId)) return;
+    seenForegroundNotifications.add(notificationId);
+    const plugin = global.Capacitor?.Plugins?.LocalNotifications;
+    if (!plugin?.schedule) return;
+    const fallback = worldBossNotificationCopy(type);
+    await plugin.createChannel?.({
+      id: "world-boss",
+      name: "世界 Boss",
+      description: "世界 Boss 現身與討伐進度通知",
+      importance: 4,
+      visibility: 1,
+      vibration: true,
+    });
+    await plugin.schedule({ notifications: [{
+      id: foregroundNotificationId(notificationId),
+      title: String(notification.title || fallback.title),
+      body: String(notification.body || fallback.body),
+      channelId: "world-boss",
+      smallIcon: "ic_stat_chromatica_notification",
+      iconColor: "#8A5A32",
+      extra: { ...data, foregroundBridge: true },
+    }] });
   }
 
   function setStatus(message = "", kind = "") {
@@ -172,9 +225,12 @@
     global.chromaticaApp?.showNonBlockingToast?.(message);
   }
 
-  function handleNotificationData(data = {}, { opened = false } = {}) {
+  function handleNotificationData(data = {}, { opened = false, notification = null } = {}) {
     const type = String(data.notification_type || "");
     if (!opened && MOVEMENT_TYPES.has(type)) showMovementToast(type, data);
+    if (!opened && WORLD_BOSS_TYPES.has(type)) {
+      void showForegroundWorldBossNotification(type, data, notification || {}).catch(() => {});
+    }
     if (opened) global.chromaticaApp?.openHomeFromPushNotification?.();
   }
 
@@ -183,7 +239,10 @@
     try {
       await auth().pushNotifications.addListener("registration", (token) => void registerToken(token));
       await auth().pushNotifications.addListener("registrationError", () => setStatus("無法取得推播裝置識別；排行榜仍可正常使用。", "error"));
-      await auth().pushNotifications.addListener("pushNotificationReceived", (notification) => handleNotificationData(notification?.data || {}));
+      await auth().pushNotifications.addListener("pushNotificationReceived", (notification) => handleNotificationData(
+        notification?.data || {},
+        { notification },
+      ));
       await auth().pushNotifications.addListener("pushNotificationActionPerformed", (action) => handleNotificationData(action?.notification?.data || {}, { opened: true }));
     } catch {
       setStatus("推播服務目前無法使用；排行榜仍可正常使用。", "error");
@@ -207,6 +266,13 @@
       }
     })().finally(() => { registrationFlight = null; });
     return registrationFlight;
+  }
+
+  function refreshRegistrationOnResume() {
+    if (Date.now() - lastResumeRegistrationAt < 30000) return;
+    lastResumeRegistrationAt = Date.now();
+    registeredTokenKey = "";
+    void initializeRegistrationIfAllowed();
   }
 
   function setAuthenticatedAccount(userId) {
@@ -248,6 +314,10 @@
     void bindNativeListeners();
     global.addEventListener?.("chromatica:native-push-config-ready", () => {
       void initializeRegistrationIfAllowed();
+    });
+    global.addEventListener?.("focus", refreshRegistrationOnResume);
+    global.document?.addEventListener?.("visibilitychange", () => {
+      if (global.document.visibilityState === "visible") refreshRegistrationOnResume();
     });
     render();
   }

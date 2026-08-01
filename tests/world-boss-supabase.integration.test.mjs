@@ -122,6 +122,9 @@ test("formal attacks accept a cultivating spirit only through its unlocked stage
     p_attack_type: "normal",
     p_request_id: crypto.randomUUID(),
   }), /spirit stage not owned/);
+  await rpc("exchange_world_boss_energy", {
+    p_event_id: ownedEvent.data.id, p_quantity: 1, p_request_id: crypto.randomUUID(),
+  });
   await failure(() => rpc("attack_world_boss", {
     p_event_id: ownedEvent.data.id,
     p_species: "flower-spirit",
@@ -138,12 +141,57 @@ test("normal damage, special damage, effective overkill, first/final hit, and de
   });
   assert.equal(normal[0].effective_damage, 10);
   assert.equal(normal[0].is_first_hit, true);
+  assert.equal(normal[0].light_energy, 0);
+  const emptyState = await admin.from("world_boss_player_states")
+    .select("light_energy,attack_count").eq("event_id", eventId).eq("user_id", user.id).single();
+  assert.ifError(emptyState.error);
+  await failure(() => rpc("attack_world_boss", {
+    p_event_id: eventId, p_species: "melody-sprout", p_stage: 2,
+    p_attack_type: "normal", p_request_id: crypto.randomUUID(),
+  }), /insufficient light energy/);
+  const afterEmptyAttack = await admin.from("world_boss_player_states")
+    .select("light_energy,attack_count").eq("event_id", eventId).eq("user_id", user.id).single();
+  assert.deepEqual(afterEmptyAttack.data, emptyState.data);
+  const waterBeforeExchangeAttack = await admin.from("game_saves")
+    .select("snapshot,revision").eq("user_id", user.id).single();
+  assert.ifError(waterBeforeExchangeAttack.error);
+  const exchangedNormal = await rpc("exchange_and_attack_world_boss", {
+    p_event_id: eventId,
+    p_species: "melody-sprout",
+    p_stage: 2,
+    p_attack_type: "normal",
+    p_exchange_request_id: crypto.randomUUID(),
+    p_attack_request_id: crypto.randomUUID(),
+  });
+  assert.equal(exchangedNormal[0].effective_damage, 30);
+  assert.equal(exchangedNormal[0].light_energy, 0);
+  const waterAfterExchangeAttack = await admin.from("game_saves")
+    .select("snapshot,revision").eq("user_id", user.id).single();
+  assert.ifError(waterAfterExchangeAttack.error);
+  assert.equal(
+    Number(waterAfterExchangeAttack.data.snapshot.data["chromatica.waterDrops"]),
+    Number(waterBeforeExchangeAttack.data.snapshot.data["chromatica.waterDrops"]) - 3,
+  );
+  await failure(() => rpc("exchange_and_attack_world_boss", {
+    p_event_id: eventId,
+    p_species: "lotus-spirit",
+    p_stage: 1,
+    p_attack_type: "normal",
+    p_exchange_request_id: crypto.randomUUID(),
+    p_attack_request_id: crypto.randomUUID(),
+  }), /spirit stage not owned/);
+  const waterAfterRejectedExchange = await admin.from("game_saves")
+    .select("snapshot,revision").eq("user_id", user.id).single();
+  assert.deepEqual(waterAfterRejectedExchange.data, waterAfterExchangeAttack.data);
+  await rpc("exchange_world_boss_energy", {
+    p_event_id: eventId, p_quantity: 2, p_request_id: crypto.randomUUID(),
+  });
   const special = await rpc("attack_world_boss", {
     p_event_id: eventId, p_species: "melody-sprout", p_stage: 3,
     p_attack_type: "special", p_request_id: crypto.randomUUID(),
   });
   assert.equal(special[0].effective_damage, 100);
-  assert.equal(special[0].light_energy, 0);
+  assert.equal(special[0].light_energy, 1);
   assert.ifError((await admin.from("world_boss_events").update({
     remaining_hp: 5, total_effective_damage: 2995,
   }).eq("id", eventId)).error);
@@ -154,6 +202,13 @@ test("normal damage, special damage, effective overkill, first/final hit, and de
   assert.equal(tail[0].attempted_damage, 60);
   assert.equal(tail[0].effective_damage, 5);
   assert.equal(tail[0].is_final_hit, true);
+  assert.equal(tail[0].light_energy, 0);
+  const settledEvent = await admin.from("world_boss_events")
+    .select("status").eq("id", eventId).single();
+  assert.ifError(settledEvent.error);
+  assert.equal(settledEvent.data.status, "closed");
+  const settlement = await rpc("get_world_boss_settlement", { p_event_id: eventId });
+  assert.equal(settlement.snapshot.success, true);
   const before = await admin.from("world_boss_player_states").select("light_energy").eq("event_id", eventId).eq("user_id", user.id).single();
   await failure(() => rpc("attack_world_boss", {
     p_event_id: eventId, p_species: "melody-sprout", p_stage: 3,
@@ -244,4 +299,13 @@ test("concurrent tail attacks produce one final hit and no double deduction", as
   assert.equal(attacks.data.length, 1);
   assert.equal(attacks.data[0].effective_damage, 10);
   assert.equal(attacks.data[0].is_final_hit, true);
+  const player = await admin.from("world_boss_player_states")
+    .select("light_energy,attack_count").eq("event_id", event.data.id).eq("user_id", user.id).single();
+  assert.ifError(player.error);
+  assert.equal(player.data.light_energy, 0);
+  assert.equal(player.data.attack_count, 1);
+  const settledEvent = await admin.from("world_boss_events")
+    .select("status").eq("id", event.data.id).single();
+  assert.ifError(settledEvent.error);
+  assert.equal(settledEvent.data.status, "closed");
 });

@@ -251,6 +251,8 @@ test("player settlement renders every independent reward item and total", () => 
   ]) assert.match(runtime, new RegExp(`${type}:`));
   assert.match(runtime, /me\.rewards \|\| \[\][\s\S]*reduce/);
   assert.match(runtime, /world-boss-my-rewards/);
+  assert.match(runtime, /獎勵 \$\{rewardTotal\}💧/);
+  assert.match(runtime, /\+\$\{Number\(reward\.water \|\| 0\)\}💧/);
 });
 
 test("damage ranking uses row number with deterministic tie ordering", () => {

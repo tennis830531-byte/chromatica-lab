@@ -601,7 +601,7 @@
     }
     const rewardTotal = (me.rewards || []).reduce((sum, reward) => sum + Number(reward.water || 0), 0);
     const playerSummary = document.createElement("strong");
-    playerSummary.textContent = `我的第 ${me.rank} 名｜${me.damage} 傷害｜${me.attack_count} 次攻擊｜獎勵 ${rewardTotal} 水滴`;
+    playerSummary.textContent = `我的第 ${me.rank} 名｜${me.damage} 傷害｜${me.attack_count} 次攻擊｜獎勵 ${rewardTotal}💧`;
     const labels = {
       participation: "參與獎",
       first_hit: "第一刀",
@@ -615,7 +615,7 @@
     details.className = "world-boss-my-rewards";
     (me.rewards || []).forEach((reward) => {
       const item = document.createElement("li");
-      item.textContent = `${labels[reward.type] || reward.type}　+${Number(reward.water || 0)} 水滴`;
+      item.textContent = `${labels[reward.type] || reward.type}　+${Number(reward.water || 0)}💧`;
       details.append(item);
     });
     mine.append(playerSummary, details);
@@ -836,8 +836,7 @@
     const { species, stage } = selectedSpirit();
     const qaUnlimitedEnergy = isQaMode() && state.event?.qa_unlimited_energy;
     if (type === "special" && !canUseSelectedSpecial()) return;
-    const requiresEnergy = isQaMode() || type === "special";
-    if (requiresEnergy && !qaUnlimitedEnergy && Number(state.event?.light_energy || 0) <= 0 && !exchange) {
+    if (!qaUnlimitedEnergy && Number(state.event?.light_energy || 0) <= 0 && !exchange) {
       state.pendingSpecial = { species, stage, type };
       $("#worldBossExchangeAttackModal")?.classList.remove("hidden");
       return;
@@ -859,6 +858,8 @@
           ? await rpc("exchange_and_attack_world_boss", {
             p_event_id: params.p_event_id,
             p_species: species,
+            p_stage: stage,
+            p_attack_type: type,
             p_exchange_request_id: requestId(),
             p_attack_request_id: params.p_request_id,
           })
