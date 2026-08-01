@@ -162,8 +162,9 @@
     stopBossBreathing();
   }
 
-  function refreshHomeEntryOnForeground() {
-    if (!state.busy && $("#intro.view.active")) void refresh();
+  function refreshHomeEntry() {
+    if (!state.busy && $("#intro.view.active")) return refresh();
+    return Promise.resolve(state.status);
   }
 
   async function rpc(name, params = {}) {
@@ -1258,7 +1259,7 @@
 
   async function showNextNotification() {
     if (isQaMode()) return;
-    if (global.ChromaticaPushNotifications?.worldBossEnabled?.() === false) {
+    if (window.ChromaticaPushNotifications?.worldBossEnabled?.() === false) {
       $("#worldBossTopNotice")?.classList.add("hidden");
       return;
     }
@@ -1266,7 +1267,7 @@
       const rows = await rpc("get_my_world_boss_notifications");
       const row = rows?.[0];
       if (!row) return;
-      if (global.ChromaticaPushNotifications?.worldBossEnabled?.() === false) {
+      if (window.ChromaticaPushNotifications?.worldBossEnabled?.() === false) {
         $("#worldBossTopNotice")?.classList.add("hidden");
         return;
       }
@@ -1282,7 +1283,7 @@
 
   function showQaNotification(notificationType) {
     if (!isQaMode()) return false;
-    if (global.ChromaticaPushNotifications?.worldBossEnabled?.() === false) {
+    if (window.ChromaticaPushNotifications?.worldBossEnabled?.() === false) {
       $("#worldBossTopNotice")?.classList.add("hidden");
       window.chromaticaApp?.showNonBlockingToast?.("世界 Boss 提醒通知目前已關閉");
       return false;
@@ -1296,7 +1297,18 @@
     const body = String(template).replaceAll("樹麻雀", presentation.name);
     $("#worldBossTopNoticeBody").textContent = body;
     notice.classList.remove("hidden");
-    void global.ChromaticaPushNotifications?.showQaWorldBossNotification?.(notificationType, { title, body });
+    const systemNotification = window.ChromaticaPushNotifications?.showQaWorldBossNotification?.(notificationType, { title, body });
+    if (!systemNotification) {
+      window.chromaticaApp?.showNonBlockingToast?.("已顯示 App 內提醒；系統通知元件尚未就緒");
+      return true;
+    }
+    void Promise.resolve(systemNotification).then((scheduled) => {
+      window.chromaticaApp?.showNonBlockingToast?.(scheduled
+        ? "系統通知已排程，請在 10 秒內切到背景"
+        : "世界 Boss 提醒通知目前已關閉");
+    }).catch(() => {
+      window.chromaticaApp?.showNonBlockingToast?.("App 內提醒已顯示，但系統通知排程失敗");
+    });
     return true;
   }
 
@@ -1326,7 +1338,7 @@
       ? capacitor.Plugins?.App
       : null;
     appPlugin?.addListener?.("appStateChange", ({ isActive }) => {
-      if (isActive) refreshHomeEntryOnForeground();
+      if (isActive) void refreshHomeEntry();
     })?.catch?.(() => {});
     $("#worldBossEntry")?.addEventListener("click", () => {
       window.chromaticaApp?.navigate?.("worldboss");
@@ -1392,6 +1404,7 @@
     openQa,
     onViewChanged,
     onAppBackground,
+    refreshHomeEntry,
     renderSkillPanel,
     isSkillUnlocked,
     refreshSpiritRoster,

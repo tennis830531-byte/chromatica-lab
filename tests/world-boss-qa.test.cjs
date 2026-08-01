@@ -68,6 +68,11 @@ test("QA controls include unlimited resources, exact HP presets, both settlement
   assert.match(qaNotice, /showNonBlockingToast\?\.\("世界 Boss 提醒通知目前已關閉"\)/);
   assert.ok(qaNotice.indexOf("worldBossEnabled") < qaNotice.indexOf("classList.remove"));
   assert.match(qaNotice, /showQaWorldBossNotification/);
+  assert.doesNotMatch(qaNotice, /global\.ChromaticaPushNotifications/);
+  assert.match(qaNotice, /window\.ChromaticaPushNotifications\?\.showQaWorldBossNotification/);
+  assert.match(qaNotice, /系統通知已排程，請在 10 秒內切到背景/);
+  assert.match(qaNotice, /系統通知元件尚未就緒/);
+  assert.match(qaNotice, /系統通知排程失敗/);
   assert.doesNotMatch(qaNotice, /rpc\(|fetch\(|notification_queue/);
   assert.match(pushRuntime, /function showQaWorldBossNotification\(type, notification = \{\}\)/);
   assert.match(pushRuntime, /qa_background_delay_ms: 10000/);

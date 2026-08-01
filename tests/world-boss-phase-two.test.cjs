@@ -332,8 +332,11 @@ test("old backend fallback remains safe and cannot spin forever", () => {
   assert.match(runtime, /if \(icon\) icon\.src = defeated[\s\S]*boss入口iocn\(死亡狀態）\.png[\s\S]*boss入口icon\.png/);
   assert.doesNotMatch(runtime, /if \(icon\) icon\.src = bossKey\(\)/);
   assert.match(runtime, /view === "intro" && !state\.busy[\s\S]*refresh\(\)/);
-  assert.match(runtime, /function refreshHomeEntryOnForeground\(\)[\s\S]*#intro\.view\.active[\s\S]*refresh\(\)/);
-  assert.match(runtime, /addListener\?\.\("appStateChange", \(\{ isActive \}\) => \{[\s\S]*if \(isActive\) refreshHomeEntryOnForeground\(\)/);
+  assert.match(runtime, /function refreshHomeEntry\(\)[\s\S]*#intro\.view\.active[\s\S]*return refresh\(\)/);
+  assert.match(runtime, /addListener\?\.\("appStateChange", \(\{ isActive \}\) => \{[\s\S]*if \(isActive\) void refreshHomeEntry\(\)/);
+  assert.match(runtime, /window\.ChromaticaWorldBoss = Object\.freeze\(\{[\s\S]*refreshHomeEntry,/);
+  assert.match(auth, /currentAuthUser = user;[\s\S]*ChromaticaWorldBoss\?\.refreshHomeEntry\?\.\(\)/);
+  assert.match(authRuntime, /refreshHomeEntry/);
   assert.match(css, /\.world-boss-entry \{[\s\S]*border: 0;[\s\S]*background: transparent;/);
   assert.match(css, /\.world-boss-entry span \{[\s\S]*background: rgba\(255, 245, 218, 0\.94\);[\s\S]*white-space: nowrap;/);
   assert.match(css, /\.world-boss-entry\.is-dormant img \{[\s\S]*grayscale\(1\)/);

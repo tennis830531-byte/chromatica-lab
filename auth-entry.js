@@ -485,6 +485,7 @@ function renderAuthSession(session) {
   if (cloudSaveService?.getActiveUserId() === user.id) {
     renderCloudSyncState(user.id, cloudSaveService.getState());
   }
+  void window.ChromaticaWorldBoss?.refreshHomeEntry?.();
 }
 
 function renderCloudSyncState(userId, meta) {
