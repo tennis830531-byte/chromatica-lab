@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
 const runtime = fs.readFileSync(path.join(root, "world-boss.js"), "utf8");
+const pushRuntime = fs.readFileSync(path.join(root, "push-notifications.js"), "utf8");
 const gardenQa = fs.readFileSync(path.join(root, "garden-qa.js"), "utf8");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
@@ -50,12 +51,31 @@ test("QA controls include unlimited resources, exact HP presets, both settlement
     "worldBossQaZeroEnergy",
     "worldBossQaWater",
     "worldBossQaExchangeCount",
+    "worldBossQaAppearedNotice",
+    "worldBossQaDefeatedNotice",
   ]) assert.match(html, new RegExp(`id="${id}"`));
   for (const hp of [5000, 3000, 600, 20, 0]) {
     assert.match(html, new RegExp(`data-world-boss-qa-hp="${hp}"`));
   }
   assert.match(runtime, /qa_unlimited_energy[\s\S]*"∞"/);
   assert.match(runtime, /qa_unlimited_special[\s\S]*"∞"/);
+  assert.match(runtime, /worldBossQaAppearedNotice"\)\?\.addEventListener\("click", \(\) => showQaNotification\("boss_appeared"\)\)/);
+  assert.match(runtime, /worldBossQaDefeatedNotice"\)\?\.addEventListener\("click", \(\) => showQaNotification\("boss_defeated"\)\)/);
+  const qaNotice = functionBody("showQaNotification", "closeTopNotice");
+  assert.match(qaNotice, /if \(!isQaMode\(\)\) return false/);
+  assert.match(qaNotice, /ChromaticaPushNotifications\?\.worldBossEnabled\?\.\(\) === false/);
+  assert.match(qaNotice, /worldBossTopNotice"\)\?\.classList\.add\("hidden"\)/);
+  assert.match(qaNotice, /showNonBlockingToast\?\.\("世界 Boss 提醒通知目前已關閉"\)/);
+  assert.ok(qaNotice.indexOf("worldBossEnabled") < qaNotice.indexOf("classList.remove"));
+  assert.match(qaNotice, /showQaWorldBossNotification/);
+  assert.doesNotMatch(qaNotice, /rpc\(|fetch\(|notification_queue/);
+  assert.match(pushRuntime, /function showQaWorldBossNotification\(type, notification = \{\}\)/);
+  assert.match(pushRuntime, /qa_background_delay_ms: 10000/);
+  assert.match(pushRuntime, /schedule: \{ at: new Date\(Date\.now\(\) \+ Number\(data\.qa_background_delay_ms\)\) \}/);
+  assert.match(pushRuntime, /notification_id: `qa:\$\{type\}:/);
+  assert.match(pushRuntime, /smallIcon: "ic_stat_chromatica_notification"/);
+  assert.match(pushRuntime, /async function showForegroundWorldBossNotification[\s\S]*if \(!worldBossEnabled\(\)\) return false/);
+  assert.match(pushRuntime, /async function showQaWorldBossNotification[\s\S]*if \(!worldBossEnabled\(\)\) return false/);
 });
 
 test("QA can switch between the two Boss definitions without touching formal data", () => {

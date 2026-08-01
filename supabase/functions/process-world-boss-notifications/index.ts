@@ -145,6 +145,15 @@ export async function handler(request: Request) {
   let retried = 0;
   let skipped = 0;
   for (const item of items) {
+    const preference = await admin.from("leaderboard_push_preferences")
+      .select("world_boss_notifications").eq("user_id", item.user_id).maybeSingle();
+    if (preference.error || preference.data?.world_boss_notifications === false) {
+      await admin.from("world_boss_notification_queue").update({
+        status: "skipped", processed_at: new Date().toISOString(), last_error_code: preference.error ? "preference-read-failed" : "preference-disabled",
+      }).eq("id", item.id).eq("status", "processing");
+      skipped += 1;
+      continue;
+    }
     const tokens = await admin.from("leaderboard_push_device_tokens")
       .select("id,token").eq("user_id", item.user_id).eq("is_active", true);
     if (tokens.error || !tokens.data?.length) {

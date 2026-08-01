@@ -4,6 +4,7 @@
   const PREFERENCES = Object.freeze({
     weekly: Object.freeze({ key: "chromatica.settings.leaderboardWeeklyResults", toggle: "#leaderboardWeeklyResultToggle" }),
     movement: Object.freeze({ key: "chromatica.settings.leaderboardTopTenChanges", toggle: "#leaderboardMovementToggle" }),
+    worldBoss: Object.freeze({ key: "chromatica.settings.worldBossNotifications", toggle: "#worldBossNotificationToggle" }),
   });
   const MOVEMENT_TYPES = new Set(["entered_top_ten", "rank_improved", "dropped_out_of_top_ten"]);
   const WORLD_BOSS_TYPES = new Set(["boss_appeared", "below_10", "boss_defeated", "first_hit", "final_hit"]);
@@ -22,7 +23,8 @@
   const writePreference = (preference, enabled) => localStorage.setItem(preference.key, enabled ? "true" : "false");
   const weeklyEnabled = () => readPreference(PREFERENCES.weekly);
   const movementEnabled = () => readPreference(PREFERENCES.movement);
-  const anyEnabled = () => weeklyEnabled() || movementEnabled();
+  const worldBossEnabled = () => readPreference(PREFERENCES.worldBoss);
+  const anyEnabled = () => weeklyEnabled() || movementEnabled() || worldBossEnabled();
   const nativePushConfigured = () => global.ChromaticaNativePushConfig?.firebaseReady === true;
 
   function reportUnavailablePushSetup() {
@@ -67,11 +69,12 @@
   }
 
   async function showForegroundWorldBossNotification(type, data, notification = {}) {
+    if (!worldBossEnabled()) return false;
     const notificationId = String(data.notification_id || `${type}:${data.event_id || ""}`);
-    if (seenForegroundNotifications.has(notificationId)) return;
+    if (seenForegroundNotifications.has(notificationId)) return false;
     seenForegroundNotifications.add(notificationId);
     const plugin = global.Capacitor?.Plugins?.LocalNotifications;
-    if (!plugin?.schedule) return;
+    if (!plugin?.schedule) return false;
     const fallback = worldBossNotificationCopy(type);
     await plugin.createChannel?.({
       id: "world-boss",
@@ -81,6 +84,7 @@
       visibility: 1,
       vibration: true,
     });
+    if (!worldBossEnabled()) return false;
     await plugin.schedule({ notifications: [{
       id: foregroundNotificationId(notificationId),
       title: String(notification.title || fallback.title),
@@ -89,7 +93,20 @@
       smallIcon: "ic_stat_chromatica_notification",
       iconColor: "#8A5A32",
       extra: { ...data, foregroundBridge: true },
+      ...(data.qa_background_delay_ms ? { schedule: { at: new Date(Date.now() + Number(data.qa_background_delay_ms)) } } : {}),
     }] });
+    return true;
+  }
+
+  async function showQaWorldBossNotification(type, notification = {}) {
+    if (!new Set(["boss_appeared", "boss_defeated"]).has(type)) return false;
+    if (!worldBossEnabled()) return false;
+    return showForegroundWorldBossNotification(type, {
+      notification_id: `qa:${type}:${Date.now()}:${Math.random().toString(16).slice(2)}`,
+      notification_type: type,
+      qa: true,
+      qa_background_delay_ms: 10000,
+    }, notification);
   }
 
   function setStatus(message = "", kind = "") {
@@ -104,9 +121,11 @@
     const movementToggle = $(PREFERENCES.movement.toggle);
     if (weeklyToggle) weeklyToggle.checked = weeklyEnabled();
     if (movementToggle) movementToggle.checked = movementEnabled();
+    const worldBossToggle = $(PREFERENCES.worldBoss.toggle);
+    if (worldBossToggle) worldBossToggle.checked = worldBossEnabled();
     if (auth()?.isNativeAndroid?.() !== true) setStatus("Web 版不支援系統推播；偏好仍會隨帳號保存。", "");
-    else if (!joined) setStatus("加入乖乖練習王後，才會登記此裝置的排名通知。", "");
-    else if (!anyEnabled()) setStatus("排行榜通知已全部關閉。", "");
+    else if (!anyEnabled()) setStatus("通知已全部關閉。", "");
+    else setStatus("", "");
   }
 
   async function syncServerPreferences() {
@@ -116,7 +135,11 @@
         p_weekly_results: weeklyEnabled(),
         p_top_ten_changes: movementEnabled(),
       }) || {};
-      return !error;
+      if (error) return false;
+      const bossResult = await auth()?.leaderboardRpc?.("set_world_boss_push_preference", {
+        p_enabled: worldBossEnabled(),
+      }) || {};
+      return !bossResult.error;
     } catch {
       return false;
     }
@@ -133,6 +156,11 @@
     if (!row) return;
     writePreference(PREFERENCES.weekly, row.weekly_results !== false);
     writePreference(PREFERENCES.movement, row.top_ten_changes !== false);
+    try {
+      const bossResponse = await auth()?.leaderboardRpc?.("get_world_boss_push_preference") || {};
+      const bossRow = Array.isArray(bossResponse.data) ? bossResponse.data[0] : bossResponse.data;
+      if (!bossResponse.error && bossRow) writePreference(PREFERENCES.worldBoss, bossRow.enabled !== false);
+    } catch {}
     render();
   }
 
@@ -162,7 +190,7 @@
         return false;
       }
       registeredTokenKey = registrationKey;
-      setStatus(joined ? "排行榜通知已依你的兩項偏好開啟。" : "此裝置已完成通知登記。", "success");
+      setStatus(joined ? "通知已依你的設定開啟。" : "此裝置已完成通知登記。", "success");
       return true;
     })().finally(() => { tokenRegistrationFlight = null; });
     return tokenRegistrationFlight;
@@ -176,7 +204,7 @@
     setStatus("準備開啟排行榜通知…", "");
     const permission = await auth().pushNotifications.requestPermissions();
     if (permission?.receive !== "granted") {
-      setStatus("你沒有允許系統通知；兩項偏好會保留，App 與排行榜仍可正常使用。", "");
+      setStatus("你沒有允許系統通知；通知偏好會保留，App 仍可正常使用。", "");
       return false;
     }
     try {
@@ -193,6 +221,7 @@
     if (!preservePreferences) {
       writePreference(PREFERENCES.weekly, false);
       writePreference(PREFERENCES.movement, false);
+      writePreference(PREFERENCES.worldBoss, false);
       global.chromaticaAccountWorkspace?.scheduleSave?.();
     }
     render();
@@ -288,6 +317,9 @@
 
   async function preferenceChanged(preference, enabled) {
     writePreference(preference, enabled);
+    if (preference === PREFERENCES.worldBoss && !worldBossEnabled()) {
+      $("#worldBossTopNotice")?.classList.add("hidden");
+    }
     global.chromaticaAccountWorkspace?.scheduleSave?.();
     render();
     await syncServerPreferences();
@@ -330,5 +362,7 @@
     disableCurrentToken,
     unregisterForSignOut,
     nativePushConfigured,
+    worldBossEnabled,
+    showQaWorldBossNotification,
   });
 })(typeof window !== "undefined" ? window : globalThis);

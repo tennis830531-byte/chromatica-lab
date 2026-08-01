@@ -1252,10 +1252,18 @@
 
   async function showNextNotification() {
     if (isQaMode()) return;
+    if (global.ChromaticaPushNotifications?.worldBossEnabled?.() === false) {
+      $("#worldBossTopNotice")?.classList.add("hidden");
+      return;
+    }
     try {
       const rows = await rpc("get_my_world_boss_notifications");
       const row = rows?.[0];
       if (!row) return;
+      if (global.ChromaticaPushNotifications?.worldBossEnabled?.() === false) {
+        $("#worldBossTopNotice")?.classList.add("hidden");
+        return;
+      }
       const [title, body] = core()?.notificationCopy?.(row.notification_type) || ["世界 Boss", "戰況已更新。"];
       $("#worldBossTopNotice").dataset.notificationId = row.id;
       $("#worldBossTopNoticeTitle").textContent = title;
@@ -1264,6 +1272,26 @@
     } catch {
       // Phase 2 migration is optional until deployment.
     }
+  }
+
+  function showQaNotification(notificationType) {
+    if (!isQaMode()) return false;
+    if (global.ChromaticaPushNotifications?.worldBossEnabled?.() === false) {
+      $("#worldBossTopNotice")?.classList.add("hidden");
+      window.chromaticaApp?.showNonBlockingToast?.("世界 Boss 提醒通知目前已關閉");
+      return false;
+    }
+    const presentation = bossPresentation();
+    const [title, template] = core()?.notificationCopy?.(notificationType) || ["世界 Boss", "戰況已更新。"];
+    const notice = $("#worldBossTopNotice");
+    if (!notice) return false;
+    notice.dataset.notificationId = "";
+    $("#worldBossTopNoticeTitle").textContent = title;
+    const body = String(template).replaceAll("樹麻雀", presentation.name);
+    $("#worldBossTopNoticeBody").textContent = body;
+    notice.classList.remove("hidden");
+    void global.ChromaticaPushNotifications?.showQaWorldBossNotification?.(notificationType, { title, body });
+    return true;
   }
 
   async function closeTopNotice() {
@@ -1325,6 +1353,8 @@
     $("#worldBossQaSuccess")?.addEventListener("click", () => void simulateQaSettlement(true));
     $("#worldBossQaFailure")?.addEventListener("click", () => void simulateQaSettlement(false));
     $("#worldBossQaReset")?.addEventListener("click", resetQaSession);
+    $("#worldBossQaAppearedNotice")?.addEventListener("click", () => showQaNotification("boss_appeared"));
+    $("#worldBossQaDefeatedNotice")?.addEventListener("click", () => showQaNotification("boss_defeated"));
     $("#worldBossQaReturn")?.addEventListener("click", () => window.chromaticaApp?.navigate?.("gardenqa"));
     $("#gardenSpiritSkillLearn")?.addEventListener("click", requestLearnSelectedSkill);
     $("#worldBossSkillLearnCancel")?.addEventListener("click", () => {

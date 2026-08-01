@@ -1298,6 +1298,8 @@ const LEADERBOARD_RPC_ALLOWLIST = new Set([
   "disable_leaderboard_push_token",
   "get_leaderboard_push_preferences",
   "set_leaderboard_push_preferences",
+  "get_world_boss_push_preference",
+  "set_world_boss_push_preference",
   "get_published_announcements",
   "get_published_announcements_v2",
   "get_announcement_admin_status",

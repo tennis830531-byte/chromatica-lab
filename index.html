@@ -1312,6 +1312,10 @@
                   <span><strong>前十名名次變動通知</strong><small>進入前十、名次上升或掉出前十時通知。</small></span>
                   <input id="leaderboardMovementToggle" type="checkbox" checked />
                 </label>
+                <label class="sound-toggle-row leaderboard-push-toggle">
+                  <span><strong>世界 Boss 提醒通知</strong><small>Boss 現身、討伐進度與擊倒結果通知。</small></span>
+                  <input id="worldBossNotificationToggle" type="checkbox" checked />
+                </label>
                 <p id="leaderboardPushStatus" class="settings-status-text" aria-live="polite"></p>
                 <div class="setting-row">
                   <span>語言</span>
@@ -1398,6 +1402,10 @@
                 <button id="worldBossQaSuccess" type="button">模擬成功結算</button>
                 <button id="worldBossQaFailure" type="button">模擬失敗結算</button>
                 <button id="worldBossQaReset" type="button">重置 QA 活動</button>
+              </div>
+              <div class="world-boss-qa-actions" aria-label="World Boss 通知提醒測試">
+                <button id="worldBossQaAppearedNotice" type="button">測試 Boss 出現提醒</button>
+                <button id="worldBossQaDefeatedNotice" type="button">測試 Boss 陣亡提醒</button>
               </div>
             </section>
             <div id="worldBossCombatView">
