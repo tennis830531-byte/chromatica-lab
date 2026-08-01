@@ -153,12 +153,17 @@
     } else {
       stopBossMusic();
       stopBossBreathing();
+      if (view === "intro" && !state.busy) void refresh();
     }
   }
 
   function onAppBackground() {
     stopBossMusic({ reset: false });
     stopBossBreathing();
+  }
+
+  function refreshHomeEntryOnForeground() {
+    if (!state.busy && $("#intro.view.active")) void refresh();
   }
 
   async function rpc(name, params = {}) {
@@ -489,20 +494,21 @@
     const resultDeadline = state.event?.ends_at
       ? new Date(new Date(state.event.ends_at).getTime() + (2 * 60 * 60 * 1000))
       : null;
+    const zeroHp = state.event && Number(state.event.remaining_hp) <= 0;
     const resultVisible = Boolean(
       state.event
-      && resultStatuses.has(status)
+      && (resultStatuses.has(status) || zeroHp)
       && resultDeadline
       && Number.isFinite(resultDeadline.getTime())
       && Date.now() < resultDeadline.getTime(),
     );
     const settlementSucceeded = state.settlement?.snapshot?.success === true;
-    const defeated = resultVisible && (
-      Number(state.event?.remaining_hp) <= 0
-      || status === "defeated"
+    const defeated = zeroHp || (resultVisible && (
+      status === "defeated"
       || settlementSucceeded
-    );
+    ));
     const active = status === "active" && !defeated;
+    const presentation = bossPresentation();
     button.classList.toggle("is-dormant", !active && !defeated);
     button.classList.toggle("is-active", active);
     button.classList.toggle("is-defeated", defeated);
@@ -510,11 +516,11 @@
       ? `${ASSET_ROOT}boss入口iocn(死亡狀態）.png`
       : `${ASSET_ROOT}boss入口icon.png`;
     if (label) {
-      if (state.status === "unavailable" || (resultStatuses.has(status) && !resultVisible)) {
+      if (defeated) label.textContent = `${presentation.name}被擊倒了！`;
+      else if (state.status === "unavailable" || (resultStatuses.has(status) && !resultVisible)) {
         label.textContent = "世界 Boss 尚未出沒";
       }
-      else if (status === "active") label.textContent = "樹麻雀出沒了！";
-      else if (resultVisible && defeated) label.textContent = "樹麻雀被擊倒了！";
+      else if (status === "active") label.textContent = `${presentation.name}出沒了！`;
       else if (resultVisible) label.textContent = "討伐失敗！";
       else label.textContent = "世界 Boss 預告";
     }
@@ -1315,6 +1321,13 @@
   }
 
   function init() {
+    const capacitor = window.Capacitor;
+    const appPlugin = capacitor?.isNativePlatform?.() && capacitor.getPlatform?.() === "android"
+      ? capacitor.Plugins?.App
+      : null;
+    appPlugin?.addListener?.("appStateChange", ({ isActive }) => {
+      if (isActive) refreshHomeEntryOnForeground();
+    })?.catch?.(() => {});
     $("#worldBossEntry")?.addEventListener("click", () => {
       window.chromaticaApp?.navigate?.("worldboss");
       void refresh();
