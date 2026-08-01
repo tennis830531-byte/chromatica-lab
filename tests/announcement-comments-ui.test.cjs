@@ -88,15 +88,22 @@ test("admin draft list shows the complete large topic without truncation", () =>
   assert.match(css, /\.announcement-admin-list-item strong \{[^}]*white-space: normal;[^}]*text-overflow: clip;/s);
 });
 
-test("auto preview can be dismissed per announcement and account without hiding manual access", () => {
+test("auto previews queue every announcement not dismissed for the active account", () => {
   assert.match(announcements, /DISMISSED_AUTO_PREVIEW_PREFIX = "chromatica\.announcements\.dismissed-auto\.v1"/);
   assert.match(announcements, /getLeaderboardAccount\?\.\(\)\?\.id/);
   assert.match(announcements, /id="announcementPreviewDismiss" type="checkbox" \/>不再查看此則通知/);
-  assert.match(announcements, /if \(isAutoPreviewDismissed\(latest\)\) \{[\s\S]*runtimePreviewShown = true;[\s\S]*return false;/);
-  assert.match(announcements, /showPreview\(latest, \{ auto: true \}\)/);
+  assert.match(announcements, /pending = rows\.filter\(\(announcement\) => !isAutoPreviewDismissed\(announcement\)\)/);
+  assert.match(announcements, /autoPreviewQueue = pending\.slice\(1\)/);
+  assert.match(announcements, /showPreview\(pending\[0\], \{ auto: true \}\)/);
+  assert.match(announcements, /function showNextAutoPreview\(\)[\s\S]*autoPreviewQueue\.shift\(\)[\s\S]*showPreview\(next, \{ auto: true \}\)/);
+  assert.match(announcements, /wasAutoPreview && !returnTo \? showNextAutoPreview\(\) \|\| closed : closed/);
   assert.match(announcements, /setAutoPreviewDismissed\(activeAnnouncement, event\.target\.checked === true\)/);
   assert.match(announcements, /function showPreview\(announcement, \{ returnTo = "", auto = false \} = \{\}\)/);
   assert.match(css, /\.announcement-preview-dismiss\.hidden \{ display: none; \}/);
+});
+
+test("announcement auto-preview topic is compact enough for long required-reading headings", () => {
+  assert.match(css, /\.announcement-preview h2 \{[^}]*font-size: clamp\(21px, 6\.2vw, 29px\);[^}]*line-height: 1\.18;/s);
 });
 
 test("admin can reorder and remove images while legacy image fields remain synchronized", () => {

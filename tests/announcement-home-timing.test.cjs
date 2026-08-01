@@ -454,3 +454,29 @@ test("31 one modal coordinator hides every non-target announcement layer and doe
   assert.match(source, /setVisibleAnnouncementModal\("#announcementFullModal"\)/);
   assert.doesNotMatch(source, /style\.zIndex|z-index/);
 });
+
+test("32 every not-dismissed startup announcement is shown sequentially", async () => {
+  const harness = createHarness({ announcements: [
+    { id: "newest", large_topic: "必看一", title: "第一則", body: "第一則內容", published_at: "2026-07-31T02:00:00Z" },
+    { id: "older", large_topic: "必看二", title: "第二則", body: "第二則內容", published_at: "2026-07-31T01:00:00Z" },
+  ] });
+  assert.equal(await harness.api.maybeShowLatestOnHome(), true);
+  assert.equal(harness.elements.get("announcementPreviewTitle").textContent, "第一則");
+  assert.equal(harness.api.closeTopModal(), true);
+  assert.equal(harness.elements.get("announcementPreviewModal").classList.contains("hidden"), false);
+  assert.equal(harness.elements.get("announcementPreviewTitle").textContent, "第二則");
+  assert.equal(harness.api.closeTopModal(), true);
+  assert.equal(harness.visibleAnnouncementModals().length, 0);
+});
+
+test("33 closing full detail continues with the next queued announcement", async () => {
+  const harness = createHarness({ announcements: [
+    { id: "newest", title: "第一則", body: "內容", published_at: "2026-07-31T02:00:00Z" },
+    { id: "older", title: "第二則", body: "內容", published_at: "2026-07-31T01:00:00Z" },
+  ] });
+  await harness.api.maybeShowLatestOnHome();
+  harness.api.showFull();
+  assert.equal(harness.api.closeTopModal(), true);
+  assert.equal(harness.elements.get("announcementPreviewTitle").textContent, "第二則");
+  assert.equal(harness.visibleAnnouncementModals().length, 1);
+});

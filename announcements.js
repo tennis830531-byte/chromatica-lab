@@ -16,6 +16,9 @@
   let initialized = false;
   let runtimePreviewShown = false;
   let runtimePreviewRequest = null;
+  let autoPreviewQueue = [];
+  let activePreviewAuto = false;
+  let detailFromAutoPreview = false;
   let activeAnnouncement = null;
   let adminEditingId = null;
   let visibleModalSelector = "";
@@ -326,6 +329,7 @@
   function showPreview(announcement, { returnTo = "", auto = false } = {}) {
     if (!announcement) return;
     activeAnnouncement = announcement;
+    activePreviewAuto = auto;
     previewReturnSelector = returnTo;
     $("#announcementPreviewTopic").textContent = announcement.large_topic || "公告";
     $("#announcementPreviewTitle").textContent = announcement.title || "";
@@ -339,6 +343,13 @@
     setVisibleAnnouncementModal("#announcementPreviewModal");
   }
 
+  function showNextAutoPreview() {
+    const next = autoPreviewQueue.shift();
+    if (!next) return false;
+    showPreview(next, { auto: true });
+    return true;
+  }
+
   function showFull(announcement = activeAnnouncement, { returnTo = "" } = {}) {
     const nextAnnouncement = announcement && typeof announcement === "object" ? announcement : null;
     const nextKey = String(nextAnnouncement?.id || `${nextAnnouncement?.published_at || ""}:${nextAnnouncement?.title || ""}`);
@@ -349,6 +360,8 @@
     }
     detailTransitioning = true;
     try {
+      detailFromAutoPreview = activePreviewAuto && visibleModalSelector === "#announcementPreviewModal";
+      activePreviewAuto = false;
       detailReturnSelector = returnTo;
       detailAnnouncementKey = nextKey;
       if (nextAnnouncement) {
@@ -428,13 +441,14 @@
     runtimePreviewRequest = (async () => {
       try {
         const rows = await fetchPublished();
-        const latest = rows[0];
-        if (!latest || !canAutoShowLatestOnHome() || runtimePreviewShown) return false;
-        if (isAutoPreviewDismissed(latest)) {
+        const pending = rows.filter((announcement) => !isAutoPreviewDismissed(announcement));
+        if (!rows.length || !canAutoShowLatestOnHome() || runtimePreviewShown) return false;
+        if (!pending.length) {
           runtimePreviewShown = true;
           return false;
         }
-        showPreview(latest, { auto: true });
+        autoPreviewQueue = pending.slice(1);
+        showPreview(pending[0], { auto: true });
         runtimePreviewShown = true;
         return true;
       } catch {
@@ -649,15 +663,21 @@
 
   function closePreview() {
     const returnTo = previewReturnSelector;
+    const wasAutoPreview = activePreviewAuto;
+    activePreviewAuto = false;
     previewReturnSelector = "";
-    return setVisibleAnnouncementModal(returnTo);
+    const closed = setVisibleAnnouncementModal(returnTo);
+    return wasAutoPreview && !returnTo ? showNextAutoPreview() || closed : closed;
   }
 
   function closeFull() {
     const returnTo = detailReturnSelector;
+    const wasAutoPreview = detailFromAutoPreview;
+    detailFromAutoPreview = false;
     detailReturnSelector = "";
     detailAnnouncementKey = "";
-    return setVisibleAnnouncementModal(returnTo);
+    const closed = setVisibleAnnouncementModal(returnTo);
+    return wasAutoPreview && !returnTo ? showNextAutoPreview() || closed : closed;
   }
 
   function closeTopModal() {
