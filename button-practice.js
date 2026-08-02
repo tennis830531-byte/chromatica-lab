@@ -4,31 +4,15 @@
   const FIXED_HOLES = 12;
   const MEASURE_COUNT = 8;
   const BEATS_PER_MEASURE = 4;
-  const MODE_LABELS = Object.freeze({ toggle: "按放切換", random: "隨機按鍵反應", chromatic: "半音階穿梭", shift: "按鍵移位" });
-  const DIFFICULTY_LABELS = Object.freeze({ beginner: "入門", normal: "普通", advanced: "進階" });
+  const PREPARE_BEATS = 4;
+  const NOTE_DEMO_STORAGE_KEY = "chromatica.settings.buttonPracticeNoteDemo";
+  const MODE_LABELS = Object.freeze({ toggle: "按放切換", random: "隨機按鍵", chromatic: "半音階穿梭", shift: "按鍵移位" });
   const RANGE_LABELS = Object.freeze({ full: "全音域", low: "低音域", middle: "中音域", high: "高音域" });
-  const PATTERN_OPTIONS = Object.freeze({
-    toggle: Object.freeze([
-      Object.freeze({ value: "hold-1", label: "1 拍" }),
-      Object.freeze({ value: "hold-2", label: "2 拍" }),
-      Object.freeze({ value: "hold-4", label: "4 拍" }),
-    ]),
-    random: Object.freeze([Object.freeze({ value: "reaction", label: "依難度切換" })]),
-    chromatic: Object.freeze([
-      Object.freeze({ value: "ascending", label: "上行" }),
-      Object.freeze({ value: "descending", label: "下行" }),
-      Object.freeze({ value: "both", label: "上行後下行" }),
-      Object.freeze({ value: "three-bounce", label: "三音來回" }),
-      Object.freeze({ value: "four-bounce", label: "四音來回" }),
-    ]),
-    shift: Object.freeze([
-      Object.freeze({ value: "press-then-move", label: "按鍵後移孔" }),
-      Object.freeze({ value: "move-then-press", label: "移孔後按鍵" }),
-      Object.freeze({ value: "chromatic-move", label: "連續半音移動" }),
-      Object.freeze({ value: "breath-switch-press", label: "吹吸轉換＋按鍵" }),
-    ]),
-  });
-  const PATTERN_HEADINGS = Object.freeze({ toggle: "每個狀態維持", random: "反應難度", chromatic: "半音階類型", shift: "移位類型" });
+  const MODES = Object.freeze(Object.keys(MODE_LABELS));
+  const RANGES = Object.freeze(Object.keys(RANGE_LABELS));
+  const TOGGLE_HOLDS = Object.freeze([1, 2, 4]);
+  const CHROMATIC_SHAPES = Object.freeze(["ascending", "descending", "bounce"]);
+  const SHIFT_SHAPES = Object.freeze(["press-then-move", "move-then-press", "chromatic-move", "breath-switch-press"]);
   const $ = (selector) => document.querySelector(selector);
   let adapter = null;
   let initialized = false;
@@ -102,34 +86,60 @@
     return Math.min(length - 1, Math.max(0, Math.floor(rng() * length)));
   }
 
+  function mixedChoices(options, length, rng) {
+    const result = [];
+    while (result.length < length) {
+      const cycle = [...options];
+      for (let index = cycle.length - 1; index > 0; index -= 1) {
+        const swapIndex = randomIndex(index + 1, rng);
+        [cycle[index], cycle[swapIndex]] = [cycle[swapIndex], cycle[index]];
+      }
+      result.push(...cycle);
+    }
+    return result.slice(0, length);
+  }
+
   function repeatToLength(pattern, length = MEASURE_COUNT * BEATS_PER_MEASURE) {
     return Array.from({ length }, (_, index) => pattern[index % pattern.length]);
   }
 
-  function generateToggle(pairs, pattern, rng) {
-    const pair = pairs[randomIndex(pairs.length, rng)];
-    if (!pair) return [];
-    const hold = Math.max(1, Number(String(pattern).replace("hold-", "")) || 1);
-    return Array.from({ length: MEASURE_COUNT * BEATS_PER_MEASURE }, (_, index) => Math.floor(index / hold) % 2 ? pair.pressed : pair.released);
+  function normalizeSettings(settings = {}) {
+    const mode = MODES.includes(settings.mode) ? settings.mode : "toggle";
+    const range = RANGES.includes(settings.range) ? settings.range : "middle";
+    const bpm = Math.min(180, Math.max(40, Number(settings.bpm) || 60));
+    const totalCycles = [1, 2, 4, 6].includes(Number(settings.totalCycles)) ? Number(settings.totalCycles) : 4;
+    const noteDemoEnabled = settings.noteDemoEnabled !== false;
+    return Object.freeze({ mode, range, bpm, totalCycles, noteDemoEnabled, holes: FIXED_HOLES });
   }
 
-  function generateRandom(pairs, difficulty, rng) {
+  function generateToggle(pairs, rng) {
     if (!pairs.length) return [];
     const result = [];
-    const hold = difficulty === "beginner" ? 2 : 1;
+    let pressed = rng() >= 0.5;
+    const holds = mixedChoices(TOGGLE_HOLDS, MEASURE_COUNT, rng);
+    for (let measure = 0; measure < MEASURE_COUNT; measure += 1) {
+      const pair = pairs[randomIndex(pairs.length, rng)];
+      const hold = holds[measure];
+      for (let beat = 0; beat < BEATS_PER_MEASURE; beat += 1) {
+        result.push(pressed ? pair.pressed : pair.released);
+        if ((beat + 1) % hold === 0) pressed = !pressed;
+      }
+    }
+    return result;
+  }
+
+  function generateRandom(pairs, rng) {
+    if (!pairs.length) return [];
+    const result = [];
     let lastPressed = null;
     let repeated = 0;
     for (let index = 0; index < MEASURE_COUNT * BEATS_PER_MEASURE; index += 1) {
-      if (index % hold === 0) {
-        const pair = pairs[randomIndex(pairs.length, rng)];
-        let pressed = rng() >= 0.5;
-        if (pressed === lastPressed && repeated >= 2) pressed = !pressed;
-        repeated = pressed === lastPressed ? repeated + 1 : 1;
-        lastPressed = pressed;
-        result.push(pressed ? pair.pressed : pair.released);
-      } else {
-        result.push(result.at(-1));
-      }
+      const pair = pairs[randomIndex(pairs.length, rng)];
+      let pressed = rng() >= 0.5;
+      if (pressed === lastPressed && repeated >= 2) pressed = !pressed;
+      repeated = pressed === lastPressed ? repeated + 1 : 1;
+      lastPressed = pressed;
+      result.push(pressed ? pair.pressed : pair.released);
     }
     return result;
   }
@@ -143,16 +153,22 @@
     return windows;
   }
 
-  function generateChromatic(pitches, pattern, rng) {
-    const width = pattern === "four-bounce" ? 4 : pattern === "three-bounce" ? 3 : 8;
-    const windows = contiguousWindows(pitches, width);
-    const window = windows[randomIndex(windows.length, rng)];
-    if (!window) return [];
-    let phrase = window;
-    if (pattern === "descending") phrase = [...window].reverse();
-    if (pattern === "both") phrase = [...window, ...window.slice(0, -1).reverse()];
-    if (pattern === "three-bounce" || pattern === "four-bounce") phrase = [...window, ...window.slice(0, -1).reverse()];
-    return repeatToLength(phrase);
+  function generateChromatic(pitches, rng) {
+    const fourNoteWindows = contiguousWindows(pitches, 4);
+    const threeNoteWindows = contiguousWindows(pitches, 3);
+    if (!fourNoteWindows.length || !threeNoteWindows.length) return [];
+    const result = [];
+    const shapes = mixedChoices(CHROMATIC_SHAPES, MEASURE_COUNT, rng);
+    for (const shape of shapes) {
+      if (shape === "bounce") {
+        const window = threeNoteWindows[randomIndex(threeNoteWindows.length, rng)];
+        result.push(window[0], window[1], window[2], window[1]);
+      } else {
+        const window = fourNoteWindows[randomIndex(fourNoteWindows.length, rng)];
+        result.push(...(shape === "descending" ? [...window].reverse() : window));
+      }
+    }
+    return result;
   }
 
   function buildShiftCandidates(positions, pairs, pitches, pattern) {
@@ -167,20 +183,28 @@
       return [...byHole.values()].map((entry) => [entry["吹音:false"], entry["吸音:true"]]).filter((entry) => entry.every(Boolean));
     }
     const candidates = [];
-    for (let index = 0; index < pairs.length - 1; index += 1) {
-      const current = pairs[index];
-      const next = pairs[index + 1];
-      candidates.push(pattern === "move-then-press"
-        ? [current.released, next.released, next.pressed, current.released]
-        : [current.released, current.pressed, next.released, next.pressed]);
+    for (const current of pairs) {
+      for (const next of pairs) {
+        if (Math.abs(current.released.hole - next.released.hole) !== 1 || current.released.breath !== next.released.breath) continue;
+        candidates.push(pattern === "move-then-press"
+          ? [current.released, next.released, next.pressed, current.pressed]
+          : [current.released, current.pressed, next.released, next.pressed]);
+      }
     }
     return candidates;
   }
 
-  function generateShift(positions, pairs, pitches, pattern, rng) {
-    const candidates = buildShiftCandidates(positions, pairs, pitches, pattern);
-    const phrase = candidates[randomIndex(candidates.length, rng)];
-    return phrase ? repeatToLength(phrase) : [];
+  function generateShift(positions, pairs, pitches, rng) {
+    const available = SHIFT_SHAPES.map((shape) => ({ shape, candidates: buildShiftCandidates(positions, pairs, pitches, shape) }))
+      .filter((entry) => entry.candidates.length);
+    if (!available.length) return [];
+    const result = [];
+    const entries = mixedChoices(available, MEASURE_COUNT, rng);
+    for (const entry of entries) {
+      const candidate = entry.candidates[randomIndex(entry.candidates.length, rng)];
+      result.push(...repeatToLength(candidate, BEATS_PER_MEASURE));
+    }
+    return result;
   }
 
   function toMeasures(sequence) {
@@ -191,15 +215,16 @@
     }));
   }
 
-  function generateMeasures(settings, layout, rng = Math.random) {
+  function generateMeasures(rawSettings, layout, rng = Math.random) {
+    const settings = normalizeSettings(rawSettings);
     const positions = buildPlayablePositions(layout, settings.range);
     const pairs = pairPositions(positions);
     const pitches = chromaticPositions(positions);
     let sequence = [];
-    if (settings.mode === "toggle") sequence = generateToggle(pairs, settings.pattern, rng);
-    else if (settings.mode === "random") sequence = generateRandom(pairs, settings.difficulty, rng);
-    else if (settings.mode === "chromatic") sequence = generateChromatic(pitches, settings.pattern, rng);
-    else if (settings.mode === "shift") sequence = generateShift(positions, pairs, pitches, settings.pattern, rng);
+    if (settings.mode === "toggle") sequence = generateToggle(pairs, rng);
+    else if (settings.mode === "random") sequence = generateRandom(pairs, rng);
+    else if (settings.mode === "chromatic") sequence = generateChromatic(pitches, rng);
+    else if (settings.mode === "shift") sequence = generateShift(positions, pairs, pitches, rng);
     if (sequence.length !== MEASURE_COUNT * BEATS_PER_MEASURE) throw new Error("button-practice-phrase-empty");
     return toMeasures(sequence);
   }
@@ -214,36 +239,45 @@
     return true;
   }
 
-  function updatePatternOptions() {
-    const mode = $("#buttonPracticeMode")?.value || "toggle";
-    const select = $("#buttonPracticePattern");
-    if (!select) return;
-    select.replaceChildren(...PATTERN_OPTIONS[mode].map(({ value, label }) => {
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = label;
-      return option;
-    }));
-    $("#buttonPracticePatternLabel").textContent = PATTERN_HEADINGS[mode];
-  }
-
   function readSettings() {
-    return {
+    return normalizeSettings({
       mode: $("#buttonPracticeMode").value,
-      difficulty: $("#buttonPracticeDifficulty").value,
-      pattern: $("#buttonPracticePattern").value,
+      range: $("#buttonPracticeRange").value,
       bpm: Number($("#buttonPracticeBpm").value),
       totalCycles: Number($("#buttonPracticeCycles").value),
-      range: $("#buttonPracticeRange").value,
-      countdownBeats: Number($("#buttonPracticeCountdown").value),
-      metronome: $("#buttonPracticeMetronome").checked,
-      holes: FIXED_HOLES,
-    };
+      noteDemoEnabled: $("#buttonPracticeNoteDemo")?.checked !== false,
+    });
+  }
+
+  function readNoteDemoPreference(storage = window.localStorage) {
+    return storage?.getItem?.(NOTE_DEMO_STORAGE_KEY) !== "false";
+  }
+
+  function saveNoteDemoPreference(enabled, storage = window.localStorage) {
+    const next = enabled !== false;
+    storage?.setItem?.(NOTE_DEMO_STORAGE_KEY, String(next));
+    return next;
+  }
+
+  function playStepAudio(targetState, entry, targetAdapter = adapter, strong = false) {
+    if (targetState?.noteDemoEnabled !== false && entry?.note) {
+      targetAdapter?.playNote?.(entry.note, (60000 / targetState.bpm) * 0.86);
+      return "note";
+    }
+    targetAdapter?.playBeat?.(strong);
+    return "click";
+  }
+
+  function playPreparationAudio(targetAdapter = adapter, strong = false) {
+    if (typeof targetAdapter?.playPrepareBeat === "function") targetAdapter.playPrepareBeat(strong);
+    else targetAdapter?.playBeat?.(strong);
+    return "click";
   }
 
   function clearTimer() {
     if (timer) window.clearInterval(timer);
     timer = 0;
+    adapter?.stopNote?.();
     if (state) state.running = false;
   }
 
@@ -254,10 +288,12 @@
     const activeNote = activeFlatIndex < 0 ? -1 : activeFlatIndex % BEATS_PER_MEASURE;
     const first = state.measures.slice(0, 4);
     const second = state.measures.slice(4, 8);
-    $("#buttonPracticeTitle").textContent = `${MODE_LABELS[state.mode]}｜${DIFFICULTY_LABELS[state.difficulty]}`;
+    $("#buttonPracticeTitle").textContent = MODE_LABELS[state.mode];
     $("#buttonPracticeCycleProgress").textContent = `${state.completedCycles} / ${state.totalCycles}`;
     $("#buttonPracticeBpmStatus").textContent = String(state.bpm);
-    $("#buttonPracticeStepStatus").textContent = activeMeasure < 0 ? "完整 8 小節 · 每小節 4 拍" : `第 ${activeMeasure + 1} / 8 小節`;
+    $("#buttonPracticeStepStatus").textContent = state.phase === "prepare"
+      ? `預備 ${Math.min(state.prepareBeat + 1, PREPARE_BEATS)} / ${PREPARE_BEATS}`
+      : activeMeasure < 0 ? "完整 8 小節 · 每小節 4 拍" : `第 ${activeMeasure + 1} / 8 小節`;
     $("#buttonPracticeStaff").innerHTML = adapter?.renderStaff?.(first, activeMeasure < 4 ? activeMeasure : -1, activeNote, Math.min(state.completedInCycle, 16)) || "";
     $("#buttonPracticeNumberHelp").innerHTML = adapter?.renderNumberHelp?.(first, 0, activeMeasure, activeNote, state.completedInCycle) || "";
     $("#buttonPracticeStaffSecond").innerHTML = adapter?.renderStaff?.(second, activeMeasure >= 4 ? activeMeasure - 4 : -1, activeNote, Math.max(0, state.completedInCycle - 16)) || "";
@@ -266,7 +302,7 @@
     $("#buttonPracticeStartPause").textContent = state.running ? "暫停練習" : state.hasStarted ? "繼續練習" : "開始練習";
     $("#buttonPracticeMetronomeDot").classList.toggle("is-playing", state.running);
     const status = $("#buttonPracticeStatus");
-    status.textContent = state.running && state.phase === "countdown" ? `預備 ${state.countdownRemaining}` : state.running ? "練習中" : state.hasStarted ? "已暫停" : "等待開始";
+    status.textContent = state.running ? (state.phase === "prepare" ? "預備中" : "練習中") : state.hasStarted ? "已暫停" : "等待開始";
     status.classList.toggle("is-playing", state.running);
   }
 
@@ -276,19 +312,18 @@
     state.completedCycles = state.totalCycles;
     $("#buttonPracticePlayer").classList.add("hidden");
     $("#buttonPracticeCompleteMode").textContent = MODE_LABELS[state.mode];
-    $("#buttonPracticeCompleteDifficulty").textContent = DIFFICULTY_LABELS[state.difficulty];
     $("#buttonPracticeCompleteRange").textContent = RANGE_LABELS[state.range];
     $("#buttonPracticeCompleteCycles").textContent = `${state.completedCycles} / ${state.totalCycles}`;
     const show = () => { $("#buttonPracticeComplete").classList.remove("hidden"); adapter?.scrollTo?.("buttonPracticeComplete"); };
-    void adapter?.complete?.({ id: state.recordId, date: new Date().toISOString().slice(0, 10), completedAt: new Date().toISOString(), type: "button-practice", mode: state.mode, difficulty: state.difficulty, pattern: state.pattern, bpm: state.bpm, holes: FIXED_HOLES, range: state.range, cyclesCompleted: state.completedCycles }, show);
+    void adapter?.complete?.({ id: state.recordId, date: new Date().toISOString().slice(0, 10), completedAt: new Date().toISOString(), type: "button-practice", mode: state.mode, bpm: state.bpm, holes: FIXED_HOLES, range: state.range, cyclesCompleted: state.completedCycles }, show);
   }
 
   function step() {
     if (!state?.running) return;
-    if (state.phase === "countdown") {
-      if (state.metronome) adapter?.playBeat?.(state.countdownRemaining === state.countdownBeats);
-      state.countdownRemaining -= 1;
-      if (state.countdownRemaining <= 0) state.phase = "play";
+    if (state.phase === "prepare") {
+      playPreparationAudio(adapter, state.prepareBeat === 0);
+      state.prepareBeat += 1;
+      if (state.prepareBeat >= PREPARE_BEATS) state.phase = "play";
       render();
       return;
     }
@@ -299,7 +334,8 @@
       state.completedInCycle = 0;
     }
     state.activeFlatIndex = state.completedInCycle;
-    if (state.metronome) adapter?.playBeat?.(state.activeFlatIndex % BEATS_PER_MEASURE === 0);
+    const entry = state.measures.flatMap((measure) => measure.notes)[state.activeFlatIndex] || null;
+    playStepAudio(state, entry, adapter, state.activeFlatIndex % BEATS_PER_MEASURE === 0);
     render();
   }
 
@@ -318,7 +354,7 @@
   }
 
   function createState(settings, measures) {
-    return { ...settings, measures, recordId: `button-${Date.now()}-${Math.random().toString(16).slice(2)}`, activeFlatIndex: -1, completedInCycle: 0, completedCycles: 0, countdownRemaining: settings.countdownBeats, phase: settings.countdownBeats > 0 ? "countdown" : "play", running: false, hasStarted: false, completionRecorded: false };
+    return { ...normalizeSettings(settings), measures, recordId: `button-${Date.now()}-${Math.random().toString(16).slice(2)}`, phase: "prepare", prepareBeat: 0, activeFlatIndex: -1, completedInCycle: 0, completedCycles: 0, running: false, hasStarted: false, completionRecorded: false };
   }
 
   function begin() {
@@ -335,7 +371,7 @@
   function restart() {
     if (!state) return;
     const measures = state.measures;
-    const settings = state;
+    const settings = normalizeSettings(state);
     clearTimer();
     state = createState(settings, measures);
     render();
@@ -343,7 +379,7 @@
 
   function regenerate() {
     if (!state) return;
-    const settings = state;
+    const settings = normalizeSettings(state);
     clearTimer();
     state = createState(settings, generateMeasures(settings, adapter?.getLayout?.(FIXED_HOLES)));
     render();
@@ -363,10 +399,18 @@
 
   function init(nextAdapter) {
     adapter = nextAdapter;
+    const noteDemoToggle = $("#buttonPracticeNoteDemo");
+    if (noteDemoToggle) noteDemoToggle.checked = readNoteDemoPreference();
     if (initialized) return;
     initialized = true;
-    updatePatternOptions();
-    $("#buttonPracticeMode")?.addEventListener("change", updatePatternOptions);
+    if (noteDemoToggle) {
+      noteDemoToggle.addEventListener("change", (event) => {
+        const enabled = saveNoteDemoPreference(event.target.checked);
+        adapter?.stopNote?.();
+        if (state) state.noteDemoEnabled = enabled;
+        adapter?.settingsChanged?.();
+      });
+    }
     $("#buttonPracticeBpm")?.addEventListener("input", (event) => { $("#buttonPracticeBpmValue").textContent = event.target.value; });
     $("#buttonPracticeStart")?.addEventListener("click", begin);
     $("#buttonPracticeStartPause")?.addEventListener("click", toggle);
@@ -378,5 +422,5 @@
   }
 
   window.ChromaticaButtonPractice = Object.freeze({ init, showSetup, onViewChanged, isRunning: () => state?.running === true, hasStarted: () => state?.hasStarted === true, isCompleteVisible: () => !$("#buttonPracticeComplete")?.classList.contains("hidden"), stop: pause });
-  window.ChromaticaButtonPracticeCore = Object.freeze({ FIXED_HOLES, MEASURE_COUNT, BEATS_PER_MEASURE, MODE_LABELS, PATTERN_OPTIONS, noteToMidi, numberedRegister, registerLabel, isInRange, buildPlayablePositions, generateMeasures, generateSequence, claimCompletion });
+  window.ChromaticaButtonPracticeCore = Object.freeze({ FIXED_HOLES, MEASURE_COUNT, BEATS_PER_MEASURE, PREPARE_BEATS, NOTE_DEMO_STORAGE_KEY, MODE_LABELS, noteToMidi, numberedRegister, registerLabel, isInRange, buildPlayablePositions, normalizeSettings, generateMeasures, generateSequence, readNoteDemoPreference, saveNoteDemoPreference, playStepAudio, playPreparationAudio, claimCompletion });
 })();

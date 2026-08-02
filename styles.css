@@ -3397,26 +3397,28 @@ body.hide-featured-spirit .hero-plant-slot {
   grid-column: 1 / -1;
 }
 
-.button-practice-toggle-setting {
-  grid-column: 1 / -1;
-  grid-template-columns: minmax(0, 1fr) auto;
+.button-practice-note-demo-setting {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.button-practice-toggle-setting span {
+.button-practice-note-demo-setting > span {
   display: grid;
   gap: 4px;
 }
 
-.button-practice-toggle-setting small {
+.button-practice-note-demo-setting small {
   color: var(--text-muted);
-  font-weight: 650;
+  font-size: 11px;
   line-height: 1.45;
 }
 
-.button-practice-toggle-setting input {
-  width: 24px;
-  height: 24px;
+.button-practice-note-demo-setting input {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
   accent-color: var(--primary);
 }
 
@@ -3535,7 +3537,6 @@ body.hide-featured-spirit .hero-plant-slot {
     grid-column: auto;
   }
 
-  .button-practice-toggle-setting,
   #buttonPracticeStartPause {
     grid-column: auto;
   }

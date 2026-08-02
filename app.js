@@ -886,6 +886,7 @@ let intervalMetronomePlaying = false;
 let intervalPracticeState = null;
 let intervalIntroReturnFocus = null;
 let audioContext = null;
+let buttonPracticeDemoTone = null;
 let micStream = null;
 let micAnalyser = null;
 let micData = null;
@@ -7343,6 +7344,54 @@ function getSharedAudioContext() {
   return audioContext;
 }
 
+function stopButtonPracticeDemoTone() {
+  const tone = buttonPracticeDemoTone;
+  buttonPracticeDemoTone = null;
+  if (!tone) return;
+  try {
+    const now = tone.context.currentTime;
+    tone.gain.gain.cancelScheduledValues(now);
+    tone.gain.gain.setValueAtTime(Math.max(0.0001, tone.gain.gain.value), now);
+    tone.gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.015);
+    tone.oscillator.stop(now + 0.018);
+  } catch {
+    try { tone.oscillator.stop(); } catch {}
+  }
+}
+
+function getButtonPracticeDemoFrequency(noteName) {
+  return midiToFreq(noteNameToMidi(noteName), tuningA4);
+}
+
+function playButtonPracticeDemoTone(noteName, durationMs) {
+  stopButtonPracticeDemoTone();
+  if (!isSoundAllowed("buttonPracticeDemo") || !noteName) return;
+  const context = getSharedAudioContext();
+  if (context.state === "suspended") void context.resume?.();
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  const durationSeconds = Math.max(0.08, Number(durationMs) / 1000 || 0.4);
+  const attackSeconds = Math.min(0.018, durationSeconds * 0.1);
+  const releaseStartsAt = Math.max(attackSeconds + 0.01, durationSeconds * 0.82);
+  const startsAt = context.currentTime;
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(getButtonPracticeDemoFrequency(noteName), startsAt);
+  gain.gain.setValueAtTime(0.0001, startsAt);
+  gain.gain.exponentialRampToValueAtTime(0.16, startsAt + attackSeconds);
+  gain.gain.setValueAtTime(0.16, startsAt + releaseStartsAt);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startsAt + durationSeconds);
+  oscillator.connect(gain).connect(context.destination);
+  const tone = { context, oscillator, gain };
+  buttonPracticeDemoTone = tone;
+  oscillator.onended = () => {
+    if (buttonPracticeDemoTone === tone) buttonPracticeDemoTone = null;
+    try { oscillator.disconnect(); } catch {}
+    try { gain.disconnect(); } catch {}
+  };
+  oscillator.start(startsAt);
+  oscillator.stop(startsAt + durationSeconds + 0.02);
+}
+
 function playPrepareClick(strong = false) {
   if (!isMetronomeAllowed()) return;
   if (!audioContext) {
@@ -8506,6 +8555,10 @@ function initializeAuthenticatedApp(options = {}) {
         document.querySelector(`[data-button-measure="${measureIndex}"]`)?.scrollIntoView?.({ block: "nearest", inline: "center", behavior: "smooth" });
       },
       playBeat: (accent) => playClick(accent),
+      playPrepareBeat: (accent) => playPrepareClick(accent),
+      playNote: (noteName, durationMs) => playButtonPracticeDemoTone(noteName, durationMs),
+      stopNote: stopButtonPracticeDemoTone,
+      settingsChanged: scheduleAccountSnapshotSave,
       complete: completeButtonPractice,
       navigate: (view) => setView(view),
       scrollTo: scrollToSection,

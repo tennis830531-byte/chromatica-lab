@@ -9,9 +9,20 @@
   </head>
   <body>
     <main class="visual-fixture button-practice-view">
+      <section class="interval-setup paper-card" aria-label="按鍵練習設定測試畫面">
+        <div class="interval-card-heading"><p class="eyebrow">練習設定</p><h3>今天想練哪一種按鍵動作？</h3></div>
+        <div class="interval-settings-grid">
+          <label class="interval-setting"><span>練習模式</span><select><option>按放切換</option></select></label>
+          <label class="interval-setting"><span>音域</span><select><option>中音域</option></select></label>
+          <label class="interval-setting"><span class="interval-range-heading">BPM <b>60</b></span><input type="range" min="40" max="180" value="60" /></label>
+          <label class="interval-setting"><span>循環次數</span><select><option>4 次</option></select></label>
+          <label class="interval-setting interval-setting-wide button-practice-note-demo-setting"><span><strong>音符示範音</strong><small>播放每個音符對應的音高；預備拍與休息拍使用節拍聲。</small></span><input type="checkbox" checked /></label>
+        </div>
+        <button class="primary-btn interval-start-btn">開始按鍵練習</button>
+      </section>
       <section class="interval-player" aria-label="按鍵練習測試畫面">
         <div class="interval-player-top paper-card">
-          <div><p class="eyebrow">目前練習</p><h3>半音階穿梭｜普通</h3></div>
+          <div><p class="eyebrow">目前練習</p><h3>半音階穿梭</h3></div>
           <div class="interval-progress-pills"><span>循環 <b>1 / 4</b></span><span><b>60</b> BPM</span></div>
         </div>
         <div class="interval-score-card paper-card button-practice-score-card">
@@ -30,7 +41,7 @@
             <div class="interval-note-help button-practice-number-help"><span><small>第 5 小節</small><em><i class="button-score-note"><b class="jianpu-note">1</b></i></em></span><span><small>第 6 小節</small><em><i class="button-score-note"><b class="jianpu-note">2</b></i></em></span><span><small>第 7 小節</small><em><i class="button-score-note"><b class="jianpu-note">3</b></i></em></span><span><small>第 8 小節</small><em><i class="button-score-note"><b class="jianpu-note">4</b></i></em></span></div>
           </div>
         </div>
-        <div class="interval-metronome paper-card"><div><span class="metronome-dot is-playing"></span><strong>節拍引導</strong><small>4 拍預備後開始</small></div><span class="interval-metronome-status is-playing">練習中</span></div>
+        <div class="interval-metronome paper-card"><div><span class="metronome-dot is-playing"></span><strong>節拍引導</strong><small>依設定 BPM 每拍推進</small></div><span class="interval-metronome-status is-playing">練習中</span></div>
         <div class="interval-practice-actions"><button id="buttonPracticeStartPause" class="primary-btn">暫停練習</button><button class="ghost-btn">重新開始</button><button class="ghost-btn">重新產生題目</button><button class="ghost-btn">練習設定</button></div>
       </section>
     </main>

@@ -23,10 +23,18 @@ const buttonNumberRenderer = app.slice(
 );
 
 function settings(overrides = {}) {
-  return { mode: "toggle", difficulty: "normal", pattern: "hold-1", range: "full", ...overrides };
+  return { mode: "toggle", range: "full", bpm: 60, totalCycles: 4, ...overrides };
 }
 
 function flatten(measures) { return measures.flatMap((measure) => measure.notes); }
+
+function seededRng(seed) {
+  let value = seed >>> 0;
+  return () => {
+    value = (value * 1664525 + 1013904223) >>> 0;
+    return value / 0x100000000;
+  };
+}
 
 function assertCanonical(entry) {
   assert.ok(entry.hole >= 1 && entry.hole <= 12);
@@ -54,15 +62,28 @@ test("button practice is fixed to the canonical 12-hole layout with no model sel
   assert.throws(() => core.generateMeasures(settings(), layouts[16]), /requires-12-hole/);
 });
 
+test("setup keeps the four concise controls and adds one persisted note-demo toggle", () => {
+  const setup = html.slice(html.indexOf('id="buttonPracticeSetup"'), html.indexOf('id="buttonPracticePlayer"'));
+  for (const id of ["buttonPracticeMode", "buttonPracticeRange", "buttonPracticeBpm", "buttonPracticeCycles", "buttonPracticeNoteDemo"]) {
+    assert.match(setup, new RegExp(`id="${id}"`));
+  }
+  assert.equal((setup.match(/<label class="interval-setting/g) || []).length, 5);
+  assert.match(setup, /音符示範音/);
+  assert.match(setup, /播放每個音符對應的音高；預備拍與休息拍使用節拍聲。/);
+  assert.match(setup, /id="buttonPracticeNoteDemo"[^>]*checked/);
+  assert.doesNotMatch(setup, /buttonPracticeDifficulty|buttonPracticePattern|buttonPracticeCountdown|buttonPracticeMetronome|難度|練習類型|開始前倒數|節拍音/);
+  assert.doesNotMatch(source, /buttonPracticeDifficulty|buttonPracticePattern|buttonPracticeCountdown|buttonPracticeMetronome[^D]/);
+});
+
 test("every mode pre-generates eight four-quarter-note measures from real 12-hole positions", () => {
   const cases = [
     settings(),
-    settings({ mode: "random", pattern: "reaction" }),
-    settings({ mode: "chromatic", pattern: "both" }),
-    settings({ mode: "shift", pattern: "press-then-move" }),
+    settings({ mode: "random" }),
+    settings({ mode: "chromatic" }),
+    settings({ mode: "shift" }),
   ];
   for (const selected of cases) {
-    const measures = core.generateMeasures(selected, layout, () => 0.61);
+    const measures = core.generateMeasures(selected, layout, seededRng(177));
     assert.equal(measures.length, 8);
     measures.forEach((measure) => {
       assert.equal(measure.notes.length, 4);
@@ -80,37 +101,126 @@ test("range labels and filters follow numbered notation and exclude double-low n
   assert.equal(core.numberedRegister("C3"), "double-low");
   assert.equal(core.numberedRegister("C4"), "low");
   for (const range of ["low", "middle", "high", "full"]) {
-    const sequence = core.generateSequence(settings({ mode: "random", pattern: "reaction", range }), layout, () => 0.55);
-    assert.ok(sequence.every((entry) => core.numberedRegister(entry.note) !== "double-low"));
-    assert.ok(sequence.every((entry) => core.isInRange(entry.note, range)));
+    for (const mode of ["toggle", "random", "chromatic", "shift"]) {
+      const sequence = core.generateSequence(settings({ mode, range }), layout, seededRng(301));
+      assert.ok(sequence.every((entry) => core.numberedRegister(entry.note) !== "double-low"));
+      assert.ok(sequence.every((entry) => core.isInRange(entry.note, range)));
+    }
   }
 });
 
 test("toggle and random modes choose valid non-fixed starting positions", () => {
-  const starts = [0.08, 0.28, 0.52, 0.78, 0.94].map((value) => core.generateSequence(settings(), layout, () => value)[0].note);
+  const starts = [8, 28, 52, 78, 94].map((seed) => core.generateSequence(settings(), layout, seededRng(seed))[0].note);
   assert.ok(new Set(starts).size > 1);
   assert.ok(starts.some((note) => !note.startsWith("C")));
-  const randomStarts = [0.11, 0.37, 0.69, 0.91].map((value) => core.generateSequence(settings({ mode: "random", pattern: "reaction" }), layout, () => value)[0].note);
+  const randomStarts = [11, 37, 69, 91].map((seed) => core.generateSequence(settings({ mode: "random" }), layout, seededRng(seed))[0].note);
   assert.ok(new Set(randomStarts).size > 1);
   assert.ok(randomStarts.some((note) => !note.startsWith("C")));
 });
 
-test("chromatic and shift modes randomize only among starts that can complete their shape", () => {
-  for (const pattern of ["ascending", "descending", "both", "three-bounce", "four-bounce"]) {
-    const sequence = core.generateSequence(settings({ mode: "chromatic", pattern }), layout, () => 0.73);
-    sequence.forEach(assertCanonical);
-    assert.ok(sequence.every((entry) => core.isInRange(entry.note, "full")));
-    const head = pattern === "four-bounce" ? sequence.slice(0, 4) : pattern === "three-bounce" ? sequence.slice(0, 3) : sequence.slice(0, 8);
-    assert.ok(head.slice(1).every((entry, index) => Math.abs(core.noteToMidi(entry.note) - core.noteToMidi(head[index].note)) === 1));
+test("chromatic and shift modes automatically mix playable shapes", () => {
+  const chromaticShapes = new Set();
+  for (const seed of [3, 7, 19, 41, 83]) {
+    const measures = core.generateMeasures(settings({ mode: "chromatic" }), layout, seededRng(seed));
+    const phraseShapes = new Set();
+    for (const measure of measures) {
+      measure.notes.forEach(assertCanonical);
+      const deltas = measure.notes.slice(1).map((entry, index) => core.noteToMidi(entry.note) - core.noteToMidi(measure.notes[index].note));
+      const signature = deltas.join(",");
+      assert.ok(["1,1,1", "-1,-1,-1", "1,1,-1"].includes(signature));
+      chromaticShapes.add(signature);
+      phraseShapes.add(signature);
+    }
+    assert.equal(phraseShapes.size, 3);
   }
-  for (const pattern of ["press-then-move", "move-then-press", "chromatic-move", "breath-switch-press"]) {
-    core.generateSequence(settings({ mode: "shift", pattern }), layout, () => 0.77).forEach(assertCanonical);
+  assert.equal(chromaticShapes.size, 3);
+  for (const seed of [5, 17, 61, 109]) {
+    core.generateSequence(settings({ mode: "shift" }), layout, seededRng(seed)).forEach(assertCanonical);
   }
+  assert.match(source, /mixedChoices\(available, MEASURE_COUNT, rng\)/);
+});
+
+test("regenerating any mode can produce a different complete phrase", () => {
+  for (const mode of ["toggle", "random", "chromatic", "shift"]) {
+    const phrases = [13, 29, 47, 71].map((seed) => core.generateSequence(settings({ mode }), layout, seededRng(seed))
+      .map((entry) => `${entry.note}:${entry.source}`).join("|"));
+    assert.ok(new Set(phrases).size > 1, `${mode} should mix more than one phrase`);
+  }
+});
+
+test("legacy difficulty and pattern fields load safely but are ignored", () => {
+  const legacy = { ...settings({ mode: "chromatic", range: "high", bpm: 96, totalCycles: 2 }), difficulty: "advanced", pattern: "descending", patternType: "three-bounce" };
+  const normalized = core.normalizeSettings(legacy);
+  assert.deepEqual(Object.keys(normalized).sort(), ["bpm", "holes", "mode", "noteDemoEnabled", "range", "totalCycles"]);
+  assert.equal(normalized.mode, "chromatic");
+  assert.equal(normalized.range, "high");
+  assert.equal(core.generateMeasures(legacy, layout, seededRng(177)).length, 8);
+  const completionCall = source.match(/adapter\?\.complete\?\.\(\{[\s\S]*?\}, show\)/)?.[0] || "";
+  assert.doesNotMatch(completionCall, /difficulty|patternType|pattern:/);
+});
+
+test("note demonstration defaults on, persists, and old settings remain compatible", () => {
+  const values = new Map();
+  const storage = {
+    getItem: (key) => values.has(key) ? values.get(key) : null,
+    setItem: (key, value) => values.set(key, value),
+  };
+  assert.equal(core.readNoteDemoPreference(storage), true);
+  assert.equal(core.normalizeSettings(settings()).noteDemoEnabled, true);
+  assert.equal(core.saveNoteDemoPreference(false, storage), false);
+  assert.equal(values.get(core.NOTE_DEMO_STORAGE_KEY), "false");
+  assert.equal(core.readNoteDemoPreference(storage), false);
+  assert.equal(core.normalizeSettings({ ...settings(), noteDemoEnabled: false }).noteDemoEnabled, false);
+  assert.match(fs.readFileSync(path.join(root, "account-workspace.js"), "utf8"), /chromatica\.settings\.buttonPracticeNoteDemo/);
+});
+
+test("note beats and click beats are mutually exclusive and follow BPM duration", () => {
+  const calls = [];
+  const audioAdapter = {
+    playNote: (note, durationMs) => calls.push(["note", note, durationMs]),
+    playBeat: (strong) => calls.push(["click", strong]),
+  };
+  assert.equal(core.playStepAudio({ bpm: 120, noteDemoEnabled: true }, { note: "C#5" }, audioAdapter, true), "note");
+  assert.deepEqual(calls, [["note", "C#5", 430]]);
+  calls.length = 0;
+  assert.equal(core.playStepAudio({ bpm: 60, noteDemoEnabled: true }, null, audioAdapter, true), "click");
+  assert.deepEqual(calls, [["click", true]]);
+  calls.length = 0;
+  assert.equal(core.playStepAudio({ bpm: 60, noteDemoEnabled: false }, { note: "A4" }, audioAdapter, false), "click");
+  assert.deepEqual(calls, [["click", false]]);
+  calls.length = 0;
+  const prepareAdapter = { playPrepareBeat: (strong) => calls.push(["prepare", strong]), playBeat: () => calls.push(["click", false]) };
+  assert.equal(core.playPreparationAudio(prepareAdapter, true), "click");
+  assert.deepEqual(calls, [["prepare", true]]);
+});
+
+test("shared app pitch engine handles accidentals and the saved A4 reference", () => {
+  const noteMath = app.slice(app.indexOf("function noteNameToMidi("), app.indexOf("function midiToNoteName("));
+  const frequencyMath = app.slice(app.indexOf("function midiToFreq("), app.indexOf("function getNoteLetter("));
+  const buttonFrequency = app.slice(app.indexOf("function getButtonPracticeDemoFrequency("), app.indexOf("function playButtonPracticeDemoTone("));
+  const values = vm.runInNewContext(`(() => { let tuningA4 = 442; ${noteMath}\n${frequencyMath}\n${buttonFrequency}\nreturn [getButtonPracticeDemoFrequency("A4"), getButtonPracticeDemoFrequency("C#5")]; })()`);
+  assert.equal(values[0], 442);
+  assert.ok(Math.abs(values[1] - (442 * 2 ** (4 / 12))) < 1e-9);
+  assert.match(app, /TUNING_A4_STORAGE_KEY = "chromatica\.settings\.tuningA4"/);
+  assert.match(app, /getButtonPracticeDemoFrequency\(noteName\)[\s\S]*midiToFreq\(noteNameToMidi\(noteName\), tuningA4\)/);
+});
+
+test("demonstration tone reuses shared AudioContext with a short attack and release", () => {
+  const player = app.slice(app.indexOf("function playButtonPracticeDemoTone("), app.indexOf("function playPrepareClick("));
+  assert.match(player, /getSharedAudioContext\(\)/);
+  assert.match(player, /oscillator\.type = "sine"/);
+  assert.match(player, /durationSeconds \* 0\.82/);
+  assert.match(player, /exponentialRampToValueAtTime\(0\.0001/);
+  assert.match(source, /\(60000 \/ targetState\.bpm\) \* 0\.86/);
+  assert.match(app, /let buttonPracticeDemoTone = null/);
+  assert.match(app, /playBeat: \(accent\) => playClick\(accent\)/);
+  assert.match(app, /playPrepareBeat: \(accent\) => playPrepareClick\(accent\)/);
+  assert.match(app, /function playClick\(strong = false\)[\s\S]*if \(!isMetronomeAllowed\(\)\) return/);
 });
 
 test("random reactions never produce more than two consecutive identical commands", () => {
   let calls = 0;
-  const sequence = core.generateSequence(settings({ mode: "random", pattern: "reaction", difficulty: "advanced" }), layout, () => (++calls % 4 ? 0.9 : 0.1));
+  const sequence = core.generateSequence(settings({ mode: "random" }), layout, () => (++calls % 4 ? 0.9 : 0.1));
   let repeated = 1;
   for (let index = 1; index < sequence.length; index += 1) {
     repeated = sequence[index].pressed === sequence[index - 1].pressed ? repeated + 1 : 1;
@@ -154,27 +264,32 @@ test("playback advances exactly one synchronized active note while restart reuse
     constructor() { this.value = ""; this.checked = false; this.textContent = ""; this.innerHTML = ""; this.classList = new FakeClassList(); this.listeners = new Map(); }
     addEventListener(type, listener) { this.listeners.set(type, listener); }
     click() { this.listeners.get("click")?.({ target: this }); }
+    change() { this.listeners.get("change")?.({ target: this }); }
     replaceChildren(...children) { this.value = children[0]?.value || ""; }
     setAttribute() {}
   }
   const elements = new Map();
   [...source.matchAll(/\$\("#([A-Za-z0-9]+)"\)/g)].forEach((match) => elements.set(match[1], new FakeElement()));
   Object.assign(elements.get("buttonPracticeMode"), { value: "toggle" });
-  Object.assign(elements.get("buttonPracticeDifficulty"), { value: "normal" });
   Object.assign(elements.get("buttonPracticeBpm"), { value: "120" });
   Object.assign(elements.get("buttonPracticeCycles"), { value: "2" });
   Object.assign(elements.get("buttonPracticeRange"), { value: "full" });
-  Object.assign(elements.get("buttonPracticeCountdown"), { value: "0" });
-  Object.assign(elements.get("buttonPracticeMetronome"), { checked: false });
   elements.get("buttonPracticePlayer").classList.add("hidden");
   elements.get("buttonPracticeComplete").classList.add("hidden");
   let tick = null;
   let renderCalls = [];
   let latestPhrase = "";
-  const randomValues = [0.08, 0.21, 0.92, 0.37, 0.61];
+  let stopCalls = 0;
+  const audioCalls = [];
+  const storedSettings = new Map();
+  let settingsChanged = 0;
   const fakeMath = Object.create(Math);
-  fakeMath.random = () => randomValues.shift() ?? 0.5;
-  const testWindow = { setInterval(callback) { tick = callback; return 1; }, clearInterval() { tick = null; } };
+  fakeMath.random = seededRng(177);
+  const testWindow = {
+    localStorage: { getItem: (key) => storedSettings.get(key) ?? null, setItem: (key, value) => storedSettings.set(key, value) },
+    setInterval(callback) { tick = callback; return 1; },
+    clearInterval() { tick = null; },
+  };
   vm.runInNewContext(source, { window: testWindow, document: { querySelector: (selector) => elements.get(selector.slice(1)) || null, createElement: () => new FakeElement() }, console, Date, Math: fakeMath });
   testWindow.ChromaticaButtonPractice.init({
     getLayout: () => layout,
@@ -184,7 +299,11 @@ test("playback advances exactly one synchronized active note while restart reuse
       return "<svg></svg>";
     },
     renderNumberHelp: () => "",
-    playBeat: () => {},
+    playBeat: (strong) => audioCalls.push(["click", strong]),
+    playPrepareBeat: (strong) => audioCalls.push(["click", strong]),
+    playNote: (note, durationMs) => audioCalls.push(["note", note, durationMs]),
+    stopNote: () => { stopCalls += 1; },
+    settingsChanged: () => { settingsChanged += 1; },
     complete: () => {},
     scrollTo: () => {},
     scrollActiveMeasure: () => {},
@@ -193,20 +312,36 @@ test("playback advances exactly one synchronized active note while restart reuse
   const originalPhrase = latestPhrase;
   renderCalls = [];
   elements.get("buttonPracticeStartPause").click();
+  for (let beat = 0; beat < core.PREPARE_BEATS; beat += 1) tick();
   assert.deepEqual(renderCalls.filter((entry) => entry.activeMeasure >= 0), [{ activeMeasure: 0, activeNote: 0 }]);
+  assert.equal(audioCalls.filter(([type]) => type === "click").length, 4);
+  assert.equal(audioCalls.filter(([type]) => type === "note").length, 1);
   renderCalls = [];
   tick();
   assert.deepEqual(renderCalls.filter((entry) => entry.activeMeasure >= 0), [{ activeMeasure: 0, activeNote: 1 }]);
+  assert.equal(audioCalls.filter(([type]) => type === "click").length, 4);
+  assert.equal(audioCalls.filter(([type]) => type === "note").length, 2);
   elements.get("buttonPracticeRestart").click();
   assert.equal(latestPhrase, originalPhrase);
   elements.get("buttonPracticeRegenerate").click();
   assert.notEqual(latestPhrase, originalPhrase);
+  elements.get("buttonPracticeNoteDemo").checked = false;
+  elements.get("buttonPracticeNoteDemo").change();
+  assert.equal(storedSettings.get(core.NOTE_DEMO_STORAGE_KEY), "false");
+  assert.equal(settingsChanged, 1);
+  assert.ok(stopCalls >= 3);
 });
 
 test("one timer drives start, pause, resume, restart, background pause, and one completion", () => {
   assert.match(source, /if \(!state \|\| state\.running \|\| state\.completionRecorded\) return/);
   assert.match(source, /window\.setInterval\(step, 60000 \/ state\.bpm\)/);
   assert.match(source, /function onViewChanged\(view\) \{ if \(view !== "buttonpractice"\) clearTimer\(\); \}/);
+  assert.match(source, /function clearTimer\(\)[\s\S]*adapter\?\.stopNote\?\.\(\)/);
+  assert.match(source, /noteDemoToggle\.addEventListener\("change"[\s\S]*adapter\?\.stopNote\?\.\(\)/);
+  for (const action of ["finish", "restart", "regenerate", "showSetup"]) {
+    const body = source.match(new RegExp(`function ${action}\\([^)]*\\) \\{[\\s\\S]*?\\n  \\}`))?.[0] || "";
+    assert.match(body, /clearTimer\(\)/, `${action} must stop its current tone and pending timer`);
+  }
   assert.match(app, /pauseAudioForAppBackground[\s\S]*ChromaticaButtonPractice\?\.stop\?\.\(\)/);
   const completion = { completionRecorded: false };
   assert.equal(core.claimCompletion(completion), true);
@@ -215,6 +350,9 @@ test("one timer drives start, pause, resume, restart, background pause, and one 
 
 test("the full phrase fits narrow screens and follows interval score mobile behavior", () => {
   assert.match(css, /@media \(max-width: 360px\)[\s\S]*?\.button-practice-score-card\s*\{[\s\S]*?overflow-x: clip/);
+  assert.match(css, /@media \(max-width: 360px\)[\s\S]*?\.interval-settings-grid,[\s\S]*?grid-template-columns: 1fr/);
   assert.match(css, /\.button-practice-number-help\s*\{\s*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.equal((visualFixture.match(/<label class="interval-setting/g) || []).length, 5);
+  assert.doesNotMatch(visualFixture, /難度|練習類型|開始前倒數|節拍音/);
   assert.match(app, /scrollIntoView\?\.\(\{ block: "nearest", inline: "center", behavior: "smooth" \}\)/);
 });
