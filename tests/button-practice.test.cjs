@@ -9,6 +9,7 @@ const source = fs.readFileSync(path.join(root, "button-practice.js"), "utf8");
 const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+const visualFixture = fs.readFileSync(path.join(root, "tests/fixtures/button-practice-visual.html"), "utf8");
 const context = { window: {}, document: { querySelector: () => null }, console };
 vm.runInNewContext(source, context, { filename: "button-practice.js" });
 const core = context.window.ChromaticaButtonPracticeCore;
@@ -16,6 +17,10 @@ const layoutStart = app.indexOf("const chromaticLayouts = ") + "const chromaticL
 const layoutEnd = app.indexOf(";\n\nconst mapHarmonicaImages", layoutStart);
 const layouts = vm.runInNewContext(`(${app.slice(layoutStart, layoutEnd)})`);
 const layout = layouts[12];
+const buttonNumberRenderer = app.slice(
+  app.indexOf("function renderButtonPracticeNumberHelp("),
+  app.indexOf("function saveButtonPracticeRecord("),
+);
 
 function settings(overrides = {}) {
   return { mode: "toggle", difficulty: "normal", pattern: "hold-1", range: "full", ...overrides };
@@ -113,15 +118,17 @@ test("random reactions never produce more than two consecutive identical command
   }
 });
 
-test("staff, numbered notation, button cue, bar lines, completed state, and active state are synchronized", () => {
+test("score keeps only staff and numbered notation while their active states stay synchronized", () => {
   assert.match(app, /createIntervalStaffSvg\(groups, "C", activeMeasureIndex, activeNoteIndex, completedNoteCount\)/);
   assert.match(app, /staff-note\.completed-note/);
   assert.match(app, /staff-note\.active-note/);
   assert.match(app, /button-score-note\$\{active \? " active"/);
   assert.match(app, /renderIntervalNumberNote\(entry\.note, active\)/);
-  assert.match(app, /entry\.pressed \? "按" : "放"/);
+  assert.doesNotMatch(buttonNumberRenderer, /button-note-action|entry\.pressed|entry\.hole|entry\.breath|孔|吹音|吸音/);
+  assert.doesNotMatch(css, /button-note-action|button-score-note > small/);
+  assert.doesNotMatch(visualFixture, /button-note-action|[0-9]+孔| · 吹| · 吸/);
   assert.match(app, /class="bar-line"/);
-  assert.match(css, /\.button-score-note\.active[\s\S]*?\.button-score-note\.active \.button-note-action/);
+  assert.match(css, /\.button-score-note\.active\s*\{[\s\S]*?rgba\(211, 79, 69/);
   assert.match(source, /const activeFlatIndex = state\.phase === "play" \? state\.activeFlatIndex : -1/);
 });
 

@@ -7070,8 +7070,6 @@ function renderButtonPracticeNumberHelp(measures, startIndex, activeMeasureIndex
       const completed = flatIndex < completedNoteCount;
       return `<i class="button-score-note${active ? " active" : ""}${completed ? " completed" : ""}">
         ${renderIntervalNumberNote(entry.note, active)}
-        <strong class="button-note-action">${entry.pressed ? "按" : "放"}</strong>
-        <small>${entry.hole}孔 · ${entry.breath.replace("音", "")}</small>
       </i>`;
     }).join("");
     return `<span data-button-measure="${measureIndex}" class="${measureIndex === activeMeasureIndex ? "active" : ""}${measureIndex * 4 + 4 <= completedNoteCount ? " completed" : ""}"><small>第 ${measureIndex + 1} 小節</small><em>${notes}</em></span>`;

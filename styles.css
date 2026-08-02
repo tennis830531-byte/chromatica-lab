@@ -3433,17 +3433,18 @@ body.hide-featured-spirit .hero-plant-slot {
 }
 
 .button-practice-number-help em {
-  align-items: stretch;
-  gap: 2px;
+  align-items: center;
+  gap: 3px;
+  min-height: 28px;
 }
 
 .button-score-note {
-  display: grid;
-  grid-template-rows: 26px 18px 13px;
+  display: inline-grid;
   place-items: center;
   flex: 1 1 0;
   min-width: 0;
-  padding: 2px 0;
+  min-height: 28px;
+  padding: 0;
   border-radius: 7px;
   font-style: normal;
   transition: background 0.16s ease, box-shadow 0.16s ease;
@@ -3456,29 +3457,6 @@ body.hide-featured-spirit .hero-plant-slot {
 
 .button-score-note.completed {
   opacity: 0.64;
-}
-
-.button-note-action {
-  color: var(--primary-dark);
-  font-size: 12px;
-  font-style: normal;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.button-score-note.active .button-note-action {
-  color: #d34f45;
-  text-shadow: 0 0 6px rgba(211, 79, 69, 0.52);
-}
-
-.button-score-note > small {
-  max-width: 100%;
-  color: var(--text-muted);
-  font-size: 8px;
-  line-height: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .interval-page-actions button:disabled {
@@ -3573,10 +3551,6 @@ body.hide-featured-spirit .hero-plant-slot {
 
   .button-practice-number-help span {
     padding-inline: 1px;
-  }
-
-  .button-score-note > small {
-    font-size: 7px;
   }
 
   .interval-metronome {
