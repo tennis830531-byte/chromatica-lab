@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../../styles.css" />
+  <style>
+    html, body { width: 360px; height: 800px; margin: 0; overflow: hidden; }
+    .opening-video-overlay, .opening-video-wrapper, .opening-video { width: 360px; height: 800px; }
+    .opening-video-overlay { position: absolute; }
+  </style>
+</head>
+<body>
+  <div class="opening-video-overlay">
+    <div id="openingVideoWrapper" class="opening-video-wrapper">
+      <video class="opening-video" playsinline></video>
+      <div id="openingCaptionLayer" class="opening-caption-layer" aria-live="off" aria-hidden="true">
+        <span id="frame" class="opening-caption-frame">
+          <span id="reference" class="opening-caption-width-reference" aria-hidden="true"></span>
+          <span id="visible" class="opening-caption-text"></span>
+        </span>
+      </div>
+    </div>
+    <button class="opening-video-skip" type="button">略過</button>
+  </div>
+  <pre id="result"></pre>
+  <script>
+    (async () => {
+      const wrapper = document.getElementById("openingVideoWrapper");
+      const layer = document.getElementById("openingCaptionLayer");
+      const frame = document.getElementById("frame");
+      const reference = document.getElementById("reference");
+      const visible = document.getElementById("visible");
+      const renderedHeight = wrapper.clientWidth * (1878 / 1080);
+      wrapper.style.setProperty("--opening-caption-top", `${Math.round(renderedHeight)}px`);
+      wrapper.style.setProperty("--opening-caption-area-height", `${Math.round(wrapper.clientHeight - renderedHeight)}px`);
+      const finalText = "和同伴們一起\n討論口琴！";
+      const loadedFaces = await document.fonts.load('400 20px "Chromatica Opening Cubic 11"', finalText);
+      reference.textContent = finalText;
+      visible.textContent = "和";
+      const partialLeft = visible.getBoundingClientRect().left;
+      visible.textContent = finalText;
+      const layerBox = layer.getBoundingClientRect();
+      const frameBox = frame.getBoundingClientRect();
+      const referenceBox = reference.getBoundingClientRect();
+      const visibleBox = visible.getBoundingClientRect();
+      const style = getComputedStyle(frame);
+      const result = {
+        viewportWidth: wrapper.clientWidth,
+        viewportHeight: wrapper.clientHeight,
+        documentWidth: wrapper.scrollWidth,
+        fontLoaded: loadedFaces.length > 0 && document.fonts.check('400 20px "Chromatica Opening Cubic 11"', finalText),
+        fontFamily: style.fontFamily,
+        fontSize: style.fontSize,
+        lineHeight: style.lineHeight,
+        computedHeight: style.height,
+        minHeight: style.minHeight,
+        paddingTop: style.paddingTop,
+        paddingBottom: style.paddingBottom,
+        marginTop: style.marginTop,
+        marginBottom: style.marginBottom,
+        lineCount: visible.textContent.split("\n").length,
+        partialLeft,
+        fullLeft: visibleBox.left,
+        frameLeft: frameBox.left,
+        frameRight: frameBox.right,
+        frameTop: frameBox.top,
+        frameBottom: frameBox.bottom,
+        referenceHeight: referenceBox.height,
+        layerTop: layerBox.top,
+        layerBottom: layerBox.bottom,
+        pointerEvents: getComputedStyle(layer).pointerEvents,
+      };
+      document.getElementById("result").textContent = JSON.stringify(result);
+    })();
+  </script>
+</body>
+</html>

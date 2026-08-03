@@ -15,6 +15,14 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Chromatica Opening Cubic 11";
+  src: url("./public/assets/fonts/cubic-11/Cubic_11.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+}
+
 :root {
   color-scheme: light;
   --splash-background: #fad08e;
@@ -85,6 +93,14 @@ body.modal-open {
   display: none;
 }
 
+.opening-video-wrapper {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+}
+
 .opening-video {
   display: block;
   width: 100vw;
@@ -94,6 +110,63 @@ body.modal-open {
   object-fit: contain;
   object-position: center top;
   background: var(--splash-background);
+}
+
+.opening-caption-layer {
+  position: absolute;
+  top: var(--opening-caption-top, 78%);
+  left: 5%;
+  right: 5%;
+  z-index: 2;
+  box-sizing: border-box;
+  height: var(--opening-caption-area-height, 22%);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.opening-caption-frame {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  color: #fff;
+  font-family: "Chromatica Opening Cubic 11", sans-serif;
+  font-size: 20px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  paint-order: stroke fill;
+  text-shadow:
+    -2px -2px 0 #000,
+    0 -2px 0 #000,
+    2px -2px 0 #000,
+    -2px 0 0 #000,
+    2px 0 0 #000,
+    -2px 2px 0 #000,
+    0 2px 0 #000,
+    2px 2px 0 #000;
+}
+
+.opening-caption-width-reference {
+  display: block;
+  visibility: hidden;
+  white-space: pre-wrap;
+}
+
+.opening-caption-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  white-space: pre-wrap;
 }
 
 .opening-video-skip {

@@ -24,7 +24,15 @@
   </head>
   <body class="auth-checking">
     <div id="openingVideoOverlay" class="opening-video-overlay hidden" aria-hidden="true">
-      <video id="openingVideo" class="opening-video" preload="auto" playsinline webkit-playsinline disablepictureinpicture aria-label="Chromatica Lab 開場影片"></video>
+      <div id="openingVideoWrapper" class="opening-video-wrapper">
+        <video id="openingVideo" class="opening-video" preload="auto" playsinline webkit-playsinline disablepictureinpicture aria-label="Chromatica Lab 開場影片"></video>
+        <div id="openingCaptionLayer" class="opening-caption-layer" aria-live="off" aria-hidden="true">
+          <span class="opening-caption-frame">
+            <span id="openingCaptionWidthReference" class="opening-caption-width-reference" aria-hidden="true"></span>
+            <span id="openingCaptionText" class="opening-caption-text"></span>
+          </span>
+        </div>
+      </div>
       <button id="openingVideoSkip" class="opening-video-skip hidden" type="button">略過</button>
     </div>
 
