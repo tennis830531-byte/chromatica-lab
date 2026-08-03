@@ -806,7 +806,7 @@
               <h3 id="buttonPracticeSetupTitle">今天想練哪一種按鍵動作？</h3>
             </div>
             <div class="interval-settings-grid">
-              <label class="interval-setting"><span>練習模式</span><select id="buttonPracticeMode" aria-label="按鍵練習模式"><option value="toggle">按放切換</option><option value="random">隨機按鍵</option><option value="chromatic">半音階穿梭</option><option value="shift">按鍵移位</option></select></label>
+              <label class="interval-setting"><span>練習模式</span><select id="buttonPracticeMode" aria-label="按鍵練習模式"><option value="same-hole">同孔按放</option><option value="breath-switch">吹吸切換</option><option value="hole-shift">移孔按放</option><option value="mixed">綜合練習</option></select></label>
               <label class="interval-setting"><span>音域</span><select id="buttonPracticeRange" aria-label="按鍵練習音域"><option value="low">低音域</option><option value="middle" selected>中音域</option><option value="high">高音域</option></select></label>
               <label class="interval-setting"><span class="interval-range-heading">BPM <b id="buttonPracticeBpmValue">60</b></span><input id="buttonPracticeBpm" type="range" min="40" max="180" step="1" value="60" aria-label="按鍵練習速度" /></label>
               <label class="interval-setting"><span>循環次數</span><select id="buttonPracticeCycles" aria-label="按鍵練習循環次數"><option value="1">1 次</option><option value="2">2 次</option><option value="4" selected>4 次</option><option value="6">6 次</option></select></label>
@@ -817,7 +817,7 @@
 
           <section id="buttonPracticePlayer" class="interval-player hidden" aria-live="polite">
             <div class="interval-player-top paper-card">
-              <div><p class="eyebrow">目前練習</p><h3 id="buttonPracticeTitle">按放切換</h3></div>
+              <div><p class="eyebrow">目前練習</p><h3 id="buttonPracticeTitle">同孔按放</h3></div>
               <div class="interval-progress-pills"><span>循環 <b id="buttonPracticeCycleProgress">0 / 4</b></span><span><b id="buttonPracticeBpmStatus">60</b> BPM</span></div>
             </div>
             <div class="interval-score-card paper-card button-practice-score-card">
@@ -837,7 +837,7 @@
 
           <section id="buttonPracticeComplete" class="interval-complete paper-card hidden" aria-live="polite">
             <div class="interval-complete-mark" aria-hidden="true">♯</div><p class="eyebrow">練習紀錄已保存</p><h2>按鍵練習完成！</h2>
-            <dl class="interval-complete-summary"><div><dt>模式</dt><dd id="buttonPracticeCompleteMode">按放切換</dd></div><div><dt>音域</dt><dd id="buttonPracticeCompleteRange">中音域</dd></div><div><dt>完成循環</dt><dd id="buttonPracticeCompleteCycles">4 / 4</dd></div></dl>
+            <dl class="interval-complete-summary"><div><dt>模式</dt><dd id="buttonPracticeCompleteMode">同孔按放</dd></div><div><dt>音域</dt><dd id="buttonPracticeCompleteRange">中音域</dd></div><div><dt>完成循環</dt><dd id="buttonPracticeCompleteCycles">4 / 4</dd></div></dl>
             <div class="interval-complete-actions"><button id="buttonPracticeAgain" class="primary-btn" type="button">再練一次</button><button id="buttonPracticeBack" class="ghost-btn" type="button">回到練習列表</button></div>
           </section>
         </section>

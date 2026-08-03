@@ -28,10 +28,23 @@ const buttonNumberRenderer = app.slice(
 );
 
 function settings(overrides = {}) {
-  return { mode: "toggle", range: "middle", bpm: 60, totalCycles: 4, ...overrides };
+  return { mode: "same-hole", range: "middle", bpm: 60, totalCycles: 4, ...overrides };
 }
 
 function flatten(measures) { return measures.flatMap((measure) => measure.notes); }
+const NEW_MODES = ["same-hole", "breath-switch", "hole-shift", "mixed"];
+
+function transitionTypes(sequence) {
+  const types = new Set();
+  for (let index = 1; index < sequence.length; index += 1) {
+    const previous = sequence[index - 1];
+    const current = sequence[index];
+    if (previous.hole !== current.hole) types.add("hole-shift");
+    else if (previous.breath !== current.breath) types.add("breath-switch");
+    else if (previous.pressed !== current.pressed) types.add("same-hole");
+  }
+  return types;
+}
 
 function seededRng(seed) {
   let value = seed >>> 0;
@@ -80,6 +93,13 @@ test("setup keeps the four concise controls and adds one persisted note-demo tog
   assert.doesNotMatch(source, /buttonPracticeDifficulty|buttonPracticePattern|buttonPracticeCountdown|buttonPracticeMetronome[^D]/);
 });
 
+test("mode selector exposes the four consolidated practice modes only", () => {
+  const selector = html.match(/<select id="buttonPracticeMode"[\s\S]*?<\/select>/)?.[0] || "";
+  assert.deepEqual([...selector.matchAll(/<option value="([^"]+)"/g)].map((match) => match[1]), NEW_MODES);
+  for (const label of ["同孔按放", "吹吸切換", "移孔按放", "綜合練習"]) assert.match(selector, new RegExp(label));
+  assert.doesNotMatch(selector, /隨機按鍵|半音階穿梭|按鍵移位/);
+});
+
 test("range selector keeps only low, middle, and high while legacy full values become middle", () => {
   const selector = html.match(/<select id="buttonPracticeRange"[\s\S]*?<\/select>/)?.[0] || "";
   assert.deepEqual([...selector.matchAll(/<option value="([^"]+)"/g)].map((match) => match[1]), ["low", "middle", "high"]);
@@ -93,13 +113,8 @@ test("range selector keeps only low, middle, and high while legacy full values b
 });
 
 test("every mode pre-generates eight four-quarter-note measures from real 12-hole positions", () => {
-  const cases = [
-    settings(),
-    settings({ mode: "random" }),
-    settings({ mode: "chromatic" }),
-    settings({ mode: "shift" }),
-  ];
-  for (const selected of cases) {
+  for (const mode of NEW_MODES) {
+    const selected = settings({ mode });
     const measures = core.generateMeasures(selected, layout, seededRng(177));
     assert.equal(measures.length, 8);
     measures.forEach((measure) => {
@@ -118,7 +133,7 @@ test("range labels and filters follow numbered notation and exclude double-low n
   assert.equal(core.numberedRegister("C3"), "double-low");
   assert.equal(core.numberedRegister("C4"), "low");
   for (const range of ["low", "middle", "high"]) {
-    for (const mode of ["toggle", "random", "chromatic", "shift"]) {
+    for (const mode of NEW_MODES) {
       const sequence = core.generateSequence(settings({ mode, range }), layout, seededRng(301));
       assert.ok(sequence.every((entry) => core.numberedRegister(entry.note) !== "double-low"));
       assert.ok(sequence.every((entry) => core.isInRange(entry.note, range)));
@@ -126,50 +141,70 @@ test("range labels and filters follow numbered notation and exclude double-low n
   }
 });
 
-test("toggle and random modes choose valid non-fixed starting positions", () => {
+test("same-hole mode fixes one hole and breath while alternating button states", () => {
+  for (const range of ["low", "middle", "high"]) {
+    const sequence = core.generateSequence(settings({ mode: "same-hole", range }), layout, seededRng(177));
+    assert.equal(new Set(sequence.map((entry) => entry.hole)).size, 1);
+    assert.equal(new Set(sequence.map((entry) => entry.breath)).size, 1);
+    assert.deepEqual([...new Set(sequence.map((entry) => entry.pressed))].sort(), [false, true]);
+  }
   const starts = [8, 28, 52, 78, 94].map((seed) => core.generateSequence(settings(), layout, seededRng(seed))[0].note);
   assert.ok(new Set(starts).size > 1);
-  assert.ok(starts.some((note) => !note.startsWith("C")));
-  const randomStarts = [11, 37, 69, 91].map((seed) => core.generateSequence(settings({ mode: "random" }), layout, seededRng(seed))[0].note);
-  assert.ok(new Set(randomStarts).size > 1);
-  assert.ok(randomStarts.some((note) => note !== "C5"));
 });
 
-test("chromatic and shift modes automatically mix playable shapes", () => {
-  const chromaticShapes = new Set();
-  for (const seed of [3, 7, 19, 41, 83]) {
-    const measures = core.generateMeasures(settings({ mode: "chromatic" }), layout, seededRng(seed));
-    const phraseShapes = new Set();
+test("breath-switch mode always combines blow, draw, pressed, and released notes", () => {
+  for (const range of ["low", "middle", "high"]) {
+    const measures = core.generateMeasures(settings({ mode: "breath-switch", range }), layout, seededRng(301));
     for (const measure of measures) {
+      assert.equal(new Set(measure.notes.map((entry) => entry.breath)).size, 2);
+      assert.ok(measure.notes.some((entry) => entry.breath === "吹音"));
+      assert.ok(measure.notes.some((entry) => entry.breath === "吸音"));
+      assert.deepEqual([...new Set(measure.notes.map((entry) => entry.pressed))].sort(), [false, true]);
       measure.notes.forEach(assertCanonical);
-      const deltas = measure.notes.slice(1).map((entry, index) => core.noteToMidi(entry.note) - core.noteToMidi(measure.notes[index].note));
-      const signature = deltas.join(",");
-      assert.ok(["1,1,1", "-1,-1,-1", "1,1,-1"].includes(signature));
-      chromaticShapes.add(signature);
-      phraseShapes.add(signature);
     }
-    assert.equal(phraseShapes.size, 3);
   }
-  assert.equal(chromaticShapes.size, 3);
-  for (const seed of [5, 17, 61, 109]) {
-    core.generateSequence(settings({ mode: "shift" }), layout, seededRng(seed)).forEach(assertCanonical);
+});
+
+test("hole-shift mode uses multiple valid holes in every measure", () => {
+  for (const range of ["low", "middle", "high"]) {
+    const measures = core.generateMeasures(settings({ mode: "hole-shift", range }), layout, seededRng(109));
+    for (const measure of measures) {
+      assert.ok(new Set(measure.notes.map((entry) => entry.hole)).size > 1);
+      measure.notes.forEach(assertCanonical);
+    }
   }
-  assert.match(source, /mixedChoices\(available, MEASURE_COUNT, rng\)/);
+});
+
+test("mixed mode guarantees multiple action types without a separate pattern setting", () => {
+  for (const range of ["low", "middle", "high"]) {
+    for (const seed of [3, 19, 83]) {
+      const sequence = core.generateSequence(settings({ mode: "mixed", range }), layout, seededRng(seed));
+      assert.ok(transitionTypes(sequence).size >= 2);
+      sequence.forEach(assertCanonical);
+    }
+  }
+  assert.match(source, /mixedChoices\(\["same-hole", "breath-switch", "hole-shift"\], MEASURE_COUNT, rng\)/);
 });
 
 test("regenerating any mode can produce a different complete phrase", () => {
-  for (const mode of ["toggle", "random", "chromatic", "shift"]) {
+  for (const mode of NEW_MODES) {
     const phrases = [13, 29, 47, 71].map((seed) => core.generateSequence(settings({ mode }), layout, seededRng(seed))
       .map((entry) => `${entry.note}:${entry.source}`).join("|"));
     assert.ok(new Set(phrases).size > 1, `${mode} should mix more than one phrase`);
   }
 });
 
-test("legacy difficulty and pattern fields load safely but are ignored", () => {
+test("legacy modes migrate safely while obsolete difficulty and pattern fields are ignored", () => {
+  assert.deepEqual(Object.fromEntries(["toggle", "random", "chromatic", "shift"].map((mode) => [mode, core.normalizeSettings(settings({ mode })).mode])), {
+    toggle: "same-hole",
+    random: "mixed",
+    chromatic: "hole-shift",
+    shift: "hole-shift",
+  });
   const legacy = { ...settings({ mode: "chromatic", range: "high", bpm: 96, totalCycles: 2 }), difficulty: "advanced", pattern: "descending", patternType: "three-bounce" };
   const normalized = core.normalizeSettings(legacy);
   assert.deepEqual(Object.keys(normalized).sort(), ["bpm", "holes", "mode", "noteDemoEnabled", "range", "totalCycles"]);
-  assert.equal(normalized.mode, "chromatic");
+  assert.equal(normalized.mode, "hole-shift");
   assert.equal(normalized.range, "high");
   assert.equal(core.generateMeasures(legacy, layout, seededRng(177)).length, 8);
   const completionCall = source.match(/adapter\?\.complete\?\.\(\{[\s\S]*?\}, show\)/)?.[0] || "";
@@ -304,16 +339,6 @@ test("note beats use the local electric piano while failures safely fall back to
   assert.match(app, /function playClick\(strong = false\)[\s\S]*if \(!isMetronomeAllowed\(\)\) return/);
 });
 
-test("random reactions never produce more than two consecutive identical commands", () => {
-  let calls = 0;
-  const sequence = core.generateSequence(settings({ mode: "random" }), layout, () => (++calls % 4 ? 0.9 : 0.1));
-  let repeated = 1;
-  for (let index = 1; index < sequence.length; index += 1) {
-    repeated = sequence[index].pressed === sequence[index - 1].pressed ? repeated + 1 : 1;
-    assert.ok(repeated <= 2);
-  }
-});
-
 test("score keeps only staff and numbered notation while their active states stay synchronized", () => {
   assert.match(app, /createIntervalStaffSvg\(groups, "C", activeMeasureIndex, activeNoteIndex, completedNoteCount\)/);
   assert.match(app, /staff-note\.completed-note/);
@@ -356,7 +381,7 @@ test("playback advances exactly one synchronized active note while restart reuse
   }
   const elements = new Map();
   [...source.matchAll(/\$\("#([A-Za-z0-9]+)"\)/g)].forEach((match) => elements.set(match[1], new FakeElement()));
-  Object.assign(elements.get("buttonPracticeMode"), { value: "toggle" });
+  Object.assign(elements.get("buttonPracticeMode"), { value: "same-hole" });
   Object.assign(elements.get("buttonPracticeBpm"), { value: "120" });
   Object.assign(elements.get("buttonPracticeCycles"), { value: "2" });
   Object.assign(elements.get("buttonPracticeRange"), { value: "middle" });

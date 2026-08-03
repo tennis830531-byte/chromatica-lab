@@ -6,13 +6,14 @@
   const BEATS_PER_MEASURE = 4;
   const PREPARE_BEATS = 4;
   const NOTE_DEMO_STORAGE_KEY = "chromatica.settings.buttonPracticeNoteDemo";
-  const MODE_LABELS = Object.freeze({ toggle: "按放切換", random: "隨機按鍵", chromatic: "半音階穿梭", shift: "按鍵移位" });
+  const MODE_LABELS = Object.freeze({ "same-hole": "同孔按放", "breath-switch": "吹吸切換", "hole-shift": "移孔按放", mixed: "綜合練習" });
+  const LEGACY_MODE_MAP = Object.freeze({ toggle: "same-hole", random: "mixed", chromatic: "hole-shift", shift: "hole-shift" });
   const RANGE_LABELS = Object.freeze({ low: "低音域", middle: "中音域", high: "高音域" });
   const MODES = Object.freeze(Object.keys(MODE_LABELS));
   const RANGES = Object.freeze(Object.keys(RANGE_LABELS));
   const TOGGLE_HOLDS = Object.freeze([1, 2, 4]);
-  const CHROMATIC_SHAPES = Object.freeze(["ascending", "descending", "bounce"]);
-  const SHIFT_SHAPES = Object.freeze(["press-then-move", "move-then-press", "chromatic-move", "breath-switch-press"]);
+  const BREATH_SWITCH_SHAPES = Object.freeze(["released-first", "pressed-first", "cross-button", "reverse-cross"]);
+  const HOLE_SHIFT_SHAPES = Object.freeze(["press-then-move", "move-then-press", "release-then-move", "chromatic-move"]);
   const $ = (selector) => document.querySelector(selector);
   let adapter = null;
   let initialized = false;
@@ -81,6 +82,17 @@
     return [...byPitch.entries()].sort((a, b) => a[0] - b[0]).map((entry) => entry[1]);
   }
 
+  function breathSwitchGroups(positions) {
+    const byHole = new Map();
+    positions.forEach((position) => {
+      const entry = byHole.get(position.hole) || {};
+      entry[`${position.breath}:${position.pressed}`] = position;
+      byHole.set(position.hole, entry);
+    });
+    const required = ["吹音:false", "吹音:true", "吸音:false", "吸音:true"];
+    return [...byHole.values()].filter((entry) => required.every((key) => entry[key]));
+  }
+
   function randomIndex(length, rng) {
     return Math.min(length - 1, Math.max(0, Math.floor(rng() * length)));
   }
@@ -98,12 +110,9 @@
     return result.slice(0, length);
   }
 
-  function repeatToLength(pattern, length = MEASURE_COUNT * BEATS_PER_MEASURE) {
-    return Array.from({ length }, (_, index) => pattern[index % pattern.length]);
-  }
-
   function normalizeSettings(settings = {}) {
-    const mode = MODES.includes(settings.mode) ? settings.mode : "toggle";
+    const migratedMode = LEGACY_MODE_MAP[settings.mode] || settings.mode;
+    const mode = MODES.includes(migratedMode) ? migratedMode : "same-hole";
     const range = RANGES.includes(settings.range) ? settings.range : "middle";
     const bpm = Math.min(180, Math.max(40, Number(settings.bpm) || 60));
     const totalCycles = [1, 2, 4, 6].includes(Number(settings.totalCycles)) ? Number(settings.totalCycles) : 4;
@@ -111,34 +120,18 @@
     return Object.freeze({ mode, range, bpm, totalCycles, noteDemoEnabled, holes: FIXED_HOLES });
   }
 
-  function generateToggle(pairs, rng) {
+  function generateSameHole(pairs, rng) {
     if (!pairs.length) return [];
     const result = [];
+    const pair = pairs[randomIndex(pairs.length, rng)];
     let pressed = rng() >= 0.5;
     const holds = mixedChoices(TOGGLE_HOLDS, MEASURE_COUNT, rng);
     for (let measure = 0; measure < MEASURE_COUNT; measure += 1) {
-      const pair = pairs[randomIndex(pairs.length, rng)];
       const hold = holds[measure];
       for (let beat = 0; beat < BEATS_PER_MEASURE; beat += 1) {
         result.push(pressed ? pair.pressed : pair.released);
         if ((beat + 1) % hold === 0) pressed = !pressed;
       }
-    }
-    return result;
-  }
-
-  function generateRandom(pairs, rng) {
-    if (!pairs.length) return [];
-    const result = [];
-    let lastPressed = null;
-    let repeated = 0;
-    for (let index = 0; index < MEASURE_COUNT * BEATS_PER_MEASURE; index += 1) {
-      const pair = pairs[randomIndex(pairs.length, rng)];
-      let pressed = rng() >= 0.5;
-      if (pressed === lastPressed && repeated >= 2) pressed = !pressed;
-      repeated = pressed === lastPressed ? repeated + 1 : 1;
-      lastPressed = pressed;
-      result.push(pressed ? pair.pressed : pair.released);
     }
     return result;
   }
@@ -152,56 +145,78 @@
     return windows;
   }
 
-  function generateChromatic(pitches, rng) {
-    const fourNoteWindows = contiguousWindows(pitches, 4);
-    const threeNoteWindows = contiguousWindows(pitches, 3);
-    if (!fourNoteWindows.length || !threeNoteWindows.length) return [];
+  function sameHoleMeasure(pairs, rng) {
+    if (!pairs.length) return [];
+    const pair = pairs[randomIndex(pairs.length, rng)];
+    const first = rng() >= 0.5 ? pair.pressed : pair.released;
+    const second = first === pair.pressed ? pair.released : pair.pressed;
+    return rng() >= 0.5 ? [first, second, first, second] : [first, first, second, second];
+  }
+
+  function breathSwitchMeasure(groups, rng) {
+    if (!groups.length) return [];
+    const entry = groups[randomIndex(groups.length, rng)];
+    const blowReleased = entry["吹音:false"];
+    const blowPressed = entry["吹音:true"];
+    const drawReleased = entry["吸音:false"];
+    const drawPressed = entry["吸音:true"];
+    const shape = BREATH_SWITCH_SHAPES[randomIndex(BREATH_SWITCH_SHAPES.length, rng)];
+    if (shape === "pressed-first") return [blowPressed, drawPressed, blowReleased, drawReleased];
+    if (shape === "cross-button") return [blowReleased, drawPressed, blowPressed, drawReleased];
+    if (shape === "reverse-cross") return [drawReleased, blowPressed, drawPressed, blowReleased];
+    return [blowReleased, drawReleased, blowPressed, drawPressed];
+  }
+
+  function generateBreathSwitch(groups, rng) {
     const result = [];
-    const shapes = mixedChoices(CHROMATIC_SHAPES, MEASURE_COUNT, rng);
-    for (const shape of shapes) {
-      if (shape === "bounce") {
-        const window = threeNoteWindows[randomIndex(threeNoteWindows.length, rng)];
-        result.push(window[0], window[1], window[2], window[1]);
-      } else {
-        const window = fourNoteWindows[randomIndex(fourNoteWindows.length, rng)];
-        result.push(...(shape === "descending" ? [...window].reverse() : window));
-      }
-    }
+    for (let measure = 0; measure < MEASURE_COUNT; measure += 1) result.push(...breathSwitchMeasure(groups, rng));
     return result;
   }
 
-  function buildShiftCandidates(positions, pairs, pitches, pattern) {
-    if (pattern === "chromatic-move") return contiguousWindows(pitches, 4);
-    if (pattern === "breath-switch-press") {
-      const byHole = new Map();
-      positions.forEach((position) => {
-        const entry = byHole.get(position.hole) || {};
-        entry[`${position.breath}:${position.pressed}`] = position;
-        byHole.set(position.hole, entry);
-      });
-      return [...byHole.values()].map((entry) => [entry["吹音:false"], entry["吸音:true"]]).filter((entry) => entry.every(Boolean));
+  function buildHoleShiftCandidates(pairs, pitches, pattern) {
+    if (pattern === "chromatic-move") {
+      const ascending = contiguousWindows(pitches, 4).filter((window) => new Set(window.map((entry) => entry.hole)).size > 1);
+      return ascending.flatMap((window) => [window, [...window].reverse(), [window[0], window[1], window[2], window[1]]]);
     }
     const candidates = [];
     for (const current of pairs) {
       for (const next of pairs) {
         if (Math.abs(current.released.hole - next.released.hole) !== 1 || current.released.breath !== next.released.breath) continue;
-        candidates.push(pattern === "move-then-press"
-          ? [current.released, next.released, next.pressed, current.pressed]
-          : [current.released, current.pressed, next.released, next.pressed]);
+        if (pattern === "move-then-press") candidates.push([current.released, next.released, next.pressed, current.pressed]);
+        else if (pattern === "release-then-move") candidates.push([current.pressed, current.released, next.released, next.pressed]);
+        else candidates.push([current.released, current.pressed, next.pressed, next.released]);
       }
     }
     return candidates;
   }
 
-  function generateShift(positions, pairs, pitches, rng) {
-    const available = SHIFT_SHAPES.map((shape) => ({ shape, candidates: buildShiftCandidates(positions, pairs, pitches, shape) }))
+  function holeShiftChoices(pairs, pitches) {
+    return HOLE_SHIFT_SHAPES.map((shape) => ({ shape, candidates: buildHoleShiftCandidates(pairs, pitches, shape) }))
       .filter((entry) => entry.candidates.length);
+  }
+
+  function holeShiftMeasure(available, rng) {
+    if (!available.length) return [];
+    const entry = available[randomIndex(available.length, rng)];
+    return entry.candidates[randomIndex(entry.candidates.length, rng)];
+  }
+
+  function generateHoleShift(available, rng) {
     if (!available.length) return [];
     const result = [];
     const entries = mixedChoices(available, MEASURE_COUNT, rng);
-    for (const entry of entries) {
-      const candidate = entry.candidates[randomIndex(entry.candidates.length, rng)];
-      result.push(...repeatToLength(candidate, BEATS_PER_MEASURE));
+    for (const entry of entries) result.push(...entry.candidates[randomIndex(entry.candidates.length, rng)]);
+    return result;
+  }
+
+  function generateMixed(pairs, groups, holeShifts, rng) {
+    if (!pairs.length || !groups.length || !holeShifts.length) return [];
+    const result = [];
+    const actionTypes = mixedChoices(["same-hole", "breath-switch", "hole-shift"], MEASURE_COUNT, rng);
+    for (const actionType of actionTypes) {
+      if (actionType === "same-hole") result.push(...sameHoleMeasure(pairs, rng));
+      else if (actionType === "breath-switch") result.push(...breathSwitchMeasure(groups, rng));
+      else result.push(...holeShiftMeasure(holeShifts, rng));
     }
     return result;
   }
@@ -218,12 +233,14 @@
     const settings = normalizeSettings(rawSettings);
     const positions = buildPlayablePositions(layout, settings.range);
     const pairs = pairPositions(positions);
+    const breathGroups = breathSwitchGroups(positions);
     const pitches = chromaticPositions(positions);
+    const holeShifts = holeShiftChoices(pairs, pitches);
     let sequence = [];
-    if (settings.mode === "toggle") sequence = generateToggle(pairs, rng);
-    else if (settings.mode === "random") sequence = generateRandom(pairs, rng);
-    else if (settings.mode === "chromatic") sequence = generateChromatic(pitches, rng);
-    else if (settings.mode === "shift") sequence = generateShift(positions, pairs, pitches, rng);
+    if (settings.mode === "same-hole") sequence = generateSameHole(pairs, rng);
+    else if (settings.mode === "breath-switch") sequence = generateBreathSwitch(breathGroups, rng);
+    else if (settings.mode === "hole-shift") sequence = generateHoleShift(holeShifts, rng);
+    else if (settings.mode === "mixed") sequence = generateMixed(pairs, breathGroups, holeShifts, rng);
     if (sequence.length !== MEASURE_COUNT * BEATS_PER_MEASURE) throw new Error("button-practice-phrase-empty");
     return toMeasures(sequence);
   }
