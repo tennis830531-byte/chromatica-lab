@@ -10,6 +10,7 @@ const css = read("styles.css");
 const app = read("app.js");
 const auth = read("auth-entry.js");
 const activity = read("android/app/src/main/java/com/yrpeng/chromaticalab/MainActivity.java");
+const androidColors = read("android/app/src/main/res/values/colors.xml");
 
 const tests = [
   ["local MP4 is preloaded as a complete Blob before playback", () => {
@@ -56,10 +57,44 @@ const tests = [
     assert.match(html, /playsinline/);
     assert.doesNotMatch(html, /id="openingVideo"[^>]*controls/);
     assert.match(css, /\.opening-video[\s\S]*object-fit: contain/);
+    assert.match(css, /\.opening-video[\s\S]*max-width: 100vw/);
+    assert.match(css, /\.opening-video[\s\S]*max-height: 100dvh/);
     assert.match(css, /\.opening-video-skip[\s\S]*bottom: calc\(14px \+ env\(safe-area-inset-bottom/);
     assert.match(css, /\.opening-video-skip[\s\S]*left: 50%/);
     assert.match(css, /\.opening-video-skip[\s\S]*transform: translateX\(-50%\)/);
     assert.match(css, /\.opening-video-skip[\s\S]*font-size: 13px/);
+  }],
+  ["opening letterbox reuses the exact native splash color in every appearance mode", () => {
+    const nativeSplashColor = androidColors.match(/chromatica_splash_background">#([0-9A-Fa-f]{6})</)?.[1]?.toLowerCase();
+    const webSplashColor = css.match(/--splash-background:\s*#([0-9A-Fa-f]{6})/)?.[1]?.toLowerCase();
+    const overlayRule = css.match(/\.opening-video-overlay\s*\{[\s\S]*?\}/)?.[0] || "";
+    const videoRule = css.match(/\.opening-video\s*\{[\s\S]*?\}/)?.[0] || "";
+    assert.equal(webSplashColor, nativeSplashColor);
+    assert.match(overlayRule, /background: var\(--splash-background\)/);
+    assert.match(videoRule, /background: var\(--splash-background\)/);
+    assert.doesNotMatch(overlayRule + videoRule, /#000|#17120f|rgb\(0\s*,\s*0\s*,\s*0\)|black/);
+    assert.equal((css.match(/--splash-background\s*:/g) || []).length, 1);
+  }],
+  ["skip remains bottom-safe and tappable with black text on a transparent surface", () => {
+    const skipRule = css.match(/\.opening-video-skip\s*\{[\s\S]*?\}/)?.[0] || "";
+    assert.match(skipRule, /bottom: calc\(14px \+ env\(safe-area-inset-bottom, 0px\)\)/);
+    assert.match(skipRule, /min-width: 52px/);
+    assert.match(skipRule, /min-height: 34px/);
+    assert.match(skipRule, /color: #000/);
+    assert.match(skipRule, /background: transparent/);
+    assert.match(skipRule, /border: 0/);
+    assert.match(skipRule, /box-shadow: none/);
+    assert.doesNotMatch(skipRule, /rgba\(24, 17, 13|#fffaf0|backdrop-filter/);
+  }],
+  ["fixed overlay and contained video stay bounded on 360px and non-matching aspect ratios", () => {
+    const overlayRule = css.match(/\.opening-video-overlay\s*\{[\s\S]*?\}/)?.[0] || "";
+    const videoRule = css.match(/\.opening-video\s*\{[\s\S]*?\}/)?.[0] || "";
+    assert.match(overlayRule, /position: fixed/);
+    assert.match(overlayRule, /inset: 0/);
+    assert.match(overlayRule, /overflow: hidden/);
+    assert.match(videoRule, /width: 100%/);
+    assert.match(videoRule, /height: 100%/);
+    assert.match(videoRule, /object-fit: contain/);
   }],
   ["Android WebView permits autoplay with sound", () => {
     assert.match(activity, /setMediaPlaybackRequiresUserGesture\(false\)/);
