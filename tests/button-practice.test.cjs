@@ -26,6 +26,23 @@ const buttonNumberRenderer = app.slice(
   app.indexOf("function renderButtonPracticeNumberHelp("),
   app.indexOf("function saveButtonPracticeRecord("),
 );
+const buttonAccidentalRenderer = app.slice(
+  app.indexOf("const buttonPracticeScoreMeasureCache"),
+  app.indexOf("function saveButtonPracticeRecord("),
+);
+
+function createButtonAccidentalHarness() {
+  const context = {
+    createIntervalStaffSvg(groups) {
+      return JSON.stringify(groups.map((group) => group.displayAccidentals));
+    },
+    renderIntervalNumberNote(noteName, isActive, displayAccidental) {
+      return "[" + noteName + ":" + displayAccidental + "]";
+    },
+  };
+  vm.runInNewContext(buttonAccidentalRenderer, context);
+  return context;
+}
 
 function settings(overrides = {}) {
   return { mode: "same-hole", range: "middle", bpm: 60, totalCycles: 4, ...overrides };
@@ -344,13 +361,91 @@ test("score keeps only staff and numbered notation while their active states sta
   assert.match(app, /staff-note\.completed-note/);
   assert.match(app, /staff-note\.active-note/);
   assert.match(app, /button-score-note\$\{active \? " active"/);
-  assert.match(app, /renderIntervalNumberNote\(entry\.note, active\)/);
+  assert.match(app, /renderIntervalNumberNote\(entry\.note, active, entry\.displayAccidental\)/);
   assert.doesNotMatch(buttonNumberRenderer, /button-note-action|entry\.pressed|entry\.hole|entry\.breath|孔|吹音|吸音/);
   assert.doesNotMatch(css, /button-note-action|button-score-note > small/);
   assert.doesNotMatch(visualFixture, /button-note-action|[0-9]+孔| · 吹| · 吸/);
   assert.match(app, /class="bar-line"/);
   assert.match(css, /\.button-score-note\.active\s*\{[\s\S]*?rgba\(211, 79, 69/);
   assert.match(source, /const activeFlatIndex = state\.phase === "play" \? state\.activeFlatIndex : -1/);
+});
+
+test("button score accidentals follow one shared measure-local state for staff and numbered notation", () => {
+  const harness = createButtonAccidentalHarness();
+  const cases = [
+    [["F#4", "F#4", "F4", "F#4"], ["sharp", "none", "natural", "sharp"]],
+    [["Bb4", "Bb4", "B4", "Bb4"], ["flat", "none", "natural", "flat"]],
+    [["C#4", "C#5", "C#4", "C#5"], ["sharp", "sharp", "none", "none"]],
+  ];
+  for (const [notes, expected] of cases) {
+    const entries = notes.map((note) => ({ note }));
+    assert.deepEqual(Array.from(harness.calculateButtonPracticeMeasureAccidentals(entries)), expected);
+  }
+
+  const measures = [
+    { notes: ["Bb4", "Bb4", "B4", "Bb4"].map((note) => ({ note })) },
+    { notes: ["Bb4", "Bb4", "F#4", "F#4"].map((note) => ({ note })) },
+  ];
+  const annotated = harness.getButtonPracticeScoreMeasures(measures);
+  assert.deepEqual(Array.from(annotated[0].notes, (entry) => entry.displayAccidental), ["flat", "none", "natural", "flat"]);
+  assert.deepEqual(Array.from(annotated[1].notes, (entry) => entry.displayAccidental), ["flat", "none", "sharp", "none"]);
+
+  const staffStates = JSON.parse(harness.renderButtonPracticeStaff(measures));
+  const numbered = harness.renderButtonPracticeNumberHelp(measures, 0);
+  assert.deepEqual(staffStates, [
+    ["flat", "none", "natural", "flat"],
+    ["flat", "none", "sharp", "none"],
+  ]);
+  assert.deepEqual(
+    [...numbered.matchAll(/\[([^\]]+)\]/g)].map((match) => match[1]),
+    ["Bb4:flat", "Bb4:none", "B4:natural", "Bb4:flat", "Bb4:flat", "Bb4:none", "F#4:sharp", "F#4:none"],
+  );
+});
+
+test("display-only accidental annotations preserve pitch data and remain stable across playback rerenders", () => {
+  const harness = createButtonAccidentalHarness();
+  const original = [
+    { note: "C#5", midi: 73, frequency: 554.365, hole: 5, pressed: true },
+    { note: "C#5", midi: 73, frequency: 554.365, hole: 5, pressed: true },
+    { note: "C5", midi: 72, frequency: 523.251, hole: 5, pressed: false },
+    { note: "C#5", midi: 73, frequency: 554.365, hole: 5, pressed: true },
+  ];
+  const measures = [{ notes: original }];
+  const firstPreview = harness.getButtonPracticeScoreMeasures(measures);
+  const playbackRerender = harness.getButtonPracticeScoreMeasures(measures);
+  assert.equal(firstPreview, playbackRerender);
+  assert.deepEqual(Array.from(firstPreview[0].notes, (entry) => entry.displayAccidental), ["sharp", "none", "natural", "sharp"]);
+  for (let index = 0; index < original.length; index += 1) {
+    assert.equal(firstPreview[0].notes[index].note, original[index].note);
+    assert.equal(firstPreview[0].notes[index].midi, original[index].midi);
+    assert.equal(firstPreview[0].notes[index].frequency, original[index].frequency);
+  }
+
+  const regenerated = [{ notes: [{ note: "F#4" }, { note: "F4" }, { note: "F4" }, { note: "F#4" }] }];
+  assert.deepEqual(
+    Array.from(harness.getButtonPracticeScoreMeasures(regenerated)[0].notes, (entry) => entry.displayAccidental),
+    ["sharp", "natural", "none", "sharp"],
+  );
+  assert.match(source, /const entry = state\.measures\.flatMap\(\(measure\) => measure\.notes\)\[state\.activeFlatIndex\]/);
+  assert.match(source, /playStepAudio\(state, entry, adapter/);
+});
+
+test("staff and numbered notation share sharp, flat, natural, and none symbols without changing interval defaults", () => {
+  const symbolSource = app.slice(
+    app.indexOf("function getDisplayedAccidentalSymbol("),
+    app.indexOf("function renderIntervalNote("),
+  );
+  const symbolContext = {};
+  vm.runInNewContext(symbolSource, symbolContext);
+  assert.equal(symbolContext.getDisplayedAccidentalSymbol("C#4", "sharp"), "♯");
+  assert.equal(symbolContext.getDisplayedAccidentalSymbol("Bb4", "flat"), "♭");
+  assert.equal(symbolContext.getDisplayedAccidentalSymbol("B4", "natural"), "♮");
+  assert.equal(symbolContext.getDisplayedAccidentalSymbol("F#4", "none"), "");
+  assert.equal(symbolContext.getDisplayedAccidentalSymbol("F#4", undefined), "♯");
+  assert.equal(symbolContext.getDisplayedAccidentalSymbol("F4", undefined), "");
+  assert.match(app, /renderIntervalNote\([\s\S]*?group\.displayAccidentals\?\.\[noteIndex\]/);
+  assert.match(app, /renderIntervalNumberNote\(entry\.note, active, entry\.displayAccidental\)/);
+  assert.match(app, /renderIntervalNumberNote\(noteName, isActiveNote\)/);
 });
 
 test("restart preserves the phrase and regenerate is the only player action that creates a new phrase", () => {

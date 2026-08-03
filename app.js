@@ -6758,9 +6758,17 @@ function renderIntervalLedgerLines(x, y) {
   return lines.join("");
 }
 
-function renderIntervalNote(noteName, x, isActive = false, duration = 1, isCompleted = false) {
+function getDisplayedAccidentalSymbol(noteName, displayAccidental) {
+  if (displayAccidental === undefined) {
+    const writtenAccidental = String(noteName).match(/^[A-G]([#b])/)?.[1] || "";
+    return writtenAccidental === "#" ? "♯" : writtenAccidental === "b" ? "♭" : "";
+  }
+  return ({ sharp: "♯", flat: "♭", natural: "♮", none: "" })[displayAccidental] || "";
+}
+
+function renderIntervalNote(noteName, x, isActive = false, duration = 1, isCompleted = false, displayAccidental) {
   const y = getIntervalStaffY(noteName);
-  const accidental = String(noteName).match(/^[A-G]([#b])/)?.[1] || "";
+  const accidentalSymbol = getDisplayedAccidentalSymbol(noteName, displayAccidental);
   const stemDown = y < 92;
   const stemX = stemDown ? x - 7 : x + 7;
   const stemEndY = stemDown ? y + 34 : y - 34;
@@ -6769,7 +6777,7 @@ function renderIntervalNote(noteName, x, isActive = false, duration = 1, isCompl
   const durationClass = duration === 2 ? " half-note" : "";
   return `
     ${renderIntervalLedgerLines(x, y)}
-    ${accidental ? `<text x="${x - 18}" y="${y + 6}" class="note-accidental${completedClass}${activeClass}">${accidental === "#" ? "♯" : "♭"}</text>` : ""}
+    ${accidentalSymbol ? `<text x="${x - 18}" y="${y + 6}" class="note-accidental${completedClass}${activeClass}">${accidentalSymbol}</text>` : ""}
     <ellipse cx="${x}" cy="${y}" rx="8" ry="5.5" transform="rotate(-16 ${x} ${y})" class="staff-note${durationClass}${completedClass}${activeClass}" />
     <line x1="${stemX}" y1="${y}" x2="${stemX}" y2="${stemEndY}" class="note-stem${completedClass}${activeClass}" />
   `;
@@ -6807,6 +6815,7 @@ function createIntervalStaffSvg(groups, keyName, activeGroupIndex = -1, activeNo
         groupIndex === activeGroupIndex && noteIndex === activeNoteIndex,
         group.durations?.[noteIndex] || 1,
         groupIndex * 4 + noteIndex < completedNoteCount,
+        group.displayAccidentals?.[noteIndex],
       ))
       .join("");
     const barX = groupStartX + (groupIndex + 1) * groupWidth;
@@ -6849,12 +6858,13 @@ function getIntervalNumberNotation(noteName) {
   };
 }
 
-function renderIntervalNumberNote(noteName, isActive = false) {
+function renderIntervalNumberNote(noteName, isActive = false, displayAccidental) {
   const notation = getIntervalNumberNotation(noteName);
+  const accidentalSymbol = getDisplayedAccidentalSymbol(noteName, displayAccidental);
   const dots = notation.octave !== 0
     ? `<i class="jianpu-octave-dot ${notation.octave < 0 ? "is-low" : "is-high"}" aria-hidden="true">${"•".repeat(Math.abs(notation.octave))}</i>`
     : "";
-  return `<b class="jianpu-note${isActive ? " active" : ""}" aria-label="${notation.displayNoteName}">${dots}<i class="jianpu-accidental" aria-hidden="true">${notation.accidental}</i>${notation.degree}</b>`;
+  return `<b class="jianpu-note${isActive ? " active" : ""}" aria-label="${notation.displayNoteName}">${dots}<i class="jianpu-accidental" aria-hidden="true">${accidentalSymbol}</i>${notation.degree}</b>`;
 }
 
 function renderIntervalNumberHelp(groups, startIndex, activeGroupIndex = -1, activeNoteIndex = -1) {
@@ -7057,9 +7067,44 @@ function saveIntervalPracticeRecord(record) {
   scheduleAccountSnapshotSave();
 }
 
+const buttonPracticeScoreMeasureCache = new WeakMap();
+
+function calculateButtonPracticeMeasureAccidentals(notes) {
+  const accidentalState = new Map();
+  return (Array.isArray(notes) ? notes : []).map((entry) => {
+    const match = String(entry?.note || "").match(/^([A-G])([#b]?)(\d+)$/);
+    if (!match) return "none";
+    const positionKey = `${match[1]}${match[3]}`;
+    const requiredState = match[2] === "#" ? "sharp" : match[2] === "b" ? "flat" : "natural";
+    const effectiveState = accidentalState.get(positionKey) || "natural";
+    const displayAccidental = effectiveState === requiredState ? "none" : requiredState;
+    accidentalState.set(positionKey, requiredState);
+    return displayAccidental;
+  });
+}
+
+function getButtonPracticeScoreMeasures(measures) {
+  if (!Array.isArray(measures)) return [];
+  const cached = buttonPracticeScoreMeasureCache.get(measures);
+  if (cached) return cached;
+  const scoreMeasures = measures.map((measure) => {
+    const displayAccidentals = calculateButtonPracticeMeasureAccidentals(measure?.notes);
+    return {
+      ...measure,
+      notes: (Array.isArray(measure?.notes) ? measure.notes : []).map((entry, noteIndex) => ({
+        ...entry,
+        displayAccidental: displayAccidentals[noteIndex],
+      })),
+    };
+  });
+  buttonPracticeScoreMeasureCache.set(measures, scoreMeasures);
+  return scoreMeasures;
+}
+
 function renderButtonPracticeStaff(measures, activeMeasureIndex = -1, activeNoteIndex = -1, completedNoteCount = 0) {
-  const groups = (Array.isArray(measures) ? measures : []).map((measure) => ({
+  const groups = getButtonPracticeScoreMeasures(measures).map((measure) => ({
     notes: measure.notes.map((entry) => entry.note),
+    displayAccidentals: measure.notes.map((entry) => entry.displayAccidental),
     durations: [1, 1, 1, 1],
     label: measure.notes.map((entry) => entry.note).join(" → "),
   }));
@@ -7068,14 +7113,14 @@ function renderButtonPracticeStaff(measures, activeMeasureIndex = -1, activeNote
 }
 
 function renderButtonPracticeNumberHelp(measures, startIndex, activeMeasureIndex = -1, activeNoteIndex = -1, completedNoteCount = 0) {
-  return (Array.isArray(measures) ? measures : []).map((measure, localMeasureIndex) => {
+  return getButtonPracticeScoreMeasures(measures).map((measure, localMeasureIndex) => {
     const measureIndex = startIndex + localMeasureIndex;
     const notes = measure.notes.map((entry, noteIndex) => {
       const flatIndex = measureIndex * 4 + noteIndex;
       const active = measureIndex === activeMeasureIndex && noteIndex === activeNoteIndex;
       const completed = flatIndex < completedNoteCount;
       return `<i class="button-score-note${active ? " active" : ""}${completed ? " completed" : ""}">
-        ${renderIntervalNumberNote(entry.note, active)}
+        ${renderIntervalNumberNote(entry.note, active, entry.displayAccidental)}
       </i>`;
     }).join("");
     return `<span data-button-measure="${measureIndex}" class="${measureIndex === activeMeasureIndex ? "active" : ""}${measureIndex * 4 + 4 <= completedNoteCount ? " completed" : ""}"><small>第 ${measureIndex + 1} 小節</small><em>${notes}</em></span>`;
