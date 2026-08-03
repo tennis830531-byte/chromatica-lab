@@ -48,6 +48,7 @@ const tests = [
     assert.match(opening, /visibilitychange/);
     assert.match(opening, /video\.pause\(\)/);
     assert.match(opening, /resumeAfterForeground/);
+    assert.match(opening, /else \{[\s\S]*enterOpeningVideoImmersiveMode\(\)[\s\S]*if \(resumeAfterForeground\)[\s\S]*video\.play\(\)/);
   }],
   ["notification navigation bypasses the opening presentation", () => {
     assert.match(app, /openHomeFromPushNotification\(\)[\s\S]*bypassForDeepLink/);
@@ -91,10 +92,32 @@ const tests = [
     const videoRule = css.match(/\.opening-video\s*\{[\s\S]*?\}/)?.[0] || "";
     assert.match(overlayRule, /position: fixed/);
     assert.match(overlayRule, /inset: 0/);
+    assert.match(overlayRule, /width: 100vw/);
+    assert.match(overlayRule, /height: 100dvh/);
+    assert.match(overlayRule, /z-index: 2147483647/);
     assert.match(overlayRule, /overflow: hidden/);
-    assert.match(videoRule, /width: 100%/);
-    assert.match(videoRule, /height: 100%/);
+    assert.match(videoRule, /width: 100vw/);
+    assert.match(videoRule, /height: 100dvh/);
     assert.match(videoRule, /object-fit: contain/);
+    assert.match(videoRule, /object-position: center top/);
+  }],
+  ["opening playback controls real Android immersive sticky system UI", () => {
+    assert.match(activity, /addJavascriptInterface\([\s\S]*OpeningVideoSystemUiBridge[\s\S]*"ChromaticaOpeningVideoNative"/);
+    assert.match(activity, /private void enterOpeningVideoImmersiveMode\(\)[\s\S]*openingVideoImmersiveActive = true[\s\S]*applySystemBarMode\(\)/);
+    assert.match(activity, /fullArtworkSplashActive \|\| openingVideoImmersiveActive[\s\S]*hide\(WindowInsetsCompat\.Type\.systemBars\(\)\)/);
+    assert.match(activity, /BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE/);
+    assert.match(activity, /openingVideoImmersiveActive\s*\? webViewInitialTopMargin\s*:\s*webViewInitialTopMargin \+ topInsets\.top/);
+    assert.match(opening, /activePlayback = \{ resolve, finished: false \}[\s\S]*enterOpeningVideoImmersiveMode\(\)[\s\S]*overlay\.classList\.remove\("hidden"\)/);
+    assert.match(activity, /public final class OpeningVideoSystemUiBridge/);
+  }],
+  ["every opening completion path restores the original system bar mode", () => {
+    assert.match(opening, /function finishPlayback\(reason\) \{[\s\S]*exitOpeningVideoImmersiveMode\(\)/);
+    assert.match(activity, /private void exitOpeningVideoImmersiveMode\(\)[\s\S]*openingVideoImmersiveActive = false[\s\S]*applySystemBarMode\(\)/);
+    assert.match(opening, /addEventListener\("ended", \(\) => finishPlayback\("ended"\)\)/);
+    assert.match(opening, /addEventListener\("click", \(\) => finishPlayback\("skipped"\)\)/);
+    assert.match(opening, /finishPlayback\("playback-error"\)/);
+    assert.match(opening, /bypassForDeepLink\(\)[\s\S]*finishPlayback\("deep-link"\)/);
+    assert.match(opening, /pagehide[\s\S]*finishPlayback\("page-hidden"\)/);
   }],
   ["Android WebView permits autoplay with sound", () => {
     assert.match(activity, /setMediaPlaybackRequiresUserGesture\(false\)/);

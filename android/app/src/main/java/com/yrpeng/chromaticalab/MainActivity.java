@@ -9,6 +9,7 @@ import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -40,6 +41,8 @@ public class MainActivity extends BridgeActivity {
     private boolean webReadinessCheckPending;
     private boolean firebaseReady;
     private boolean nativePushConfigPublished;
+    private boolean openingVideoImmersiveActive;
+    private int webViewInitialTopMargin;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,6 +51,10 @@ public class MainActivity extends BridgeActivity {
         firebaseReady = googleAppIdResource != 0;
         configureStatusBarInsets();
         bridge.getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false);
+        bridge.getWebView().addJavascriptInterface(
+            new OpeningVideoSystemUiBridge(),
+            "ChromaticaOpeningVideoNative"
+        );
         showFullArtworkSplash();
         applySystemBarMode();
     }
@@ -269,14 +276,16 @@ public class MainActivity extends BridgeActivity {
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         View webView = bridge.getWebView();
         ViewGroup.MarginLayoutParams initialLayoutParams = (ViewGroup.MarginLayoutParams) webView.getLayoutParams();
-        int initialTopMargin = initialLayoutParams.topMargin;
+        webViewInitialTopMargin = initialLayoutParams.topMargin;
 
         ViewCompat.setOnApplyWindowInsetsListener(webView, (view, windowInsets) -> {
             Insets topInsets = windowInsets.getInsets(
                 WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.displayCutout()
             );
             ViewGroup.MarginLayoutParams layoutParams = (ViewGroup.MarginLayoutParams) view.getLayoutParams();
-            int targetTopMargin = initialTopMargin + topInsets.top;
+            int targetTopMargin = openingVideoImmersiveActive
+                ? webViewInitialTopMargin
+                : webViewInitialTopMargin + topInsets.top;
             if (layoutParams.topMargin != targetTopMargin) {
                 layoutParams.topMargin = targetTopMargin;
                 view.setLayoutParams(layoutParams);
@@ -294,11 +303,35 @@ public class MainActivity extends BridgeActivity {
         WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         controller.setAppearanceLightStatusBars(true);
         controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-        if (fullArtworkSplashActive) {
+        if (fullArtworkSplashActive || openingVideoImmersiveActive) {
             controller.hide(WindowInsetsCompat.Type.systemBars());
             return;
         }
         controller.show(WindowInsetsCompat.Type.statusBars());
         controller.hide(WindowInsetsCompat.Type.navigationBars());
+    }
+
+    private void enterOpeningVideoImmersiveMode() {
+        openingVideoImmersiveActive = true;
+        applySystemBarMode();
+        ViewCompat.requestApplyInsets(bridge.getWebView());
+    }
+
+    private void exitOpeningVideoImmersiveMode() {
+        openingVideoImmersiveActive = false;
+        applySystemBarMode();
+        ViewCompat.requestApplyInsets(bridge.getWebView());
+    }
+
+    public final class OpeningVideoSystemUiBridge {
+        @JavascriptInterface
+        public void enterOpeningVideoImmersiveMode() {
+            runOnUiThread(MainActivity.this::enterOpeningVideoImmersiveMode);
+        }
+
+        @JavascriptInterface
+        public void exitOpeningVideoImmersiveMode() {
+            runOnUiThread(MainActivity.this::exitOpeningVideoImmersiveMode);
+        }
     }
 }

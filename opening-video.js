@@ -103,7 +103,24 @@
     objectUrl = "";
   }
 
+  function enterOpeningVideoImmersiveMode() {
+    try {
+      global.ChromaticaOpeningVideoNative?.enterOpeningVideoImmersiveMode?.();
+    } catch {
+      // The browser build has no Android system UI bridge.
+    }
+  }
+
+  function exitOpeningVideoImmersiveMode() {
+    try {
+      global.ChromaticaOpeningVideoNative?.exitOpeningVideoImmersiveMode?.();
+    } catch {
+      // The browser build has no Android system UI bridge.
+    }
+  }
+
   function finishPlayback(reason) {
+    exitOpeningVideoImmersiveMode();
     if (!activePlayback || activePlayback.finished) return false;
     activePlayback.finished = true;
     clearSkipTimer();
@@ -116,6 +133,10 @@
     overlay?.setAttribute("aria-hidden", "true");
     global.document?.body?.classList.remove("opening-video-active");
     releaseObjectUrl();
+    if (video) {
+      video.removeAttribute("src");
+      video.load();
+    }
     const resolve = activePlayback.resolve;
     activePlayback = null;
     resolve?.(reason);
@@ -123,27 +144,36 @@
   }
 
   async function playForOrdinaryStartup() {
-    if (playedThisRuntime || bypassedForDeepLink) return "bypassed";
+    if (playedThisRuntime || bypassedForDeepLink) {
+      exitOpeningVideoImmersiveMode();
+      return "bypassed";
+    }
     playedThisRuntime = true;
     const loaded = await startPreload();
-    if (!loaded || bypassedForDeepLink) return "unavailable";
+    if (!loaded || bypassedForDeepLink) {
+      exitOpeningVideoImmersiveMode();
+      return "unavailable";
+    }
     const video = byId("openingVideo");
     const overlay = byId("openingVideoOverlay");
     const skip = byId("openingVideoSkip");
-    if (!video || !overlay || !skip) return "unavailable";
-
-    overlay.classList.remove("hidden");
-    overlay.setAttribute("aria-hidden", "false");
-    skip.classList.add("hidden");
-    global.document.body.classList.add("opening-video-active");
-    video.currentTime = 0;
-    video.muted = false;
-    video.volume = 1;
+    if (!video || !overlay || !skip) {
+      exitOpeningVideoImmersiveMode();
+      return "unavailable";
+    }
 
     const completion = new Promise((resolve) => {
       activePlayback = { resolve, finished: false };
     });
     try {
+      enterOpeningVideoImmersiveMode();
+      overlay.classList.remove("hidden");
+      overlay.setAttribute("aria-hidden", "false");
+      skip.classList.add("hidden");
+      global.document.body.classList.add("opening-video-active");
+      video.currentTime = 0;
+      video.muted = false;
+      video.volume = 1;
       await video.play();
       skipRevealTimer = global.setTimeout(() => {
         if (activePlayback && !activePlayback.finished) skip.classList.remove("hidden");
@@ -156,7 +186,7 @@
 
   function bypassForDeepLink() {
     bypassedForDeepLink = true;
-    finishPlayback("deep-link");
+    if (!finishPlayback("deep-link")) exitOpeningVideoImmersiveMode();
   }
 
   function bind() {
@@ -172,11 +202,16 @@
       if (global.document.visibilityState === "hidden") {
         resumeAfterForeground = !video.paused;
         video.pause();
-      } else if (resumeAfterForeground) {
-        resumeAfterForeground = false;
-        void video.play().catch(() => finishPlayback("resume-error"));
+      } else {
+        enterOpeningVideoImmersiveMode();
+        if (resumeAfterForeground) {
+          resumeAfterForeground = false;
+          void video.play().catch(() => finishPlayback("resume-error"));
+        }
       }
     });
+    global.addEventListener?.("pagehide", () => finishPlayback("page-hidden"));
+    global.addEventListener?.("beforeunload", exitOpeningVideoImmersiveMode);
     startPreload();
   }
 
@@ -184,6 +219,8 @@
     startPreload,
     playForOrdinaryStartup,
     bypassForDeepLink,
+    enterOpeningVideoImmersiveMode,
+    exitOpeningVideoImmersiveMode,
     getPreloadStatus: () => preloadStatus,
     getPreloadProgress: () => preloadProgress,
     onPreloadStatus(listener) {
