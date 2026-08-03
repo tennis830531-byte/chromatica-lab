@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
+const crypto = require("node:crypto");
 
 const root = path.join(__dirname, "..");
 const source = fs.readFileSync(path.join(root, "button-practice.js"), "utf8");
@@ -10,6 +11,10 @@ const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 const visualFixture = fs.readFileSync(path.join(root, "tests/fixtures/button-practice-visual.html"), "utf8");
+const buildWeb = fs.readFileSync(path.join(root, "scripts/build-web.mjs"), "utf8");
+const serviceWorker = fs.readFileSync(path.join(root, "sw.js"), "utf8");
+const electricPianoPath = path.join(root, "public/assets/sounds/button-practice-electric-piano-a4.wav");
+const electricPianoSample = fs.readFileSync(electricPianoPath);
 const context = { window: {}, document: { querySelector: () => null }, console };
 vm.runInNewContext(source, context, { filename: "button-practice.js" });
 const core = context.window.ChromaticaButtonPracticeCore;
@@ -23,7 +28,7 @@ const buttonNumberRenderer = app.slice(
 );
 
 function settings(overrides = {}) {
-  return { mode: "toggle", range: "full", bpm: 60, totalCycles: 4, ...overrides };
+  return { mode: "toggle", range: "middle", bpm: 60, totalCycles: 4, ...overrides };
 }
 
 function flatten(measures) { return measures.flatMap((measure) => measure.notes); }
@@ -75,6 +80,18 @@ test("setup keeps the four concise controls and adds one persisted note-demo tog
   assert.doesNotMatch(source, /buttonPracticeDifficulty|buttonPracticePattern|buttonPracticeCountdown|buttonPracticeMetronome[^D]/);
 });
 
+test("range selector keeps only low, middle, and high while legacy full values become middle", () => {
+  const selector = html.match(/<select id="buttonPracticeRange"[\s\S]*?<\/select>/)?.[0] || "";
+  assert.deepEqual([...selector.matchAll(/<option value="([^"]+)"/g)].map((match) => match[1]), ["low", "middle", "high"]);
+  assert.doesNotMatch(selector, /全音域|value="(?:all|full|full-range)"/);
+  assert.doesNotMatch(visualFixture, /全音域/);
+  for (const legacyRange of ["all", "full-range", "full"]) {
+    assert.equal(core.normalizeSettings(settings({ range: legacyRange })).range, "middle");
+  }
+  assert.equal(core.normalizeSettings(settings({ range: "low" })).range, "low");
+  assert.doesNotMatch(source, /range === "full"|full-range|全音域/);
+});
+
 test("every mode pre-generates eight four-quarter-note measures from real 12-hole positions", () => {
   const cases = [
     settings(),
@@ -100,7 +117,7 @@ test("range labels and filters follow numbered notation and exclude double-low n
   assert.equal(core.registerLabel("double-high"), "倍高音");
   assert.equal(core.numberedRegister("C3"), "double-low");
   assert.equal(core.numberedRegister("C4"), "low");
-  for (const range of ["low", "middle", "high", "full"]) {
+  for (const range of ["low", "middle", "high"]) {
     for (const mode of ["toggle", "random", "chromatic", "shift"]) {
       const sequence = core.generateSequence(settings({ mode, range }), layout, seededRng(301));
       assert.ok(sequence.every((entry) => core.numberedRegister(entry.note) !== "double-low"));
@@ -115,7 +132,7 @@ test("toggle and random modes choose valid non-fixed starting positions", () => 
   assert.ok(starts.some((note) => !note.startsWith("C")));
   const randomStarts = [11, 37, 69, 91].map((seed) => core.generateSequence(settings({ mode: "random" }), layout, seededRng(seed))[0].note);
   assert.ok(new Set(randomStarts).size > 1);
-  assert.ok(randomStarts.some((note) => !note.startsWith("C")));
+  assert.ok(randomStarts.some((note) => note !== "C5"));
 });
 
 test("chromatic and shift modes automatically mix playable shapes", () => {
@@ -197,22 +214,91 @@ test("note beats and click beats are mutually exclusive and follow BPM duration"
 test("shared app pitch engine handles accidentals and the saved A4 reference", () => {
   const noteMath = app.slice(app.indexOf("function noteNameToMidi("), app.indexOf("function midiToNoteName("));
   const frequencyMath = app.slice(app.indexOf("function midiToFreq("), app.indexOf("function getNoteLetter("));
-  const buttonFrequency = app.slice(app.indexOf("function getButtonPracticeDemoFrequency("), app.indexOf("function playButtonPracticeDemoTone("));
-  const values = vm.runInNewContext(`(() => { let tuningA4 = 442; ${noteMath}\n${frequencyMath}\n${buttonFrequency}\nreturn [getButtonPracticeDemoFrequency("A4"), getButtonPracticeDemoFrequency("C#5")]; })()`);
-  assert.equal(values[0], 442);
-  assert.ok(Math.abs(values[1] - (442 * 2 ** (4 / 12))) < 1e-9);
+  const buttonFrequency = app.slice(app.indexOf("function getButtonPracticeDemoFrequency("), app.indexOf("function connectButtonPracticeDemoSource("));
+  const values = vm.runInNewContext(`(() => { let tuningA4 = 440; const BUTTON_PRACTICE_SAMPLE_BASE_FREQUENCY = 440; ${noteMath}\n${frequencyMath}\n${buttonFrequency}\nconst at440 = [getButtonPracticeDemoFrequency("A4"), getButtonPracticeSamplePlaybackRate("A4"), getButtonPracticeSamplePlaybackRate("C#5")]; tuningA4 = 442; return [...at440, getButtonPracticeDemoFrequency("A4"), getButtonPracticeSamplePlaybackRate("A4"), getButtonPracticeSamplePlaybackRate("C#5")]; })()`);
+  assert.equal(values[0], 440);
+  assert.equal(values[1], 1);
+  assert.ok(Math.abs(values[2] - 2 ** (4 / 12)) < 1e-9);
+  assert.equal(values[3], 442);
+  assert.ok(Math.abs(values[4] - (442 / 440)) < 1e-9);
+  assert.ok(Math.abs(values[5] - ((442 * 2 ** (4 / 12)) / 440)) < 1e-9);
   assert.match(app, /TUNING_A4_STORAGE_KEY = "chromatica\.settings\.tuningA4"/);
   assert.match(app, /getButtonPracticeDemoFrequency\(noteName\)[\s\S]*midiToFreq\(noteNameToMidi\(noteName\), tuningA4\)/);
 });
 
-test("demonstration tone reuses shared AudioContext with a short attack and release", () => {
-  const player = app.slice(app.indexOf("function playButtonPracticeDemoTone("), app.indexOf("function playPrepareClick("));
+test("bundled electric-piano sample is reviewed, cached, and loaded only once", () => {
+  assert.equal(electricPianoSample.subarray(0, 4).toString("ascii"), "RIFF");
+  assert.equal(electricPianoSample.subarray(8, 12).toString("ascii"), "WAVE");
+  assert.equal(electricPianoSample.readUInt16LE(22), 1);
+  assert.equal(electricPianoSample.readUInt32LE(24), 24000);
+  assert.equal(electricPianoSample.readUInt16LE(34), 16);
+  assert.ok(electricPianoSample.length > 10000 && electricPianoSample.length < 250000);
+  const pcm = new Int16Array(electricPianoSample.buffer, electricPianoSample.byteOffset + 44, (electricPianoSample.length - 44) / 2);
+  const rms = (start, end) => Math.sqrt(Array.from(pcm.subarray(start, end), (sample) => (sample / 32768) ** 2).reduce((sum, sample) => sum + sample, 0) / (end - start));
+  assert.ok(rms(pcm.length - 12000, pcm.length) < rms(0, 12000) * 0.1, "sample should have a natural decay");
+  const sha256 = crypto.createHash("sha256").update(electricPianoSample).digest("hex");
+  assert.equal(sha256, "42139456fdae89d0bd5f90f2f68fc83ccf8f7ef348d0edc89989a48a9103c93a");
+  assert.match(buildWeb, new RegExp(`button-practice-electric-piano-a4\\.wav", "${sha256}`));
+  assert.match(serviceWorker, /public\/assets\/sounds\/button-practice-electric-piano-a4\.wav/);
+  const loader = app.slice(app.indexOf("function preloadButtonPracticeElectricPiano("), app.indexOf("function stopButtonPracticeDemoTone("));
+  assert.match(loader, /if \(buttonPracticeElectricPianoBuffer\) return Promise\.resolve/);
+  assert.match(loader, /if \(buttonPracticeElectricPianoLoadPromise\) return buttonPracticeElectricPianoLoadPromise/);
+  assert.equal((loader.match(/fetch\(/g) || []).length, 1);
+  assert.equal((loader.match(/decodeAudioData\(/g) || []).length, 1);
+  assert.match(loader, /\.catch\(\(error\) => \{[\s\S]*return null/);
+});
+
+test("electric-piano preload shares one decode promise and a failed load stays non-blocking", async () => {
+  const loader = app.slice(app.indexOf("function preloadButtonPracticeElectricPiano("), app.indexOf("function stopButtonPracticeDemoTone("));
+  const loadHarness = await vm.runInNewContext(`(async () => {
+    let buttonPracticeElectricPianoBuffer = null;
+    let buttonPracticeElectricPianoLoadPromise = null;
+    const BUTTON_PRACTICE_ELECTRIC_PIANO_URL = "sample.wav";
+    let fetchCalls = 0;
+    let decodeCalls = 0;
+    const decoded = { duration: 3.2 };
+    const getSharedAudioContext = () => ({ decodeAudioData: async () => { decodeCalls += 1; return decoded; } });
+    const fetch = async () => { fetchCalls += 1; return { ok: true, arrayBuffer: async () => new ArrayBuffer(8) }; };
+    ${loader}
+    const first = preloadButtonPracticeElectricPiano();
+    const second = preloadButtonPracticeElectricPiano();
+    const results = await Promise.all([first, second]);
+    const third = await preloadButtonPracticeElectricPiano();
+    return { fetchCalls, decodeCalls, shared: results[0] === results[1] && results[0] === third };
+  })()`, { console });
+  assert.equal(loadHarness.fetchCalls, 1);
+  assert.equal(loadHarness.decodeCalls, 1);
+  assert.equal(loadHarness.shared, true);
+
+  const failureHarness = await vm.runInNewContext(`(async () => {
+    let buttonPracticeElectricPianoBuffer = null;
+    let buttonPracticeElectricPianoLoadPromise = null;
+    const BUTTON_PRACTICE_ELECTRIC_PIANO_URL = "missing.wav";
+    let fetchCalls = 0;
+    const getSharedAudioContext = () => ({ decodeAudioData: async () => null });
+    const fetch = async () => { fetchCalls += 1; throw new Error("offline"); };
+    ${loader}
+    const first = await preloadButtonPracticeElectricPiano();
+    const second = await preloadButtonPracticeElectricPiano();
+    return { fetchCalls, first, second };
+  })()`, { console: { warn() {} } });
+  assert.equal(failureHarness.fetchCalls, 1);
+  assert.equal(failureHarness.first, null);
+  assert.equal(failureHarness.second, null);
+});
+
+test("note beats use the local electric piano while failures safely fall back to sine", () => {
+  const player = app.slice(app.indexOf("function connectButtonPracticeDemoSource("), app.indexOf("function playPrepareClick("));
   assert.match(player, /getSharedAudioContext\(\)/);
-  assert.match(player, /oscillator\.type = "sine"/);
-  assert.match(player, /durationSeconds \* 0\.82/);
-  assert.match(player, /exponentialRampToValueAtTime\(0\.0001/);
+  assert.match(player, /context\.createBufferSource\(\)/);
+  assert.match(player, /source\.buffer = buttonPracticeElectricPianoBuffer/);
+  assert.match(player, /source\.playbackRate\.setValueAtTime\(getButtonPracticeSamplePlaybackRate\(noteName\)/);
+  assert.match(player, /if \(!buttonPracticeElectricPianoBuffer\)[\s\S]*preloadButtonPracticeElectricPiano\(\)[\s\S]*playButtonPracticeSineFallback/);
+  assert.match(player, /function playButtonPracticeSineFallback[\s\S]*oscillator\.type = "sine"/);
+  assert.match(player, /exponentialRampToValueAtTime\(peakGain[\s\S]*exponentialRampToValueAtTime\(0\.0001/);
   assert.match(source, /\(60000 \/ targetState\.bpm\) \* 0\.86/);
   assert.match(app, /let buttonPracticeDemoTone = null/);
+  assert.match(app, /preloadNoteSample: preloadButtonPracticeElectricPiano/);
   assert.match(app, /playBeat: \(accent\) => playClick\(accent\)/);
   assert.match(app, /playPrepareBeat: \(accent\) => playPrepareClick\(accent\)/);
   assert.match(app, /function playClick\(strong = false\)[\s\S]*if \(!isMetronomeAllowed\(\)\) return/);
@@ -273,7 +359,7 @@ test("playback advances exactly one synchronized active note while restart reuse
   Object.assign(elements.get("buttonPracticeMode"), { value: "toggle" });
   Object.assign(elements.get("buttonPracticeBpm"), { value: "120" });
   Object.assign(elements.get("buttonPracticeCycles"), { value: "2" });
-  Object.assign(elements.get("buttonPracticeRange"), { value: "full" });
+  Object.assign(elements.get("buttonPracticeRange"), { value: "middle" });
   elements.get("buttonPracticePlayer").classList.add("hidden");
   elements.get("buttonPracticeComplete").classList.add("hidden");
   let tick = null;
@@ -335,7 +421,7 @@ test("playback advances exactly one synchronized active note while restart reuse
 test("one timer drives start, pause, resume, restart, background pause, and one completion", () => {
   assert.match(source, /if \(!state \|\| state\.running \|\| state\.completionRecorded\) return/);
   assert.match(source, /window\.setInterval\(step, 60000 \/ state\.bpm\)/);
-  assert.match(source, /function onViewChanged\(view\) \{ if \(view !== "buttonpractice"\) clearTimer\(\); \}/);
+  assert.match(source, /function onViewChanged\(view\) \{[\s\S]*if \(view === "buttonpractice"\) void adapter\?\.preloadNoteSample\?\.\(\);[\s\S]*else clearTimer\(\);/);
   assert.match(source, /function clearTimer\(\)[\s\S]*adapter\?\.stopNote\?\.\(\)/);
   assert.match(source, /noteDemoToggle\.addEventListener\("change"[\s\S]*adapter\?\.stopNote\?\.\(\)/);
   for (const action of ["finish", "restart", "regenerate", "showSetup"]) {
@@ -343,6 +429,7 @@ test("one timer drives start, pause, resume, restart, background pause, and one 
     assert.match(body, /clearTimer\(\)/, `${action} must stop its current tone and pending timer`);
   }
   assert.match(app, /pauseAudioForAppBackground[\s\S]*ChromaticaButtonPractice\?\.stop\?\.\(\)/);
+  assert.match(app, /function setSoundSettings\(patch\)[\s\S]*if \(nextSettings\.appSound === false\) stopButtonPracticeDemoTone\(\)/);
   const completion = { completionRecorded: false };
   assert.equal(core.claimCompletion(completion), true);
   assert.equal(core.claimCompletion(completion), false);

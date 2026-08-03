@@ -886,6 +886,10 @@ let intervalMetronomePlaying = false;
 let intervalPracticeState = null;
 let intervalIntroReturnFocus = null;
 let audioContext = null;
+const BUTTON_PRACTICE_ELECTRIC_PIANO_URL = "./public/assets/sounds/button-practice-electric-piano-a4.wav";
+const BUTTON_PRACTICE_SAMPLE_BASE_FREQUENCY = 440;
+let buttonPracticeElectricPianoBuffer = null;
+let buttonPracticeElectricPianoLoadPromise = null;
 let buttonPracticeDemoTone = null;
 let micStream = null;
 let micAnalyser = null;
@@ -1164,6 +1168,7 @@ function saveSoundSettings(nextSettings) {
 function setSoundSettings(patch) {
   const nextSettings = { ...getSoundSettings(), ...patch };
   saveSoundSettings(nextSettings);
+  if (nextSettings.appSound === false) stopButtonPracticeDemoTone();
   renderSoundSettings();
   syncGardenBgmWithView();
   window.ChromaticaWorldBoss?.onViewChanged?.(currentView);
@@ -7344,6 +7349,27 @@ function getSharedAudioContext() {
   return audioContext;
 }
 
+function preloadButtonPracticeElectricPiano() {
+  if (buttonPracticeElectricPianoBuffer) return Promise.resolve(buttonPracticeElectricPianoBuffer);
+  if (buttonPracticeElectricPianoLoadPromise) return buttonPracticeElectricPianoLoadPromise;
+  const context = getSharedAudioContext();
+  buttonPracticeElectricPianoLoadPromise = fetch(BUTTON_PRACTICE_ELECTRIC_PIANO_URL, { cache: "force-cache" })
+    .then((response) => {
+      if (!response.ok) throw new Error(`button-practice-sample-http-${response.status}`);
+      return response.arrayBuffer();
+    })
+    .then((encodedAudio) => context.decodeAudioData(encodedAudio))
+    .then((buffer) => {
+      buttonPracticeElectricPianoBuffer = buffer;
+      return buffer;
+    })
+    .catch((error) => {
+      console.warn("Unable to preload button practice electric piano; using sine fallback.", error);
+      return null;
+    });
+  return buttonPracticeElectricPianoLoadPromise;
+}
+
 function stopButtonPracticeDemoTone() {
   const tone = buttonPracticeDemoTone;
   buttonPracticeDemoTone = null;
@@ -7353,9 +7379,9 @@ function stopButtonPracticeDemoTone() {
     tone.gain.gain.cancelScheduledValues(now);
     tone.gain.gain.setValueAtTime(Math.max(0.0001, tone.gain.gain.value), now);
     tone.gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.015);
-    tone.oscillator.stop(now + 0.018);
+    tone.source.stop(now + 0.018);
   } catch {
-    try { tone.oscillator.stop(); } catch {}
+    try { tone.source.stop(); } catch {}
   }
 }
 
@@ -7363,33 +7389,51 @@ function getButtonPracticeDemoFrequency(noteName) {
   return midiToFreq(noteNameToMidi(noteName), tuningA4);
 }
 
+function getButtonPracticeSamplePlaybackRate(noteName) {
+  return getButtonPracticeDemoFrequency(noteName) / BUTTON_PRACTICE_SAMPLE_BASE_FREQUENCY;
+}
+
+function connectButtonPracticeDemoSource(context, source, durationSeconds, peakGain) {
+  const gain = context.createGain();
+  const attackSeconds = Math.min(0.018, durationSeconds * 0.1);
+  const startsAt = context.currentTime;
+  gain.gain.setValueAtTime(0.0001, startsAt);
+  gain.gain.exponentialRampToValueAtTime(peakGain, startsAt + attackSeconds);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startsAt + durationSeconds);
+  source.connect(gain).connect(context.destination);
+  const tone = { context, source, gain };
+  buttonPracticeDemoTone = tone;
+  source.onended = () => {
+    if (buttonPracticeDemoTone === tone) buttonPracticeDemoTone = null;
+    try { source.disconnect(); } catch {}
+    try { gain.disconnect(); } catch {}
+  };
+  source.start(startsAt);
+  source.stop(startsAt + durationSeconds + 0.02);
+}
+
+function playButtonPracticeSineFallback(context, noteName, durationSeconds) {
+  const oscillator = context.createOscillator();
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(getButtonPracticeDemoFrequency(noteName), context.currentTime);
+  connectButtonPracticeDemoSource(context, oscillator, durationSeconds, 0.16);
+}
+
 function playButtonPracticeDemoTone(noteName, durationMs) {
   stopButtonPracticeDemoTone();
   if (!isSoundAllowed("buttonPracticeDemo") || !noteName) return;
   const context = getSharedAudioContext();
   if (context.state === "suspended") void context.resume?.();
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
   const durationSeconds = Math.max(0.08, Number(durationMs) / 1000 || 0.4);
-  const attackSeconds = Math.min(0.018, durationSeconds * 0.1);
-  const releaseStartsAt = Math.max(attackSeconds + 0.01, durationSeconds * 0.82);
-  const startsAt = context.currentTime;
-  oscillator.type = "sine";
-  oscillator.frequency.setValueAtTime(getButtonPracticeDemoFrequency(noteName), startsAt);
-  gain.gain.setValueAtTime(0.0001, startsAt);
-  gain.gain.exponentialRampToValueAtTime(0.16, startsAt + attackSeconds);
-  gain.gain.setValueAtTime(0.16, startsAt + releaseStartsAt);
-  gain.gain.exponentialRampToValueAtTime(0.0001, startsAt + durationSeconds);
-  oscillator.connect(gain).connect(context.destination);
-  const tone = { context, oscillator, gain };
-  buttonPracticeDemoTone = tone;
-  oscillator.onended = () => {
-    if (buttonPracticeDemoTone === tone) buttonPracticeDemoTone = null;
-    try { oscillator.disconnect(); } catch {}
-    try { gain.disconnect(); } catch {}
-  };
-  oscillator.start(startsAt);
-  oscillator.stop(startsAt + durationSeconds + 0.02);
+  if (!buttonPracticeElectricPianoBuffer) {
+    void preloadButtonPracticeElectricPiano();
+    playButtonPracticeSineFallback(context, noteName, durationSeconds);
+    return;
+  }
+  const source = context.createBufferSource();
+  source.buffer = buttonPracticeElectricPianoBuffer;
+  source.playbackRate.setValueAtTime(getButtonPracticeSamplePlaybackRate(noteName), context.currentTime);
+  connectButtonPracticeDemoSource(context, source, durationSeconds, 0.58);
 }
 
 function playPrepareClick(strong = false) {
@@ -8556,6 +8600,7 @@ function initializeAuthenticatedApp(options = {}) {
       },
       playBeat: (accent) => playClick(accent),
       playPrepareBeat: (accent) => playPrepareClick(accent),
+      preloadNoteSample: preloadButtonPracticeElectricPiano,
       playNote: (noteName, durationMs) => playButtonPracticeDemoTone(noteName, durationMs),
       stopNote: stopButtonPracticeDemoTone,
       settingsChanged: scheduleAccountSnapshotSave,

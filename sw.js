@@ -53,6 +53,7 @@ const APP_SHELL = [
   "./public/assets/sounds/進化開始音效.mp3",
   "./public/assets/sounds/進化完成音效.mp3",
   "./public/assets/sounds/收成採收音效.mp3",
+  "./public/assets/sounds/button-practice-electric-piano-a4.wav",
   "./public/assets/chromatic-refresh/icon/mic_settings_icon.png",
   "./public/assets/chromatic-refresh/icon/practice_record_icon.png",
   "./public/assets/chromatic-refresh/note/encouragement_note.png",

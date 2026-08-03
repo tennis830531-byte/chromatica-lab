@@ -7,7 +7,7 @@
   const PREPARE_BEATS = 4;
   const NOTE_DEMO_STORAGE_KEY = "chromatica.settings.buttonPracticeNoteDemo";
   const MODE_LABELS = Object.freeze({ toggle: "按放切換", random: "隨機按鍵", chromatic: "半音階穿梭", shift: "按鍵移位" });
-  const RANGE_LABELS = Object.freeze({ full: "全音域", low: "低音域", middle: "中音域", high: "高音域" });
+  const RANGE_LABELS = Object.freeze({ low: "低音域", middle: "中音域", high: "高音域" });
   const MODES = Object.freeze(Object.keys(MODE_LABELS));
   const RANGES = Object.freeze(Object.keys(RANGE_LABELS));
   const TOGGLE_HOLDS = Object.freeze([1, 2, 4]);
@@ -42,12 +42,11 @@
   function isInRange(noteName, range) {
     const register = numberedRegister(noteName);
     if (register === "double-low") return false;
-    if (range === "full") return true;
     if (range === "high") return register === "high" || register === "double-high";
     return register === range;
   }
 
-  function buildPlayablePositions(layout, range = "full") {
+  function buildPlayablePositions(layout, range = "middle") {
     if (Number(layout?.blow?.length || 0) !== FIXED_HOLES) throw new Error("button-practice-requires-12-hole-layout");
     const positions = [];
     for (let hole = 1; hole <= FIXED_HOLES; hole += 1) {
@@ -394,7 +393,10 @@
     adapter?.scrollTo?.("buttonPracticeSetup");
   }
 
-  function onViewChanged(view) { if (view !== "buttonpractice") clearTimer(); }
+  function onViewChanged(view) {
+    if (view === "buttonpractice") void adapter?.preloadNoteSample?.();
+    else clearTimer();
+  }
   function pause() { if (state?.running) { clearTimer(); render(); } }
 
   function init(nextAdapter) {

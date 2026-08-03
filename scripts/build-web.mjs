@@ -87,6 +87,7 @@ const reviewAssetHashes = new Map([
   ["public/assets/sounds/The Lament of the Fallen.wav", "7076a94183eddaea1c9a7694a2a8af6cff3660b89149e25c34d2b1b4d0aaa2e3"],
   ["public/assets/sounds/Arcane Surge.wav", "3dfe1e00ac13a90553176090068f7683bf0cc2e93e4f86e99f2206ac6bc475e8"],
   ["public/assets/sounds/精靈普通攻擊_1秒.wav", "122b0e834c0631cd8459386a0d92672f156378635f3a08b2f8c0847dec507e4b"],
+  ["public/assets/sounds/button-practice-electric-piano-a4.wav", "42139456fdae89d0bd5f90f2f68fc83ccf8f7ef348d0edc89989a48a9103c93a"],
   ["public/assets/fonts/cubic-11/Cubic_11.woff2", "d28e92846e00c3696b30d950d4eddf445dd90b2a970e67cdb629796c1997ef67"],
   ["public/assets/fonts/cubic-11/OFL.txt", "bdd640c94530f5845de621089875aefcaec17585dbd4dab191c97118539bf92f"],
   ["public/assets/fonts/cubic-11/SOURCE.md", "d508cdb665c694306b49f38798ba8023166843217d18d29253e052fda28dc3e3"],
