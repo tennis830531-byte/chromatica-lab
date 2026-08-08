@@ -401,7 +401,7 @@
       const elapsed = formalStartedAt ? Date.now() - formalStartedAt : 0;
       if (schedulerState.countInMeasuresRemaining === 0 && !formalStartedAt) formalStartedAt = Date.now();
       if (formalStartedAt && core.shouldAutoStop(settings, schedulerState, elapsed)) {
-        stop({ completed: true }); return;
+        stop(); return;
       }
     }
   }
@@ -475,7 +475,7 @@
     const reduced = global.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     global.scrollTo({ top: Math.max(0, targetY), behavior: reduced ? "auto" : "smooth" });
   }
-  function stop({ completed = false } = {}) {
+  function stop() {
     if (!playing && !schedulerTimer && !animationFrame) return;
     if (schedulerTimer) clearInterval(schedulerTimer);
     if (animationFrame) cancelAnimationFrame(animationFrame);
@@ -488,8 +488,7 @@
     if (settings.tempoTrainer.enabled && !settings.tempoTrainer.keepCurrent) settings.bpm = core.normalizeBpm(settings.tempoTrainer.startBpm);
     resetTrainerRuntime(0);
     saveSettings(); render();
-    announce(completed ? "節拍器練習完成" : "節拍器已停止");
-    if (completed) $("#metronomeComplete")?.classList.remove("hidden");
+    announce("節拍器已停止");
   }
   function renderSubdivisionProgress(event = null) {
     const node = $("#metronomeSubdivisionPulse");
@@ -703,7 +702,6 @@
     $("#metronomePresetName")?.addEventListener("input", () => $("#metronomePresetError")?.classList.add("hidden"));
     $("#metronomePresetForm")?.addEventListener("submit", (event) => { event.preventDefault(); savePresetDraft(); });
     $("#metronomePresetList")?.addEventListener("click", (event) => { const apply = event.target.closest("[data-preset-apply]"); const rename = event.target.closest("[data-preset-rename]"); const remove = event.target.closest("[data-preset-delete]"); if (apply) { settings = { ...settings, ...core.normalizePreset(settings.presets[Number(apply.dataset.presetApply)]), presets: settings.presets }; settings.customSignature = !BUILT_IN_SIGNATURES.has(signatureValue()); resetTrainerRuntime(playing && schedulerState ? schedulerState.formalMeasures : 0); saveSettings(); render(); if (playing) rescheduleFromNow(); } if (rename) openPresetPanel(Number(rename.dataset.presetRename)); if (remove) { settings.presets.splice(Number(remove.dataset.presetDelete), 1); saveSettings(); render(); } });
-    $("#metronomeCompleteClose")?.addEventListener("click", () => $("#metronomeComplete")?.classList.add("hidden"));
     document.addEventListener("keydown", (event) => { if (event.key === "Escape" && closeTopPanel({ haptic: true })) event.preventDefault(); });
     document.addEventListener("visibilitychange", () => { if (document.hidden) { closeTopPanel({ restoreFocus: false }); stop(); } });
     window.addEventListener("pagehide", () => { closeTopPanel({ restoreFocus: false }); stop(); });

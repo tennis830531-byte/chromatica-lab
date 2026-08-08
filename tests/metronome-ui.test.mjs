@@ -36,6 +36,15 @@ test("scheduler uses Web Audio currentTime with 100ms lookahead and 25ms tick", 
 test("scheduler is singleton guarded and cancels future nodes", () => { assert.match(ui, /if \(playing\) return/); assert.match(ui, /cancelScheduledNodes/); assert.match(ui, /scheduledNodes = new Set/); });
 test("metronome reuses injected application AudioContext", () => { assert.match(app, /ChromaticaMetronome\?\.init\?\.\(\{ getAudioContext: getSharedAudioContext \}\)/); assert.doesNotMatch(ui, /new AudioContext/); });
 test("leaving view, background, pagehide and logout stop metronome", () => { assert.match(app, /view !== "metronome".*ChromaticaMetronome\?\.stop/s); assert.match(app, /pauseAudioForAppBackground[\s\S]*ChromaticaMetronome\?\.stop/); assert.match(ui, /visibilitychange/); assert.match(ui, /pagehide/); assert.match(app, /prepareForSignedOutAccount[\s\S]*ChromaticaMetronome\?\.stop/); });
+test("metronome auto-stop stays a plain stop without any persistent completion UI", () => {
+  assert.match(ui, /core\.shouldAutoStop[\s\S]*stop\(\); return;/);
+  assert.doesNotMatch(ui, /completed\s*=|節拍器練習完成|metronomeComplete/);
+  assert.doesNotMatch(html, /metronomeComplete|節拍器練習完成/);
+  assert.match(app, /view !== "metronome"[\s\S]*ChromaticaMetronome\?\.stop\?\.\(\)/);
+  assert.match(html, /id="longToneComplete"/);
+  assert.match(html, /id="intervalComplete"/);
+  assert.match(html, /id="buttonPracticeComplete"/);
+});
 test("metronome does not touch microphone, practice history, rewards or streak", () => { assert.doesNotMatch(ui, /getUserMedia|micStream|practiceHistory|waterDrop|DailyGoal|streak|award|scheduleAccountSnapshotSave/); });
 test("muting preserves visual scheduler", () => { assert.match(ui, /if \(settings\.muted \|\| settings\.volume <= 0\) return/); assert.match(ui, /animationFrame = requestAnimationFrame\(visualTick\)/); });
 test("wood and soft subdivisions remain audible on phone speakers", () => {
