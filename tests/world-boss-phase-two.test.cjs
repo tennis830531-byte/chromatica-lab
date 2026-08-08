@@ -33,7 +33,7 @@ test("living boss always uses normal state and zero HP uses defeated state", () 
 });
 
 test("counterattack is a single visual-only one-second presentation", () => {
-  const counter = runtime.slice(runtime.indexOf("function playBossCounter"), runtime.indexOf("async function performAttack"));
+  const counter = runtime.slice(runtime.indexOf("function playBossCounter"), runtime.indexOf("async function playSpecialAttackPresentation"));
   assert.match(counter, /image\.src = bossPresentation\(\)\.counter/);
   assert.match(counter, /if \(state\.counterPromise\) return state\.counterPromise/);
   assert.match(counter, /window\.setTimeout\(finishBossCounter, 1000\)/);
@@ -130,10 +130,14 @@ test("living Boss alternates the two approved idle images while counter and deat
   assert.equal(digest, "c66c2edb5a2a18f40f7765b62cd5f918feecc413591f91b46fc54b5b64cd385a");
 });
 
-test("special skill replaces attack mode and presents the full art card before damage", () => {
+test("special skill replaces attack mode and presents the full art card only after server success", () => {
   assert.match(runtime, /function canUseSelectedSpecial\(\)[\s\S]*selected\.stage === 3 && isSkillUnlocked/);
   assert.match(runtime, /function playSpecialAttackPresentation\(species\)/);
-  assert.match(runtime, /if \(type === "special"\) await playSpecialAttackPresentation\(species\);[\s\S]*attack_world_boss/);
+  const attackFlow = runtime.slice(runtime.indexOf("async function performAttack"), runtime.indexOf("function performQaAttack"));
+  const successFlow = runtime.slice(runtime.indexOf("async function presentSuccessfulAttack"), runtime.indexOf("async function performAttack"));
+  assert.ok(attackFlow.indexOf('await rpc("attack_world_boss"') < attackFlow.indexOf("presentSuccessfulAttack"));
+  assert.match(attackFlow, /if \(!row\?\.attack_id[\s\S]*await presentSuccessfulAttack/);
+  assert.match(successFlow, /if \(type === "special"\) await playSpecialAttackPresentation\(species\)/);
   assert.match(css, /worldBossSpecialCardReveal[\s\S]*rotateY\(1440deg\)[\s\S]*rotateY\(1800deg\)[\s\S]*rotateY\(1980deg\)[\s\S]*rotateY\(2160deg\)/);
   assert.match(runtime, /playSpecialAttackSound\(\)/);
   assert.match(runtime, /playNormalAttackSound\(\);[\s\S]*ChromaticaHaptics\?\.(?:long|success)/);
@@ -189,7 +193,7 @@ test("special presentation uses the approved three-second surge and every attack
   assert.match(runtime, /SPECIAL_ATTACK_SOUND_PATH = "\.\/public\/assets\/sounds\/Arcane Surge\.wav"/);
   assert.match(runtime, /NORMAL_ATTACK_SOUND_PATH = "\.\/public\/assets\/sounds\/精靈普通攻擊_1秒\.wav"/);
   assert.match(runtime, /playSpecialAttackSound\(\);[\s\S]*qaDelay/);
-  assert.match(runtime, /const row = Array\.isArray\(result\)[\s\S]*playNormalAttackSound\(\);[\s\S]*ChromaticaHaptics/);
+  assert.match(runtime, /async function presentSuccessfulAttack[\s\S]*playNormalAttackSound\(\);[\s\S]*ChromaticaHaptics/);
 });
 
 test("World Boss theme remains byte-identical to the supplied WAV", () => {

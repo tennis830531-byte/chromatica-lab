@@ -48,6 +48,7 @@ test("World Boss help explains schedule, damage, energy, exchange, and rewards",
     "50／40／30 水滴",
     "週五、週六、週日每日各可使用 2 次",
   ]) assert.match(html, new RegExp(copy));
+  assert.match(html, /活動期間每天第一次有效練習可獲得 1 顆（以台北日期計算）/);
   assert.match(html, /world-boss-info-energy-icon[^>]*光之能量\.png[^>]*\/>光之能量/);
   assert.equal((html.match(/world-boss-info-water-icon[^>]*water-drop\.png/g) || []).length, 2);
   assert.match(css, /\.world-boss-info-modal h3[\s\S]*display:\s*flex[\s\S]*align-items:\s*center/);

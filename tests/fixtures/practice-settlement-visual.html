@@ -16,6 +16,7 @@
           <div class="practice-settlement-items" role="list">
             <article class="practice-settlement-item" role="listitem"><span class="practice-settlement-item-icon">💧</span><span class="practice-settlement-item-copy"><strong>本次獲得水滴</strong><small>已加入目前水滴總數</small></span><strong class="practice-settlement-item-value">+9</strong></article>
             <article class="practice-settlement-item" role="listitem"><span class="practice-settlement-item-icon">💧</span><span class="practice-settlement-item-copy"><strong>今日練習水滴</strong><small>只計入今日正式練習獎勵</small></span><strong class="practice-settlement-item-value">28 / 80</strong></article>
+            <article id="worldBossEnergyReward" class="practice-settlement-item" role="listitem"><span class="practice-settlement-item-icon"><img src="../../public/assets/world-boss/光之能量.png" alt="" /></span><span class="practice-settlement-item-copy"><strong>光之能量</strong><small>每日首次有效練習</small></span><strong class="practice-settlement-item-value">+1</strong></article>
             <article class="practice-settlement-item" role="listitem"><span class="practice-settlement-item-icon">✓</span><span class="practice-settlement-item-copy"><strong>每日任務完成</strong><small>平穩長音</small></span><strong class="practice-settlement-item-value">完成</strong></article>
             <article class="practice-settlement-item" role="listitem"><span class="practice-settlement-item-icon">☑</span><span class="practice-settlement-item-copy"><strong>今日任務進度</strong><small>依本次正式完成結果更新</small></span><strong class="practice-settlement-item-value">5 / 7</strong></article>
           </div>
@@ -35,6 +36,8 @@
       const content = document.querySelector(".practice-settlement-content");
       const item = document.querySelector(".practice-settlement-item");
       const waterReward = document.querySelector(".practice-reward-water-animation");
+      const energyReward = document.querySelector("#worldBossEnergyReward");
+      const energyIcon = energyReward.querySelector("img");
       const output = {
         viewport: {
           width: document.documentElement.clientWidth,
@@ -50,6 +53,10 @@
         itemTransform: getComputedStyle(item).transform,
         waterRewardRect: waterReward.getBoundingClientRect().toJSON(),
         waterRewardMaxWidth: getComputedStyle(waterReward).maxWidth,
+        horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        energyRewardText: energyReward.textContent.replace(/\s+/g, " ").trim(),
+        energyIconPath: energyIcon.getAttribute("src"),
+        energyIconRect: energyIcon.getBoundingClientRect().toJSON(),
         reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
       };
       document.querySelector("#result").textContent = JSON.stringify(output);

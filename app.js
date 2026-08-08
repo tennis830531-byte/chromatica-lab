@@ -220,6 +220,48 @@ function scheduleAccountSnapshotSave() {
   window.chromaticaAccountWorkspace?.scheduleSave?.();
 }
 
+function setFormalGardenMutationPending(pending) {
+  formalGardenMutationPending = Boolean(pending);
+  document.body.classList.toggle("garden-mutation-pending", formalGardenMutationPending);
+  const primaryAction = $("#gardenPrimaryAction");
+  const renameSave = $("#gardenRenameSave");
+  const skillLearn = $("#gardenSpiritSkillLearn");
+  if (primaryAction && formalGardenMutationPending) primaryAction.disabled = true;
+  if (renameSave) renameSave.disabled = formalGardenMutationPending;
+  if (skillLearn) skillLearn.disabled = formalGardenMutationPending;
+  if (!formalGardenMutationPending) renderGarden({ persistNormalizedState: false });
+}
+
+function beginFormalGardenMutation() {
+  if (formalGardenMutationPending || isGardenQaSessionActive()) return false;
+  setFormalGardenMutationPending(true);
+  return true;
+}
+
+function endFormalGardenMutation() {
+  setFormalGardenMutationPending(false);
+  refreshGardenSpiritSkillPresentation();
+}
+
+async function applyAuthoritativeGardenGameSave(row) {
+  const result = await window.chromaticaAccountWorkspace?.applyAuthoritativeGameSave?.({
+    revision: row?.game_save_revision,
+    snapshot: row?.game_save_snapshot,
+    updatedAt: row?.game_save_updated_at,
+  });
+  if (result?.kind !== "applied") throw new Error("authoritative-game-save-unavailable");
+  renderGarden({ persistNormalizedState: false });
+  refreshGardenSpiritSkillPresentation();
+  return result;
+}
+
+async function refreshAuthoritativeGardenGameSave() {
+  const result = await window.chromaticaAccountWorkspace?.refreshFromCloud?.();
+  renderGarden({ persistNormalizedState: false });
+  refreshGardenSpiritSkillPresentation();
+  return result;
+}
+
 function isMicrophoneEnabled() {
   return localStorage.getItem(MICROPHONE_ENABLED_KEY) !== "false";
 }
@@ -863,6 +905,7 @@ let selectedGardenSpiritStage = 3;
 let activeGardenSpiritAdapter = null;
 let gardenSpiritModalPage = "card";
 let harvestCardAnimationActive = false;
+let formalGardenMutationPending = false;
 let selectedStarterSpeciesId = "";
 let gardenHopTimer = null;
 let suppressNextGardenPersistence = false;
@@ -2625,6 +2668,7 @@ function closeGardenRenameModal() {
 }
 
 function saveGardenSpiritName() {
+  if (formalGardenMutationPending) return;
   const adapter = getGardenSpiritAdapter();
   const spirit = adapter.getSpirit(selectedGardenSpiritId);
   const input = $("#gardenRenameInput");
@@ -2767,12 +2811,14 @@ function renderGarden({ persistNormalizedState = true } = {}) {
       primaryAction.classList.remove("is-empty");
       if (actionIcon) actionIcon.src = GARDEN_WATERING_CAN_SRC;
     }
+    if (formalGardenMutationPending) primaryAction.disabled = true;
   }
   renderGardenCollection();
   renderHeroGarden();
 }
 
 function waterCurrentPlant() {
+  if (formalGardenMutationPending) return;
   const plant = getCurrentPlant(false);
   if (!plant) {
     showGardenToast("植物都已採收", "水滴會先累積，等下次更新新植物後再繼續澆灌。");
@@ -2825,7 +2871,7 @@ function waterCurrentPlant() {
 }
 
 function harvestCurrentPlant() {
-  if (harvestCardAnimationActive) return;
+  if (formalGardenMutationPending || harvestCardAnimationActive) return;
   const plant = getCurrentPlant(false);
   if (!plant) return;
   if ((plant.waterProgress || 0) < PLANT_WATER_REQUIRED) return;
@@ -3258,7 +3304,7 @@ function setPracticeSettlementState(session, state) {
   setPracticeSettlementAdvance(session, pendingLabels[state] || "請稍候…", false);
 }
 
-function buildPracticeSettlementItems(totalWaterGranted, waterResult, goalResult, waterBreakdown = {}) {
+function buildPracticeSettlementItems(totalWaterGranted, waterResult, goalResult, waterBreakdown = {}, worldBossEnergyResult = null) {
   const total = Math.max(0, Math.floor(Number(totalWaterGranted) || 0));
   const practiceWater = Math.max(0, Math.floor(Number(waterBreakdown.practiceWater ?? waterResult?.water) || 0));
   const dailyTaskWater = Math.max(0, Math.floor(Number(waterBreakdown.dailyTaskWater) || 0));
@@ -3347,6 +3393,22 @@ function buildPracticeSettlementItems(totalWaterGranted, waterResult, goalResult
       detail: "今天第一次練習已達成",
     });
   }
+  if (worldBossEnergyResult?.worldBossEventStartEnergyGranted === true) {
+    items.push({
+      iconSrc: "./public/assets/world-boss/光之能量.png",
+      title: "活動開始贈送的光之能量",
+      value: "+1",
+      detail: "本場活動開始贈送（每位玩家僅一次）",
+    });
+  }
+  if (worldBossEnergyResult?.worldBossDailyPracticeEnergyGranted === true) {
+    items.push({
+      iconSrc: "./public/assets/world-boss/光之能量.png",
+      title: "光之能量",
+      value: "+1",
+      detail: "今日第一次有效練習",
+    });
+  }
   return items;
 }
 
@@ -3362,7 +3424,14 @@ function renderPracticeSettlementItems(items) {
     const icon = document.createElement("span");
     icon.className = "practice-settlement-item-icon";
     icon.setAttribute("aria-hidden", "true");
-    icon.textContent = item.icon;
+    if (item.iconSrc) {
+      const image = document.createElement("img");
+      image.src = item.iconSrc;
+      image.alt = "";
+      icon.append(image);
+    } else {
+      icon.textContent = item.icon;
+    }
     const copy = document.createElement("span");
     copy.className = "practice-settlement-item-copy";
     const title = document.createElement("strong");
@@ -3502,6 +3571,7 @@ function runPracticeSettlement({
   goalResult,
   totalWaterGranted,
   waterBreakdown,
+  worldBossEnergyResultPromise,
   leaderboardResultPromise,
   showOriginalCompletionPage,
 }) {
@@ -3528,7 +3598,7 @@ function runPracticeSettlement({
   practiceSettlementSession = session;
   const title = $("#practiceSettlementTitle");
   if (title) title.textContent = `完成「${practiceName}」`;
-  const cards = renderPracticeSettlementItems(buildPracticeSettlementItems(totalWaterGranted, waterResult, goalResult, waterBreakdown));
+  let cards = [];
   overlay.classList.remove("hidden", "is-closing", "is-opening");
   void overlay.offsetWidth;
   overlay.classList.add("is-opening");
@@ -3544,6 +3614,14 @@ function runPracticeSettlement({
 
   session.promise = (async () => {
     try {
+      const worldBossEnergyResult = await Promise.resolve(worldBossEnergyResultPromise).catch(() => null);
+      cards = renderPracticeSettlementItems(buildPracticeSettlementItems(
+        totalWaterGranted,
+        waterResult,
+        goalResult,
+        waterBreakdown,
+        worldBossEnergyResult,
+      ));
       const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
       await waitForPracticeSettlement(session, reducedMotion ? 180 : PRACTICE_SETTLEMENT_TIMING.entering);
       await waitForPracticeSettlementAdvance(session, "結束", { autoAdvanceSeconds: 5 });
@@ -4720,6 +4798,7 @@ function showPracticeCompletionRewardDialog(
     goalResult,
     totalWaterGranted,
     waterBreakdown: options.waterBreakdown,
+    worldBossEnergyResultPromise: options.worldBossEnergyResultPromise,
     leaderboardResultPromise: options.leaderboardResultPromise,
     showOriginalCompletionPage: options.showOriginalCompletionPage,
   });
@@ -7160,7 +7239,7 @@ function completeButtonPractice(record, showOriginalCompletionPage) {
     completedCycles,
     ...getCanonicalLeaderboardStreakEvidence(),
   });
-  void window.ChromaticaWorldBoss?.recordPracticeCompletion?.({ practiceDate: getTodayKey() });
+  const worldBossEnergyResultPromise = window.ChromaticaWorldBoss?.recordPracticeCompletion?.({ practiceDate: getTodayKey() });
   renderStreakSummary();
   return showPracticeCompletionRewardDialog(
     "按鍵練習",
@@ -7171,6 +7250,7 @@ function completeButtonPractice(record, showOriginalCompletionPage) {
     {
       waterBreakdown: { practiceWater: waterResult.water, streakMilestoneWater },
       leaderboardResultPromise,
+      worldBossEnergyResultPromise,
       showOriginalCompletionPage,
     },
   );
@@ -7220,7 +7300,7 @@ function finishIntervalPractice() {
     completedCycles: state.completedCycles,
     ...getCanonicalLeaderboardStreakEvidence(),
   });
-  void window.ChromaticaWorldBoss?.recordPracticeCompletion?.({ practiceDate: getTodayKey() });
+  const worldBossEnergyResultPromise = window.ChromaticaWorldBoss?.recordPracticeCompletion?.({ practiceDate: getTodayKey() });
   renderStreakSummary();
   $("#intervalPlayer").classList.add("hidden");
   $("#intervalComplete").classList.add("hidden");
@@ -7232,6 +7312,7 @@ function finishIntervalPractice() {
   void showPracticeCompletionRewardDialog("音程練習", waterResult, goalResult, bonusMessages, totalWaterGranted, {
     waterBreakdown,
     leaderboardResultPromise,
+    worldBossEnergyResultPromise,
     showOriginalCompletionPage() {
       $("#intervalComplete").classList.remove("hidden");
       scrollToSection("intervalComplete");
@@ -7251,7 +7332,7 @@ function getLongToneCompletionSetting(exercise) {
   return `${exercise.playBeats} 拍`;
 }
 
-function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessages, totalWaterGranted, waterBreakdown, leaderboardResultPromise }) {
+function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessages, totalWaterGranted, waterBreakdown, leaderboardResultPromise, worldBossEnergyResultPromise }) {
   const completedFromQuickPractice = hasActiveQuickPracticeTask();
   $("#longToneCompleteExercise").textContent = exercise.title;
   $("#longToneCompleteSetting").textContent = getLongToneCompletionSetting(exercise);
@@ -7261,6 +7342,7 @@ function showLongToneCompletion({ exercise, waterResult, goalResult, bonusMessag
   void showPracticeCompletionRewardDialog(exercise.title, waterResult, goalResult, bonusMessages, totalWaterGranted, {
     waterBreakdown,
     leaderboardResultPromise,
+    worldBossEnergyResultPromise,
     showOriginalCompletionPage() {
       setLongToneCompletionVisible(true);
       scrollToSection("longToneComplete");
@@ -7655,9 +7737,9 @@ function stepPractice() {
         completedCycles: totalCycles,
         ...getCanonicalLeaderboardStreakEvidence(),
       });
-      void window.ChromaticaWorldBoss?.recordPracticeCompletion?.({ practiceDate: getTodayKey() });
+      const worldBossEnergyResultPromise = window.ChromaticaWorldBoss?.recordPracticeCompletion?.({ practiceDate: getTodayKey() });
       stopPractice(true);
-      showLongToneCompletion({ exercise, averageScore, waterResult, goalResult, bonusMessages, totalWaterGranted, waterBreakdown, leaderboardResultPromise });
+      showLongToneCompletion({ exercise, averageScore, waterResult, goalResult, bonusMessages, totalWaterGranted, waterBreakdown, leaderboardResultPromise, worldBossEnergyResultPromise });
       return;
     }
     cycle += 1;
@@ -8707,6 +8789,10 @@ window.chromaticaApp = {
   initializeForAuthenticatedAccount: initializeAuthenticatedApp,
   getWorldBossSpiritRoster,
   refreshGardenSpiritSkillPresentation,
+  beginFormalGardenMutation,
+  endFormalGardenMutation,
+  applyAuthoritativeGardenGameSave,
+  refreshAuthoritativeGardenGameSave,
   isAppSoundAllowed() {
     return getSoundSettings().appSound !== false;
   },

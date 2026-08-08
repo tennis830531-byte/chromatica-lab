@@ -30,7 +30,7 @@ async function failure(action, pattern) {
 }
 
 before(async () => {
-  await admin.from("world_boss_events").delete().in("event_key", ["2099-01-02", "2099-01-09", "2099-01-16", "2099-01-23"]);
+  await admin.from("world_boss_events").delete().in("event_key", ["2099-01-02", "2099-01-09", "2099-01-16", "2099-01-23", "2099-02-06"]);
   const email = `world-boss-${crypto.randomUUID()}@example.test`;
   const created = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   assert.ifError(created.error);
@@ -51,7 +51,7 @@ before(async () => {
   assert.ifError((await admin.from("game_saves").insert({
     user_id: user.id, revision: 1, schema_version: 1,
     snapshot: { data: {
-      "chromatica.waterDrops": "250",
+      "chromatica.waterDrops": "130",
       "chromatica.spiritCollection": JSON.stringify([
         { species: "melody-sprout", stage: 3, harvested: true },
         { species: "mushroom-spirit", stage: 3, harvested: true },
@@ -79,17 +79,113 @@ before(async () => {
 
 after(async () => {
   if (user?.id) await admin.auth.admin.deleteUser(user.id);
-  await admin.from("world_boss_events").delete().in("event_key", ["2099-01-02", "2099-01-09", "2099-01-16", "2099-01-23"]);
+  await admin.from("world_boss_events").delete().in("event_key", ["2099-01-02", "2099-01-09", "2099-01-16", "2099-01-23", "2099-02-06"]);
 });
 
 test("skill learning is server-side, costs 100 once, and is idempotent", async () => {
   const requestId = crypto.randomUUID();
   const first = await rpc("learn_world_boss_skill", { p_species: "melody-sprout", p_request_id: requestId });
   assert.equal(first[0].skill_name, "森律共鳴・萬葉齊奏");
+  assert.equal(first[0].water_drops, 30);
+  assert.equal(first[0].game_save_snapshot.data["chromatica.waterDrops"], "30");
   const repeated = await rpc("learn_world_boss_skill", { p_species: "melody-sprout", p_request_id: crypto.randomUUID() });
   assert.equal(repeated[0].applied_revision, first[0].applied_revision);
   const save = await admin.from("game_saves").select("snapshot").eq("user_id", user.id).single();
-  assert.equal(save.data.snapshot.data["chromatica.waterDrops"], "150");
+  assert.equal(save.data.snapshot.data["chromatica.waterDrops"], "30");
+});
+
+test("event-start and daily-practice energy are separate and concurrency-safe", async () => {
+  const firstContext = await rpc("get_world_boss_battle_context_v2", { p_log_limit: 5 });
+  const secondContext = await rpc("get_world_boss_battle_context_v2", { p_log_limit: 5 });
+  assert.equal(firstContext.light_energy, 1);
+  assert.equal(secondContext.light_energy, 1);
+  const eventStartGrants = await admin.from("world_boss_energy_grants")
+    .select("id", { count: "exact" })
+    .eq("event_id", firstContext.event_id)
+    .eq("user_id", user.id)
+    .eq("source", "event_start");
+  assert.ifError(eventStartGrants.error);
+  assert.equal(eventStartGrants.count, 1);
+
+  const attempts = await Promise.all(Array.from({ length: 6 }, () => rpc(
+    "grant_world_boss_practice_energy_v2",
+    { p_request_id: crypto.randomUUID() },
+  )));
+  assert.equal(attempts.filter((rows) => rows[0].world_boss_daily_practice_energy_granted).length, 1);
+  assert.equal(attempts.some((rows) => rows[0].world_boss_event_start_energy_granted), false);
+  const finalContext = await rpc("get_world_boss_battle_context_v2", { p_log_limit: 5 });
+  assert.equal(finalContext.light_energy, 2);
+});
+
+test("exchange-and-attack is atomic and returns the authoritative water snapshot", async () => {
+  const atomicEvent = await admin.from("world_boss_events").insert({
+    event_key: "2099-02-06", boss_key: "tree-sparrow", scheduled_at: new Date().toISOString(),
+    starts_at: new Date(Date.now() - 60_000).toISOString(),
+    ends_at: new Date(Date.now() + 3_600_000).toISOString(),
+    status: "active", max_hp: 3000, remaining_hp: 3000,
+  }).select("id").single();
+  assert.ifError(atomicEvent.error);
+  assert.ifError((await admin.from("world_boss_player_states").insert({
+    event_id: atomicEvent.data.id, user_id: user.id, light_energy: 0,
+  })).error);
+  assert.ifError((await admin.from("world_boss_energy_grants").insert({
+    event_id: atomicEvent.data.id, user_id: user.id, source: "event_start",
+    quantity: 1, consumed_quantity: 1, request_id: crypto.randomUUID(),
+  })).error);
+
+  const current = await admin.from("game_saves").select("snapshot,revision").eq("user_id", user.id).single();
+  const twoDrops = structuredClone(current.data.snapshot);
+  twoDrops.data["chromatica.waterDrops"] = "2";
+  assert.ifError((await admin.from("game_saves").update({
+    snapshot: twoDrops, revision: current.data.revision + 1,
+  }).eq("user_id", user.id)).error);
+  const beforeAttacks = await admin.from("world_boss_attacks")
+    .select("id", { count: "exact", head: true }).eq("event_id", atomicEvent.data.id);
+  await failure(() => rpc("exchange_and_attack_world_boss", {
+    p_event_id: atomicEvent.data.id, p_species: "melody-sprout", p_stage: 3,
+    p_attack_type: "normal", p_exchange_request_id: crypto.randomUUID(),
+    p_attack_request_id: crypto.randomUUID(),
+  }), /insufficient water/);
+  const failedSave = await admin.from("game_saves").select("snapshot").eq("user_id", user.id).single();
+  const failedEvent = await admin.from("world_boss_events").select("remaining_hp").eq("id", atomicEvent.data.id).single();
+  const failedAttacks = await admin.from("world_boss_attacks")
+    .select("id", { count: "exact", head: true }).eq("event_id", atomicEvent.data.id);
+  assert.equal(failedSave.data.snapshot.data["chromatica.waterDrops"], "2");
+  assert.equal(failedEvent.data.remaining_hp, 3000);
+  assert.equal(failedAttacks.count, beforeAttacks.count);
+
+  const failedSaveRow = await admin.from("game_saves").select("snapshot,revision").eq("user_id", user.id).single();
+  const tenDrops = structuredClone(failedSaveRow.data.snapshot);
+  tenDrops.data["chromatica.waterDrops"] = "10";
+  assert.ifError((await admin.from("game_saves").update({
+    snapshot: tenDrops, revision: failedSaveRow.data.revision + 1,
+  }).eq("user_id", user.id)).error);
+  const attackRequestId = crypto.randomUUID();
+  const exchangeRequestId = crypto.randomUUID();
+  const success = await rpc("exchange_and_attack_world_boss", {
+    p_event_id: atomicEvent.data.id, p_species: "melody-sprout", p_stage: 3,
+    p_attack_type: "normal", p_exchange_request_id: exchangeRequestId,
+    p_attack_request_id: attackRequestId,
+  });
+  assert.equal(success[0].water_drops, 7);
+  assert.equal(success[0].game_save_snapshot.data["chromatica.waterDrops"], "7");
+  assert.equal(success[0].effective_damage, 60);
+  const repeated = await rpc("exchange_and_attack_world_boss", {
+    p_event_id: atomicEvent.data.id, p_species: "melody-sprout", p_stage: 3,
+    p_attack_type: "normal", p_exchange_request_id: exchangeRequestId,
+    p_attack_request_id: attackRequestId,
+  });
+  assert.equal(repeated[0].water_drops, 7);
+  const attackCount = await admin.from("world_boss_attacks")
+    .select("id", { count: "exact", head: true })
+    .eq("event_id", atomicEvent.data.id).eq("user_id", user.id);
+  assert.equal(attackCount.count, 1);
+  const restoreRow = await admin.from("game_saves").select("snapshot,revision").eq("user_id", user.id).single();
+  const restored = structuredClone(restoreRow.data.snapshot);
+  restored.data["chromatica.waterDrops"] = "250";
+  assert.ifError((await admin.from("game_saves").update({
+    snapshot: restored, revision: restoreRow.data.revision + 1,
+  }).eq("user_id", user.id)).error);
 });
 
 test("formal attacks accept a cultivating spirit only through its unlocked stage", async () => {

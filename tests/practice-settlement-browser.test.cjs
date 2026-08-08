@@ -4,12 +4,12 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const fixture = path.join(__dirname, "fixtures", "practice-settlement-visual.html");
+const fixture = path.join(__dirname, "fixtures", "practice-settlement-mobile-host.html");
 
 function inspect(extra = []) {
   const result = spawnSync(chrome, [
     "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
-    "--window-size=390,844", "--allow-file-access-from-files", "--virtual-time-budget=3000",
+    "--window-size=500,900", "--allow-file-access-from-files", "--virtual-time-budget=3000",
     ...extra, "--dump-dom", `file://${fixture}`,
   ], { encoding: "utf8", timeout: 30000 });
   assert.equal(result.status, 0, result.stderr || "headless Chrome failed");
@@ -31,6 +31,12 @@ test("real mobile layout keeps the settlement fixed bounded and internally scrol
   assert.equal(result.waterRewardMaxWidth, "160px");
   assert.ok(result.waterRewardRect.width <= 160);
   assert.ok(Math.abs((result.waterRewardRect.x + result.waterRewardRect.width / 2) - (result.viewport.width / 2)) <= 1);
+  assert.equal(result.viewport.width, 360);
+  assert.equal(result.horizontalOverflow, false);
+  assert.match(result.energyRewardText, /光之能量.*每日首次有效練習.*\+1/);
+  assert.equal(result.energyIconPath, "../../public/assets/world-boss/光之能量.png");
+  assert.equal(result.energyIconRect.width, 28);
+  assert.equal(result.energyIconRect.height, 28);
 });
 
 test("real reduced-motion layout removes item movement without hiding results", () => {

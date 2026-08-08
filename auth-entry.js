@@ -552,6 +552,11 @@ window.chromaticaAccountWorkspace = {
     if (isGardenQaSessionActive()) return Promise.resolve(null);
     return cloudSaveService?.handleForeground?.() || Promise.resolve(null);
   },
+  applyAuthoritativeGameSave(payload) {
+    if (isGardenQaSessionActive()) return Promise.resolve({ kind: "qa-isolated" });
+    return cloudSaveService?.applyAuthoritativeGameSave?.(payload)
+      || Promise.resolve({ kind: "unavailable" });
+  },
 };
 
 function cleanWebCallbackUrl(url) {
@@ -1318,8 +1323,10 @@ const LEADERBOARD_RPC_ALLOWLIST = new Set([
   "save_announcement",
   "set_announcement_published",
   "get_world_boss_status",
+  "get_world_boss_battle_context_v2",
   "get_my_world_boss_skills",
   "learn_world_boss_skill",
+  "grant_world_boss_practice_energy_v2",
   "grant_world_boss_practice_energy",
   "exchange_world_boss_energy",
   "attack_world_boss",

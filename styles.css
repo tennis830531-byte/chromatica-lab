@@ -8271,6 +8271,7 @@ body.simple-motion .plant-action-layer.is-stage-up {
 }
 .practice-settlement-item.is-visible { animation: practiceSettlementItemIn 320ms ease-out both; }
 .practice-settlement-item-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: #f2d9aa; font-size: 22px; }
+.practice-settlement-item-icon img { display: block; width: 28px; height: 28px; object-fit: contain; }
 .practice-settlement-item-copy { min-width: 0; }
 .practice-settlement-item-copy strong,
 .practice-settlement-item-copy small { display: block; }

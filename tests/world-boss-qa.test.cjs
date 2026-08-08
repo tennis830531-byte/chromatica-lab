@@ -159,10 +159,13 @@ test("QA collection skill learning shares formal UI but keeps water and unlocks 
 test("QA attacks share formal attack and counter presentation without formal writes", () => {
   const qaAttack = functionBody("performQaAttack", "createQaSettlement");
   const formalFlow = functionBody("performAttack", "confirmExchangeAndAttack");
+  const successFlow = functionBody("presentSuccessfulAttack", "performAttack");
   assert.doesNotMatch(qaAttack, /rpc\(|leaderboardRpc|fetch\(|notification|game_saves/);
   assert.match(formalFlow, /isQaMode\(\)[\s\S]*performQaAttack/);
-  assert.match(formalFlow, /playAttackEffect\(type\)/);
+  assert.match(formalFlow, /presentSuccessfulAttack/);
+  assert.match(successFlow, /playAttackEffect\(type\)/);
   assert.match(formalFlow, /await playBossCounter\(\)/);
+  assert.match(qaAttack, /attack_id: `qa-attack-\$\{session\.event\.player_attack_count\}`/);
   assert.match(qaAttack, /type === "special" \? 100 : Number\(core\(\)\?\.getNormalDamage/);
   assert.match(qaAttack, /Math\.min\(attemptedDamage, session\.event\.remaining_hp\)/);
   assert.match(qaAttack, /is_first_hit: isFirstHit/);

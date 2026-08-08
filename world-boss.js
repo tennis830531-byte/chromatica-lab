@@ -481,7 +481,6 @@
         const element = $(selector);
         if (element) element.disabled = locked;
       });
-    $("#worldBossArena")?.classList.toggle("is-attacking", locked);
   }
 
   function renderEntry() {
@@ -822,7 +821,7 @@
     try {
       let result;
       try {
-        result = await rpc("get_world_boss_battle_context", { p_log_limit: 30 });
+        result = await rpc("get_world_boss_battle_context_v2", { p_log_limit: 30 });
       } catch (error) {
         if (!isUnavailable(error)) throw error;
         result = await rpc("get_world_boss_status");
@@ -849,10 +848,15 @@
     const effect = $("#worldBossAttackEffect");
     if (!arena || !effect) return;
     arena.dataset.attackType = type;
+    arena.classList.remove("is-attacking");
     effect.classList.remove("hidden", "is-playing");
-    void effect.offsetWidth;
+    void arena.offsetWidth;
+    arena.classList.add("is-attacking");
     effect.classList.add("is-playing");
-    window.setTimeout(() => effect.classList.add("hidden"), 520);
+    window.setTimeout(() => {
+      effect.classList.add("hidden");
+      arena.classList.remove("is-attacking");
+    }, 520);
   }
 
   function finishBossCounter() {
@@ -905,6 +909,18 @@
     modal.classList.remove("is-playing");
   }
 
+  async function presentSuccessfulAttack({ type, species, row }) {
+    if (!row?.attack_id || Number(row?.effective_damage || 0) <= 0) {
+      throw new Error("攻擊未完成，未播放攻擊動畫。");
+    }
+    if (type === "special") await playSpecialAttackPresentation(species);
+    playNormalAttackSound();
+    if (type === "special") void window.ChromaticaHaptics?.long?.();
+    else void window.ChromaticaHaptics?.success?.();
+    playAttackEffect(type);
+    $("#worldBossMessage").textContent = `造成 ${Number(row.effective_damage)} 點有效傷害！`;
+  }
+
   async function performAttack(type, { exchange = false } = {}) {
     if (state.busy || state.status !== "ready" || state.event?.status !== "active") return;
     const { species, stage } = selectedSpirit();
@@ -915,10 +931,20 @@
       $("#worldBossExchangeAttackModal")?.classList.remove("hidden");
       return;
     }
+    const gardenLockAcquired = !exchange || isQaMode()
+      ? false
+      : window.chromaticaApp?.beginFormalGardenMutation?.() === true;
+    if (exchange && !isQaMode() && !gardenLockAcquired) {
+      $("#worldBossMessage").textContent = "花園資料正在同步，請稍後再試。";
+      return;
+    }
     setBattleLocked(true);
-    $("#worldBossMessage").textContent = type === "special" ? "正在施放專屬技能…" : "正在攻擊…";
+    $("#worldBossMessage").textContent = exchange ? "正在確認兌換與攻擊…" : "正在確認攻擊…";
     try {
-      if (type === "special") await playSpecialAttackPresentation(species);
+      if (exchange && !isQaMode()) {
+        const syncState = await window.chromaticaAccountWorkspace?.syncBestEffort?.();
+        if (syncState && syncState.status !== "synced") throw new Error("game-save-sync-required");
+      }
       const params = {
         p_event_id: state.event?.event_id,
         p_species: species,
@@ -939,19 +965,26 @@
           })
           : await rpc("attack_world_boss", params);
       const row = Array.isArray(result) ? result[0] : result;
-      playNormalAttackSound();
-      if (type === "special") void window.ChromaticaHaptics?.long?.();
-      else void window.ChromaticaHaptics?.success?.();
-      playAttackEffect(type);
-      $("#worldBossMessage").textContent = `造成 ${Number(row?.effective_damage || 0)} 點有效傷害！`;
+      if (!row?.attack_id || Number(row?.effective_damage || 0) <= 0) throw new Error("攻擊未完成，未播放攻擊動畫。");
+      if (exchange && !isQaMode()) {
+        await window.chromaticaApp?.applyAuthoritativeGardenGameSave?.(row);
+      }
+      await presentSuccessfulAttack({ type, species, row });
       await refresh();
       if (Number(row?.effective_damage || 0) > 0 && Number(row?.remaining_hp || 0) > 0) {
         await playBossCounter();
       }
     } catch (error) {
-      $("#worldBossMessage").textContent = error?.message || "攻擊未完成，請稍後再試。";
+      if (!isQaMode()) {
+        await window.chromaticaApp?.refreshAuthoritativeGardenGameSave?.().catch(() => null);
+      }
+      const message = String(error?.message || "");
+      $("#worldBossMessage").textContent = /insufficient[-_ ]water|water[-_ ]insufficient/i.test(message)
+        ? "水滴不足，無法兌換光之能量"
+        : message || "攻擊未完成，請稍後再試。";
     } finally {
       setBattleLocked(false);
+      if (gardenLockAcquired) window.chromaticaApp?.endFormalGardenMutation?.();
     }
   }
 
@@ -1012,6 +1045,7 @@
     saveQaSession(session);
     applyQaSession(session);
     return {
+      attack_id: `qa-attack-${session.event.player_attack_count}`,
       attempted_damage: attemptedDamage,
       effective_damage: effectiveDamage,
       remaining_hp: session.event.remaining_hp,
@@ -1221,6 +1255,8 @@
     const skill = core()?.getSkill?.(species);
     const qaAdapter = isQaMode() ? window.ChromaticaGardenQA?.getDetailAdapter?.() : null;
     if (!skill || (qaAdapter ? qaAdapter.isSkillUnlocked(species) : state.skillUnlocks.has(species))) return;
+    const gardenLockAcquired = qaAdapter ? true : window.chromaticaApp?.beginFormalGardenMutation?.() === true;
+    if (!gardenLockAcquired) return;
     $("#worldBossSkillLearnConfirmModal")?.classList.add("hidden");
     state.busy = true;
     $("#gardenSpiritSkillStatus").textContent = "正在安全學習技能…";
@@ -1232,19 +1268,32 @@
           throw new Error("qa-skill-unavailable");
         }
       } else {
+        const syncState = await window.chromaticaAccountWorkspace?.syncBestEffort?.();
+        if (syncState && syncState.status !== "synced") throw new Error("game-save-sync-required");
         const result = await rpc("learn_world_boss_skill", { p_species: species, p_request_id: requestId() });
         const row = Array.isArray(result) ? result[0] : result;
+        await window.chromaticaApp?.applyAuthoritativeGardenGameSave?.(row);
         state.skillUnlocks.set(species, row || { species });
       }
       window.chromaticaApp?.refreshGardenSpiritSkillPresentation?.();
       $("#gardenSpiritSkillStatus").textContent = "";
       showSkillSuccess(species);
     } catch (error) {
-      $("#gardenSpiritSkillStatus").textContent = error?.message?.includes("water")
-        ? "水滴不足，無法學習技能。" : "技能學習未完成，沒有扣除水滴。";
+      if (!qaAdapter) {
+        await window.chromaticaApp?.refreshAuthoritativeGardenGameSave?.().catch(() => null);
+        await refreshSkillUnlocks();
+      }
+      if (!qaAdapter && state.skillUnlocks.has(species)) {
+        $("#gardenSpiritSkillStatus").textContent = "";
+        showSkillSuccess(species);
+      } else {
+        $("#gardenSpiritSkillStatus").textContent = error?.message?.includes("water")
+          ? "水滴不足，無法學習技能。" : "技能學習未完成，正式花園狀態已重新同步。";
+      }
     } finally {
       state.busy = false;
       state.pendingSkillSpecies = "";
+      if (!qaAdapter) window.chromaticaApp?.endFormalGardenMutation?.();
     }
   }
 
@@ -1322,10 +1371,17 @@
   async function recordPracticeCompletion({ practiceDate } = {}) {
     if (isQaMode()) return null;
     try {
-      return await rpc("grant_world_boss_practice_energy", {
-        p_practice_date: practiceDate || new Date().toISOString().slice(0, 10),
+      const result = await rpc("grant_world_boss_practice_energy_v2", {
         p_request_id: requestId(),
       });
+      const row = Array.isArray(result) ? result[0] : result;
+      return {
+        eventId: row?.event_id || null,
+        lightEnergy: Number(row?.light_energy || 0),
+        practiceDate: row?.practice_date || practiceDate || null,
+        worldBossEventStartEnergyGranted: row?.world_boss_event_start_energy_granted === true,
+        worldBossDailyPracticeEnergyGranted: row?.world_boss_daily_practice_energy_granted === true,
+      };
     } catch (error) {
       if (!isUnavailable(error)) console.warn("World Boss practice energy was not recorded.");
       return null;

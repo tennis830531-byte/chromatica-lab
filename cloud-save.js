@@ -825,6 +825,28 @@ export function createCloudSaveService({
     return { reason, result, meta: readCloudSyncMeta(userId, targetStorage) };
   }
 
+  async function applyAuthoritativeGameSave({ revision, snapshot, updatedAt = "" } = {}) {
+    if (!activeUserId || resetInProgress) return { kind: "unavailable" };
+    const expectedGeneration = generation;
+    if (
+      syncFlight
+      && syncFlightUserId === activeUserId
+      && syncFlightGeneration === generation
+    ) {
+      await syncFlight;
+    }
+    if (!isCurrent(activeUserId, expectedGeneration)) return { kind: "stale" };
+    const normalizedRevision = normalizeRevision(revision);
+    if (normalizedRevision === null || !snapshot) return { kind: "invalid" };
+    const userId = activeUserId;
+    await acceptRemoteAsAuthority(userId, {
+      revision: normalizedRevision,
+      snapshot,
+      updatedAt,
+    }, expectedGeneration);
+    return { kind: "applied", revision: normalizedRevision };
+  }
+
   function deactivate() {
     generation += 1;
     activeUserId = "";
@@ -838,6 +860,7 @@ export function createCloudSaveService({
     noteLocalSnapshot,
     syncNow,
     resetCurrentWorkspace,
+    applyAuthoritativeGameSave,
     prepareForSignOut,
     deactivate,
     handleForeground: () => reconcileCurrent("foreground"),

@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8" /><title>360px settlement host</title></head>
+<body style="margin:0">
+  <iframe id="mobile" src="./practice-settlement-visual.html" title="360px settlement" style="display:block;width:360px;height:844px;border:0"></iframe>
+  <pre id="result"></pre>
+  <script>
+    const frame = document.querySelector("#mobile");
+    frame.addEventListener("load", () => {
+      setTimeout(() => {
+        document.querySelector("#result").textContent = frame.contentDocument.querySelector("#result").textContent;
+      }, 900);
+    });
+  </script>
+</body>
+</html>

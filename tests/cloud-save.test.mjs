@@ -103,6 +103,41 @@ test("snapshot hash is deterministic and ignores updatedAt", async () => {
   assert.equal(await hashAccountSnapshot(first), await hashAccountSnapshot(second));
 });
 
+test("authoritative server mutation replaces water, plant, and revision together", async () => {
+  const storage = new MemoryStorage();
+  const initial = makeSnapshot("user-authority", 130);
+  storeAccountSnapshot("user-authority", initial, storage);
+  storage.setItem(ACTIVE_ACCOUNT_KEY, "user-authority");
+  const row = {
+    user_id: "user-authority",
+    schema_version: 1,
+    revision: 4,
+    snapshot: initial,
+    client_updated_at: initial.updatedAt,
+    updated_at: initial.updatedAt,
+    created_at: initial.updatedAt,
+  };
+  const applied = [];
+  const service = createCloudSaveService({
+    client: new MockSupabaseClient(new Map([["user-authority", row]])),
+    storage,
+    onRemoteApplied: async (userId) => applied.push(userId),
+  });
+  await service.reconcileStartup("user-authority", initial);
+  const authoritative = makeSnapshot("user-authority", 30, "2026-08-08T00:00:00.000Z");
+  authoritative.data["chromatica.currentPlant"] = JSON.stringify({ id: "server-plant", stage: 3, waterProgress: 530 });
+  const result = await service.applyAuthoritativeGameSave({
+    revision: 5,
+    snapshot: authoritative,
+    updatedAt: authoritative.updatedAt,
+  });
+  assert.equal(result.kind, "applied");
+  assert.equal(storage.getItem("chromatica.waterDrops"), "30");
+  assert.equal(JSON.parse(storage.getItem("chromatica.currentPlant")).id, "server-plant");
+  assert.equal(readCloudSyncMeta("user-authority", storage).baseRevision, 5);
+  assert.deepEqual(applied, ["user-authority"]);
+});
+
 test("cloud fetch distinguishes found, missing, and errors", async () => {
   const row = {
     user_id: "user-a",

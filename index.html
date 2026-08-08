@@ -1500,7 +1500,7 @@
                 </button>
                 <div class="world-boss-attack-console">
                   <button id="worldBossAttackModeToggle" class="world-boss-attack-mode hidden" type="button">切換專屬技能</button>
-                  <button id="worldBossAttackAction" class="world-boss-attack-action primary-btn" type="button">
+                  <button id="worldBossAttackAction" class="world-boss-attack-action primary-btn" type="button" data-haptic="manual">
                     <img id="worldBossAttackActionIcon" src="./public/assets/world-boss/攻擊按鈕.png" alt="" />
                     <span id="worldBossAttackActionLabel">攻擊</span>
                     <b id="worldBossSpecialRemaining" class="world-boss-special-badge hidden" aria-label="專屬技能剩餘次數">2</b>
@@ -1574,7 +1574,7 @@
       <div class="feedback-modal paper-card">
         <h2 id="worldBossExchangeAttackTitle">兌換並立即攻擊？</h2>
         <p id="worldBossExchangeAttackCopy">目前沒有光之能量，是否花費 3 水滴兌換 1 顆光之能量並立即攻擊世界 Boss？</p>
-        <div class="feedback-actions"><button id="worldBossExchangeAttackCancel" class="secondary-btn" type="button">取消</button><button id="worldBossExchangeAttackConfirm" class="primary-btn" type="button">兌換並攻擊</button></div>
+        <div class="feedback-actions"><button id="worldBossExchangeAttackCancel" class="secondary-btn" type="button">取消</button><button id="worldBossExchangeAttackConfirm" class="primary-btn" type="button" data-haptic="manual">兌換並攻擊</button></div>
       </div>
     </div>
 
@@ -1599,7 +1599,7 @@
           <h3><img class="world-boss-info-heading-icon world-boss-info-energy-icon" src="./public/assets/world-boss/光之能量.png" alt="" aria-hidden="true" />光之能量</h3>
           <ul>
             <li>活動開始時免費獲得 1 顆。</li>
-            <li>週五、週六、週日每日首次有效練習，各獲得 1 顆。</li>
+            <li>活動期間每天第一次有效練習可獲得 1 顆（以台北日期計算）。</li>
             <li>可用 3 水滴兌換 1 顆光之能量，不設每場兌換上限。</li>
             <li>普通攻擊與專屬攻擊技能每次攻擊皆消耗 1 顆。</li>
             <li>活動結束後清除，不會保留到下一週。</li>
