@@ -163,7 +163,10 @@
   }
 
   function refreshHomeEntry() {
-    if (!state.busy && $("#intro.view.active")) return refresh();
+    if (!state.busy && $("#intro.view.active")) {
+      void refreshSkillUnlocks();
+      return refresh();
+    }
     return Promise.resolve(state.status);
   }
 
@@ -979,9 +982,12 @@
         await window.chromaticaApp?.refreshAuthoritativeGardenGameSave?.().catch(() => null);
       }
       const message = String(error?.message || "");
-      $("#worldBossMessage").textContent = /insufficient[-_ ]water|water[-_ ]insufficient/i.test(message)
+      const displayMessage = /insufficient[-_ ]water|water[-_ ]insufficient/i.test(message)
         ? "水滴不足，無法兌換光之能量"
         : message || "攻擊未完成，請稍後再試。";
+      $("#worldBossMessage").textContent = displayMessage;
+      if ($("#worldBossAttackErrorCopy")) $("#worldBossAttackErrorCopy").textContent = displayMessage;
+      $("#worldBossAttackErrorModal")?.classList.remove("hidden");
     } finally {
       setBattleLocked(false);
       if (gardenLockAcquired) window.chromaticaApp?.endFormalGardenMutation?.();
@@ -1417,6 +1423,9 @@
       $("#worldBossExchangeAttackModal")?.classList.add("hidden");
     });
     $("#worldBossExchangeAttackConfirm")?.addEventListener("click", () => void confirmExchangeAndAttack());
+    $("#worldBossAttackErrorClose")?.addEventListener("click", () => {
+      $("#worldBossAttackErrorModal")?.classList.add("hidden");
+    });
     $("#worldBossInfoOpen")?.addEventListener("click", () => {
       $("#worldBossInfoModal")?.classList.remove("hidden");
     });

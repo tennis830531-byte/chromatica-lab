@@ -58,6 +58,7 @@ test("exchange-and-attack stays atomic, returns the authoritative save, and anim
   assert.ok(attack.indexOf("applyAuthoritativeGardenGameSave") < attack.indexOf("presentSuccessfulAttack"));
   assert.match(attack, /if \(!row\?\.attack_id \|\| Number\(row\?\.effective_damage \|\| 0\) <= 0\)/);
   assert.match(attack, /水滴不足，無法兌換光之能量/);
+  assert.match(attack, /worldBossAttackErrorCopy[\s\S]*worldBossAttackErrorModal[\s\S]*classList\.remove\("hidden"\)/);
   assert.match(attack, /catch \(error\)[\s\S]*refreshAuthoritativeGardenGameSave/);
   assert.match(attack, /beginFormalGardenMutation[\s\S]*syncBestEffort[\s\S]*exchange_and_attack_world_boss/);
   assert.match(attack, /finally[\s\S]*endFormalGardenMutation/);
@@ -80,6 +81,18 @@ test("attack controls suppress generic click haptics and reserve feedback for se
   const html = read("index.html");
   assert.match(html, /id="worldBossAttackAction"[^>]*data-haptic="manual"/);
   assert.match(html, /id="worldBossExchangeAttackConfirm"[^>]*data-haptic="manual"/);
+  assert.match(html, /id="worldBossAttackErrorModal"[^>]*role="alertdialog"/);
+  assert.match(html, /id="worldBossAttackErrorCopy"[^>]*>攻擊未完成，請稍後再試。<\/p>/);
+  assert.match(html, /id="worldBossAttackErrorClose"[^>]*>我知道了<\/button>/);
+});
+
+test("authenticated home refresh reloads persisted skill unlocks after cold start", () => {
+  const homeRefresh = boss.slice(boss.indexOf("function refreshHomeEntry"), boss.indexOf("async function rpc"));
+  assert.match(homeRefresh, /refreshSkillUnlocks\(\)[\s\S]*return refresh\(\)/);
+  const skillRefresh = boss.slice(boss.indexOf("async function refreshSkillUnlocks"), boss.indexOf("function showSkillSuccess"));
+  assert.match(skillRefresh, /get_my_world_boss_skills/);
+  assert.match(skillRefresh, /state\.skillUnlocks = new Map/);
+  assert.match(skillRefresh, /refreshGardenSpiritSkillPresentation/);
 });
 
 test("one shared account-workspace path applies server game saves", () => {
